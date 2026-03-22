@@ -215,6 +215,35 @@ createAudioInput.addEventListener('change', async () => {
   }
 });
 
+// ── Podcast Audio Import (Create flow) ──
+const createPodcastAudioInput = $('create-podcast-audio-input');
+const btnCreatePodcastAudio = $('btn-create-podcast-audio');
+if (btnCreatePodcastAudio) {
+  btnCreatePodcastAudio.addEventListener('click', () => createPodcastAudioInput.click());
+}
+if (createPodcastAudioInput) {
+  createPodcastAudioInput.addEventListener('change', async () => {
+    const file = createPodcastAudioInput.files[0];
+    if (!file) return;
+    createPodcastAudioInput.value = '';
+    try {
+      createAudioFile = file;
+      createOriginalBuffer = await loadAudioBuffer(file);
+      createAudioBuffer = createOriginalBuffer;
+      createAudioName.textContent = file.name;
+      createDetectedRegions = [];
+      btnCreateSilApply.disabled = true;
+      createSilInfo.textContent = '';
+      createSilVisual.style.display = 'none';
+      updateCreateButtons();
+      updateStepStates();
+      await showCreateAudioEditor();
+    } catch (e) {
+      createAudioName.textContent = 'Error: ' + e.message;
+    }
+  });
+}
+
 // ── Speaker Video Import (Create flow) ──
 let createPipVideoEl = null;
 let createPipVideoSrc = null;
@@ -418,7 +447,7 @@ createGcloudTtsKey.addEventListener('blur', () => {
 });
 
 function setCreateInputMode(mode) {
-  createInputMode = mode === 'video' ? 'voice' : mode; // video mode uses voice transcription
+  createInputMode = mode === 'video' ? 'podcast' : mode; // video tab = podcast mode
   createModeVoice.classList.toggle('active', mode === 'voice');
   createModeVideo.classList.toggle('active', mode === 'video');
   createModeText.classList.toggle('active', mode === 'text');
@@ -931,31 +960,43 @@ function updateStepStates() {
     steps[3].classList.toggle('step-done', hasTranscript);
     steps[3].classList.toggle('step-active', hasKey && hasAudio && !hasTranscript);
   }
-  // steps[4] = Step 5: Storyboard (visible after transcription)
+  const hasChapters = createChapters && createChapters.length > 0;
+  const isPodcast = createInputMode === 'podcast';
+
+  // steps[4] = Step 5: Chapter Splitting (podcast only)
   if (steps[4]) {
-    steps[4].classList.toggle('step-done', hasImages);
-    steps[4].classList.toggle('step-active', hasTranscript && !hasImages);
-  }
-  // steps[5] = Step 6: Generate Images
-  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
-  if (steps[5]) {
-    steps[5].classList.toggle('step-done', allImagesDone);
-    steps[5].classList.toggle('step-active', hasTranscript && !allImagesDone);
-  }
-  // steps[6] = Step 7: Multi-Language (unlocked after Step 6 has images)
-  if (steps[6]) {
-    if (hasImages) {
-      steps[6].style.display = '';
-      renderPrimaryAudioCard();
+    if (isPodcast) {
+      steps[4].classList.toggle('step-done', hasChapters);
+      steps[4].classList.toggle('step-active', hasTranscript && !hasChapters);
+    } else {
+      steps[4].style.display = 'none';
     }
-    steps[6].classList.toggle('step-active', hasImages);
   }
-  // steps[7] = Step 8: Send to Editor (unlocked after Step 7 is visible)
+  // steps[5] = Step 6: Storyboard
+  if (steps[5]) {
+    steps[5].classList.toggle('step-done', hasImages);
+    steps[5].classList.toggle('step-active', hasScenes && !hasImages);
+  }
+  // steps[6] = Step 7: Generate Images
+  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
+  if (steps[6]) {
+    steps[6].classList.toggle('step-done', allImagesDone);
+    steps[6].classList.toggle('step-active', hasScenes && !allImagesDone);
+  }
+  // steps[7] = Step 8: Multi-Language (unlocked after images)
   if (steps[7]) {
     if (hasImages) {
       steps[7].style.display = '';
+      renderPrimaryAudioCard();
     }
     steps[7].classList.toggle('step-active', hasImages);
+  }
+  // steps[8] = Step 9: Send to Editor
+  if (steps[8]) {
+    if (hasImages) {
+      steps[8].style.display = '';
+    }
+    steps[8].classList.toggle('step-active', hasImages);
   }
 }
 
@@ -1100,7 +1141,20 @@ Important: sceneDescription should describe what should be SEEN, not just what i
             contents: [{
               parts: [
                 { inline_data: { mime_type: 'audio/wav', data: base64Data } },
-                { text: `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 5-15 seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
+                { text: createInputMode === 'podcast'
+                  ? `Transcribe this podcast audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 30-120 seconds each, splitting at natural topic or sentence boundaries.
+
+STRICT RULES:
+1. Segment length: 30-120 seconds. Split at natural pauses or topic changes.
+2. Segments MUST be perfectly contiguous — no gaps. First starts at 0, last ends at ${createAudioBuffer.duration.toFixed(1)}.
+3. EVERY part of the audio must be transcribed. Do NOT skip any section.
+4. If silence or music, still create a segment with text like "[instrumental]" or "[silence]".
+
+Return ONLY a valid JSON array:
+[{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
+
+Note: sceneDescription can be empty — it will be generated later per chapter.`
+                  : `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 5-15 seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
 
 STRICT RULES (MUST follow ALL):
 1. NO segment may exceed 15 seconds. If a natural segment is longer, split it into sub-segments of 15 seconds or less.
@@ -1174,34 +1228,44 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
       segments = fixed;
     }
 
-    // ── Common: build scenes from segments ──
+    // ── Common: save raw transcript ──
     createTranscript = segments;
-    createScenes = segments.map(s => ({
-      prompt: s.sceneDescription,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      duration: (s.endTime - s.startTime),
-      text: s.text,
-      imgDataUrl: null,
-      status: 'pending',
-    }));
 
     createTranscriptOutput.textContent = segments.map(s =>
       `[${fmt(s.startTime)} – ${fmt(s.endTime)}] ${s.text}`
     ).join('\n\n');
     createTranscriptOutput.classList.add('visible');
 
-    renderStoryboard();
-    createStoryboardStep.style.display = 'block';
-    createGenerateStep.style.display = 'block';
-    // Step 7 (language) and Step 8 (send) stay hidden until images are generated
-    createLanguageStep.style.display = 'none';
-    createSendStep.style.display = 'none';
+    if (createInputMode === 'podcast') {
+      // Podcast mode: show chapter step, don't build scenes yet
+      createChapterStep.style.display = 'block';
+      createStoryboardStep.style.display = 'none';
+      createGenerateStep.style.display = 'none';
+      createLanguageStep.style.display = 'none';
+      createSendStep.style.display = 'none';
+    } else {
+      // Audio/Text mode: build scenes directly from segments (existing flow)
+      createScenes = segments.map(s => ({
+        prompt: s.sceneDescription,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        duration: (s.endTime - s.startTime),
+        text: s.text,
+        imgDataUrl: null,
+        status: 'pending',
+      }));
+      renderStoryboard();
+      createStoryboardStep.style.display = 'block';
+      createGenerateStep.style.display = 'block';
+      createLanguageStep.style.display = 'none';
+      createSendStep.style.display = 'none';
+    }
     btnCreateSaveEarly.style.display = '';
 
     createTranscribeBar.style.width = '100%';
     const actionLabel = createInputMode === 'text' ? 'Generated' : 'Transcribed';
-    createTranscribeLabel.textContent = `${actionLabel} ${segments.length} segments. Review prompts in Step 5.`;
+    const nextStep = createInputMode === 'podcast' ? 'Set up chapters in Step 5.' : 'Review prompts in Step 6.';
+    createTranscribeLabel.textContent = `${actionLabel} ${segments.length} segments. ${nextStep}`;
     btnCreateTranscribe.textContent = `✓ ${actionLabel}`;
     setTimeout(() => createTranscribeProgress.classList.remove('visible'), 3000);
     updateCreateButtons();
@@ -1223,36 +1287,440 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
 });
 
 // Storyboard — shows prompts with timestamps for review
+// ══════════════════════════════════════════
+//  CHAPTER SPLITTING (Podcast only)
+// ══════════════════════════════════════════
+let createChapters = null;
+let createChapterMode = 'ai';
+const createChapterStep = $('create-chapter-step');
+const chapterModeAi = $('chapter-mode-ai');
+const chapterModeManual = $('chapter-mode-manual');
+const chapterAiSection = $('chapter-ai-section');
+const chapterManualSection = $('chapter-manual-section');
+const chapterList = $('chapter-list');
+const chapterControls = $('chapter-controls');
+const chapterSummary = $('chapter-summary');
+const btnChapterAiSplit = $('btn-chapter-ai-split');
+const btnAddChapter = $('btn-add-chapter');
+const btnChapterProceed = $('btn-chapter-proceed');
+const chapterAiStatus = $('chapter-ai-status');
+let nextChapterId = 1;
+
+// Mode toggle
+if (chapterModeAi) chapterModeAi.addEventListener('click', () => {
+  createChapterMode = 'ai';
+  chapterModeAi.classList.add('active');
+  chapterModeManual.classList.remove('active');
+  chapterAiSection.style.display = '';
+  chapterManualSection.style.display = 'none';
+});
+if (chapterModeManual) chapterModeManual.addEventListener('click', () => {
+  createChapterMode = 'manual';
+  chapterModeManual.classList.add('active');
+  chapterModeAi.classList.remove('active');
+  chapterAiSection.style.display = 'none';
+  chapterManualSection.style.display = '';
+  // Auto-create first chapter if none exist
+  if (!createChapters || createChapters.length === 0) {
+    const dur = createAudioBuffer ? createAudioBuffer.duration : 60;
+    createChapters = [{ id: nextChapterId++, title: 'Chapter 1', startTime: 0, endTime: dur, duration: dur, splits: suggestSplits(dur), transcript: '' }];
+  }
+  renderChapterCards();
+});
+
+function suggestSplits(chapterDuration) {
+  return Math.max(1, Math.min(15, Math.round(chapterDuration / 60)));
+}
+
+function getTranscriptForRange(start, end) {
+  if (!createTranscript) return '';
+  return createTranscript
+    .filter(s => s.startTime < end && s.endTime > start)
+    .map(s => s.text)
+    .filter(t => t && t !== '[continued]')
+    .join(' ')
+    .substring(0, 200);
+}
+
+// AI chapter detection
+if (btnChapterAiSplit) btnChapterAiSplit.addEventListener('click', async () => {
+  const key = getCreateGeminiKey();
+  if (!key || !createTranscript) return;
+  const dur = createAudioBuffer ? createAudioBuffer.duration : 60;
+
+  btnChapterAiSplit.disabled = true;
+  chapterAiStatus.textContent = 'Detecting chapters...';
+
+  try {
+    const fullText = createTranscript.map(s =>
+      `[${s.startTime.toFixed(1)}s-${s.endTime.toFixed(1)}s] ${s.text}`
+    ).join('\n');
+
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Analyze this podcast transcript and identify distinct topic chapters.\nAudio length: ${dur.toFixed(1)} seconds.\n\n${fullText}\n\nReturn a JSON array:\n[{"title":"Chapter Title","startTime":0,"endTime":300}]\n\nRules:\n- 3-10 chapters total\n- Minimum 60 seconds per chapter\n- Contiguous: first starts at 0, last ends at ${dur.toFixed(1)}, no gaps\n- Each chapter covers one main topic\n- Return ONLY valid JSON, no markdown` }] }],
+          generationConfig: { temperature: 0.3 }
+        })
+      }
+    );
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('No response');
+
+    const chapters = parseGeminiJson(text);
+    if (!Array.isArray(chapters) || chapters.length === 0) throw new Error('Invalid chapter format');
+
+    createChapters = chapters.map((ch, i) => ({
+      id: nextChapterId++,
+      title: ch.title || `Chapter ${i + 1}`,
+      startTime: ch.startTime || 0,
+      endTime: ch.endTime || dur,
+      duration: (ch.endTime || dur) - (ch.startTime || 0),
+      splits: suggestSplits((ch.endTime || dur) - (ch.startTime || 0)),
+      transcript: '',
+    }));
+
+    // Fill transcript previews
+    for (const ch of createChapters) {
+      ch.transcript = getTranscriptForRange(ch.startTime, ch.endTime);
+    }
+
+    renderChapterCards();
+    chapterAiStatus.textContent = `Detected ${createChapters.length} chapters`;
+  } catch(e) {
+    chapterAiStatus.textContent = 'Error: ' + friendlyApiError(e.message);
+    console.error('Chapter detection error:', e);
+  }
+  btnChapterAiSplit.disabled = false;
+});
+
+// Add chapter (manual mode)
+if (btnAddChapter) btnAddChapter.addEventListener('click', () => {
+  if (!createChapters) createChapters = [];
+  const dur = createAudioBuffer ? createAudioBuffer.duration : 60;
+  const lastEnd = createChapters.length > 0 ? createChapters[createChapters.length - 1].endTime : 0;
+  const newStart = lastEnd;
+  const newEnd = dur;
+  if (newStart >= newEnd) return;
+  const newDur = newEnd - newStart;
+  createChapters.push({
+    id: nextChapterId++,
+    title: `Chapter ${createChapters.length + 1}`,
+    startTime: newStart, endTime: newEnd,
+    duration: newDur,
+    splits: suggestSplits(newDur),
+    transcript: getTranscriptForRange(newStart, newEnd),
+  });
+  renderChapterCards();
+});
+
+// Render chapter cards
+function renderChapterCards() {
+  if (!chapterList) return;
+  chapterList.innerHTML = '';
+  if (!createChapters || createChapters.length === 0) {
+    chapterControls.style.display = 'none';
+    return;
+  }
+  chapterControls.style.display = '';
+
+  const totalDur = createAudioBuffer ? createAudioBuffer.duration : 60;
+  chapterSummary.textContent = `${createChapters.length} chapters · ${fmtShort(totalDur)} total`;
+
+  for (let i = 0; i < createChapters.length; i++) {
+    const ch = createChapters[i];
+    const card = document.createElement('div');
+    card.className = 'chapter-card';
+
+    const isManual = createChapterMode === 'manual';
+    card.innerHTML = `
+      <div class="chapter-card-header">
+        <span class="chapter-card-num">${i + 1}</span>
+        <input type="text" class="chapter-card-title" value="${ch.title}" data-idx="${i}">
+        <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.duration)}</span>
+        <button class="chapter-delete" data-idx="${i}" title="Delete chapter">✕</button>
+      </div>
+      <div class="chapter-card-body">
+        <label style="font-size:0.7rem;">From: <input type="text" class="chapter-time-input" value="${fmtShort(ch.startTime)}" data-idx="${i}" data-field="start" ${isManual ? '' : 'readonly'}></label>
+        <label style="font-size:0.7rem;">To: <input type="text" class="chapter-time-input" value="${fmtShort(ch.endTime)}" data-idx="${i}" data-field="end" ${isManual ? '' : 'readonly'}></label>
+      </div>
+      ${ch.transcript ? `<div class="chapter-transcript-preview">"${ch.transcript}"</div>` : ''}
+    `;
+
+    // Title edit
+    card.querySelector('.chapter-card-title').addEventListener('change', (e) => {
+      createChapters[i].title = e.target.value;
+    });
+
+    // Delete
+    card.querySelector('.chapter-delete').addEventListener('click', () => {
+      createChapters.splice(i, 1);
+      renderChapterCards();
+    });
+
+    // Time edits (manual mode only)
+    if (isManual) {
+      card.querySelectorAll('.chapter-time-input').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const idx = parseInt(inp.dataset.idx);
+          const field = inp.dataset.field;
+          const parts = inp.value.split(':');
+          const secs = (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+          if (field === 'start') {
+            createChapters[idx].startTime = Math.max(0, secs);
+          } else {
+            createChapters[idx].endTime = Math.min(totalDur, secs);
+          }
+          createChapters[idx].duration = createChapters[idx].endTime - createChapters[idx].startTime;
+          createChapters[idx].splits = suggestSplits(createChapters[idx].duration);
+          createChapters[idx].transcript = getTranscriptForRange(createChapters[idx].startTime, createChapters[idx].endTime);
+          renderChapterCards();
+        });
+      });
+    }
+
+    chapterList.appendChild(card);
+  }
+}
+
+// Proceed: build scenes from chapters
+if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
+  if (!createChapters || createChapters.length === 0) return;
+  btnChapterProceed.disabled = true;
+  btnChapterProceed.innerHTML = '<span class="spinner"></span> Generating storyboard...';
+
+  try {
+    // Build scenes from chapter splits
+    createScenes = [];
+    for (const ch of createChapters) {
+      const splitDur = ch.duration / ch.splits;
+      for (let i = 0; i < ch.splits; i++) {
+        const start = ch.startTime + i * splitDur;
+        const end = start + splitDur;
+        createScenes.push({
+          prompt: '',
+          startTime: start, endTime: end,
+          duration: splitDur,
+          text: getTranscriptForRange(start, end),
+          imgDataUrl: null, status: 'pending',
+          chapterId: ch.id, chapterTitle: ch.title,
+        });
+      }
+    }
+
+    // Generate scene descriptions via Gemini (batched per chapter)
+    const key = getCreateGeminiKey();
+    if (key) {
+      for (const ch of createChapters) {
+        const chScenes = createScenes.filter(s => s.chapterId === ch.id);
+        const sceneTexts = chScenes.map((s, i) => `Scene ${i + 1} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
+
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate visual scene descriptions for image generation.\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with one entry per scene:\n[{"sceneIndex":0,"sceneDescription":"A detailed visual description suitable for AI image generation: subject, composition, mood, colors, style"}]\n\nReturn ONLY valid JSON, no markdown.` }] }],
+              generationConfig: { temperature: 0.7 }
+            })
+          }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const descriptions = parseGeminiJson(text);
+            if (Array.isArray(descriptions)) {
+              for (const desc of descriptions) {
+                const idx = desc.sceneIndex ?? desc.segmentIndex;
+                if (idx !== undefined && chScenes[idx]) {
+                  chScenes[idx].prompt = desc.sceneDescription || '';
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Show storyboard + generate steps
+    renderStoryboard();
+    createStoryboardStep.style.display = 'block';
+    createGenerateStep.style.display = 'block';
+    updateCreateButtons();
+    updateStepStates();
+    autoSaveCreateState();
+  } catch(e) {
+    console.error('Chapter storyboard error:', e);
+    chapterAiStatus.textContent = 'Error building storyboard: ' + e.message;
+  }
+  btnChapterProceed.disabled = false;
+  btnChapterProceed.textContent = 'Generate Storyboard from Chapters →';
+});
+
+// Update chapter splits (called from storyboard split controls)
+async function updateChapterSplits(chapterId, newSplitCount) {
+  const ch = createChapters.find(c => c.id === chapterId);
+  if (!ch) return;
+  ch.splits = Math.max(1, Math.min(15, newSplitCount));
+
+  // Remove old scenes for this chapter
+  createScenes = createScenes.filter(s => s.chapterId !== chapterId);
+
+  // Build new scenes
+  const splitDur = ch.duration / ch.splits;
+  const newScenes = [];
+  for (let i = 0; i < ch.splits; i++) {
+    const start = ch.startTime + i * splitDur;
+    const end = start + splitDur;
+    newScenes.push({
+      prompt: '', startTime: start, endTime: end,
+      duration: splitDur,
+      text: getTranscriptForRange(start, end),
+      imgDataUrl: null, status: 'pending',
+      chapterId: ch.id, chapterTitle: ch.title,
+    });
+  }
+
+  // Insert at correct position
+  const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
+  createScenes.splice(insertIdx === -1 ? createScenes.length : insertIdx, 0, ...newScenes);
+
+  // Regenerate scene descriptions for this chapter
+  const key = getCreateGeminiKey();
+  if (key) {
+    try {
+      const sceneTexts = newScenes.map((s, i) => `Scene ${i + 1} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate visual scene descriptions.\n\nScenes:\n${sceneTexts}\n\nReturn JSON array:\n[{"sceneIndex":0,"sceneDescription":"visual description"}]\n\nReturn ONLY valid JSON.` }] }],
+            generationConfig: { temperature: 0.7 }
+          })
+        }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const descriptions = parseGeminiJson(text);
+          if (Array.isArray(descriptions)) {
+            for (const desc of descriptions) {
+              const idx = desc.sceneIndex ?? desc.segmentIndex;
+              if (idx !== undefined && newScenes[idx]) {
+                newScenes[idx].prompt = desc.sceneDescription || '';
+              }
+            }
+          }
+        }
+      }
+    } catch(e) { console.warn('Scene description regen error:', e); }
+  }
+
+  renderStoryboard();
+  renderCreateSceneCards();
+  updateStepStates();
+}
+
+function renderStoryboardSceneCard(scene, idx) {
+  const card = document.createElement('div');
+  card.className = 'storyboard-card';
+  card.innerHTML = `
+    <div class="storyboard-time">
+      <span class="time-badge">${fmt(scene.startTime)}</span>
+      <span class="time-badge">${fmt(scene.endTime)}</span>
+      <span class="time-dur">${scene.duration.toFixed(1)}s</span>
+    </div>
+    <div class="storyboard-content">
+      <div class="storyboard-transcript">🗣 "${scene.text}"</div>
+      <div class="storyboard-prompt-label">Image Prompt</div>
+      <textarea class="storyboard-prompt" id="create-storyboard-prompt-${idx}" rows="3">${scene.prompt}</textarea>
+    </div>
+  `;
+  const textarea = card.querySelector(`#create-storyboard-prompt-${idx}`);
+  textarea.addEventListener('input', () => {
+    createScenes[idx].prompt = textarea.value;
+    const scenePrompt = $(`create-scene-prompt-${idx}`);
+    if (scenePrompt) scenePrompt.value = textarea.value;
+  });
+  return card;
+}
+
 function renderStoryboard() {
   createStoryboardGrid.innerHTML = '';
   if (!createScenes) return;
 
-  createScenes.forEach((scene, idx) => {
-    const card = document.createElement('div');
-    card.className = 'storyboard-card';
-    card.innerHTML = `
-      <div class="storyboard-time">
-        <span class="time-badge">${fmt(scene.startTime)}</span>
-        <span class="time-badge">${fmt(scene.endTime)}</span>
-        <span class="time-dur">${scene.duration.toFixed(1)}s</span>
-      </div>
-      <div class="storyboard-content">
-        <div class="storyboard-transcript">🗣 "${scene.text}"</div>
-        <div class="storyboard-prompt-label">Image Prompt</div>
-        <textarea class="storyboard-prompt" id="create-storyboard-prompt-${idx}" rows="3">${scene.prompt}</textarea>
-      </div>
-    `;
-    createStoryboardGrid.appendChild(card);
+  // Podcast mode: group by chapters
+  if (createInputMode === 'podcast' && createChapters && createChapters.length > 0) {
+    for (const ch of createChapters) {
+      const chScenes = createScenes
+        .map((s, i) => ({ scene: s, globalIdx: i }))
+        .filter(({ scene }) => scene.chapterId === ch.id);
 
-    // Sync edits to createScenes
-    const textarea = card.querySelector(`#create-storyboard-prompt-${idx}`);
-    textarea.addEventListener('input', () => {
-      createScenes[idx].prompt = textarea.value;
-      // Also sync to scene card prompt if it exists
-      const scenePrompt = $(`create-scene-prompt-${idx}`);
-      if (scenePrompt) scenePrompt.value = textarea.value;
+      const group = document.createElement('div');
+      group.className = 'storyboard-chapter-group';
+
+      // Chapter header with split controls
+      const header = document.createElement('div');
+      header.className = 'storyboard-chapter-header';
+      const avgDur = ch.duration / ch.splits;
+      header.innerHTML = `
+        <span class="storyboard-chapter-toggle">▼</span>
+        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.startTime)}-${fmtShort(ch.endTime)}</span>
+        <div class="chapter-splits-control">
+          <button class="chapter-splits-btn" data-ch="${ch.id}" data-dir="-1">−</button>
+          <span class="chapter-splits-val">${ch.splits}</span>
+          <button class="chapter-splits-btn" data-ch="${ch.id}" data-dir="1">+</button>
+        </div>
+        <span class="storyboard-chapter-count">≈ ${avgDur.toFixed(0)}s each</span>
+      `;
+
+      const scenesContainer = document.createElement('div');
+      scenesContainer.className = 'storyboard-chapter-scenes';
+
+      // Toggle collapse
+      header.addEventListener('click', (e) => {
+        if (e.target.classList.contains('chapter-splits-btn')) return;
+        const isCollapsed = scenesContainer.classList.toggle('collapsed');
+        header.querySelector('.storyboard-chapter-toggle').textContent = isCollapsed ? '▶' : '▼';
+      });
+
+      // Split buttons
+      header.querySelectorAll('.chapter-splits-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const dir = parseInt(btn.dataset.dir);
+          const newCount = ch.splits + dir;
+          if (newCount >= 1 && newCount <= 15) {
+            updateChapterSplits(ch.id, newCount);
+          }
+        });
+      });
+
+      for (const { scene, globalIdx } of chScenes) {
+        scenesContainer.appendChild(renderStoryboardSceneCard(scene, globalIdx));
+      }
+
+      group.appendChild(header);
+      group.appendChild(scenesContainer);
+      createStoryboardGrid.appendChild(group);
+    }
+  } else {
+    // Audio/Text mode: flat list (existing behavior)
+    createScenes.forEach((scene, idx) => {
+      createStoryboardGrid.appendChild(renderStoryboardSceneCard(scene, idx));
     });
-  });
+  }
 }
 
 // Regenerate all prompts (re-ask Gemini for new scene descriptions)
@@ -1328,12 +1796,7 @@ function getSelectedImageSize() {
   return { width: w, height: h, ratio: `${w}/${h}` };
 }
 
-function renderCreateSceneCards() {
-  createSceneGrid.innerHTML = '';
-  if (!createScenes) return;
-  const { ratio } = getSelectedImageSize();
-
-  createScenes.forEach((scene, idx) => {
+function renderSceneCard(scene, idx, ratio) {
     const card = document.createElement('div');
     card.className = 'scene-card';
 
@@ -1367,8 +1830,6 @@ function renderCreateSceneCards() {
         </div>
       </div>
     `;
-    createSceneGrid.appendChild(card);
-
     // Image preview click
     const imgEl = card.querySelector('.scene-img img');
     if (imgEl) {
@@ -1434,7 +1895,67 @@ function renderCreateSceneCards() {
         refRow.style.display = 'none';
       });
     }
-  });
+
+    return card;
+}
+
+function renderCreateSceneCards() {
+  createSceneGrid.innerHTML = '';
+  if (!createScenes) return;
+  const { ratio } = getSelectedImageSize();
+
+  // Podcast mode: group by chapters
+  if (createInputMode === 'podcast' && createChapters && createChapters.length > 0) {
+    for (const ch of createChapters) {
+      const chScenes = createScenes
+        .map((s, i) => ({ scene: s, globalIdx: i }))
+        .filter(({ scene }) => scene.chapterId === ch.id);
+
+      const group = document.createElement('div');
+      group.className = 'storyboard-chapter-group';
+
+      const doneCount = chScenes.filter(({ scene }) => scene.imgDataUrl).length;
+      const header = document.createElement('div');
+      header.className = 'storyboard-chapter-header';
+      header.innerHTML = `
+        <span class="storyboard-chapter-toggle">▼</span>
+        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span class="storyboard-chapter-count">${doneCount}/${chScenes.length} images</span>
+        <button class="btn-gen-chapter primary" data-ch="${ch.id}" style="font-size:0.68rem; padding:3px 10px;">Generate Chapter</button>
+      `;
+
+      const scenesContainer = document.createElement('div');
+      scenesContainer.className = 'storyboard-chapter-scenes scene-grid';
+
+      header.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-gen-chapter')) return;
+        const isCollapsed = scenesContainer.classList.toggle('collapsed');
+        header.querySelector('.storyboard-chapter-toggle').textContent = isCollapsed ? '▶' : '▼';
+      });
+
+      // Generate chapter button
+      header.querySelector('.btn-gen-chapter').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const scenesToGen = chScenes.map(({ scene }) => scene).filter(s => s.status !== 'done');
+        if (scenesToGen.length === 0) return;
+        await runImageGeneration(scenesToGen);
+        renderCreateSceneCards();
+      });
+
+      for (const { scene, globalIdx } of chScenes) {
+        scenesContainer.appendChild(renderSceneCard(scene, globalIdx, ratio));
+      }
+
+      group.appendChild(header);
+      group.appendChild(scenesContainer);
+      createSceneGrid.appendChild(group);
+    }
+  } else {
+    // Audio/Text mode: flat grid
+    createScenes.forEach((scene, idx) => {
+      createSceneGrid.appendChild(renderSceneCard(scene, idx, ratio));
+    });
+  }
 }
 
 // Analyze reference image and update scene prompt
@@ -2222,15 +2743,21 @@ btnBackToCreate.addEventListener('click', () => {
   }
 
   if (createScenes && createScenes.length > 0) {
-    // Step 4: Show storyboard
+    // Show storyboard (Step 6)
     $('create-storyboard-step').style.display = '';
     renderStoryboard();
 
-    // Step 5: Show image generation
+    // Show image generation (Step 7)
     $('create-generate-step').style.display = '';
     renderCreateSceneCards();
 
-    // Step 6 & 7: Only show if images have been generated
+    // Show chapter step if podcast mode (Step 5)
+    if (createInputMode === 'podcast' && createChapters) {
+      $('create-chapter-step').style.display = '';
+      renderChapterCards();
+    }
+
+    // Steps 8 & 9: Only show if images have been generated
     const hasAnyImages = createScenes.some(s => s.imgDataUrl);
     if (hasAnyImages) {
       $('create-language-step').style.display = '';

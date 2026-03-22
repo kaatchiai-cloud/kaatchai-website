@@ -70,7 +70,7 @@
       <h3><span class="step-num">2</span> Input</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
-        <button id="create-mode-video" class="mode-btn">📹 Video</button>
+        <button id="create-mode-video" class="mode-btn">🎙️ Podcast</button>
         <button id="create-mode-text" class="mode-btn">✏️ Text</button>
       </div>
 
@@ -83,14 +83,16 @@
         </div>
       </div>
 
-      <!-- Video Input -->
+      <!-- Podcast Input -->
       <div id="create-video-section" style="display:none;">
-        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import a speaker/podcast video. Audio is extracted for voiceover, video becomes PiP overlay in the editor.</p>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <button id="btn-create-pip-import" style="font-size:0.78rem; padding:6px 16px;">📹 Choose Video File</button>
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import a podcast recording. Audio-only or video (audio extracted + video becomes PiP speaker overlay).</p>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="btn-create-podcast-audio" style="font-size:0.78rem; padding:6px 16px;">🎵 Import Audio</button>
+          <button id="btn-create-pip-import" style="font-size:0.78rem; padding:6px 16px;">📹 Import Video (+ PiP)</button>
           <span id="create-pip-name" style="font-size:0.72rem; color:var(--text-muted);"></span>
           <button id="btn-create-pip-remove" style="font-size:0.7rem; padding:3px 8px; display:none;" class="danger">✕</button>
         </div>
+        <input type="file" id="create-podcast-audio-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
         <input type="file" id="create-pip-input" accept="video/*" hidden>
       </div>
 
@@ -206,9 +208,36 @@
       <div class="create-transcript" id="create-transcript-output"></div>
     </div>
 
-    <!-- Step 5: Storyboard — Review & Edit Prompts -->
+    <!-- Step 5: Chapter Splitting (Podcast only) -->
+    <div class="create-step" id="create-chapter-step" style="display:none;">
+      <h3><span class="step-num">5</span> Chapter Splitting</h3>
+      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+        Split your podcast into chapters. Each chapter will get its own set of images in the storyboard.
+      </p>
+      <div class="input-mode-toggle" style="margin-bottom:14px;">
+        <button id="chapter-mode-ai" class="mode-btn active">🤖 AI Auto-Split</button>
+        <button id="chapter-mode-manual" class="mode-btn">✏️ Manual</button>
+      </div>
+      <div id="chapter-ai-section">
+        <button id="btn-chapter-ai-split" class="primary" style="font-size:0.78rem; padding:6px 16px;">🤖 Detect Chapters from Transcript</button>
+        <span id="chapter-ai-status" style="font-size:0.72rem; color:var(--text-muted); margin-left:8px;"></span>
+      </div>
+      <div id="chapter-manual-section" style="display:none;">
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Set chapter timestamps and titles below.</p>
+      </div>
+      <div id="chapter-list" style="margin-top:14px;"></div>
+      <div id="chapter-controls" style="display:none; margin-top:10px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="btn-add-chapter" style="font-size:0.75rem; padding:5px 14px;">+ Add Chapter</button>
+          <span id="chapter-summary" style="font-size:0.72rem; color:var(--text-muted);"></span>
+        </div>
+        <button id="btn-chapter-proceed" class="primary" style="margin-top:10px; font-size:0.78rem; padding:8px 20px;">Generate Storyboard from Chapters →</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Storyboard — Review & Edit Prompts -->
     <div class="create-step" id="create-storyboard-step" style="display:none;">
-      <h3><span class="step-num">5</span> Storyboard — Image Prompts</h3>
+      <h3><span class="step-num">6</span> Storyboard — Image Prompts</h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Review the AI-generated scene prompts below. Each prompt corresponds to a segment of your audio and will determine the image placed at that time on the photo timeline. Edit any prompt before generating images.
       </p>
@@ -239,7 +268,7 @@
 
     <!-- Step 6: Generate Images -->
     <div class="create-step" id="create-generate-step" style="display:none;">
-      <h3><span class="step-num">6</span> Generate Scene Images</h3>
+      <h3><span class="step-num">7</span> Generate Scene Images</h3>
       <div class="create-row" style="flex-wrap:wrap; gap:10px;">
         <label style="color:var(--text-secondary);">Provider:
           <select id="create-image-provider">
@@ -260,7 +289,7 @@
 
     <!-- Step 7: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
-      <h3><span class="step-num">7</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
+      <h3><span class="step-num">8</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
@@ -276,7 +305,7 @@
 
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" style="display:none;">
-      <h3><span class="step-num">8</span> Review & Send to Editor</h3>
+      <h3><span class="step-num">9</span> Review & Send to Editor</h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
