@@ -53,29 +53,41 @@
     }
 
     function renderPiP(ctx, cw, ch, elapsed) {
-      if (!pipEnabled || !pipVideoEl) return;
+      if (!pipItems || pipItems.length === 0) return;
 
-      const outTime = pipOutPoint || (currentBuffer ? currentBuffer.duration : Infinity);
-      if (elapsed < pipInPoint || elapsed > outTime) return;
+      // Find first active PiP at this time (first wins on overlap)
+      const pip = pipItems.find(p => {
+        const outTime = p.outPoint || (currentBuffer ? currentBuffer.duration : Infinity);
+        return elapsed >= p.inPoint && elapsed <= outTime && p.videoEl;
+      });
+      if (!pip) return;
 
       // Seek video to correct frame
-      const targetTime = elapsed - pipInPoint;
-      const clampedTime = Math.min(targetTime, pipVideoDuration || pipVideoEl.duration);
-      if (Math.abs(pipVideoEl.currentTime - clampedTime) > 0.05) {
-        pipVideoEl.currentTime = clampedTime;
+      const targetTime = elapsed - pip.inPoint;
+      const clampedTime = Math.min(targetTime, pip.videoDuration || pip.videoEl.duration);
+      if (Math.abs(pip.videoEl.currentTime - clampedTime) > 0.05) {
+        pip.videoEl.currentTime = clampedTime;
       }
 
+      // Use per-item settings with shared defaults as fallback
+      const pSize = pip.size || pipSize;
+      const pShape = pip.shape || pipShape;
+      const pBorder = pip.border ?? pipBorder;
+      const pBorderColor = pip.borderColor || pipBorderColor;
+      const pShadow = pip.shadow ?? pipShadow;
+      const pPosition = pip.position || pipPosition;
+
       // Dimensions
-      const pipW = Math.round(cw * pipSize / 100);
-      const pipH = pipShape === 'circle' ? pipW : Math.round(pipW * (pipVideoEl.videoHeight / (pipVideoEl.videoWidth || 1) || 0.75));
-      const pad = Math.max(pipBorder + 4, cw * 0.02);
+      const pipW = Math.round(cw * pSize / 100);
+      const pipH = pShape === 'circle' ? pipW : Math.round(pipW * (pip.videoEl.videoHeight / (pip.videoEl.videoWidth || 1) || 0.75));
+      const pad = Math.max(pBorder + 4, cw * 0.02);
 
       // Position
       let x, y;
-      if (pipCustomX !== null && pipCustomY !== null) {
-        x = pipCustomX; y = pipCustomY;
+      if (pip.customX !== null && pip.customX !== undefined && pip.customY !== null && pip.customY !== undefined) {
+        x = pip.customX; y = pip.customY;
       } else {
-        switch (pipPosition) {
+        switch (pPosition) {
           case 'top-left':     x = pad; y = pad; break;
           case 'top-center':   x = (cw - pipW) / 2; y = pad; break;
           case 'top-right':    x = cw - pipW - pad; y = pad; break;
@@ -90,31 +102,27 @@
 
       ctx.save();
 
-      // Shadow
-      if (pipShadow) {
+      if (pShadow) {
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 12;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
       }
 
-      // Border
-      if (pipBorder > 0) {
+      if (pBorder > 0) {
         ctx.beginPath();
-        drawPipShape(ctx, x - pipBorder, y - pipBorder, pipW + pipBorder * 2, pipH + pipBorder * 2, pipShape);
-        ctx.fillStyle = pipBorderColor;
+        drawPipShape(ctx, x - pBorder, y - pBorder, pipW + pBorder * 2, pipH + pBorder * 2, pShape);
+        ctx.fillStyle = pBorderColor;
         ctx.fill();
       }
 
-      // Reset shadow before drawing video
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
 
-      // Clip and draw video
       ctx.beginPath();
-      drawPipShape(ctx, x, y, pipW, pipH, pipShape);
+      drawPipShape(ctx, x, y, pipW, pipH, pShape);
       ctx.clip();
-      drawCoverFitRect(ctx, pipVideoEl, x, y, pipW, pipH);
+      drawCoverFitRect(ctx, pip.videoEl, x, y, pipW, pipH);
 
       ctx.restore();
     }

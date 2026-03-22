@@ -2524,9 +2524,21 @@ function renderLanguageCard(lang, status, detail) {
   card.className = `language-card ${status === 'done' ? 'done' : status === 'error' ? 'error' : ''}`;
   const track = languageTracks.find(t => t.langCode === lang.code);
   const playBtn = (status === 'done' && track) ? `<button class="lang-play" data-lang="${lang.code}">▶ Play</button>` : '';
+  // Subtitle language selector (shown when done)
+  const subLangOptions = (status === 'done') ? `
+    <label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
+      Sub:
+      <select class="lang-sub-select" data-lang="${lang.code}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
+        <option value="en" selected>English</option>
+        <option value="original">Original</option>
+        <option value="${lang.code}">${lang.name}</option>
+        <option value="none">None</option>
+      </select>
+    </label>` : '';
   card.innerHTML = `
     <span class="lang-name">${lang.flag} ${lang.name}</span>
     <span class="lang-status">${detail || status}</span>
+    ${subLangOptions}
     ${playBtn}
   `;
   if (status === 'done' && track) {
@@ -2536,6 +2548,11 @@ function renderLanguageCard(lang, status, detail) {
       src.connect(audioCtx.destination);
       src.start();
     });
+    const subSelect = card.querySelector('.lang-sub-select');
+    if (subSelect) {
+      subSelect.value = track.subtitleLang || 'en';
+      subSelect.addEventListener('change', () => { track.subtitleLang = subSelect.value; });
+    }
   }
 }
 
@@ -2560,7 +2577,21 @@ btnGenerateLanguages.addEventListener('click', async () => {
 
       renderLanguageCard(lang, 'working', 'Generating voice...');
       const ttsResult = await generateTTSGemini(translated, lang.geminiVoice, key);
-      const { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      let { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+
+      // Match duration to original audio by resampling
+      const targetDur = createAudioBuffer ? createAudioBuffer.duration : audioBuffer.duration;
+      if (Math.abs(audioBuffer.duration - targetDur) > 1) {
+        renderLanguageCard(lang, 'working', 'Matching duration...');
+        const rate = audioBuffer.duration / targetDur;
+        const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+        const src = offlineCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.playbackRate.value = rate;
+        src.connect(offlineCtx.destination);
+        src.start();
+        audioBuffer = await offlineCtx.startRendering();
+      }
 
       // Remove existing track for this language if re-generating
       languageTracks = languageTracks.filter(t => t.langCode !== lang.code);
@@ -2569,6 +2600,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         langCode: lang.code,
         audioBuffer,
         translatedText: translated,
+        subtitleLang: 'en', // default subtitle language
         status: 'done'
       });
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
@@ -2694,20 +2726,23 @@ btnCreateSendEditor.addEventListener('click', async () => {
 
   // Transfer PiP video to editor
   if (createPipVideoEl) {
-    pipVideoEl = createPipVideoEl;
-    pipVideoSrc = createPipVideoSrc;
-    pipVideoDuration = createPipVideoEl.duration;
-    pipEnabled = true;
-    pipInPoint = 0;
-    pipOutPoint = currentBuffer.duration;
-    pipPosition = 'bot-right';
-    pipCustomX = null; pipCustomY = null;
+    pipItems = [{
+      id: nextPipId++,
+      videoEl: createPipVideoEl,
+      videoSrc: createPipVideoSrc,
+      videoDuration: createPipVideoEl.duration,
+      inPoint: 0, outPoint: currentBuffer.duration,
+      position: 'bot-right', customX: null, customY: null,
+      size: pipSize, shape: pipShape,
+      border: pipBorder, borderColor: pipBorderColor,
+      shadow: pipShadow,
+      name: 'Speaker',
+    }];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = '';
-    const pipNm = $('pip-name');
-    if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+    if (typeof renderPipList === 'function') renderPipList();
   } else {
-    pipEnabled = false; pipVideoEl = null;
+    pipItems = [];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = 'none';
   }

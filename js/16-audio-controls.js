@@ -76,77 +76,114 @@
           videoEl.onloadedmetadata = resolve;
           videoEl.onerror = () => reject(new Error('Cannot load video'));
         });
-        pipVideoEl = videoEl;
-        pipVideoSrc = blobUrl;
-        pipVideoDuration = videoEl.duration;
-        pipEnabled = true;
-        pipInPoint = 0;
-        pipOutPoint = currentBuffer ? currentBuffer.duration : pipVideoDuration;
-        pipNameEl.textContent = `${file.name} (${fmtShort(pipVideoDuration)})`;
+        const dur = currentBuffer ? currentBuffer.duration : videoEl.duration;
+        // Find next available time slot
+        let inPoint = 0;
+        if (pipItems.length > 0) {
+          const lastEnd = Math.max(...pipItems.map(p => p.outPoint || dur));
+          inPoint = lastEnd < dur ? lastEnd : 0;
+        }
+        pipItems.push({
+          id: nextPipId++,
+          videoEl, videoSrc: blobUrl,
+          videoDuration: videoEl.duration,
+          inPoint, outPoint: dur,
+          position: pipPosition, customX: null, customY: null,
+          size: pipSize, shape: pipShape,
+          border: pipBorder, borderColor: pipBorderColor,
+          shadow: pipShadow,
+          name: file.name,
+        });
+        renderPipList();
         pipSectionEl.style.display = '';
-        setStatus(`PiP loaded: ${file.name}`);
+        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`);
       } catch(e) { setStatus('PiP error: ' + e.message); }
     });
 
+    let selectedPipId = null;
+
+    // Render list of PiP items in the pip-section bar
+    function renderPipList() {
+      pipNameEl.innerHTML = '';
+      if (pipItems.length === 0) {
+        pipNameEl.textContent = 'No video';
+        pipSectionEl.style.display = 'none';
+        pipPropsEl.classList.remove('visible');
+        return;
+      }
+      pipSectionEl.style.display = '';
+      for (const pip of pipItems) {
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-size:0.68rem; margin-right:4px; cursor:pointer;';
+        if (selectedPipId === pip.id) tag.style.borderColor = 'var(--accent)';
+        tag.innerHTML = `${pip.name || 'PiP'} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
+        tag.addEventListener('click', (e) => {
+          if (e.target.dataset.pipDel) {
+            pipItems = pipItems.filter(p => p.id !== pip.id);
+            if (selectedPipId === pip.id) { selectedPipId = null; pipPropsEl.classList.remove('visible'); }
+            renderPipList();
+            return;
+          }
+          selectedPipId = pip.id;
+          showPipProps(pip);
+          renderPipList();
+        });
+        pipNameEl.appendChild(tag);
+      }
+    }
+
     pipRemoveBtn.addEventListener('click', () => {
-      pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
-      pipEnabled = false; pipCustomX = null; pipCustomY = null;
+      pipItems = []; selectedPipId = null;
       pipSectionEl.style.display = 'none';
       pipPropsEl.classList.remove('visible');
-      setStatus('PiP removed');
+      setStatus('All PiP removed');
     });
+
+    function showPipProps(pip) {
+      pipPropsEl.classList.add('visible');
+      $('pip-size-input').value = pip.size || pipSize;
+      $('pip-shape-select').value = pip.shape || pipShape;
+      $('pip-border-input').value = pip.border ?? pipBorder;
+      $('pip-border-color-input').value = pip.borderColor || pipBorderColor;
+      $('pip-shadow-input').checked = pip.shadow ?? pipShadow;
+      $('pip-in-input').value = pip.inPoint || 0;
+      $('pip-out-input').value = pip.outPoint || 0;
+      $('pip-x').value = pip.customX ?? '';
+      $('pip-y').value = pip.customY ?? '';
+      $('pip-position-grid').querySelectorAll('button').forEach(b =>
+        b.classList.toggle('active', b.dataset.pos === (pip.position || pipPosition))
+      );
+    }
+
+    function getSelectedPip() { return pipItems.find(p => p.id === selectedPipId); }
 
     pipSettingsBtn.addEventListener('click', () => {
-      pipPropsEl.classList.toggle('visible');
-      if (pipPropsEl.classList.contains('visible')) {
-        // Sync UI with current state
-        $('pip-size-input').value = pipSize;
-        $('pip-shape-select').value = pipShape;
-        $('pip-border-input').value = pipBorder;
-        $('pip-border-color-input').value = pipBorderColor;
-        $('pip-shadow-input').checked = pipShadow;
-        $('pip-in-input').value = pipInPoint;
-        $('pip-out-input').value = pipOutPoint;
-        $('pip-x').value = pipCustomX ?? '';
-        $('pip-y').value = pipCustomY ?? '';
-        // Update position grid
-        $('pip-position-grid').querySelectorAll('button').forEach(b =>
-          b.classList.toggle('active', b.dataset.pos === pipPosition)
-        );
-      }
+      if (pipItems.length === 0) return;
+      const pip = getSelectedPip() || pipItems[0];
+      selectedPipId = pip.id;
+      showPipProps(pip);
+      renderPipList();
     });
 
-    $('pip-props-close').addEventListener('click', () => pipPropsEl.classList.remove('visible'));
+    $('pip-props-close').addEventListener('click', () => { pipPropsEl.classList.remove('visible'); selectedPipId = null; renderPipList(); });
 
-    // Position grid
+    // Position grid — applies to selected PiP
     $('pip-position-grid').addEventListener('click', (e) => {
       if (e.target.dataset.pos) {
-        pipPosition = e.target.dataset.pos;
-        pipCustomX = null; pipCustomY = null;
+        const pip = getSelectedPip(); if (!pip) return;
+        pip.position = e.target.dataset.pos;
+        pip.customX = null; pip.customY = null;
         $('pip-x').value = ''; $('pip-y').value = '';
-        $('pip-position-grid').querySelectorAll('button').forEach(b =>
-          b.classList.toggle('active', b.dataset.pos === pipPosition)
-        );
+        $('pip-position-grid').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.pos === pip.position));
       }
     });
 
-    // Custom x/y
-    $('pip-x').addEventListener('change', () => {
-      const v = $('pip-x').value;
-      pipCustomX = v !== '' ? parseInt(v) : null;
-      if (pipCustomX !== null && pipCustomY === null) pipCustomY = 0;
-    });
-    $('pip-y').addEventListener('change', () => {
-      const v = $('pip-y').value;
-      pipCustomY = v !== '' ? parseInt(v) : null;
-      if (pipCustomY !== null && pipCustomX === null) pipCustomX = 0;
-    });
-
-    // Other props
-    $('pip-size-input').addEventListener('change', () => { pipSize = Math.max(10, Math.min(50, parseInt($('pip-size-input').value) || 25)); });
-    $('pip-shape-select').addEventListener('change', () => { pipShape = $('pip-shape-select').value; });
-    $('pip-border-input').addEventListener('change', () => { pipBorder = Math.max(0, Math.min(10, parseInt($('pip-border-input').value) || 3)); });
-    $('pip-border-color-input').addEventListener('input', () => { pipBorderColor = $('pip-border-color-input').value; });
-    $('pip-shadow-input').addEventListener('change', () => { pipShadow = $('pip-shadow-input').checked; });
-    $('pip-in-input').addEventListener('change', () => { pipInPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); });
-    $('pip-out-input').addEventListener('change', () => { pipOutPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); });
+    $('pip-x').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { const v = $('pip-x').value; pip.customX = v !== '' ? parseInt(v) : null; if (pip.customX !== null && pip.customY === null) pip.customY = 0; } });
+    $('pip-y').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { const v = $('pip-y').value; pip.customY = v !== '' ? parseInt(v) : null; if (pip.customY !== null && pip.customX === null) pip.customX = 0; } });
+    $('pip-size-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.size = Math.max(10, Math.min(50, parseInt($('pip-size-input').value) || 25)); });
+    $('pip-shape-select').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.shape = $('pip-shape-select').value; });
+    $('pip-border-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.border = Math.max(0, Math.min(10, parseInt($('pip-border-input').value) || 3)); });
+    $('pip-border-color-input').addEventListener('input', () => { const pip = getSelectedPip(); if (pip) pip.borderColor = $('pip-border-color-input').value; });
+    $('pip-shadow-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.shadow = $('pip-shadow-input').checked; });
+    $('pip-in-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.inPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); renderPipList(); } });
+    $('pip-out-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.outPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); renderPipList(); } });

@@ -15,8 +15,7 @@ btnNewProject.addEventListener('click', (e) => {
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   currentSeriesName = ''; currentEpisodeNumber = 0;
-  pipEnabled = false; pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
-  pipCustomX = null; pipCustomY = null;
+  pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
   if (pipSec) pipSec.style.display = 'none';
   const pipPr = $('pip-props');

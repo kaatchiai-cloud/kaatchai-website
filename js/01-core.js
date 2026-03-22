@@ -33,17 +33,17 @@ let bgmGainNode = null, bgmSource = null;
 let currentSeriesName = '';
 let currentEpisodeNumber = 0;
 
-// Picture-in-Picture speaker video
-let pipVideoEl = null, pipVideoSrc = null, pipVideoDuration = 0;
-let pipEnabled = false;
+// Picture-in-Picture speaker videos (multiple, first wins on overlap)
+// Each: {id, videoEl, videoSrc, videoDuration, inPoint, outPoint, position, customX, customY, size, shape, border, borderColor, shadow}
+let pipItems = [];
+let nextPipId = 1;
+// Shared PiP defaults
 let pipPosition = 'bot-right';
-let pipCustomX = null, pipCustomY = null;
-let pipSize = 25;           // % of canvas width
-let pipShape = 'circle';    // 'circle' | 'rounded' | 'rectangle'
+let pipSize = 25;
+let pipShape = 'circle';
 let pipBorder = 3;
 let pipBorderColor = '#ffffff';
 let pipShadow = true;
-let pipInPoint = 0, pipOutPoint = 0; // 0 = full duration
 
 // Subtitle items (separate from user text items)
 let subtitleItems = [];

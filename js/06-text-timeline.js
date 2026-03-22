@@ -297,9 +297,7 @@
     const subDropZone = $('sub-drop-zone');
     const subtitleCountEl = $('subtitle-count');
     const subPropsEl = $('sub-props');
-    const spropText = $('sprop-text'), spropSize = $('sprop-size');
-    const spropColor = $('sprop-color'), spropStroke = $('sprop-stroke'), spropStrokeW = $('sprop-stroke-w');
-    const spropBgAlpha = $('sprop-bg-alpha');
+    const spropText = $('sprop-text');
     const spropStart = $('sprop-start'), spropDuration = $('sprop-duration');
     const spropDelete = $('sprop-delete');
 
@@ -474,11 +472,6 @@
       const item = subtitleItems.find(s => s.id === id);
       if (!item) { hideSubProps(); return; }
       spropText.value = item.text;
-      spropSize.value = item.fontSize;
-      spropColor.value = item.color;
-      spropStroke.value = item.strokeColor;
-      spropStrokeW.value = item.strokeWidth;
-      spropBgAlpha.value = item.bgAlpha;
       spropStart.value = item.startTime.toFixed(1);
       spropDuration.value = item.duration.toFixed(1);
       subPropsEl.classList.add('visible');
@@ -491,11 +484,6 @@
 
     // Subtitle property handlers
     spropText.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.text = spropText.value; renderSubtitles(); } });
-    spropSize.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.fontSize = Math.max(12, parseInt(spropSize.value) || 32); } });
-    spropColor.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.color = spropColor.value; } });
-    spropStroke.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.strokeColor = spropStroke.value; } });
-    spropStrokeW.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.strokeWidth = Math.max(0, parseInt(spropStrokeW.value) || 0); } });
-    spropBgAlpha.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.bgAlpha = Math.max(0, Math.min(1, parseFloat(spropBgAlpha.value) || 0)); } });
     spropStart.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.startTime = Math.max(0, parseFloat(spropStart.value) || 0); renderSubtitles(); showSubProps(it.id); } });
     spropDuration.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.duration = Math.max(0.3, parseFloat(spropDuration.value) || 1); renderSubtitles(); showSubProps(it.id); } });
     spropDelete.addEventListener('click', () => {
@@ -510,6 +498,33 @@
     if (subTimelineContainer) {
       subTimelineContainer.addEventListener('click', (e) => {
         if (e.target === subTimelineContainer) { selectedSubIds.clear(); hideSubProps(); renderSubtitles(); updateDeleteSelectedSubsBtn(); }
+      });
+    }
+
+    // Global subtitle style controls
+    const btnSubStyle = $('btn-sub-style');
+    const subGlobalStyle = $('sub-global-style');
+    if (btnSubStyle) {
+      btnSubStyle.addEventListener('click', () => {
+        subGlobalStyle.style.display = subGlobalStyle.style.display === 'none' ? '' : 'none';
+      });
+    }
+    const btnSubApplyStyle = $('btn-sub-apply-style');
+    if (btnSubApplyStyle) {
+      btnSubApplyStyle.addEventListener('click', () => {
+        const size = Math.max(16, Math.min(72, parseInt($('sub-global-size').value) || 32));
+        const color = $('sub-global-color').value;
+        const stroke = $('sub-global-stroke').value;
+        const strokeW = Math.max(0, parseInt($('sub-global-stroke-w').value) || 2);
+        const bgAlpha = Math.max(0, Math.min(1, parseFloat($('sub-global-bg-alpha').value) || 0.5));
+        for (const sub of subtitleItems) {
+          sub.fontSize = size;
+          sub.color = color;
+          sub.strokeColor = stroke;
+          sub.strokeWidth = strokeW;
+          sub.bgAlpha = bgAlpha;
+        }
+        setStatus(`Subtitle style applied to ${subtitleItems.length} subtitles`);
       });
     }
 

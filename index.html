@@ -609,7 +609,18 @@
     <div class="section-label" style="margin-top:12px;" id="subtitle-section-label">
       Subtitle Timeline
       <span class="badge" id="subtitle-count">0 subtitles</span>
-      <button id="btn-delete-selected-subs" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
+      <button id="btn-sub-style" style="font-size:0.68rem; padding:3px 8px; margin-left:auto;">🎨 Style</button>
+      <button id="btn-delete-selected-subs" class="danger" style="font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
+    </div>
+    <div id="sub-global-style" style="display:none; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:4px; font-size:0.72rem; display:none;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label style="color:var(--text-secondary);">Size: <input type="number" id="sub-global-size" min="16" max="72" value="32" style="width:45px;">px</label>
+        <label style="color:var(--text-secondary);">Color: <input type="color" id="sub-global-color" value="#ffffff"></label>
+        <label style="color:var(--text-secondary);">Stroke: <input type="color" id="sub-global-stroke" value="#000000"></label>
+        <label style="color:var(--text-secondary);">Stroke W: <input type="number" id="sub-global-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
+        <label style="color:var(--text-secondary);">BG α: <input type="number" id="sub-global-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
+        <button id="btn-sub-apply-style" class="primary" style="font-size:0.68rem; padding:3px 10px;">Apply to All</button>
+      </div>
     </div>
     <div id="sub-drop-zone" class="empty">
       <div id="sub-timeline-container">
@@ -623,11 +634,6 @@
       <label>Subtitle:
         <textarea id="sprop-text" placeholder="Subtitle text..."></textarea>
       </label>
-      <label>Size: <input type="number" id="sprop-size" min="12" max="200" value="32">px</label>
-      <label>Color: <input type="color" id="sprop-color" value="#ffffff"></label>
-      <label>Stroke: <input type="color" id="sprop-stroke" value="#000000"></label>
-      <label>Stroke W: <input type="number" id="sprop-stroke-w" min="0" max="20" step="1" value="2">px</label>
-      <label>BG α: <input type="number" id="sprop-bg-alpha" min="0" max="1" step="0.1" value="0.5"></label>
       <label>Start: <input type="number" id="sprop-start" step="0.1" min="0">s</label>
       <label>Dur: <input type="number" id="sprop-duration" step="0.1" min="0.3">s</label>
       <button id="sprop-delete" class="danger" style="font-size:0.75rem; padding:4px 10px;">Remove</button>

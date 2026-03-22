@@ -871,11 +871,12 @@ input:focus, select:focus, textarea:focus {
 .sub-block .resize-handle-left { left: 0; }
 .sub-block .resize-handle-right { right: 0; }
 .sub-block .delete-btn {
-  position: absolute; top: 2px; right: 2px; background: none; border: none;
-  color: var(--red); font-size: 0.75rem; cursor: pointer; z-index: 4;
-  opacity: 0; transition: opacity 0.15s;
+  position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); border: none;
+  color: var(--red); font-size: 0.7rem; cursor: pointer; z-index: 4;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
 }
-.sub-block:hover .delete-btn { opacity: 1; }
+.sub-block .delete-btn:hover { background: var(--red); color: #fff; }
 
 #sub-props {
   position: relative;

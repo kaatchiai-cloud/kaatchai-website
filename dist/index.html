@@ -886,11 +886,12 @@ input:focus, select:focus, textarea:focus {
 .sub-block .resize-handle-left { left: 0; }
 .sub-block .resize-handle-right { right: 0; }
 .sub-block .delete-btn {
-  position: absolute; top: 2px; right: 2px; background: none; border: none;
-  color: var(--red); font-size: 0.75rem; cursor: pointer; z-index: 4;
-  opacity: 0; transition: opacity 0.15s;
+  position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); border: none;
+  color: var(--red); font-size: 0.7rem; cursor: pointer; z-index: 4;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
 }
-.sub-block:hover .delete-btn { opacity: 1; }
+.sub-block .delete-btn:hover { background: var(--red); color: #fff; }
 
 #sub-props {
   position: relative;
@@ -1565,7 +1566,18 @@ input:focus, select:focus, textarea:focus {
     <div class="section-label" style="margin-top:12px;" id="subtitle-section-label">
       Subtitle Timeline
       <span class="badge" id="subtitle-count">0 subtitles</span>
-      <button id="btn-delete-selected-subs" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
+      <button id="btn-sub-style" style="font-size:0.68rem; padding:3px 8px; margin-left:auto;">🎨 Style</button>
+      <button id="btn-delete-selected-subs" class="danger" style="font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
+    </div>
+    <div id="sub-global-style" style="display:none; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:4px; font-size:0.72rem; display:none;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label style="color:var(--text-secondary);">Size: <input type="number" id="sub-global-size" min="16" max="72" value="32" style="width:45px;">px</label>
+        <label style="color:var(--text-secondary);">Color: <input type="color" id="sub-global-color" value="#ffffff"></label>
+        <label style="color:var(--text-secondary);">Stroke: <input type="color" id="sub-global-stroke" value="#000000"></label>
+        <label style="color:var(--text-secondary);">Stroke W: <input type="number" id="sub-global-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
+        <label style="color:var(--text-secondary);">BG α: <input type="number" id="sub-global-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
+        <button id="btn-sub-apply-style" class="primary" style="font-size:0.68rem; padding:3px 10px;">Apply to All</button>
+      </div>
     </div>
     <div id="sub-drop-zone" class="empty">
       <div id="sub-timeline-container">
@@ -1579,11 +1591,6 @@ input:focus, select:focus, textarea:focus {
       <label>Subtitle:
         <textarea id="sprop-text" placeholder="Subtitle text..."></textarea>
       </label>
-      <label>Size: <input type="number" id="sprop-size" min="12" max="200" value="32">px</label>
-      <label>Color: <input type="color" id="sprop-color" value="#ffffff"></label>
-      <label>Stroke: <input type="color" id="sprop-stroke" value="#000000"></label>
-      <label>Stroke W: <input type="number" id="sprop-stroke-w" min="0" max="20" step="1" value="2">px</label>
-      <label>BG α: <input type="number" id="sprop-bg-alpha" min="0" max="1" step="0.1" value="0.5"></label>
       <label>Start: <input type="number" id="sprop-start" step="0.1" min="0">s</label>
       <label>Dur: <input type="number" id="sprop-duration" step="0.1" min="0.3">s</label>
       <button id="sprop-delete" class="danger" style="font-size:0.75rem; padding:4px 10px;">Remove</button>
@@ -1711,17 +1718,17 @@ let bgmGainNode = null, bgmSource = null;
 let currentSeriesName = '';
 let currentEpisodeNumber = 0;
 
-// Picture-in-Picture speaker video
-let pipVideoEl = null, pipVideoSrc = null, pipVideoDuration = 0;
-let pipEnabled = false;
+// Picture-in-Picture speaker videos (multiple, first wins on overlap)
+// Each: {id, videoEl, videoSrc, videoDuration, inPoint, outPoint, position, customX, customY, size, shape, border, borderColor, shadow}
+let pipItems = [];
+let nextPipId = 1;
+// Shared PiP defaults
 let pipPosition = 'bot-right';
-let pipCustomX = null, pipCustomY = null;
-let pipSize = 25;           // % of canvas width
-let pipShape = 'circle';    // 'circle' | 'rounded' | 'rectangle'
+let pipSize = 25;
+let pipShape = 'circle';
 let pipBorder = 3;
 let pipBorderColor = '#ffffff';
 let pipShadow = true;
-let pipInPoint = 0, pipOutPoint = 0; // 0 = full duration
 
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
@@ -2650,9 +2657,7 @@ function drawRuler() {
     const subDropZone = $('sub-drop-zone');
     const subtitleCountEl = $('subtitle-count');
     const subPropsEl = $('sub-props');
-    const spropText = $('sprop-text'), spropSize = $('sprop-size');
-    const spropColor = $('sprop-color'), spropStroke = $('sprop-stroke'), spropStrokeW = $('sprop-stroke-w');
-    const spropBgAlpha = $('sprop-bg-alpha');
+    const spropText = $('sprop-text');
     const spropStart = $('sprop-start'), spropDuration = $('sprop-duration');
     const spropDelete = $('sprop-delete');
 
@@ -2827,11 +2832,6 @@ function drawRuler() {
       const item = subtitleItems.find(s => s.id === id);
       if (!item) { hideSubProps(); return; }
       spropText.value = item.text;
-      spropSize.value = item.fontSize;
-      spropColor.value = item.color;
-      spropStroke.value = item.strokeColor;
-      spropStrokeW.value = item.strokeWidth;
-      spropBgAlpha.value = item.bgAlpha;
       spropStart.value = item.startTime.toFixed(1);
       spropDuration.value = item.duration.toFixed(1);
       subPropsEl.classList.add('visible');
@@ -2844,11 +2844,6 @@ function drawRuler() {
 
     // Subtitle property handlers
     spropText.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.text = spropText.value; renderSubtitles(); } });
-    spropSize.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.fontSize = Math.max(12, parseInt(spropSize.value) || 32); } });
-    spropColor.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.color = spropColor.value; } });
-    spropStroke.addEventListener('input', () => { const it = getSelectedSub(); if (it) { it.strokeColor = spropStroke.value; } });
-    spropStrokeW.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.strokeWidth = Math.max(0, parseInt(spropStrokeW.value) || 0); } });
-    spropBgAlpha.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.bgAlpha = Math.max(0, Math.min(1, parseFloat(spropBgAlpha.value) || 0)); } });
     spropStart.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.startTime = Math.max(0, parseFloat(spropStart.value) || 0); renderSubtitles(); showSubProps(it.id); } });
     spropDuration.addEventListener('change', () => { const it = getSelectedSub(); if (it) { it.duration = Math.max(0.3, parseFloat(spropDuration.value) || 1); renderSubtitles(); showSubProps(it.id); } });
     spropDelete.addEventListener('click', () => {
@@ -2863,6 +2858,33 @@ function drawRuler() {
     if (subTimelineContainer) {
       subTimelineContainer.addEventListener('click', (e) => {
         if (e.target === subTimelineContainer) { selectedSubIds.clear(); hideSubProps(); renderSubtitles(); updateDeleteSelectedSubsBtn(); }
+      });
+    }
+
+    // Global subtitle style controls
+    const btnSubStyle = $('btn-sub-style');
+    const subGlobalStyle = $('sub-global-style');
+    if (btnSubStyle) {
+      btnSubStyle.addEventListener('click', () => {
+        subGlobalStyle.style.display = subGlobalStyle.style.display === 'none' ? '' : 'none';
+      });
+    }
+    const btnSubApplyStyle = $('btn-sub-apply-style');
+    if (btnSubApplyStyle) {
+      btnSubApplyStyle.addEventListener('click', () => {
+        const size = Math.max(16, Math.min(72, parseInt($('sub-global-size').value) || 32));
+        const color = $('sub-global-color').value;
+        const stroke = $('sub-global-stroke').value;
+        const strokeW = Math.max(0, parseInt($('sub-global-stroke-w').value) || 2);
+        const bgAlpha = Math.max(0, Math.min(1, parseFloat($('sub-global-bg-alpha').value) || 0.5));
+        for (const sub of subtitleItems) {
+          sub.fontSize = size;
+          sub.color = color;
+          sub.strokeColor = stroke;
+          sub.strokeWidth = strokeW;
+          sub.bgAlpha = bgAlpha;
+        }
+        setStatus(`Subtitle style applied to ${subtitleItems.length} subtitles`);
       });
     }
 
@@ -2948,29 +2970,41 @@ function drawRuler() {
     }
 
     function renderPiP(ctx, cw, ch, elapsed) {
-      if (!pipEnabled || !pipVideoEl) return;
+      if (!pipItems || pipItems.length === 0) return;
 
-      const outTime = pipOutPoint || (currentBuffer ? currentBuffer.duration : Infinity);
-      if (elapsed < pipInPoint || elapsed > outTime) return;
+      // Find first active PiP at this time (first wins on overlap)
+      const pip = pipItems.find(p => {
+        const outTime = p.outPoint || (currentBuffer ? currentBuffer.duration : Infinity);
+        return elapsed >= p.inPoint && elapsed <= outTime && p.videoEl;
+      });
+      if (!pip) return;
 
       // Seek video to correct frame
-      const targetTime = elapsed - pipInPoint;
-      const clampedTime = Math.min(targetTime, pipVideoDuration || pipVideoEl.duration);
-      if (Math.abs(pipVideoEl.currentTime - clampedTime) > 0.05) {
-        pipVideoEl.currentTime = clampedTime;
+      const targetTime = elapsed - pip.inPoint;
+      const clampedTime = Math.min(targetTime, pip.videoDuration || pip.videoEl.duration);
+      if (Math.abs(pip.videoEl.currentTime - clampedTime) > 0.05) {
+        pip.videoEl.currentTime = clampedTime;
       }
 
+      // Use per-item settings with shared defaults as fallback
+      const pSize = pip.size || pipSize;
+      const pShape = pip.shape || pipShape;
+      const pBorder = pip.border ?? pipBorder;
+      const pBorderColor = pip.borderColor || pipBorderColor;
+      const pShadow = pip.shadow ?? pipShadow;
+      const pPosition = pip.position || pipPosition;
+
       // Dimensions
-      const pipW = Math.round(cw * pipSize / 100);
-      const pipH = pipShape === 'circle' ? pipW : Math.round(pipW * (pipVideoEl.videoHeight / (pipVideoEl.videoWidth || 1) || 0.75));
-      const pad = Math.max(pipBorder + 4, cw * 0.02);
+      const pipW = Math.round(cw * pSize / 100);
+      const pipH = pShape === 'circle' ? pipW : Math.round(pipW * (pip.videoEl.videoHeight / (pip.videoEl.videoWidth || 1) || 0.75));
+      const pad = Math.max(pBorder + 4, cw * 0.02);
 
       // Position
       let x, y;
-      if (pipCustomX !== null && pipCustomY !== null) {
-        x = pipCustomX; y = pipCustomY;
+      if (pip.customX !== null && pip.customX !== undefined && pip.customY !== null && pip.customY !== undefined) {
+        x = pip.customX; y = pip.customY;
       } else {
-        switch (pipPosition) {
+        switch (pPosition) {
           case 'top-left':     x = pad; y = pad; break;
           case 'top-center':   x = (cw - pipW) / 2; y = pad; break;
           case 'top-right':    x = cw - pipW - pad; y = pad; break;
@@ -2985,31 +3019,27 @@ function drawRuler() {
 
       ctx.save();
 
-      // Shadow
-      if (pipShadow) {
+      if (pShadow) {
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 12;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
       }
 
-      // Border
-      if (pipBorder > 0) {
+      if (pBorder > 0) {
         ctx.beginPath();
-        drawPipShape(ctx, x - pipBorder, y - pipBorder, pipW + pipBorder * 2, pipH + pipBorder * 2, pipShape);
-        ctx.fillStyle = pipBorderColor;
+        drawPipShape(ctx, x - pBorder, y - pBorder, pipW + pBorder * 2, pipH + pBorder * 2, pShape);
+        ctx.fillStyle = pBorderColor;
         ctx.fill();
       }
 
-      // Reset shadow before drawing video
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
 
-      // Clip and draw video
       ctx.beginPath();
-      drawPipShape(ctx, x, y, pipW, pipH, pipShape);
+      drawPipShape(ctx, x, y, pipW, pipH, pShape);
       ctx.clip();
-      drawCoverFitRect(ctx, pipVideoEl, x, y, pipW, pipH);
+      drawCoverFitRect(ctx, pip.videoEl, x, y, pipW, pipH);
 
       ctx.restore();
     }
@@ -4909,23 +4939,23 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
-      // PiP
-      pip: (pipEnabled && pipVideoSrc) ? await (async () => {
+      // PiP (multiple)
+      pipItems: pipItems.length > 0 ? await Promise.all(pipItems.map(async pip => {
         try {
-          const resp = await fetch(pipVideoSrc);
+          const resp = await fetch(pip.videoSrc);
           const blob = await resp.blob();
           return {
             videoData: await blobToBase64(blob),
-            duration: pipVideoDuration,
-            position: pipPosition,
-            customX: pipCustomX, customY: pipCustomY,
-            size: pipSize, shape: pipShape,
-            border: pipBorder, borderColor: pipBorderColor,
-            shadow: pipShadow,
-            inPoint: pipInPoint, outPoint: pipOutPoint,
+            duration: pip.videoDuration,
+            position: pip.position, customX: pip.customX, customY: pip.customY,
+            size: pip.size, shape: pip.shape,
+            border: pip.border, borderColor: pip.borderColor,
+            shadow: pip.shadow,
+            inPoint: pip.inPoint, outPoint: pip.outPoint,
+            name: pip.name,
           };
-        } catch(e) { console.warn('PiP save error:', e); return undefined; }
-      })() : undefined,
+        } catch(e) { console.warn('PiP save error:', e); return null; }
+      })).then(arr => arr.filter(Boolean)) : undefined,
     };
 
     const json = JSON.stringify(project);
@@ -5150,8 +5180,32 @@ projectInput.addEventListener('change', async () => {
       if (bgmSec) bgmSec.style.display = 'none';
     }
 
-    // Restore PiP
-    if (project.pip && project.pip.videoData) {
+    // Restore PiP (multiple)
+    pipItems = [];
+    if (project.pipItems && project.pipItems.length > 0) {
+      for (const p of project.pipItems) {
+        try {
+          const videoBlob = base64ToBlob(p.videoData);
+          const blobUrl = URL.createObjectURL(videoBlob);
+          const videoEl = document.createElement('video');
+          videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+          videoEl.src = blobUrl;
+          await new Promise(r => { videoEl.onloadedmetadata = r; });
+          pipItems.push({
+            id: nextPipId++, videoEl, videoSrc: blobUrl,
+            videoDuration: p.duration || videoEl.duration,
+            position: p.position || 'bot-right',
+            customX: p.customX ?? null, customY: p.customY ?? null,
+            size: p.size || 25, shape: p.shape || 'circle',
+            border: p.border ?? 3, borderColor: p.borderColor || '#ffffff',
+            shadow: p.shadow ?? true,
+            inPoint: p.inPoint || 0, outPoint: p.outPoint || 0,
+            name: p.name || 'Speaker',
+          });
+        } catch(e) { console.warn('PiP restore error:', e); }
+      }
+      // Legacy single pip support
+    } else if (project.pip && project.pip.videoData) {
       try {
         const videoBlob = base64ToBlob(project.pip.videoData);
         const blobUrl = URL.createObjectURL(videoBlob);
@@ -5159,30 +5213,22 @@ projectInput.addEventListener('change', async () => {
         videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
         videoEl.src = blobUrl;
         await new Promise(r => { videoEl.onloadedmetadata = r; });
-        pipVideoEl = videoEl;
-        pipVideoSrc = blobUrl;
-        pipVideoDuration = project.pip.duration || videoEl.duration;
-        pipEnabled = true;
-        pipPosition = project.pip.position || 'bot-right';
-        pipCustomX = project.pip.customX ?? null;
-        pipCustomY = project.pip.customY ?? null;
-        pipSize = project.pip.size || 25;
-        pipShape = project.pip.shape || 'circle';
-        pipBorder = project.pip.border ?? 3;
-        pipBorderColor = project.pip.borderColor || '#ffffff';
-        pipShadow = project.pip.shadow ?? true;
-        pipInPoint = project.pip.inPoint || 0;
-        pipOutPoint = project.pip.outPoint || 0;
-        const pipSec = $('pip-section');
-        if (pipSec) pipSec.style.display = '';
-        const pipNm = $('pip-name');
-        if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+        pipItems.push({
+          id: nextPipId++, videoEl, videoSrc: blobUrl,
+          videoDuration: project.pip.duration || videoEl.duration,
+          position: project.pip.position || 'bot-right',
+          customX: project.pip.customX ?? null, customY: project.pip.customY ?? null,
+          size: project.pip.size || 25, shape: project.pip.shape || 'circle',
+          border: project.pip.border ?? 3, borderColor: project.pip.borderColor || '#ffffff',
+          shadow: project.pip.shadow ?? true,
+          inPoint: project.pip.inPoint || 0, outPoint: project.pip.outPoint || 0,
+          name: 'Speaker',
+        });
       } catch(e) { console.warn('PiP restore error:', e); }
-    } else {
-      pipEnabled = false; pipVideoEl = null; pipVideoSrc = null;
-      const pipSec = $('pip-section');
-      if (pipSec) pipSec.style.display = 'none';
     }
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
+    if (typeof renderPipList === 'function') renderPipList();
 
     // Show editor
     await refreshWaveform();
@@ -5280,80 +5326,117 @@ projectInput.addEventListener('change', async () => {
           videoEl.onloadedmetadata = resolve;
           videoEl.onerror = () => reject(new Error('Cannot load video'));
         });
-        pipVideoEl = videoEl;
-        pipVideoSrc = blobUrl;
-        pipVideoDuration = videoEl.duration;
-        pipEnabled = true;
-        pipInPoint = 0;
-        pipOutPoint = currentBuffer ? currentBuffer.duration : pipVideoDuration;
-        pipNameEl.textContent = `${file.name} (${fmtShort(pipVideoDuration)})`;
+        const dur = currentBuffer ? currentBuffer.duration : videoEl.duration;
+        // Find next available time slot
+        let inPoint = 0;
+        if (pipItems.length > 0) {
+          const lastEnd = Math.max(...pipItems.map(p => p.outPoint || dur));
+          inPoint = lastEnd < dur ? lastEnd : 0;
+        }
+        pipItems.push({
+          id: nextPipId++,
+          videoEl, videoSrc: blobUrl,
+          videoDuration: videoEl.duration,
+          inPoint, outPoint: dur,
+          position: pipPosition, customX: null, customY: null,
+          size: pipSize, shape: pipShape,
+          border: pipBorder, borderColor: pipBorderColor,
+          shadow: pipShadow,
+          name: file.name,
+        });
+        renderPipList();
         pipSectionEl.style.display = '';
-        setStatus(`PiP loaded: ${file.name}`);
+        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`);
       } catch(e) { setStatus('PiP error: ' + e.message); }
     });
 
+    let selectedPipId = null;
+
+    // Render list of PiP items in the pip-section bar
+    function renderPipList() {
+      pipNameEl.innerHTML = '';
+      if (pipItems.length === 0) {
+        pipNameEl.textContent = 'No video';
+        pipSectionEl.style.display = 'none';
+        pipPropsEl.classList.remove('visible');
+        return;
+      }
+      pipSectionEl.style.display = '';
+      for (const pip of pipItems) {
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-size:0.68rem; margin-right:4px; cursor:pointer;';
+        if (selectedPipId === pip.id) tag.style.borderColor = 'var(--accent)';
+        tag.innerHTML = `${pip.name || 'PiP'} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
+        tag.addEventListener('click', (e) => {
+          if (e.target.dataset.pipDel) {
+            pipItems = pipItems.filter(p => p.id !== pip.id);
+            if (selectedPipId === pip.id) { selectedPipId = null; pipPropsEl.classList.remove('visible'); }
+            renderPipList();
+            return;
+          }
+          selectedPipId = pip.id;
+          showPipProps(pip);
+          renderPipList();
+        });
+        pipNameEl.appendChild(tag);
+      }
+    }
+
     pipRemoveBtn.addEventListener('click', () => {
-      pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
-      pipEnabled = false; pipCustomX = null; pipCustomY = null;
+      pipItems = []; selectedPipId = null;
       pipSectionEl.style.display = 'none';
       pipPropsEl.classList.remove('visible');
-      setStatus('PiP removed');
+      setStatus('All PiP removed');
     });
+
+    function showPipProps(pip) {
+      pipPropsEl.classList.add('visible');
+      $('pip-size-input').value = pip.size || pipSize;
+      $('pip-shape-select').value = pip.shape || pipShape;
+      $('pip-border-input').value = pip.border ?? pipBorder;
+      $('pip-border-color-input').value = pip.borderColor || pipBorderColor;
+      $('pip-shadow-input').checked = pip.shadow ?? pipShadow;
+      $('pip-in-input').value = pip.inPoint || 0;
+      $('pip-out-input').value = pip.outPoint || 0;
+      $('pip-x').value = pip.customX ?? '';
+      $('pip-y').value = pip.customY ?? '';
+      $('pip-position-grid').querySelectorAll('button').forEach(b =>
+        b.classList.toggle('active', b.dataset.pos === (pip.position || pipPosition))
+      );
+    }
+
+    function getSelectedPip() { return pipItems.find(p => p.id === selectedPipId); }
 
     pipSettingsBtn.addEventListener('click', () => {
-      pipPropsEl.classList.toggle('visible');
-      if (pipPropsEl.classList.contains('visible')) {
-        // Sync UI with current state
-        $('pip-size-input').value = pipSize;
-        $('pip-shape-select').value = pipShape;
-        $('pip-border-input').value = pipBorder;
-        $('pip-border-color-input').value = pipBorderColor;
-        $('pip-shadow-input').checked = pipShadow;
-        $('pip-in-input').value = pipInPoint;
-        $('pip-out-input').value = pipOutPoint;
-        $('pip-x').value = pipCustomX ?? '';
-        $('pip-y').value = pipCustomY ?? '';
-        // Update position grid
-        $('pip-position-grid').querySelectorAll('button').forEach(b =>
-          b.classList.toggle('active', b.dataset.pos === pipPosition)
-        );
-      }
+      if (pipItems.length === 0) return;
+      const pip = getSelectedPip() || pipItems[0];
+      selectedPipId = pip.id;
+      showPipProps(pip);
+      renderPipList();
     });
 
-    $('pip-props-close').addEventListener('click', () => pipPropsEl.classList.remove('visible'));
+    $('pip-props-close').addEventListener('click', () => { pipPropsEl.classList.remove('visible'); selectedPipId = null; renderPipList(); });
 
-    // Position grid
+    // Position grid — applies to selected PiP
     $('pip-position-grid').addEventListener('click', (e) => {
       if (e.target.dataset.pos) {
-        pipPosition = e.target.dataset.pos;
-        pipCustomX = null; pipCustomY = null;
+        const pip = getSelectedPip(); if (!pip) return;
+        pip.position = e.target.dataset.pos;
+        pip.customX = null; pip.customY = null;
         $('pip-x').value = ''; $('pip-y').value = '';
-        $('pip-position-grid').querySelectorAll('button').forEach(b =>
-          b.classList.toggle('active', b.dataset.pos === pipPosition)
-        );
+        $('pip-position-grid').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.pos === pip.position));
       }
     });
 
-    // Custom x/y
-    $('pip-x').addEventListener('change', () => {
-      const v = $('pip-x').value;
-      pipCustomX = v !== '' ? parseInt(v) : null;
-      if (pipCustomX !== null && pipCustomY === null) pipCustomY = 0;
-    });
-    $('pip-y').addEventListener('change', () => {
-      const v = $('pip-y').value;
-      pipCustomY = v !== '' ? parseInt(v) : null;
-      if (pipCustomY !== null && pipCustomX === null) pipCustomX = 0;
-    });
-
-    // Other props
-    $('pip-size-input').addEventListener('change', () => { pipSize = Math.max(10, Math.min(50, parseInt($('pip-size-input').value) || 25)); });
-    $('pip-shape-select').addEventListener('change', () => { pipShape = $('pip-shape-select').value; });
-    $('pip-border-input').addEventListener('change', () => { pipBorder = Math.max(0, Math.min(10, parseInt($('pip-border-input').value) || 3)); });
-    $('pip-border-color-input').addEventListener('input', () => { pipBorderColor = $('pip-border-color-input').value; });
-    $('pip-shadow-input').addEventListener('change', () => { pipShadow = $('pip-shadow-input').checked; });
-    $('pip-in-input').addEventListener('change', () => { pipInPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); });
-    $('pip-out-input').addEventListener('change', () => { pipOutPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); });
+    $('pip-x').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { const v = $('pip-x').value; pip.customX = v !== '' ? parseInt(v) : null; if (pip.customX !== null && pip.customY === null) pip.customY = 0; } });
+    $('pip-y').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { const v = $('pip-y').value; pip.customY = v !== '' ? parseInt(v) : null; if (pip.customY !== null && pip.customX === null) pip.customX = 0; } });
+    $('pip-size-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.size = Math.max(10, Math.min(50, parseInt($('pip-size-input').value) || 25)); });
+    $('pip-shape-select').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.shape = $('pip-shape-select').value; });
+    $('pip-border-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.border = Math.max(0, Math.min(10, parseInt($('pip-border-input').value) || 3)); });
+    $('pip-border-color-input').addEventListener('input', () => { const pip = getSelectedPip(); if (pip) pip.borderColor = $('pip-border-color-input').value; });
+    $('pip-shadow-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.shadow = $('pip-shadow-input').checked; });
+    $('pip-in-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.inPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); renderPipList(); } });
+    $('pip-out-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.outPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); renderPipList(); } });
 
 
     // ── 17-create-content.js ──
@@ -7883,9 +7966,21 @@ function renderLanguageCard(lang, status, detail) {
   card.className = `language-card ${status === 'done' ? 'done' : status === 'error' ? 'error' : ''}`;
   const track = languageTracks.find(t => t.langCode === lang.code);
   const playBtn = (status === 'done' && track) ? `<button class="lang-play" data-lang="${lang.code}">▶ Play</button>` : '';
+  // Subtitle language selector (shown when done)
+  const subLangOptions = (status === 'done') ? `
+    <label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
+      Sub:
+      <select class="lang-sub-select" data-lang="${lang.code}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
+        <option value="en" selected>English</option>
+        <option value="original">Original</option>
+        <option value="${lang.code}">${lang.name}</option>
+        <option value="none">None</option>
+      </select>
+    </label>` : '';
   card.innerHTML = `
     <span class="lang-name">${lang.flag} ${lang.name}</span>
     <span class="lang-status">${detail || status}</span>
+    ${subLangOptions}
     ${playBtn}
   `;
   if (status === 'done' && track) {
@@ -7895,6 +7990,11 @@ function renderLanguageCard(lang, status, detail) {
       src.connect(audioCtx.destination);
       src.start();
     });
+    const subSelect = card.querySelector('.lang-sub-select');
+    if (subSelect) {
+      subSelect.value = track.subtitleLang || 'en';
+      subSelect.addEventListener('change', () => { track.subtitleLang = subSelect.value; });
+    }
   }
 }
 
@@ -7919,7 +8019,21 @@ btnGenerateLanguages.addEventListener('click', async () => {
 
       renderLanguageCard(lang, 'working', 'Generating voice...');
       const ttsResult = await generateTTSGemini(translated, lang.geminiVoice, key);
-      const { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      let { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+
+      // Match duration to original audio by resampling
+      const targetDur = createAudioBuffer ? createAudioBuffer.duration : audioBuffer.duration;
+      if (Math.abs(audioBuffer.duration - targetDur) > 1) {
+        renderLanguageCard(lang, 'working', 'Matching duration...');
+        const rate = audioBuffer.duration / targetDur;
+        const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+        const src = offlineCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.playbackRate.value = rate;
+        src.connect(offlineCtx.destination);
+        src.start();
+        audioBuffer = await offlineCtx.startRendering();
+      }
 
       // Remove existing track for this language if re-generating
       languageTracks = languageTracks.filter(t => t.langCode !== lang.code);
@@ -7928,6 +8042,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         langCode: lang.code,
         audioBuffer,
         translatedText: translated,
+        subtitleLang: 'en', // default subtitle language
         status: 'done'
       });
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
@@ -8053,20 +8168,23 @@ btnCreateSendEditor.addEventListener('click', async () => {
 
   // Transfer PiP video to editor
   if (createPipVideoEl) {
-    pipVideoEl = createPipVideoEl;
-    pipVideoSrc = createPipVideoSrc;
-    pipVideoDuration = createPipVideoEl.duration;
-    pipEnabled = true;
-    pipInPoint = 0;
-    pipOutPoint = currentBuffer.duration;
-    pipPosition = 'bot-right';
-    pipCustomX = null; pipCustomY = null;
+    pipItems = [{
+      id: nextPipId++,
+      videoEl: createPipVideoEl,
+      videoSrc: createPipVideoSrc,
+      videoDuration: createPipVideoEl.duration,
+      inPoint: 0, outPoint: currentBuffer.duration,
+      position: 'bot-right', customX: null, customY: null,
+      size: pipSize, shape: pipShape,
+      border: pipBorder, borderColor: pipBorderColor,
+      shadow: pipShadow,
+      name: 'Speaker',
+    }];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = '';
-    const pipNm = $('pip-name');
-    if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+    if (typeof renderPipList === 'function') renderPipList();
   } else {
-    pipEnabled = false; pipVideoEl = null;
+    pipItems = [];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = 'none';
   }
@@ -8303,8 +8421,7 @@ btnNewProject.addEventListener('click', (e) => {
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   currentSeriesName = ''; currentEpisodeNumber = 0;
-  pipEnabled = false; pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
-  pipCustomX = null; pipCustomY = null;
+  pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
   if (pipSec) pipSec.style.display = 'none';
   const pipPr = $('pip-props');

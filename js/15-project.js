@@ -356,23 +356,23 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
-      // PiP
-      pip: (pipEnabled && pipVideoSrc) ? await (async () => {
+      // PiP (multiple)
+      pipItems: pipItems.length > 0 ? await Promise.all(pipItems.map(async pip => {
         try {
-          const resp = await fetch(pipVideoSrc);
+          const resp = await fetch(pip.videoSrc);
           const blob = await resp.blob();
           return {
             videoData: await blobToBase64(blob),
-            duration: pipVideoDuration,
-            position: pipPosition,
-            customX: pipCustomX, customY: pipCustomY,
-            size: pipSize, shape: pipShape,
-            border: pipBorder, borderColor: pipBorderColor,
-            shadow: pipShadow,
-            inPoint: pipInPoint, outPoint: pipOutPoint,
+            duration: pip.videoDuration,
+            position: pip.position, customX: pip.customX, customY: pip.customY,
+            size: pip.size, shape: pip.shape,
+            border: pip.border, borderColor: pip.borderColor,
+            shadow: pip.shadow,
+            inPoint: pip.inPoint, outPoint: pip.outPoint,
+            name: pip.name,
           };
-        } catch(e) { console.warn('PiP save error:', e); return undefined; }
-      })() : undefined,
+        } catch(e) { console.warn('PiP save error:', e); return null; }
+      })).then(arr => arr.filter(Boolean)) : undefined,
     };
 
     const json = JSON.stringify(project);
@@ -597,8 +597,32 @@ projectInput.addEventListener('change', async () => {
       if (bgmSec) bgmSec.style.display = 'none';
     }
 
-    // Restore PiP
-    if (project.pip && project.pip.videoData) {
+    // Restore PiP (multiple)
+    pipItems = [];
+    if (project.pipItems && project.pipItems.length > 0) {
+      for (const p of project.pipItems) {
+        try {
+          const videoBlob = base64ToBlob(p.videoData);
+          const blobUrl = URL.createObjectURL(videoBlob);
+          const videoEl = document.createElement('video');
+          videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+          videoEl.src = blobUrl;
+          await new Promise(r => { videoEl.onloadedmetadata = r; });
+          pipItems.push({
+            id: nextPipId++, videoEl, videoSrc: blobUrl,
+            videoDuration: p.duration || videoEl.duration,
+            position: p.position || 'bot-right',
+            customX: p.customX ?? null, customY: p.customY ?? null,
+            size: p.size || 25, shape: p.shape || 'circle',
+            border: p.border ?? 3, borderColor: p.borderColor || '#ffffff',
+            shadow: p.shadow ?? true,
+            inPoint: p.inPoint || 0, outPoint: p.outPoint || 0,
+            name: p.name || 'Speaker',
+          });
+        } catch(e) { console.warn('PiP restore error:', e); }
+      }
+      // Legacy single pip support
+    } else if (project.pip && project.pip.videoData) {
       try {
         const videoBlob = base64ToBlob(project.pip.videoData);
         const blobUrl = URL.createObjectURL(videoBlob);
@@ -606,30 +630,22 @@ projectInput.addEventListener('change', async () => {
         videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
         videoEl.src = blobUrl;
         await new Promise(r => { videoEl.onloadedmetadata = r; });
-        pipVideoEl = videoEl;
-        pipVideoSrc = blobUrl;
-        pipVideoDuration = project.pip.duration || videoEl.duration;
-        pipEnabled = true;
-        pipPosition = project.pip.position || 'bot-right';
-        pipCustomX = project.pip.customX ?? null;
-        pipCustomY = project.pip.customY ?? null;
-        pipSize = project.pip.size || 25;
-        pipShape = project.pip.shape || 'circle';
-        pipBorder = project.pip.border ?? 3;
-        pipBorderColor = project.pip.borderColor || '#ffffff';
-        pipShadow = project.pip.shadow ?? true;
-        pipInPoint = project.pip.inPoint || 0;
-        pipOutPoint = project.pip.outPoint || 0;
-        const pipSec = $('pip-section');
-        if (pipSec) pipSec.style.display = '';
-        const pipNm = $('pip-name');
-        if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+        pipItems.push({
+          id: nextPipId++, videoEl, videoSrc: blobUrl,
+          videoDuration: project.pip.duration || videoEl.duration,
+          position: project.pip.position || 'bot-right',
+          customX: project.pip.customX ?? null, customY: project.pip.customY ?? null,
+          size: project.pip.size || 25, shape: project.pip.shape || 'circle',
+          border: project.pip.border ?? 3, borderColor: project.pip.borderColor || '#ffffff',
+          shadow: project.pip.shadow ?? true,
+          inPoint: project.pip.inPoint || 0, outPoint: project.pip.outPoint || 0,
+          name: 'Speaker',
+        });
       } catch(e) { console.warn('PiP restore error:', e); }
-    } else {
-      pipEnabled = false; pipVideoEl = null; pipVideoSrc = null;
-      const pipSec = $('pip-section');
-      if (pipSec) pipSec.style.display = 'none';
     }
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
+    if (typeof renderPipList === 'function') renderPipList();
 
     // Show editor
     await refreshWaveform();
