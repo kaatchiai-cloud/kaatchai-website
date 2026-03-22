@@ -6,7 +6,7 @@ const btnLoadProject = $('btn-load-project');
 const projectInput = $('project-input');
 
 // ── IndexedDB Gallery ──
-const GALLERY_DB_NAME = 'kaatchi_projects';
+const GALLERY_DB_NAME = 'stori_projects';
 let galleryDbVersion = 1;
 let galleryDb = null;
 const GALLERY_STORE = 'projects';
@@ -41,6 +41,7 @@ async function saveProjectToGallery(jsonStr, name) {
       const scale = Math.min(320 / width, 180 / height);
       tctx.scale(scale, scale);
       renderTimelineFrame(tctx, width, height, 0.5, sorted);
+      renderPiP(tctx, width, height, 0.5);
       renderTextOverlays(tctx, width, height, 0.5, sortedTexts);
       thumbnailDataUrl = tc.toDataURL('image/jpeg', 0.6);
     }
@@ -355,6 +356,23 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
+      // PiP
+      pip: (pipEnabled && pipVideoSrc) ? await (async () => {
+        try {
+          const resp = await fetch(pipVideoSrc);
+          const blob = await resp.blob();
+          return {
+            videoData: await blobToBase64(blob),
+            duration: pipVideoDuration,
+            position: pipPosition,
+            customX: pipCustomX, customY: pipCustomY,
+            size: pipSize, shape: pipShape,
+            border: pipBorder, borderColor: pipBorderColor,
+            shadow: pipShadow,
+            inPoint: pipInPoint, outPoint: pipOutPoint,
+          };
+        } catch(e) { console.warn('PiP save error:', e); return undefined; }
+      })() : undefined,
     };
 
     const json = JSON.stringify(project);
@@ -577,6 +595,40 @@ projectInput.addEventListener('change', async () => {
       bgmBuffer = null;
       const bgmSec = $('bgm-section');
       if (bgmSec) bgmSec.style.display = 'none';
+    }
+
+    // Restore PiP
+    if (project.pip && project.pip.videoData) {
+      try {
+        const videoBlob = base64ToBlob(project.pip.videoData);
+        const blobUrl = URL.createObjectURL(videoBlob);
+        const videoEl = document.createElement('video');
+        videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+        videoEl.src = blobUrl;
+        await new Promise(r => { videoEl.onloadedmetadata = r; });
+        pipVideoEl = videoEl;
+        pipVideoSrc = blobUrl;
+        pipVideoDuration = project.pip.duration || videoEl.duration;
+        pipEnabled = true;
+        pipPosition = project.pip.position || 'bot-right';
+        pipCustomX = project.pip.customX ?? null;
+        pipCustomY = project.pip.customY ?? null;
+        pipSize = project.pip.size || 25;
+        pipShape = project.pip.shape || 'circle';
+        pipBorder = project.pip.border ?? 3;
+        pipBorderColor = project.pip.borderColor || '#ffffff';
+        pipShadow = project.pip.shadow ?? true;
+        pipInPoint = project.pip.inPoint || 0;
+        pipOutPoint = project.pip.outPoint || 0;
+        const pipSec = $('pip-section');
+        if (pipSec) pipSec.style.display = '';
+        const pipNm = $('pip-name');
+        if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+      } catch(e) { console.warn('PiP restore error:', e); }
+    } else {
+      pipEnabled = false; pipVideoEl = null; pipVideoSrc = null;
+      const pipSec = $('pip-section');
+      if (pipSec) pipSec.style.display = 'none';
     }
 
     // Show editor

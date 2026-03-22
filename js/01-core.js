@@ -33,6 +33,18 @@ let bgmGainNode = null, bgmSource = null;
 let currentSeriesName = '';
 let currentEpisodeNumber = 0;
 
+// Picture-in-Picture speaker video
+let pipVideoEl = null, pipVideoSrc = null, pipVideoDuration = 0;
+let pipEnabled = false;
+let pipPosition = 'bot-right';
+let pipCustomX = null, pipCustomY = null;
+let pipSize = 25;           // % of canvas width
+let pipShape = 'circle';    // 'circle' | 'rounded' | 'rectangle'
+let pipBorder = 3;
+let pipBorderColor = '#ffffff';
+let pipShadow = true;
+let pipInPoint = 0, pipOutPoint = 0; // 0 = full duration
+
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
 let nextSubtitleId = 1;

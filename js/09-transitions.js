@@ -19,6 +19,106 @@
     function easeInQuart(t) { return t*t*t*t; }
     function easeOutBack(t) { const c = 1.70158; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
 
+    // ── PiP Renderer ──
+    function drawCoverFitRect(ctx, img, x, y, w, h) {
+      const isVideo = img instanceof HTMLVideoElement;
+      const iw = isVideo ? img.videoWidth : img.naturalWidth;
+      const ih = isVideo ? img.videoHeight : img.naturalHeight;
+      if (!iw || !ih) return;
+      const ir = iw / ih, cr = w / h;
+      let dw, dh, dx, dy;
+      if (ir > cr) { dh = h; dw = h * ir; dx = x + (w - dw) / 2; dy = y; }
+      else { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2; }
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    function drawPipShape(ctx, x, y, w, h, shape) {
+      if (shape === 'circle') {
+        const r = Math.min(w, h) / 2;
+        ctx.arc(x + w / 2, y + h / 2, r, 0, Math.PI * 2);
+      } else if (shape === 'rounded') {
+        const r = Math.min(w, h) * 0.15;
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+        ctx.lineTo(x + r, y + h);
+        ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+        ctx.lineTo(x, y + r);
+        ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2);
+      } else {
+        ctx.rect(x, y, w, h);
+      }
+    }
+
+    function renderPiP(ctx, cw, ch, elapsed) {
+      if (!pipEnabled || !pipVideoEl) return;
+
+      const outTime = pipOutPoint || (currentBuffer ? currentBuffer.duration : Infinity);
+      if (elapsed < pipInPoint || elapsed > outTime) return;
+
+      // Seek video to correct frame
+      const targetTime = elapsed - pipInPoint;
+      const clampedTime = Math.min(targetTime, pipVideoDuration || pipVideoEl.duration);
+      if (Math.abs(pipVideoEl.currentTime - clampedTime) > 0.05) {
+        pipVideoEl.currentTime = clampedTime;
+      }
+
+      // Dimensions
+      const pipW = Math.round(cw * pipSize / 100);
+      const pipH = pipShape === 'circle' ? pipW : Math.round(pipW * (pipVideoEl.videoHeight / (pipVideoEl.videoWidth || 1) || 0.75));
+      const pad = Math.max(pipBorder + 4, cw * 0.02);
+
+      // Position
+      let x, y;
+      if (pipCustomX !== null && pipCustomY !== null) {
+        x = pipCustomX; y = pipCustomY;
+      } else {
+        switch (pipPosition) {
+          case 'top-left':     x = pad; y = pad; break;
+          case 'top-center':   x = (cw - pipW) / 2; y = pad; break;
+          case 'top-right':    x = cw - pipW - pad; y = pad; break;
+          case 'mid-left':     x = pad; y = (ch - pipH) / 2; break;
+          case 'center':       x = (cw - pipW) / 2; y = (ch - pipH) / 2; break;
+          case 'mid-right':    x = cw - pipW - pad; y = (ch - pipH) / 2; break;
+          case 'bot-left':     x = pad; y = ch - pipH - pad; break;
+          case 'bot-center':   x = (cw - pipW) / 2; y = ch - pipH - pad; break;
+          default:             x = cw - pipW - pad; y = ch - pipH - pad; break;
+        }
+      }
+
+      ctx.save();
+
+      // Shadow
+      if (pipShadow) {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+      }
+
+      // Border
+      if (pipBorder > 0) {
+        ctx.beginPath();
+        drawPipShape(ctx, x - pipBorder, y - pipBorder, pipW + pipBorder * 2, pipH + pipBorder * 2, pipShape);
+        ctx.fillStyle = pipBorderColor;
+        ctx.fill();
+      }
+
+      // Reset shadow before drawing video
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      // Clip and draw video
+      ctx.beginPath();
+      drawPipShape(ctx, x, y, pipW, pipH, pipShape);
+      ctx.clip();
+      drawCoverFitRect(ctx, pipVideoEl, x, y, pipW, pipH);
+
+      ctx.restore();
+    }
+
     // Apply continuous motion effect throughout a photo's duration
     function applyMotionTransform(ctx, motion, lifeProgress, p, cw, ch) {
       if (motion === 'ken-burns') {

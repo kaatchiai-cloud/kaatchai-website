@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// build.js — Bundle Kaatchi multi-file dev structure into single dist/index.html
+// build.js — Bundle Stori multi-file dev structure into single dist/index.html
 // Usage: node build.js
 
 const fs = require('fs');

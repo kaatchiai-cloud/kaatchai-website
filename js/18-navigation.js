@@ -15,6 +15,12 @@ btnNewProject.addEventListener('click', (e) => {
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   currentSeriesName = ''; currentEpisodeNumber = 0;
+  pipEnabled = false; pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
+  pipCustomX = null; pipCustomY = null;
+  const pipSec = $('pip-section');
+  if (pipSec) pipSec.style.display = 'none';
+  const pipPr = $('pip-props');
+  if (pipPr) pipPr.classList.remove('visible');
   editorLanguageTracks = []; editorCurrentLang = 'original';
   editorOriginalBuffer = null; editorOriginalSubtitles = [];
   const editorLangDiv = $('editor-lang-selector');

@@ -135,6 +135,7 @@
           }
           exportLabel.textContent = `Recording... ${(progress * 100).toFixed(0)}%${etaStr}`;
           renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+          renderPiP(ctx, exportW, exportH, elapsed);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
           if (elapsed >= currentBuffer.duration) {
@@ -235,6 +236,7 @@
               exportBar.style.width = (progress * 100).toFixed(1) + '%';
               exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})... ${(progress * 100).toFixed(0)}%`;
               renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+              renderPiP(ctx, exportW, exportH, elapsed);
               renderTextOverlays(ctx, exportW, exportH, elapsed, trackSortedTexts);
               if (elapsed >= track.buffer.duration) {
                 stopped = true;

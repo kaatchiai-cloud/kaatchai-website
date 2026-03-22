@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title>Kaatchi — காட்சி</title>
+  <title>Stori — AI Video Creator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,14 +15,14 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1 style="font-family:'Poppins',sans-serif; letter-spacing:3px; font-weight:700;">Kaatchi <span style="font-family:'Noto Sans Tamil',sans-serif; font-size:1rem; color:var(--accent); font-weight:400;">காட்சி</span></h1>
+  <h1 style="font-family:'Poppins',sans-serif; letter-spacing:3px; font-weight:700;">Stori</h1>
   <p class="subtitle">Create stunning videos with photos, text & audio</p>
 
   <div id="drop-zone">
     <div style="margin-bottom:8px;">
       <span style="font-size:2.5rem;">🎬</span>
     </div>
-    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Kaatchi</p>
+    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Stori</p>
     <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:28px;">Professional video creation made simple</p>
     <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
       <button id="btn-create-content" class="primary" style="padding:12px 36px; font-size:0.9rem; border-radius:10px; font-weight:600;">Create Content</button>
@@ -69,16 +69,29 @@
     <div class="create-step">
       <h3><span class="step-num">2</span> Input</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
-        <button id="create-mode-voice" class="mode-btn active">🎵 Voice</button>
+        <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
+        <button id="create-mode-video" class="mode-btn">📹 Video</button>
         <button id="create-mode-text" class="mode-btn">✏️ Text</button>
       </div>
 
-      <!-- Voice Input -->
+      <!-- Audio Input -->
       <div id="create-voice-section">
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import an audio file (podcast, voiceover, recording)</p>
         <div class="create-row">
           <button id="btn-create-import-audio" style="font-size:0.78rem; padding:6px 16px;">🎵 Choose Audio File</button>
           <span id="create-audio-name" style="font-size:0.75rem; color:var(--text-muted);"></span>
         </div>
+      </div>
+
+      <!-- Video Input -->
+      <div id="create-video-section" style="display:none;">
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import a speaker/podcast video. Audio is extracted for voiceover, video becomes PiP overlay in the editor.</p>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="btn-create-pip-import" style="font-size:0.78rem; padding:6px 16px;">📹 Choose Video File</button>
+          <span id="create-pip-name" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <button id="btn-create-pip-remove" style="font-size:0.7rem; padding:3px 8px; display:none;" class="danger">✕</button>
+        </div>
+        <input type="file" id="create-pip-input" accept="video/*" hidden>
       </div>
 
       <!-- Text Input -->
@@ -364,6 +377,7 @@
       <button id="btn-add-videos" style="font-size:0.75rem; padding:4px 10px;">🎬 Add Video</button>
       <button id="btn-add-photos" style="font-size:0.75rem; padding:4px 10px;">📷 Add Photos</button>
       <button id="btn-add-bgm" style="font-size:0.75rem; padding:4px 10px;">🎵 Add BGM</button>
+      <button id="btn-add-pip" style="font-size:0.75rem; padding:4px 10px;">🎭 Add PiP</button>
       <input type="file" id="video-input" accept="video/*" multiple hidden>
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
@@ -379,6 +393,42 @@
         <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
         <button id="bgm-remove" class="bgm-remove-btn">✕</button>
       </div>
+    </div>
+
+    <div id="pip-section" style="display:none;">
+      <div class="pip-bar">
+        <span class="pip-label">🎭 PiP Speaker</span>
+        <span id="pip-name" class="pip-name">No video</span>
+        <button id="pip-settings-btn" style="font-size:0.7rem; padding:3px 8px;">⚙ Settings</button>
+        <button id="pip-remove" class="pip-remove-btn">✕</button>
+      </div>
+    </div>
+    <input type="file" id="pip-input" accept="video/*" hidden>
+
+    <div id="pip-props">
+      <button id="pip-props-close" class="props-close-btn" title="Close">✕</button>
+      <label>Position:
+        <div class="text-position-grid" id="pip-position-grid">
+          <button data-pos="top-left">↖</button><button data-pos="top-center">↑</button><button data-pos="top-right">↗</button>
+          <button data-pos="mid-left">←</button><button data-pos="center">●</button><button data-pos="mid-right">→</button>
+          <button data-pos="bot-left">↙</button><button data-pos="bot-center">↓</button><button data-pos="bot-right" class="active">↘</button>
+        </div>
+      </label>
+      <label>X: <input type="number" id="pip-x" step="1" placeholder="auto">px</label>
+      <label>Y: <input type="number" id="pip-y" step="1" placeholder="auto">px</label>
+      <label>Size: <input type="number" id="pip-size-input" min="10" max="50" value="25">%</label>
+      <label>Shape:
+        <select id="pip-shape-select">
+          <option value="circle">Circle</option>
+          <option value="rounded">Rounded Rect</option>
+          <option value="rectangle">Rectangle</option>
+        </select>
+      </label>
+      <label>Border: <input type="number" id="pip-border-input" min="0" max="10" value="3">px</label>
+      <label>Color: <input type="color" id="pip-border-color-input" value="#ffffff"></label>
+      <label>Shadow: <input type="checkbox" id="pip-shadow-input" checked></label>
+      <label>In: <input type="number" id="pip-in-input" step="0.1" min="0" value="0">s</label>
+      <label>Out: <input type="number" id="pip-out-input" step="0.1" min="0" value="0">s</label>
     </div>
 
     <div id="time-ruler"><canvas id="ruler-canvas"></canvas></div>

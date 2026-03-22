@@ -138,7 +138,7 @@ document.addEventListener('keydown', (e) => {
 btnCreateContent.addEventListener('click', () => {
   dropZone.classList.add('hidden');
   createPage.classList.add('visible');
-  const saved = localStorage.getItem('kaatchi_gemini_key');
+  const saved = localStorage.getItem('stori_gemini_key');
   if (saved) {
     createApiKey.value = saved;
     createKeyStatus.textContent = '✓ Saved';
@@ -157,7 +157,7 @@ btnCreateBack.addEventListener('click', () => {
 btnSaveApiKey.addEventListener('click', () => {
   const key = createApiKey.value.trim();
   if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
-  localStorage.setItem('kaatchi_gemini_key', key);
+  localStorage.setItem('stori_gemini_key', key);
   createKeyStatus.textContent = '✓ Saved';
   createKeyStatus.style.color = '#10b981';
   updateCreateButtons();
@@ -165,7 +165,7 @@ btnSaveApiKey.addEventListener('click', () => {
 });
 
 function getCreateGeminiKey() {
-  return localStorage.getItem('kaatchi_gemini_key') || createApiKey.value.trim();
+  return localStorage.getItem('stori_gemini_key') || createApiKey.value.trim();
 }
 
 function updateCreateButtons() {
@@ -213,6 +213,65 @@ createAudioInput.addEventListener('change', async () => {
   } catch (e) {
     createAudioName.textContent = 'Error: ' + e.message;
   }
+});
+
+// ── Speaker Video Import (Create flow) ──
+let createPipVideoEl = null;
+let createPipVideoSrc = null;
+
+const btnCreatePipImport = $('btn-create-pip-import');
+const createPipInput = $('create-pip-input');
+const createPipName = $('create-pip-name');
+const btnCreatePipRemove = $('btn-create-pip-remove');
+
+btnCreatePipImport.addEventListener('click', () => createPipInput.click());
+createPipInput.addEventListener('change', async () => {
+  const file = createPipInput.files[0];
+  if (!file) return;
+  createPipInput.value = '';
+  try {
+    // Create video element
+    const videoEl = document.createElement('video');
+    videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+    const blobUrl = URL.createObjectURL(file);
+    videoEl.src = blobUrl;
+    await new Promise((resolve, reject) => {
+      videoEl.onloadedmetadata = resolve;
+      videoEl.onerror = () => reject(new Error('Cannot load video'));
+    });
+
+    // Extract audio from the video file
+    const arrayBuf = await file.arrayBuffer();
+    createOriginalBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    createAudioBuffer = createOriginalBuffer;
+    createAudioFile = file;
+
+    // Store PiP video
+    createPipVideoEl = videoEl;
+    createPipVideoSrc = blobUrl;
+
+    // Update UI
+    createAudioName.textContent = `Audio extracted from: ${file.name}`;
+    createPipName.textContent = `${file.name} (${fmtShort(videoEl.duration)})`;
+    btnCreatePipRemove.style.display = '';
+    createDetectedRegions = [];
+    btnCreateSilApply.disabled = true;
+    createSilInfo.textContent = '';
+    createSilVisual.style.display = 'none';
+    updateCreateButtons();
+    updateStepStates();
+    await showCreateAudioEditor();
+  } catch (e) {
+    createPipName.textContent = 'Error: ' + e.message;
+  }
+});
+
+btnCreatePipRemove.addEventListener('click', () => {
+  if (createPipVideoSrc) URL.revokeObjectURL(createPipVideoSrc);
+  createPipVideoEl = null;
+  createPipVideoSrc = null;
+  createPipName.textContent = '';
+  btnCreatePipRemove.style.display = 'none';
 });
 
 createSilThreshold.addEventListener('input', () => {
@@ -290,10 +349,12 @@ btnCreateSilReset.addEventListener('click', () => {
   if (createWavesurfer) refreshCreateWaveform();
 });
 
-// ── Input Mode Toggle (Voice / Text) ──
+// ── Input Mode Toggle (Audio / Video / Text) ──
 const createModeVoice = $('create-mode-voice');
+const createModeVideo = $('create-mode-video');
 const createModeText = $('create-mode-text');
 const createVoiceSection = $('create-voice-section');
+const createVideoSection = $('create-video-section');
 const createTextSection = $('create-text-section');
 const createTtsText = $('create-tts-text');
 const createTtsProvider = $('create-tts-provider');
@@ -346,34 +407,30 @@ createTtsProvider.addEventListener('change', () => {
   createGcloudKeyRow.style.display = createTtsProvider.value === 'gcloud' ? '' : 'none';
   // Restore saved gcloud key
   if (createTtsProvider.value === 'gcloud') {
-    createGcloudTtsKey.value = localStorage.getItem('kaatchi_gcloud_tts_key') || '';
+    createGcloudTtsKey.value = localStorage.getItem('stori_gcloud_tts_key') || '';
   }
 });
 
 // Save gcloud key on blur
 createGcloudTtsKey.addEventListener('blur', () => {
   const k = createGcloudTtsKey.value.trim();
-  if (k) localStorage.setItem('kaatchi_gcloud_tts_key', k);
+  if (k) localStorage.setItem('stori_gcloud_tts_key', k);
 });
 
-createModeVoice.addEventListener('click', () => {
-  createInputMode = 'voice';
-  createModeVoice.classList.add('active');
-  createModeText.classList.remove('active');
-  createVoiceSection.style.display = '';
-  createTextSection.style.display = 'none';
+function setCreateInputMode(mode) {
+  createInputMode = mode === 'video' ? 'voice' : mode; // video mode uses voice transcription
+  createModeVoice.classList.toggle('active', mode === 'voice');
+  createModeVideo.classList.toggle('active', mode === 'video');
+  createModeText.classList.toggle('active', mode === 'text');
+  createVoiceSection.style.display = mode === 'voice' ? '' : 'none';
+  createVideoSection.style.display = mode === 'video' ? '' : 'none';
+  createTextSection.style.display = mode === 'text' ? '' : 'none';
   updateCreateButtons();
   updateStepStates();
-});
-createModeText.addEventListener('click', () => {
-  createInputMode = 'text';
-  createModeText.classList.add('active');
-  createModeVoice.classList.remove('active');
-  createVoiceSection.style.display = 'none';
-  createTextSection.style.display = '';
-  updateCreateButtons();
-  updateStepStates();
-});
+}
+createModeVoice.addEventListener('click', () => setCreateInputMode('voice'));
+createModeVideo.addEventListener('click', () => setCreateInputMode('video'));
+createModeText.addEventListener('click', () => setCreateInputMode('text'));
 
 // ── TTS Generation ──
 async function generateTTSGemini(text, voiceName, apiKey) {
@@ -495,7 +552,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     apiKey = getCreateGeminiKey();
     if (!apiKey) { createTtsStatus.textContent = 'Enter your Gemini API key in Step 1 first'; return; }
   } else {
-    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('kaatchi_gcloud_tts_key');
+    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('stori_gcloud_tts_key');
     if (!apiKey) { createTtsStatus.textContent = 'Enter your Google Cloud TTS API key'; return; }
   }
 
@@ -917,7 +974,7 @@ function autoSaveCreateState() {
       timestamp: Date.now(),
     };
     // Don't save audio buffer (too large) — just save transcript + scenes + images
-    localStorage.setItem('kaatchi_create_autosave', JSON.stringify(state));
+    localStorage.setItem('stori_create_autosave', JSON.stringify(state));
   } catch (e) {
     // localStorage quota exceeded — silently fail (images are large)
     console.warn('Auto-save failed (storage full):', e.message);
@@ -927,12 +984,12 @@ function autoSaveCreateState() {
 // Restore auto-saved state on page load
 function restoreAutoSaveIfAvailable() {
   try {
-    const saved = localStorage.getItem('kaatchi_create_autosave');
+    const saved = localStorage.getItem('stori_create_autosave');
     if (!saved) return false;
     const state = JSON.parse(saved);
     // Only restore if it's recent (within 24 hours)
     if (Date.now() - state.timestamp > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem('kaatchi_create_autosave');
+      localStorage.removeItem('stori_create_autosave');
       return false;
     }
     return state;
@@ -1964,6 +2021,26 @@ btnCreateSendEditor.addEventListener('click', async () => {
         }
       }
     }
+  }
+
+  // Transfer PiP video to editor
+  if (createPipVideoEl) {
+    pipVideoEl = createPipVideoEl;
+    pipVideoSrc = createPipVideoSrc;
+    pipVideoDuration = createPipVideoEl.duration;
+    pipEnabled = true;
+    pipInPoint = 0;
+    pipOutPoint = currentBuffer.duration;
+    pipPosition = 'bot-right';
+    pipCustomX = null; pipCustomY = null;
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = '';
+    const pipNm = $('pip-name');
+    if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+  } else {
+    pipEnabled = false; pipVideoEl = null;
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = 'none';
   }
 
   // Transfer language tracks to editor

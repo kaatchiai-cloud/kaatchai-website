@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title>Kaatchi — காட்சி</title>
+  <title>Stori — AI Video Creator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
@@ -747,6 +747,40 @@ input:focus, select:focus, textarea:focus {
 }
 .gallery-card:hover .gallery-card-delete { display: flex; }
 
+/* ── PiP section ── */
+.pip-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 4px 8px; font-size: 0.72rem;
+}
+.pip-label { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.pip-name { color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.pip-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; }
+.pip-remove-btn:hover { background: var(--red); color: #fff; }
+
+#pip-props {
+  position: relative;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  margin: 4px 8px; display: none; gap: 8px; align-items: center;
+  font-size: 0.78rem; flex-wrap: wrap;
+}
+#pip-props.visible { display: flex; }
+#pip-props label { color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+#pip-props input[type="number"] {
+  width: 55px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+}
+#pip-props select {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+}
+#pip-props input[type="color"] {
+  width: 32px; height: 28px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-input); cursor: pointer; padding: 2px;
+}
+
 /* ── Subtitle timeline ── */
 #sub-drop-zone {
   position: relative; min-height: 50px;
@@ -870,14 +904,14 @@ input:focus, select:focus, textarea:focus {
   </style>
 </head>
 <body>
-  <h1 style="font-family:'Poppins',sans-serif; letter-spacing:3px; font-weight:700;">Kaatchi <span style="font-family:'Noto Sans Tamil',sans-serif; font-size:1rem; color:var(--accent); font-weight:400;">காட்சி</span></h1>
+  <h1 style="font-family:'Poppins',sans-serif; letter-spacing:3px; font-weight:700;">Stori</h1>
   <p class="subtitle">Create stunning videos with photos, text & audio</p>
 
   <div id="drop-zone">
     <div style="margin-bottom:8px;">
       <span style="font-size:2.5rem;">🎬</span>
     </div>
-    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Kaatchi</p>
+    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Stori</p>
     <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:28px;">Professional video creation made simple</p>
     <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
       <button id="btn-create-content" class="primary" style="padding:12px 36px; font-size:0.9rem; border-radius:10px; font-weight:600;">Create Content</button>
@@ -924,16 +958,29 @@ input:focus, select:focus, textarea:focus {
     <div class="create-step">
       <h3><span class="step-num">2</span> Input</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
-        <button id="create-mode-voice" class="mode-btn active">🎵 Voice</button>
+        <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
+        <button id="create-mode-video" class="mode-btn">📹 Video</button>
         <button id="create-mode-text" class="mode-btn">✏️ Text</button>
       </div>
 
-      <!-- Voice Input -->
+      <!-- Audio Input -->
       <div id="create-voice-section">
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import an audio file (podcast, voiceover, recording)</p>
         <div class="create-row">
           <button id="btn-create-import-audio" style="font-size:0.78rem; padding:6px 16px;">🎵 Choose Audio File</button>
           <span id="create-audio-name" style="font-size:0.75rem; color:var(--text-muted);"></span>
         </div>
+      </div>
+
+      <!-- Video Input -->
+      <div id="create-video-section" style="display:none;">
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import a speaker/podcast video. Audio is extracted for voiceover, video becomes PiP overlay in the editor.</p>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="btn-create-pip-import" style="font-size:0.78rem; padding:6px 16px;">📹 Choose Video File</button>
+          <span id="create-pip-name" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <button id="btn-create-pip-remove" style="font-size:0.7rem; padding:3px 8px; display:none;" class="danger">✕</button>
+        </div>
+        <input type="file" id="create-pip-input" accept="video/*" hidden>
       </div>
 
       <!-- Text Input -->
@@ -1219,6 +1266,7 @@ input:focus, select:focus, textarea:focus {
       <button id="btn-add-videos" style="font-size:0.75rem; padding:4px 10px;">🎬 Add Video</button>
       <button id="btn-add-photos" style="font-size:0.75rem; padding:4px 10px;">📷 Add Photos</button>
       <button id="btn-add-bgm" style="font-size:0.75rem; padding:4px 10px;">🎵 Add BGM</button>
+      <button id="btn-add-pip" style="font-size:0.75rem; padding:4px 10px;">🎭 Add PiP</button>
       <input type="file" id="video-input" accept="video/*" multiple hidden>
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
@@ -1234,6 +1282,42 @@ input:focus, select:focus, textarea:focus {
         <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
         <button id="bgm-remove" class="bgm-remove-btn">✕</button>
       </div>
+    </div>
+
+    <div id="pip-section" style="display:none;">
+      <div class="pip-bar">
+        <span class="pip-label">🎭 PiP Speaker</span>
+        <span id="pip-name" class="pip-name">No video</span>
+        <button id="pip-settings-btn" style="font-size:0.7rem; padding:3px 8px;">⚙ Settings</button>
+        <button id="pip-remove" class="pip-remove-btn">✕</button>
+      </div>
+    </div>
+    <input type="file" id="pip-input" accept="video/*" hidden>
+
+    <div id="pip-props">
+      <button id="pip-props-close" class="props-close-btn" title="Close">✕</button>
+      <label>Position:
+        <div class="text-position-grid" id="pip-position-grid">
+          <button data-pos="top-left">↖</button><button data-pos="top-center">↑</button><button data-pos="top-right">↗</button>
+          <button data-pos="mid-left">←</button><button data-pos="center">●</button><button data-pos="mid-right">→</button>
+          <button data-pos="bot-left">↙</button><button data-pos="bot-center">↓</button><button data-pos="bot-right" class="active">↘</button>
+        </div>
+      </label>
+      <label>X: <input type="number" id="pip-x" step="1" placeholder="auto">px</label>
+      <label>Y: <input type="number" id="pip-y" step="1" placeholder="auto">px</label>
+      <label>Size: <input type="number" id="pip-size-input" min="10" max="50" value="25">%</label>
+      <label>Shape:
+        <select id="pip-shape-select">
+          <option value="circle">Circle</option>
+          <option value="rounded">Rounded Rect</option>
+          <option value="rectangle">Rectangle</option>
+        </select>
+      </label>
+      <label>Border: <input type="number" id="pip-border-input" min="0" max="10" value="3">px</label>
+      <label>Color: <input type="color" id="pip-border-color-input" value="#ffffff"></label>
+      <label>Shadow: <input type="checkbox" id="pip-shadow-input" checked></label>
+      <label>In: <input type="number" id="pip-in-input" step="0.1" min="0" value="0">s</label>
+      <label>Out: <input type="number" id="pip-out-input" step="0.1" min="0" value="0">s</label>
     </div>
 
     <div id="time-ruler"><canvas id="ruler-canvas"></canvas></div>
@@ -1530,6 +1614,18 @@ let bgmGainNode = null, bgmSource = null;
 // Video series
 let currentSeriesName = '';
 let currentEpisodeNumber = 0;
+
+// Picture-in-Picture speaker video
+let pipVideoEl = null, pipVideoSrc = null, pipVideoDuration = 0;
+let pipEnabled = false;
+let pipPosition = 'bot-right';
+let pipCustomX = null, pipCustomY = null;
+let pipSize = 25;           // % of canvas width
+let pipShape = 'circle';    // 'circle' | 'rounded' | 'rectangle'
+let pipBorder = 3;
+let pipBorderColor = '#ffffff';
+let pipShadow = true;
+let pipInPoint = 0, pipOutPoint = 0; // 0 = full duration
 
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
@@ -2722,6 +2818,106 @@ function drawRuler() {
     function easeInQuart(t) { return t*t*t*t; }
     function easeOutBack(t) { const c = 1.70158; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
 
+    // ── PiP Renderer ──
+    function drawCoverFitRect(ctx, img, x, y, w, h) {
+      const isVideo = img instanceof HTMLVideoElement;
+      const iw = isVideo ? img.videoWidth : img.naturalWidth;
+      const ih = isVideo ? img.videoHeight : img.naturalHeight;
+      if (!iw || !ih) return;
+      const ir = iw / ih, cr = w / h;
+      let dw, dh, dx, dy;
+      if (ir > cr) { dh = h; dw = h * ir; dx = x + (w - dw) / 2; dy = y; }
+      else { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2; }
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    function drawPipShape(ctx, x, y, w, h, shape) {
+      if (shape === 'circle') {
+        const r = Math.min(w, h) / 2;
+        ctx.arc(x + w / 2, y + h / 2, r, 0, Math.PI * 2);
+      } else if (shape === 'rounded') {
+        const r = Math.min(w, h) * 0.15;
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+        ctx.lineTo(x + r, y + h);
+        ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+        ctx.lineTo(x, y + r);
+        ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2);
+      } else {
+        ctx.rect(x, y, w, h);
+      }
+    }
+
+    function renderPiP(ctx, cw, ch, elapsed) {
+      if (!pipEnabled || !pipVideoEl) return;
+
+      const outTime = pipOutPoint || (currentBuffer ? currentBuffer.duration : Infinity);
+      if (elapsed < pipInPoint || elapsed > outTime) return;
+
+      // Seek video to correct frame
+      const targetTime = elapsed - pipInPoint;
+      const clampedTime = Math.min(targetTime, pipVideoDuration || pipVideoEl.duration);
+      if (Math.abs(pipVideoEl.currentTime - clampedTime) > 0.05) {
+        pipVideoEl.currentTime = clampedTime;
+      }
+
+      // Dimensions
+      const pipW = Math.round(cw * pipSize / 100);
+      const pipH = pipShape === 'circle' ? pipW : Math.round(pipW * (pipVideoEl.videoHeight / (pipVideoEl.videoWidth || 1) || 0.75));
+      const pad = Math.max(pipBorder + 4, cw * 0.02);
+
+      // Position
+      let x, y;
+      if (pipCustomX !== null && pipCustomY !== null) {
+        x = pipCustomX; y = pipCustomY;
+      } else {
+        switch (pipPosition) {
+          case 'top-left':     x = pad; y = pad; break;
+          case 'top-center':   x = (cw - pipW) / 2; y = pad; break;
+          case 'top-right':    x = cw - pipW - pad; y = pad; break;
+          case 'mid-left':     x = pad; y = (ch - pipH) / 2; break;
+          case 'center':       x = (cw - pipW) / 2; y = (ch - pipH) / 2; break;
+          case 'mid-right':    x = cw - pipW - pad; y = (ch - pipH) / 2; break;
+          case 'bot-left':     x = pad; y = ch - pipH - pad; break;
+          case 'bot-center':   x = (cw - pipW) / 2; y = ch - pipH - pad; break;
+          default:             x = cw - pipW - pad; y = ch - pipH - pad; break;
+        }
+      }
+
+      ctx.save();
+
+      // Shadow
+      if (pipShadow) {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+      }
+
+      // Border
+      if (pipBorder > 0) {
+        ctx.beginPath();
+        drawPipShape(ctx, x - pipBorder, y - pipBorder, pipW + pipBorder * 2, pipH + pipBorder * 2, pipShape);
+        ctx.fillStyle = pipBorderColor;
+        ctx.fill();
+      }
+
+      // Reset shadow before drawing video
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      // Clip and draw video
+      ctx.beginPath();
+      drawPipShape(ctx, x, y, pipW, pipH, pipShape);
+      ctx.clip();
+      drawCoverFitRect(ctx, pipVideoEl, x, y, pipW, pipH);
+
+      ctx.restore();
+    }
+
     // Apply continuous motion effect throughout a photo's duration
     function applyMotionTransform(ctx, motion, lifeProgress, p, cw, ch) {
       if (motion === 'ken-burns') {
@@ -3409,6 +3605,7 @@ function drawRuler() {
       const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
       const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
       renderTimelineFrame(ctx, width, height, t, sorted);
+      renderPiP(ctx, width, height, t);
       renderTextOverlays(ctx, width, height, t, sortedTexts);
       renderTextOverlays(ctx, width, height, t, sortedSubs);
       ctx.restore();
@@ -3547,11 +3744,13 @@ function drawRuler() {
         previewCtx.save();
         previewCtx.scale(scale, scale);
         renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
         previewCtx.restore();
       } else {
         renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
       }
@@ -3824,6 +4023,7 @@ function drawRuler() {
           }
           exportLabel.textContent = `Recording... ${(progress * 100).toFixed(0)}%${etaStr}`;
           renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+          renderPiP(ctx, exportW, exportH, elapsed);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
           if (elapsed >= currentBuffer.duration) {
@@ -3924,6 +4124,7 @@ function drawRuler() {
               exportBar.style.width = (progress * 100).toFixed(1) + '%';
               exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})... ${(progress * 100).toFixed(0)}%`;
               renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+              renderPiP(ctx, exportW, exportH, elapsed);
               renderTextOverlays(ctx, exportW, exportH, elapsed, trackSortedTexts);
               if (elapsed >= track.buffer.duration) {
                 stopped = true;
@@ -4262,7 +4463,7 @@ const btnLoadProject = $('btn-load-project');
 const projectInput = $('project-input');
 
 // ── IndexedDB Gallery ──
-const GALLERY_DB_NAME = 'kaatchi_projects';
+const GALLERY_DB_NAME = 'stori_projects';
 let galleryDbVersion = 1;
 let galleryDb = null;
 const GALLERY_STORE = 'projects';
@@ -4297,6 +4498,7 @@ async function saveProjectToGallery(jsonStr, name) {
       const scale = Math.min(320 / width, 180 / height);
       tctx.scale(scale, scale);
       renderTimelineFrame(tctx, width, height, 0.5, sorted);
+      renderPiP(tctx, width, height, 0.5);
       renderTextOverlays(tctx, width, height, 0.5, sortedTexts);
       thumbnailDataUrl = tc.toDataURL('image/jpeg', 0.6);
     }
@@ -4611,6 +4813,23 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
+      // PiP
+      pip: (pipEnabled && pipVideoSrc) ? await (async () => {
+        try {
+          const resp = await fetch(pipVideoSrc);
+          const blob = await resp.blob();
+          return {
+            videoData: await blobToBase64(blob),
+            duration: pipVideoDuration,
+            position: pipPosition,
+            customX: pipCustomX, customY: pipCustomY,
+            size: pipSize, shape: pipShape,
+            border: pipBorder, borderColor: pipBorderColor,
+            shadow: pipShadow,
+            inPoint: pipInPoint, outPoint: pipOutPoint,
+          };
+        } catch(e) { console.warn('PiP save error:', e); return undefined; }
+      })() : undefined,
     };
 
     const json = JSON.stringify(project);
@@ -4835,6 +5054,40 @@ projectInput.addEventListener('change', async () => {
       if (bgmSec) bgmSec.style.display = 'none';
     }
 
+    // Restore PiP
+    if (project.pip && project.pip.videoData) {
+      try {
+        const videoBlob = base64ToBlob(project.pip.videoData);
+        const blobUrl = URL.createObjectURL(videoBlob);
+        const videoEl = document.createElement('video');
+        videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+        videoEl.src = blobUrl;
+        await new Promise(r => { videoEl.onloadedmetadata = r; });
+        pipVideoEl = videoEl;
+        pipVideoSrc = blobUrl;
+        pipVideoDuration = project.pip.duration || videoEl.duration;
+        pipEnabled = true;
+        pipPosition = project.pip.position || 'bot-right';
+        pipCustomX = project.pip.customX ?? null;
+        pipCustomY = project.pip.customY ?? null;
+        pipSize = project.pip.size || 25;
+        pipShape = project.pip.shape || 'circle';
+        pipBorder = project.pip.border ?? 3;
+        pipBorderColor = project.pip.borderColor || '#ffffff';
+        pipShadow = project.pip.shadow ?? true;
+        pipInPoint = project.pip.inPoint || 0;
+        pipOutPoint = project.pip.outPoint || 0;
+        const pipSec = $('pip-section');
+        if (pipSec) pipSec.style.display = '';
+        const pipNm = $('pip-name');
+        if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+      } catch(e) { console.warn('PiP restore error:', e); }
+    } else {
+      pipEnabled = false; pipVideoEl = null; pipVideoSrc = null;
+      const pipSec = $('pip-section');
+      if (pipSec) pipSec.style.display = 'none';
+    }
+
     // Show editor
     await refreshWaveform();
     updateAudioControls();
@@ -4907,6 +5160,104 @@ projectInput.addEventListener('change', async () => {
       bgmNameEl.textContent = 'No file';
       setStatus('BGM removed');
     });
+
+    // ── PiP Speaker Video ──
+    const pipInputEl = $('pip-input');
+    const pipSectionEl = $('pip-section');
+    const pipNameEl = $('pip-name');
+    const pipRemoveBtn = $('pip-remove');
+    const pipSettingsBtn = $('pip-settings-btn');
+    const pipPropsEl = $('pip-props');
+    const btnAddPip = $('btn-add-pip');
+
+    btnAddPip.addEventListener('click', () => pipInputEl.click());
+    pipInputEl.addEventListener('change', async () => {
+      const file = pipInputEl.files[0];
+      if (!file) return;
+      pipInputEl.value = '';
+      try {
+        const videoEl = document.createElement('video');
+        videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+        const blobUrl = URL.createObjectURL(file);
+        videoEl.src = blobUrl;
+        await new Promise((resolve, reject) => {
+          videoEl.onloadedmetadata = resolve;
+          videoEl.onerror = () => reject(new Error('Cannot load video'));
+        });
+        pipVideoEl = videoEl;
+        pipVideoSrc = blobUrl;
+        pipVideoDuration = videoEl.duration;
+        pipEnabled = true;
+        pipInPoint = 0;
+        pipOutPoint = currentBuffer ? currentBuffer.duration : pipVideoDuration;
+        pipNameEl.textContent = `${file.name} (${fmtShort(pipVideoDuration)})`;
+        pipSectionEl.style.display = '';
+        setStatus(`PiP loaded: ${file.name}`);
+      } catch(e) { setStatus('PiP error: ' + e.message); }
+    });
+
+    pipRemoveBtn.addEventListener('click', () => {
+      pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
+      pipEnabled = false; pipCustomX = null; pipCustomY = null;
+      pipSectionEl.style.display = 'none';
+      pipPropsEl.classList.remove('visible');
+      setStatus('PiP removed');
+    });
+
+    pipSettingsBtn.addEventListener('click', () => {
+      pipPropsEl.classList.toggle('visible');
+      if (pipPropsEl.classList.contains('visible')) {
+        // Sync UI with current state
+        $('pip-size-input').value = pipSize;
+        $('pip-shape-select').value = pipShape;
+        $('pip-border-input').value = pipBorder;
+        $('pip-border-color-input').value = pipBorderColor;
+        $('pip-shadow-input').checked = pipShadow;
+        $('pip-in-input').value = pipInPoint;
+        $('pip-out-input').value = pipOutPoint;
+        $('pip-x').value = pipCustomX ?? '';
+        $('pip-y').value = pipCustomY ?? '';
+        // Update position grid
+        $('pip-position-grid').querySelectorAll('button').forEach(b =>
+          b.classList.toggle('active', b.dataset.pos === pipPosition)
+        );
+      }
+    });
+
+    $('pip-props-close').addEventListener('click', () => pipPropsEl.classList.remove('visible'));
+
+    // Position grid
+    $('pip-position-grid').addEventListener('click', (e) => {
+      if (e.target.dataset.pos) {
+        pipPosition = e.target.dataset.pos;
+        pipCustomX = null; pipCustomY = null;
+        $('pip-x').value = ''; $('pip-y').value = '';
+        $('pip-position-grid').querySelectorAll('button').forEach(b =>
+          b.classList.toggle('active', b.dataset.pos === pipPosition)
+        );
+      }
+    });
+
+    // Custom x/y
+    $('pip-x').addEventListener('change', () => {
+      const v = $('pip-x').value;
+      pipCustomX = v !== '' ? parseInt(v) : null;
+      if (pipCustomX !== null && pipCustomY === null) pipCustomY = 0;
+    });
+    $('pip-y').addEventListener('change', () => {
+      const v = $('pip-y').value;
+      pipCustomY = v !== '' ? parseInt(v) : null;
+      if (pipCustomY !== null && pipCustomX === null) pipCustomX = 0;
+    });
+
+    // Other props
+    $('pip-size-input').addEventListener('change', () => { pipSize = Math.max(10, Math.min(50, parseInt($('pip-size-input').value) || 25)); });
+    $('pip-shape-select').addEventListener('change', () => { pipShape = $('pip-shape-select').value; });
+    $('pip-border-input').addEventListener('change', () => { pipBorder = Math.max(0, Math.min(10, parseInt($('pip-border-input').value) || 3)); });
+    $('pip-border-color-input').addEventListener('input', () => { pipBorderColor = $('pip-border-color-input').value; });
+    $('pip-shadow-input').addEventListener('change', () => { pipShadow = $('pip-shadow-input').checked; });
+    $('pip-in-input').addEventListener('change', () => { pipInPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); });
+    $('pip-out-input').addEventListener('change', () => { pipOutPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); });
 
 
     // ── 17-create-content.js ──
@@ -5050,7 +5401,7 @@ document.addEventListener('keydown', (e) => {
 btnCreateContent.addEventListener('click', () => {
   dropZone.classList.add('hidden');
   createPage.classList.add('visible');
-  const saved = localStorage.getItem('kaatchi_gemini_key');
+  const saved = localStorage.getItem('stori_gemini_key');
   if (saved) {
     createApiKey.value = saved;
     createKeyStatus.textContent = '✓ Saved';
@@ -5069,7 +5420,7 @@ btnCreateBack.addEventListener('click', () => {
 btnSaveApiKey.addEventListener('click', () => {
   const key = createApiKey.value.trim();
   if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
-  localStorage.setItem('kaatchi_gemini_key', key);
+  localStorage.setItem('stori_gemini_key', key);
   createKeyStatus.textContent = '✓ Saved';
   createKeyStatus.style.color = '#10b981';
   updateCreateButtons();
@@ -5077,7 +5428,7 @@ btnSaveApiKey.addEventListener('click', () => {
 });
 
 function getCreateGeminiKey() {
-  return localStorage.getItem('kaatchi_gemini_key') || createApiKey.value.trim();
+  return localStorage.getItem('stori_gemini_key') || createApiKey.value.trim();
 }
 
 function updateCreateButtons() {
@@ -5125,6 +5476,65 @@ createAudioInput.addEventListener('change', async () => {
   } catch (e) {
     createAudioName.textContent = 'Error: ' + e.message;
   }
+});
+
+// ── Speaker Video Import (Create flow) ──
+let createPipVideoEl = null;
+let createPipVideoSrc = null;
+
+const btnCreatePipImport = $('btn-create-pip-import');
+const createPipInput = $('create-pip-input');
+const createPipName = $('create-pip-name');
+const btnCreatePipRemove = $('btn-create-pip-remove');
+
+btnCreatePipImport.addEventListener('click', () => createPipInput.click());
+createPipInput.addEventListener('change', async () => {
+  const file = createPipInput.files[0];
+  if (!file) return;
+  createPipInput.value = '';
+  try {
+    // Create video element
+    const videoEl = document.createElement('video');
+    videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+    const blobUrl = URL.createObjectURL(file);
+    videoEl.src = blobUrl;
+    await new Promise((resolve, reject) => {
+      videoEl.onloadedmetadata = resolve;
+      videoEl.onerror = () => reject(new Error('Cannot load video'));
+    });
+
+    // Extract audio from the video file
+    const arrayBuf = await file.arrayBuffer();
+    createOriginalBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    createAudioBuffer = createOriginalBuffer;
+    createAudioFile = file;
+
+    // Store PiP video
+    createPipVideoEl = videoEl;
+    createPipVideoSrc = blobUrl;
+
+    // Update UI
+    createAudioName.textContent = `Audio extracted from: ${file.name}`;
+    createPipName.textContent = `${file.name} (${fmtShort(videoEl.duration)})`;
+    btnCreatePipRemove.style.display = '';
+    createDetectedRegions = [];
+    btnCreateSilApply.disabled = true;
+    createSilInfo.textContent = '';
+    createSilVisual.style.display = 'none';
+    updateCreateButtons();
+    updateStepStates();
+    await showCreateAudioEditor();
+  } catch (e) {
+    createPipName.textContent = 'Error: ' + e.message;
+  }
+});
+
+btnCreatePipRemove.addEventListener('click', () => {
+  if (createPipVideoSrc) URL.revokeObjectURL(createPipVideoSrc);
+  createPipVideoEl = null;
+  createPipVideoSrc = null;
+  createPipName.textContent = '';
+  btnCreatePipRemove.style.display = 'none';
 });
 
 createSilThreshold.addEventListener('input', () => {
@@ -5202,10 +5612,12 @@ btnCreateSilReset.addEventListener('click', () => {
   if (createWavesurfer) refreshCreateWaveform();
 });
 
-// ── Input Mode Toggle (Voice / Text) ──
+// ── Input Mode Toggle (Audio / Video / Text) ──
 const createModeVoice = $('create-mode-voice');
+const createModeVideo = $('create-mode-video');
 const createModeText = $('create-mode-text');
 const createVoiceSection = $('create-voice-section');
+const createVideoSection = $('create-video-section');
 const createTextSection = $('create-text-section');
 const createTtsText = $('create-tts-text');
 const createTtsProvider = $('create-tts-provider');
@@ -5258,34 +5670,30 @@ createTtsProvider.addEventListener('change', () => {
   createGcloudKeyRow.style.display = createTtsProvider.value === 'gcloud' ? '' : 'none';
   // Restore saved gcloud key
   if (createTtsProvider.value === 'gcloud') {
-    createGcloudTtsKey.value = localStorage.getItem('kaatchi_gcloud_tts_key') || '';
+    createGcloudTtsKey.value = localStorage.getItem('stori_gcloud_tts_key') || '';
   }
 });
 
 // Save gcloud key on blur
 createGcloudTtsKey.addEventListener('blur', () => {
   const k = createGcloudTtsKey.value.trim();
-  if (k) localStorage.setItem('kaatchi_gcloud_tts_key', k);
+  if (k) localStorage.setItem('stori_gcloud_tts_key', k);
 });
 
-createModeVoice.addEventListener('click', () => {
-  createInputMode = 'voice';
-  createModeVoice.classList.add('active');
-  createModeText.classList.remove('active');
-  createVoiceSection.style.display = '';
-  createTextSection.style.display = 'none';
+function setCreateInputMode(mode) {
+  createInputMode = mode === 'video' ? 'voice' : mode; // video mode uses voice transcription
+  createModeVoice.classList.toggle('active', mode === 'voice');
+  createModeVideo.classList.toggle('active', mode === 'video');
+  createModeText.classList.toggle('active', mode === 'text');
+  createVoiceSection.style.display = mode === 'voice' ? '' : 'none';
+  createVideoSection.style.display = mode === 'video' ? '' : 'none';
+  createTextSection.style.display = mode === 'text' ? '' : 'none';
   updateCreateButtons();
   updateStepStates();
-});
-createModeText.addEventListener('click', () => {
-  createInputMode = 'text';
-  createModeText.classList.add('active');
-  createModeVoice.classList.remove('active');
-  createVoiceSection.style.display = 'none';
-  createTextSection.style.display = '';
-  updateCreateButtons();
-  updateStepStates();
-});
+}
+createModeVoice.addEventListener('click', () => setCreateInputMode('voice'));
+createModeVideo.addEventListener('click', () => setCreateInputMode('video'));
+createModeText.addEventListener('click', () => setCreateInputMode('text'));
 
 // ── TTS Generation ──
 async function generateTTSGemini(text, voiceName, apiKey) {
@@ -5407,7 +5815,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     apiKey = getCreateGeminiKey();
     if (!apiKey) { createTtsStatus.textContent = 'Enter your Gemini API key in Step 1 first'; return; }
   } else {
-    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('kaatchi_gcloud_tts_key');
+    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('stori_gcloud_tts_key');
     if (!apiKey) { createTtsStatus.textContent = 'Enter your Google Cloud TTS API key'; return; }
   }
 
@@ -5829,7 +6237,7 @@ function autoSaveCreateState() {
       timestamp: Date.now(),
     };
     // Don't save audio buffer (too large) — just save transcript + scenes + images
-    localStorage.setItem('kaatchi_create_autosave', JSON.stringify(state));
+    localStorage.setItem('stori_create_autosave', JSON.stringify(state));
   } catch (e) {
     // localStorage quota exceeded — silently fail (images are large)
     console.warn('Auto-save failed (storage full):', e.message);
@@ -5839,12 +6247,12 @@ function autoSaveCreateState() {
 // Restore auto-saved state on page load
 function restoreAutoSaveIfAvailable() {
   try {
-    const saved = localStorage.getItem('kaatchi_create_autosave');
+    const saved = localStorage.getItem('stori_create_autosave');
     if (!saved) return false;
     const state = JSON.parse(saved);
     // Only restore if it's recent (within 24 hours)
     if (Date.now() - state.timestamp > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem('kaatchi_create_autosave');
+      localStorage.removeItem('stori_create_autosave');
       return false;
     }
     return state;
@@ -6878,6 +7286,26 @@ btnCreateSendEditor.addEventListener('click', async () => {
     }
   }
 
+  // Transfer PiP video to editor
+  if (createPipVideoEl) {
+    pipVideoEl = createPipVideoEl;
+    pipVideoSrc = createPipVideoSrc;
+    pipVideoDuration = createPipVideoEl.duration;
+    pipEnabled = true;
+    pipInPoint = 0;
+    pipOutPoint = currentBuffer.duration;
+    pipPosition = 'bot-right';
+    pipCustomX = null; pipCustomY = null;
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = '';
+    const pipNm = $('pip-name');
+    if (pipNm) pipNm.textContent = `Speaker (${fmtShort(pipVideoDuration)})`;
+  } else {
+    pipEnabled = false; pipVideoEl = null;
+    const pipSec = $('pip-section');
+    if (pipSec) pipSec.style.display = 'none';
+  }
+
   // Transfer language tracks to editor
   editorOriginalBuffer = currentBuffer;
   editorOriginalSubtitles = subtitleItems.map(t => ({ ...t }));
@@ -7104,6 +7532,12 @@ btnNewProject.addEventListener('click', (e) => {
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   currentSeriesName = ''; currentEpisodeNumber = 0;
+  pipEnabled = false; pipVideoEl = null; pipVideoSrc = null; pipVideoDuration = 0;
+  pipCustomX = null; pipCustomY = null;
+  const pipSec = $('pip-section');
+  if (pipSec) pipSec.style.display = 'none';
+  const pipPr = $('pip-props');
+  if (pipPr) pipPr.classList.remove('visible');
   editorLanguageTracks = []; editorCurrentLang = 'original';
   editorOriginalBuffer = null; editorOriginalSubtitles = [];
   const editorLangDiv = $('editor-lang-selector');

@@ -42,6 +42,7 @@
       const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
       const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
       renderTimelineFrame(ctx, width, height, t, sorted);
+      renderPiP(ctx, width, height, t);
       renderTextOverlays(ctx, width, height, t, sortedTexts);
       renderTextOverlays(ctx, width, height, t, sortedSubs);
       ctx.restore();
@@ -180,11 +181,13 @@
         previewCtx.save();
         previewCtx.scale(scale, scale);
         renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
         previewCtx.restore();
       } else {
         renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
       }
