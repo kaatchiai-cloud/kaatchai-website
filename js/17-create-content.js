@@ -270,8 +270,9 @@ createPipInput.addEventListener('change', async () => {
     });
 
     // Extract audio from the video file
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
     const arrayBuf = await file.arrayBuffer();
-    createOriginalBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    createOriginalBuffer = await audioCtx.decodeAudioData(arrayBuf.slice(0));
     createAudioBuffer = createOriginalBuffer;
     createAudioFile = file;
 
@@ -907,7 +908,7 @@ function friendlyApiError(msg) {
   return msg;
 }
 
-// Robust JSON parser for Gemini responses (handles markdown fences, trailing commas, extra text)
+// Robust JSON parser for Gemini responses (handles markdown fences, trailing commas, missing quotes, extra text)
 function parseGeminiJson(text) {
   // Strip markdown code fences
   let s = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -919,16 +920,35 @@ function parseGeminiJson(text) {
     let jsonStr = arrMatch[0];
     jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
     try { return JSON.parse(jsonStr); } catch (_) {}
+    // Fix missing quotes around string values (common with non-English text)
+    // Pattern: "key": value without quotes → "key": "value"
+    jsonStr = jsonStr.replace(/"(text|sceneDescription|title|summary)":\s*([^"\[\]{},][^,}\]]*)/g, (match, key, val) => {
+      val = val.trim().replace(/"/g, '\\"');
+      return `"${key}": "${val}"`;
+    });
+    jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
+    try { return JSON.parse(jsonStr); } catch (_) {}
   }
   // Handle truncated JSON — extract all complete objects
   const objects = [];
   const objRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
   let m;
   while ((m = objRegex.exec(s)) !== null) {
+    let objStr = m[0];
     try {
-      const obj = JSON.parse(m[0]);
-      if (obj.startTime !== undefined || obj.prompt !== undefined) objects.push(obj);
-    } catch (_) {}
+      const obj = JSON.parse(objStr);
+      if (obj.startTime !== undefined || obj.prompt !== undefined || obj.title !== undefined) objects.push(obj);
+    } catch (_) {
+      // Try fixing missing quotes in this object too
+      objStr = objStr.replace(/"(text|sceneDescription|title|summary)":\s*([^"\[\]{},][^,}]*)/g, (match, key, val) => {
+        val = val.trim().replace(/"/g, '\\"');
+        return `"${key}": "${val}"`;
+      });
+      try {
+        const obj = JSON.parse(objStr);
+        if (obj.startTime !== undefined || obj.prompt !== undefined || obj.title !== undefined) objects.push(obj);
+      } catch (_) {}
+    }
   }
   if (objects.length > 0) return objects;
   // Extract single JSON object
@@ -1150,7 +1170,21 @@ STRICT RULES:
 3. EVERY part of the audio must be transcribed. Do NOT skip any section.
 4. If silence or music, still create a segment with text like "[instrumental]" or "[silence]".
 
-Return ONLY a valid JSON array:
+TIMESTAMP ACCURACY (CRITICAL):
+- Listen carefully to WHEN each word is actually spoken in the audio.
+- Do NOT compress all text into early timestamps. The speech spans the FULL ${createAudioBuffer.duration.toFixed(1)} seconds.
+- Each segment's endTime must reflect when that portion of speech ACTUALLY ends in the audio, not just an estimate.
+- The LAST segment MUST end at exactly ${createAudioBuffer.duration.toFixed(1)} seconds.
+- If the audio is ${createAudioBuffer.duration.toFixed(1)} seconds, your timestamps should span from 0 to ${createAudioBuffer.duration.toFixed(1)} — not stop early at 60% or 70% of the duration.
+- Double-check: does your last segment's endTime equal ${createAudioBuffer.duration.toFixed(1)}? If not, fix it.
+
+CRITICAL JSON FORMATTING:
+- Return ONLY a valid JSON array, no markdown, no code fences
+- ALL string values MUST be wrapped in double quotes
+- Escape any double quotes inside text with backslash: \\"
+- Non-English text (Tamil, Hindi, etc.) MUST also be in double quotes
+
+Example format:
 [{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
 
 Note: sceneDescription can be empty — it will be generated later per chapter.`
@@ -1213,7 +1247,11 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
       }
       if (fixed.length > 0 && fixed[fixed.length - 1].endTime < totalDur - 0.5) {
         const last = fixed[fixed.length - 1];
-        if (totalDur - last.endTime <= 15) {
+        if (createInputMode === 'podcast') {
+          // Podcast: just extend last segment to cover remaining (no [continued] padding)
+          last.endTime = totalDur;
+          console.log(`[storyboard] Extended last segment to ${totalDur.toFixed(1)}s (podcast mode)`);
+        } else if (totalDur - last.endTime <= 15) {
           last.endTime = totalDur;
         } else {
           let t = last.endTime;
@@ -1330,6 +1368,79 @@ if (chapterModeManual) chapterModeManual.addEventListener('click', () => {
 
 function suggestSplits(chapterDuration) {
   return Math.max(1, Math.min(15, Math.round(chapterDuration / 60)));
+}
+
+// Build contextual splits for a chapter based on transcript segment boundaries
+function buildChapterScenes(ch) {
+  if (!createTranscript) return [];
+  // Get transcript segments that overlap this chapter
+  const relevantSegs = createTranscript.filter(s =>
+    s.startTime < ch.endTime && s.endTime > ch.startTime && s.text && s.text !== '[continued]'
+  );
+
+  if (relevantSegs.length === 0 || ch.splits <= 1) {
+    // Single split: whole chapter
+    return [{
+      prompt: '', startTime: ch.startTime, endTime: ch.endTime,
+      duration: ch.duration,
+      text: relevantSegs.map(s => s.text).join(' ').substring(0, 500),
+      imgDataUrl: null, status: 'pending',
+      chapterId: ch.id, chapterTitle: ch.title,
+    }];
+  }
+
+  // Collect all sentence break points within the chapter from transcript segments
+  const breakPoints = [ch.startTime];
+  for (const seg of relevantSegs) {
+    const segStart = Math.max(seg.startTime, ch.startTime);
+    const segEnd = Math.min(seg.endTime, ch.endTime);
+    if (segStart > ch.startTime && !breakPoints.includes(segStart)) {
+      breakPoints.push(segStart);
+    }
+    if (segEnd < ch.endTime && !breakPoints.includes(segEnd)) {
+      breakPoints.push(segEnd);
+    }
+  }
+  breakPoints.push(ch.endTime);
+  breakPoints.sort((a, b) => a - b);
+  // Remove duplicates
+  const uniqueBreaks = [...new Set(breakPoints)];
+
+  // If we have more break points than splits, merge the shortest adjacent pairs
+  while (uniqueBreaks.length - 1 > ch.splits) {
+    let minGap = Infinity, minIdx = 1;
+    for (let i = 1; i < uniqueBreaks.length - 1; i++) {
+      const gap = uniqueBreaks[i] - uniqueBreaks[i - 1];
+      if (gap < minGap) { minGap = gap; minIdx = i; }
+    }
+    uniqueBreaks.splice(minIdx, 1);
+  }
+
+  // If we have fewer break points than splits, subdivide the longest segment
+  while (uniqueBreaks.length - 1 < ch.splits) {
+    let maxGap = 0, maxIdx = 0;
+    for (let i = 0; i < uniqueBreaks.length - 1; i++) {
+      const gap = uniqueBreaks[i + 1] - uniqueBreaks[i];
+      if (gap > maxGap) { maxGap = gap; maxIdx = i; }
+    }
+    const mid = (uniqueBreaks[maxIdx] + uniqueBreaks[maxIdx + 1]) / 2;
+    uniqueBreaks.splice(maxIdx + 1, 0, mid);
+  }
+
+  // Build scenes from break points
+  const scenes = [];
+  for (let i = 0; i < uniqueBreaks.length - 1; i++) {
+    const start = uniqueBreaks[i];
+    const end = uniqueBreaks[i + 1];
+    scenes.push({
+      prompt: '', startTime: start, endTime: end,
+      duration: end - start,
+      text: getTranscriptForRange(start, end),
+      imgDataUrl: null, status: 'pending',
+      chapterId: ch.id, chapterTitle: ch.title,
+    });
+  }
+  return scenes;
 }
 
 function getTranscriptForRange(start, end) {
@@ -1495,22 +1606,10 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
   btnChapterProceed.innerHTML = '<span class="spinner"></span> Generating storyboard...';
 
   try {
-    // Build scenes from chapter splits
+    // Build scenes from chapter splits (contextual, based on transcript boundaries)
     createScenes = [];
     for (const ch of createChapters) {
-      const splitDur = ch.duration / ch.splits;
-      for (let i = 0; i < ch.splits; i++) {
-        const start = ch.startTime + i * splitDur;
-        const end = start + splitDur;
-        createScenes.push({
-          prompt: '',
-          startTime: start, endTime: end,
-          duration: splitDur,
-          text: getTranscriptForRange(start, end),
-          imgDataUrl: null, status: 'pending',
-          chapterId: ch.id, chapterTitle: ch.title,
-        });
-      }
+      createScenes.push(...buildChapterScenes(ch));
     }
 
     // Generate scene descriptions via Gemini (batched per chapter)
@@ -1518,7 +1617,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
     if (key) {
       for (const ch of createChapters) {
         const chScenes = createScenes.filter(s => s.chapterId === ch.id);
-        const sceneTexts = chScenes.map((s, i) => `Scene ${i + 1} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
+        const sceneTexts = chScenes.map((s, i) => `Scene ${i} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
 
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
@@ -1526,7 +1625,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate visual scene descriptions for image generation.\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with one entry per scene:\n[{"sceneIndex":0,"sceneDescription":"A detailed visual description suitable for AI image generation: subject, composition, mood, colors, style"}]\n\nReturn ONLY valid JSON, no markdown.` }] }],
+              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene. Each description should be suitable for AI image generation.\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
               generationConfig: { temperature: 0.7 }
             })
           }
@@ -1541,6 +1640,16 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
                 const idx = desc.sceneIndex ?? desc.segmentIndex;
                 if (idx !== undefined && chScenes[idx]) {
                   chScenes[idx].prompt = desc.sceneDescription || '';
+                }
+              }
+              // Fallback: assign sequentially if any scenes have no prompt
+              let descIdx = 0;
+              for (const scene of chScenes) {
+                if (!scene.prompt && descIdx < descriptions.length) {
+                  scene.prompt = descriptions[descIdx].sceneDescription || '';
+                  descIdx++;
+                } else if (scene.prompt) {
+                  descIdx++;
                 }
               }
             }
@@ -1565,65 +1674,90 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
 });
 
 // Update chapter splits (called from storyboard split controls)
-async function updateChapterSplits(chapterId, newSplitCount) {
+// Just update the split count — no Gemini call. User clicks Regenerate button after adjusting.
+function updateChapterSplitCount(chapterId, newSplitCount) {
   const ch = createChapters.find(c => c.id === chapterId);
   if (!ch) return;
   ch.splits = Math.max(1, Math.min(15, newSplitCount));
+  renderStoryboard();
+}
+
+// Regenerate scenes for a chapter: AI-based contextual splitting + scene descriptions
+async function regenerateChapterScenes(chapterId) {
+  const ch = createChapters.find(c => c.id === chapterId);
+  if (!ch) return;
+  const key = getCreateGeminiKey();
+  if (!key) return;
 
   // Remove old scenes for this chapter
   createScenes = createScenes.filter(s => s.chapterId !== chapterId);
 
-  // Build new scenes
-  const splitDur = ch.duration / ch.splits;
-  const newScenes = [];
-  for (let i = 0; i < ch.splits; i++) {
-    const start = ch.startTime + i * splitDur;
-    const end = start + splitDur;
-    newScenes.push({
-      prompt: '', startTime: start, endTime: end,
-      duration: splitDur,
-      text: getTranscriptForRange(start, end),
+  // Get the full transcript text for this chapter
+  const chapterText = createTranscript
+    .filter(s => s.startTime < ch.endTime && s.endTime > ch.startTime && s.text && s.text !== '[continued]')
+    .map(s => `[${s.startTime.toFixed(1)}s-${s.endTime.toFixed(1)}s] ${s.text}`)
+    .join('\n');
+
+  try {
+    // AI call: split chapter into N contextual segments + generate scene descriptions
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Given this podcast chapter "${ch.title}" (${fmtShort(ch.startTime)} to ${fmtShort(ch.endTime)}, ${ch.duration.toFixed(0)}s), split it into EXACTLY ${ch.splits} segments at natural topic/sentence boundaries.
+
+Transcript:
+${chapterText}
+
+For each segment, provide:
+1. startTime and endTime (within ${ch.startTime.toFixed(1)} to ${ch.endTime.toFixed(1)})
+2. The transcript text for that segment
+3. A vivid visual scene description for AI image generation
+
+Return a JSON array with EXACTLY ${ch.splits} entries:
+[{"startTime":${ch.startTime.toFixed(1)},"endTime":100.0,"text":"transcript portion","sceneDescription":"detailed visual: subject, composition, mood, colors"}]
+
+RULES:
+- EXACTLY ${ch.splits} segments, no more, no less
+- Segments must be contiguous: first starts at ${ch.startTime.toFixed(1)}, last ends at ${ch.endTime.toFixed(1)}
+- Split at natural topic or sentence boundaries, NOT equal duration
+- All string values MUST be in double quotes
+- Return ONLY valid JSON, no markdown` }] }],
+          generationConfig: { temperature: 0.5 }
+        })
+      }
+    );
+
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('No response');
+
+    const segments = parseGeminiJson(text);
+    if (!Array.isArray(segments) || segments.length === 0) throw new Error('Invalid response');
+
+    const newScenes = segments.map(s => ({
+      prompt: s.sceneDescription || '',
+      startTime: s.startTime ?? ch.startTime,
+      endTime: s.endTime ?? ch.endTime,
+      duration: (s.endTime ?? ch.endTime) - (s.startTime ?? ch.startTime),
+      text: s.text || '',
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
-    });
-  }
+    }));
 
-  // Insert at correct position
-  const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
-  createScenes.splice(insertIdx === -1 ? createScenes.length : insertIdx, 0, ...newScenes);
+    // Insert at correct position
+    const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
+    createScenes.splice(insertIdx === -1 ? createScenes.length : insertIdx, 0, ...newScenes);
 
-  // Regenerate scene descriptions for this chapter
-  const key = getCreateGeminiKey();
-  if (key) {
-    try {
-      const sceneTexts = newScenes.map((s, i) => `Scene ${i + 1} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate visual scene descriptions.\n\nScenes:\n${sceneTexts}\n\nReturn JSON array:\n[{"sceneIndex":0,"sceneDescription":"visual description"}]\n\nReturn ONLY valid JSON.` }] }],
-            generationConfig: { temperature: 0.7 }
-          })
-        }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const descriptions = parseGeminiJson(text);
-          if (Array.isArray(descriptions)) {
-            for (const desc of descriptions) {
-              const idx = desc.sceneIndex ?? desc.segmentIndex;
-              if (idx !== undefined && newScenes[idx]) {
-                newScenes[idx].prompt = desc.sceneDescription || '';
-              }
-            }
-          }
-        }
-      }
-    } catch(e) { console.warn('Scene description regen error:', e); }
+  } catch(e) {
+    console.warn('Chapter regenerate error:', e);
+    // Fallback: use mechanical splitting
+    const fallbackScenes = buildChapterScenes(ch);
+    const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
+    createScenes.splice(insertIdx === -1 ? createScenes.length : insertIdx, 0, ...fallbackScenes);
   }
 
   renderStoryboard();
@@ -1673,6 +1807,8 @@ function renderStoryboard() {
       const header = document.createElement('div');
       header.className = 'storyboard-chapter-header';
       const avgDur = ch.duration / ch.splits;
+      const currentSceneCount = chScenes.length;
+      const needsRegen = currentSceneCount !== ch.splits;
       header.innerHTML = `
         <span class="storyboard-chapter-toggle">▼</span>
         <span class="storyboard-chapter-title">${ch.title}</span>
@@ -1682,7 +1818,8 @@ function renderStoryboard() {
           <span class="chapter-splits-val">${ch.splits}</span>
           <button class="chapter-splits-btn" data-ch="${ch.id}" data-dir="1">+</button>
         </div>
-        <span class="storyboard-chapter-count">≈ ${avgDur.toFixed(0)}s each</span>
+        <button class="btn-regen-chapter" data-ch="${ch.id}" style="font-size:0.68rem; padding:3px 10px; background:${needsRegen ? 'var(--accent)' : 'var(--bg-input)'}; color:${needsRegen ? '#fff' : 'var(--text-secondary)'}; border:1px solid var(--border); border-radius:4px; cursor:pointer;">🔄 Regenerate</button>
+        <span class="storyboard-chapter-count">${currentSceneCount} scene${currentSceneCount !== 1 ? 's' : ''}${needsRegen ? ` → ${ch.splits}` : ''}</span>
       `;
 
       const scenesContainer = document.createElement('div');
@@ -1690,21 +1827,32 @@ function renderStoryboard() {
 
       // Toggle collapse
       header.addEventListener('click', (e) => {
-        if (e.target.classList.contains('chapter-splits-btn')) return;
+        if (e.target.classList.contains('chapter-splits-btn') || e.target.classList.contains('btn-regen-chapter')) return;
         const isCollapsed = scenesContainer.classList.toggle('collapsed');
         header.querySelector('.storyboard-chapter-toggle').textContent = isCollapsed ? '▶' : '▼';
       });
 
-      // Split buttons
+      // Split +/- buttons (only update count, no AI call)
       header.querySelectorAll('.chapter-splits-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const dir = parseInt(btn.dataset.dir);
           const newCount = ch.splits + dir;
           if (newCount >= 1 && newCount <= 15) {
-            updateChapterSplits(ch.id, newCount);
+            updateChapterSplitCount(ch.id, newCount);
           }
         });
+      });
+
+      // Regenerate button (AI call for contextual splitting + descriptions)
+      header.querySelector('.btn-regen-chapter').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const btn = e.target;
+        btn.disabled = true;
+        btn.textContent = '⏳ Generating...';
+        await regenerateChapterScenes(ch.id);
+        btn.disabled = false;
+        btn.textContent = '🔄 Regenerate';
       });
 
       for (const { scene, globalIdx } of chScenes) {
