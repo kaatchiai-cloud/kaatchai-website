@@ -51,6 +51,17 @@
         setStatus('Add at least one photo or text to export'); return;
       }
       exportSettingsPanel.style.display = exportSettingsPanel.style.display === 'none' ? '' : 'none';
+      // Gate quality and format options for free tier
+      if (exportQualitySel) {
+        Array.from(exportQualitySel.options).forEach(opt => {
+          if (opt.value !== 'standard') opt.disabled = isFree();
+        });
+      }
+      if (exportFormatSel) {
+        Array.from(exportFormatSel.options).forEach(opt => {
+          if (opt.value !== 'auto') opt.disabled = isFree();
+        });
+      }
       // Show/hide Export All Languages button
       const eab = $('export-all-langs');
       if (eab) eab.style.display = (editorLanguageTracks && editorLanguageTracks.length > 0) ? '' : 'none';
@@ -61,11 +72,22 @@
     });
 
     exportStartBtn.addEventListener('click', async () => {
+      // Duration gate
+      const maxSeconds = isFree() ? 60 : 1800;
+      if (currentBuffer && currentBuffer.duration > maxSeconds) {
+        const limitStr = isFree() ? '1 minute' : '30 minutes';
+        setStatus(`Your plan supports up to ${limitStr} exports. ${isFree() ? 'Upgrade to Pro for up to 30 minutes.' : 'Trim your audio to export.'}`);
+        return;
+      }
       exportSettingsPanel.style.display = 'none';
 
-      const quality = exportQualitySel.value;
+      let quality = exportQualitySel.value;
+      // Quality cap for free tier
+      if (isFree()) quality = 'standard';
       const fps = parseInt(exportFpsSel.value);
-      const format = exportFormatSel.value;
+      let format = exportFormatSel.value;
+      // Format restriction for free tier
+      if (isFree() && format !== 'auto') format = 'auto'; // force WebM
       const resolved = resolveMime(format);
       if (!resolved) {
         setStatus(`${format.toUpperCase()} is not supported in this browser`); return;
@@ -138,6 +160,18 @@
           renderPiP(ctx, exportW, exportH, elapsed);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
+          // Watermark for free tier
+          if (isFree()) {
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            ctx.font = '600 20px Poppins, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'right';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.fillText('Made with Stori', exportW - 16, exportH - 16);
+            ctx.restore();
+          }
           if (elapsed >= currentBuffer.duration) {
             stopped = true;
             timerWorker.postMessage('stop');

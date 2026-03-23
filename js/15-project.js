@@ -27,6 +27,14 @@ function openGalleryDb() {
 }
 
 async function saveProjectToGallery(jsonStr, name) {
+  // Gallery limit for free tier
+  if (isFree()) {
+    const existing = await getGalleryProjects();
+    if (existing.length >= 3) {
+      setStatus('Free plan allows 3 saved projects. Delete one or upgrade to Pro.');
+      return;
+    }
+  }
   const db = galleryDb || await openGalleryDb();
   // Generate thumbnail
   let thumbnailDataUrl = '';
@@ -286,6 +294,191 @@ function base64ToBlob(dataUrl) {
   for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
+
+// ── Autosave to IndexedDB ──
+const AUTOSAVE_DB_NAME = 'stori_autosave';
+let autosaveDb = null;
+
+function openAutosaveDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(AUTOSAVE_DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio', { keyPath: 'id' });
+    };
+    req.onsuccess = () => { autosaveDb = req.result; resolve(autosaveDb); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function autosaveToIDB() {
+  if (!autosaveDirty) return;
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const state = {
+      id: 'current',
+      timestamp: Date.now(),
+      // Editor state
+      photos: photoItems.map(p => ({ id: p.id, imgSrc: p.imgSrc, startTime: p.startTime, duration: p.duration, transition: p.transition, transDur: p.transDur, motion: p.motion, type: p.type })),
+      texts: textItems.map(t => ({ ...t, imgEl: undefined })),
+      subtitles: subtitleItems.map(s => ({ ...s })),
+      // Create state
+      createTranscript: typeof createTranscript !== 'undefined' ? createTranscript : null,
+      createScenes: typeof createScenes !== 'undefined' && createScenes ? createScenes.map(s => ({
+        prompt: s.prompt, startTime: s.startTime, endTime: s.endTime,
+        duration: s.duration, text: s.text, status: s.status,
+      })) : null,
+      createStylePrompt: typeof createStylePrompt !== 'undefined' ? createStylePrompt : '',
+      createStylePreset: typeof createStylePreset !== 'undefined' ? createStylePreset : '',
+      selectedTemplate: typeof selectedTemplate !== 'undefined' ? selectedTemplate : '',
+      // Settings
+      imageSize: $('create-image-size')?.value || '1280x720',
+      seriesName: typeof currentSeriesName !== 'undefined' ? currentSeriesName : '',
+      episodeNumber: typeof currentEpisodeNumber !== 'undefined' ? currentEpisodeNumber : 0,
+      hasAudio: !!currentBuffer,
+      hasPip: typeof pipItems !== 'undefined' && pipItems.length > 0,
+    };
+    const tx = db.transaction('state', 'readwrite');
+    tx.objectStore('state').put(state);
+    autosaveDirty = false;
+  } catch (e) {
+    console.warn('Autosave failed:', e.message);
+  }
+}
+
+async function autosaveAudio(id, audioBuffer) {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const tx = db.transaction('audio', 'readwrite');
+    tx.objectStore('audio').put({ id, blob: wavBlob });
+  } catch (e) { console.warn('Autosave audio failed:', e.message); }
+}
+
+async function autosaveImage(sceneIndex, dataUrl) {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('images', 'readwrite');
+    tx.objectStore('images').put({ id: `scene-${sceneIndex}`, dataUrl });
+  } catch (e) { console.warn('Autosave image failed:', e.message); }
+}
+
+async function checkAutosaveRecovery() {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('state', 'readonly');
+    const req = tx.objectStore('state').get('current');
+    req.onsuccess = () => {
+      const state = req.result;
+      if (!state) return;
+      if (Date.now() - state.timestamp > 86400000) { clearAutosave(); return; }
+      const ago = Math.round((Date.now() - state.timestamp) / 60000);
+      const agoStr = ago < 1 ? 'less than a minute' : ago < 60 ? `${ago} minute(s)` : `${Math.round(ago/60)} hour(s)`;
+      if (confirm(`Unsaved project found (${agoStr} ago). Restore?`)) {
+        restoreFromAutosave(state);
+      } else {
+        clearAutosave();
+      }
+    };
+  } catch (e) { console.warn('Autosave check failed:', e.message); }
+}
+
+async function restoreFromAutosave(state) {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    // Restore audio
+    if (state.hasAudio) {
+      const atx = db.transaction('audio', 'readonly');
+      const areq = atx.objectStore('audio').get('main');
+      areq.onsuccess = async () => {
+        if (areq.result?.blob) {
+          try {
+            const arrayBuf = await areq.result.blob.arrayBuffer();
+            currentBuffer = await audioCtx.decodeAudioData(arrayBuf);
+          } catch(e) { console.warn('Could not restore audio:', e); }
+        }
+        // Restore photos with images from IndexedDB
+        if (state.createScenes) {
+          const itx = db.transaction('images', 'readonly');
+          const scenes = state.createScenes;
+          for (let i = 0; i < scenes.length; i++) {
+            const ireq = itx.objectStore('images').get(`scene-${i}`);
+            ireq.onsuccess = () => {
+              if (ireq.result?.dataUrl) scenes[i].imgDataUrl = ireq.result.dataUrl;
+            };
+          }
+          itx.oncomplete = () => {
+            createTranscript = state.createTranscript;
+            createScenes = scenes;
+            createStylePrompt = state.createStylePrompt || '';
+            createStylePreset = state.createStylePreset || '';
+            selectedTemplate = state.selectedTemplate || '';
+            currentSeriesName = state.seriesName || '';
+            currentEpisodeNumber = state.episodeNumber || 0;
+            // Restore editor timeline items
+            photoItems = (state.photos || []).map(p => {
+              const img = new Image();
+              img.src = p.imgSrc;
+              return { ...p, imgEl: img };
+            });
+            textItems = state.texts || [];
+            subtitleItems = state.subtitles || [];
+            nextPhotoId = Math.max(1, ...photoItems.map(p => p.id)) + 1;
+            nextTextId = Math.max(1, ...textItems.map(t => t.id)) + 1;
+            // Show editor
+            dropZone.classList.add('hidden');
+            editorEl.classList.add('visible');
+            updateAudioControls();
+            applyEditorPlanGating();
+            drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
+            if (currentBuffer) {
+              setStatus(`Project restored: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos`);
+            } else {
+              setStatus('Project partially restored. Audio could not be recovered.');
+            }
+            if (state.hasPip) setStatus('Re-import your speaker video to continue with PiP.');
+          };
+        } else {
+          // No create scenes, just restore editor
+          photoItems = (state.photos || []).map(p => {
+            const img = new Image();
+            img.src = p.imgSrc;
+            return { ...p, imgEl: img };
+          });
+          textItems = state.texts || [];
+          subtitleItems = state.subtitles || [];
+          dropZone.classList.add('hidden');
+          editorEl.classList.add('visible');
+          updateAudioControls();
+          applyEditorPlanGating();
+          drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
+          setStatus('Project restored from autosave.');
+        }
+      };
+    } else {
+      setStatus('No audio in autosave. Starting fresh.');
+      clearAutosave();
+    }
+  } catch(e) {
+    console.warn('Autosave restore failed:', e.message);
+    setStatus('Could not restore autosave.');
+  }
+}
+
+async function clearAutosave() {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction(['state', 'images', 'audio'], 'readwrite');
+    tx.objectStore('state').clear();
+    tx.objectStore('images').clear();
+    tx.objectStore('audio').clear();
+  } catch(e) { console.warn('Autosave clear failed:', e.message); }
+}
+
+// Start autosave interval
+setInterval(autosaveToIDB, 30000);
 
 async function saveProjectToFile(audioBuf, statusFn) {
   if (!audioBuf) { statusFn('Nothing to save'); return; }

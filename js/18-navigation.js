@@ -31,6 +31,7 @@ btnNewProject.addEventListener('click', (e) => {
   dropZone.classList.add('hidden');
   editorEl.classList.add('visible');
   updateAudioControls();
+  applyEditorPlanGating();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
   setStatus('New project created. Import audio, add photos or text to begin.');
 });
@@ -60,3 +61,17 @@ btnInsert.addEventListener('click', () => insertInput.click());
 insertInput.addEventListener('change', async () => { const f=insertInput.files[0]; if(!f)return; insertInput.value=''; const ct=wavesurfer.getCurrentTime(); setStatus(`Inserting at ${fmt(ct)}...`); try{const ib=await loadAudioBuffer(f);pushUndo();currentBuffer=insertAudioAt(currentBuffer,ib,ct);setStatus(`Inserted. ${fmt(currentBuffer.duration)}`);await refreshWaveform();}catch(e){setStatus('Error: '+e.message);} });
 btnUndo.addEventListener('click', async () => { if(!undoStack.length)return; currentBuffer=undoStack.pop(); if(!undoStack.length)btnUndo.disabled=true; setStatus(`Undo. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
 window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderTexts(); renderSubtitles(); });
+
+// Check for autosave recovery on app load
+checkAutosaveRecovery();
+
+// Temporary plan selector
+const planSelector = $('plan-selector');
+if (planSelector) {
+  planSelector.value = currentPlan;
+  planSelector.addEventListener('change', () => {
+    currentPlan = planSelector.value;
+    localStorage.setItem('stori_plan', currentPlan);
+    setStatus(`Switched to ${currentPlan === 'pro' ? 'Pro' : 'Free'} plan`);
+  });
+}

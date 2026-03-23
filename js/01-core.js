@@ -82,6 +82,51 @@ const MOTIONS = {
   'pan-down': 'Pan Down',
 };
 
+// ── Plan Gating ──
+const PLAN_FREE = 'free';
+const PLAN_PRO = 'pro';
+let currentPlan = localStorage.getItem('stori_plan') || PLAN_FREE;
+function isPro() { return currentPlan === PLAN_PRO; }
+function isFree() { return currentPlan === PLAN_FREE; }
+
+const FREE_TEMPLATES = ['blank', 'bedtime-story', 'youtube-video', 'explainer', 'instagram-reel'];
+const FREE_STYLES = ['watercolor', 'cinematic', 'digital-art', 'photorealistic', 'minimalist'];
+const FREE_SIZES = ['1280x720', '1080x1920', '1080x1080'];
+const FREE_TRANSITIONS = ['none', 'fade'];
+
+// Autosave
+let autosaveDirty = false;
+function markDirty() { autosaveDirty = true; }
+
+// Upgrade prompt
+function showUpgradePrompt(msg) {
+  const modal = $('upgrade-modal');
+  const msgEl = $('upgrade-message');
+  if (modal && msgEl) {
+    msgEl.textContent = msg;
+    modal.classList.add('visible');
+  }
+}
+function hideUpgradePrompt() {
+  const modal = $('upgrade-modal');
+  if (modal) modal.classList.remove('visible');
+}
+
+// Apply editor plan gating (called when editor opens)
+function applyEditorPlanGating() {
+  // Series inputs
+  const seriesEl = $('series-name');
+  const epEl = $('episode-number');
+  if (seriesEl) seriesEl.style.display = isFree() ? 'none' : '';
+  if (epEl) epEl.style.display = isFree() ? 'none' : '';
+  // BGM section label
+  const bgmBtn = $('btn-add-bgm');
+  if (bgmBtn && isFree()) bgmBtn.title = 'Pro feature';
+  // PiP section label
+  const pipBtn = $('btn-add-pip');
+  if (pipBtn && isFree()) pipBtn.title = 'Pro feature';
+}
+
 // ── Helpers ──
 function fmt(s) { return `${Math.floor(s/60)}:${(s%60).toFixed(3).padStart(6,'0')}`; }
 function fmtShort(s) { return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`; }

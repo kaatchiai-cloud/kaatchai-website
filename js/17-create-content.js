@@ -148,14 +148,21 @@ function renderTemplateGrid(category = 'all') {
   const filtered = category === 'all'
     ? TEMPLATES
     : TEMPLATES.filter(t => t.category === category || t.id === 'blank');
-  grid.innerHTML = filtered.map(t => `
-    <div class="template-card${selectedTemplate === t.id ? ' selected' : ''}" data-tpl="${t.id}" style="background:${t.gradient};">
+  grid.innerHTML = filtered.map(t => {
+    const locked = isFree() && !FREE_TEMPLATES.includes(t.id);
+    return `
+    <div class="template-card${selectedTemplate === t.id ? ' selected' : ''}${locked ? ' locked' : ''}" data-tpl="${t.id}" style="background:${t.gradient};">
+      ${locked ? '<div class="lock-badge">🔒</div>' : ''}
       <div class="template-card-name">${t.name}</div>
       <div class="template-card-desc">${t.description}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   grid.querySelectorAll('.template-card').forEach(card => {
-    card.addEventListener('click', () => applyTemplate(card.dataset.tpl));
+    card.addEventListener('click', () => {
+      const locked = isFree() && !FREE_TEMPLATES.includes(card.dataset.tpl);
+      if (locked) { showUpgradePrompt('Upgrade to Pro to unlock all 40 templates.'); return; }
+      applyTemplate(card.dataset.tpl);
+    });
   });
 }
 
@@ -201,6 +208,36 @@ function setTemplateCategoryFilter(cat) {
   const btns = document.querySelectorAll('.tpl-cat-btn');
   btns.forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
   renderTemplateGrid(cat);
+}
+
+function applyPlanGating() {
+  // Gate style dropdown
+  if (createStylePresetEl) {
+    Array.from(createStylePresetEl.options).forEach(opt => {
+      if (opt.value && opt.value !== 'custom' && !FREE_STYLES.includes(opt.value)) {
+        opt.disabled = isFree();
+        if (isFree() && !opt.textContent.includes('🔒')) opt.textContent += ' 🔒';
+      }
+    });
+  }
+  // Gate size dropdown
+  if (createImageSize) {
+    Array.from(createImageSize.options).forEach(opt => {
+      if (!FREE_SIZES.includes(opt.value)) {
+        opt.disabled = isFree();
+        if (isFree() && !opt.textContent.includes('🔒')) opt.textContent += ' 🔒';
+      }
+    });
+  }
+  // Gate podcast tab label
+  if (isFree()) createModeVideo.innerHTML = '🔒 Podcast';
+  else createModeVideo.innerHTML = '🎙️ Podcast';
+  // Gate audio editor buttons in create flow
+  const audioEditorBtns = ['btn-create-keep', 'btn-create-delete', 'btn-create-insert', 'btn-create-silence'];
+  audioEditorBtns.forEach(id => {
+    const btn = $(id);
+    if (btn) btn.style.display = isFree() ? 'none' : '';
+  });
 }
 
 function initTemplateUI() {
@@ -410,6 +447,7 @@ btnCreateContent.addEventListener('click', () => {
   updateStepStates();
   // Render template category buttons + grid
   initTemplateUI();
+  applyPlanGating();
 });
 btnCreateBack.addEventListener('click', () => {
   createPage.classList.remove('visible');
@@ -759,6 +797,11 @@ createGcloudTtsKey.addEventListener('blur', () => {
 });
 
 function setCreateInputMode(mode) {
+  // Gate podcast mode for free tier
+  if (mode === 'video' && isFree()) {
+    showUpgradePrompt('Podcast pipeline with chapters and PiP is a Pro feature.');
+    return;
+  }
   createInputMode = mode === 'video' ? 'podcast' : mode; // video tab = podcast mode
   createModeVoice.classList.toggle('active', mode === 'voice');
   createModeVideo.classList.toggle('active', mode === 'video');
@@ -766,6 +809,9 @@ function setCreateInputMode(mode) {
   createVoiceSection.style.display = mode === 'voice' ? '' : 'none';
   createVideoSection.style.display = mode === 'video' ? '' : 'none';
   createTextSection.style.display = mode === 'text' ? '' : 'none';
+  // Show lock icon on podcast tab for free tier
+  if (isFree()) createModeVideo.innerHTML = '🔒 Podcast';
+  else createModeVideo.innerHTML = '🎙️ Podcast';
   updateCreateButtons();
   updateStepStates();
   // Auto-filter templates: podcast tab → show podcast category, others → show all
@@ -1324,9 +1370,9 @@ function updateStepStates() {
     steps[6].classList.toggle('step-done', allImagesDone);
     steps[6].classList.toggle('step-active', hasScenes && !allImagesDone);
   }
-  // steps[7] = Step 8: Multi-Language (unlocked after images, paid tier only)
+  // steps[7] = Step 8: Multi-Language (Pro only, unlocked after images)
   if (steps[7]) {
-    if (hasImages) {
+    if (hasImages && isPro()) {
       steps[7].style.display = '';
       renderPrimaryAudioCard();
       steps[7].classList.toggle('step-active', true);
@@ -1345,6 +1391,7 @@ function updateStepStates() {
 
 // Auto-save create state to localStorage (#4)
 function autoSaveCreateState() {
+  markDirty();
   try {
     const state = {
       transcript: createTranscript,
@@ -3302,6 +3349,11 @@ btnCreateSendEditor.addEventListener('click', async () => {
   const langInfo = editorLanguageTracks.length > 0 ? ` + ${editorLanguageTracks.length} language(s)` : '';
   const subInfo = subtitleItems.length > 0 ? `, ${subtitleItems.length} subtitles` : '';
   setStatus(`Content created: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos${subInfo}${langInfo}. Edit and export!`);
+  applyEditorPlanGating();
+  // Autosave audio and images
+  if (currentBuffer) autosaveAudio('main', currentBuffer);
+  if (createScenes) createScenes.forEach((s, i) => { if (s.imgDataUrl) autosaveImage(i, s.imgDataUrl); });
+  markDirty();
 });
 
 // ── Editor language selector ──

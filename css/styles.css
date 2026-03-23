@@ -217,6 +217,35 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: #fff; font-weight: 700; lette
   .template-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Locked template cards */
+.template-card.locked { opacity: 0.5; filter: grayscale(0.4); }
+.template-card.locked:hover { transform: none; }
+.lock-badge {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 0.7rem; background: rgba(0,0,0,0.5);
+  border-radius: 50%; width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.template-card { position: relative; }
+
+/* Upgrade modal */
+.upgrade-modal {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+}
+.upgrade-modal.visible { display: flex; }
+.upgrade-modal-content {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 32px 40px;
+  text-align: center; max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.upgrade-modal-content p {
+  font-size: 0.88rem; color: var(--text-primary); line-height: 1.5;
+  margin-bottom: 8px;
+}
+
 .tier-cards { display: flex; gap: 10px; flex-wrap: wrap; }
 .tier-card {
   flex: 1; min-width: 240px;

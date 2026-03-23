@@ -21,7 +21,10 @@
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
-    btnAddBgm.addEventListener('click', () => bgmInputEl.click());
+    btnAddBgm.addEventListener('click', () => {
+      if (isFree()) { showUpgradePrompt('Upgrade to Pro to add background music.'); return; }
+      bgmInputEl.click();
+    });
     bgmInputEl.addEventListener('change', async () => {
       const file = bgmInputEl.files[0];
       if (!file) return;
@@ -31,7 +34,7 @@
         bgmBuffer = await audioCtx.decodeAudioData(arrayBuf);
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
-        setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
+        setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`); markDirty();
       } catch(e) { setStatus('BGM error: ' + e.message); }
     });
 
@@ -62,7 +65,10 @@
     const pipPropsEl = $('pip-props');
     const btnAddPip = $('btn-add-pip');
 
-    btnAddPip.addEventListener('click', () => pipInputEl.click());
+    btnAddPip.addEventListener('click', () => {
+      if (isFree()) { showUpgradePrompt('Upgrade to Pro to add Picture-in-Picture speaker overlay.'); return; }
+      pipInputEl.click();
+    });
     pipInputEl.addEventListener('change', async () => {
       const file = pipInputEl.files[0];
       if (!file) return;
@@ -96,7 +102,7 @@
         });
         renderPipList();
         pipSectionEl.style.display = '';
-        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`);
+        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`); markDirty();
       } catch(e) { setStatus('PiP error: ' + e.message); }
     });
 

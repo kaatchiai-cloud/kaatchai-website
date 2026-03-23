@@ -234,15 +234,27 @@
     });
     propTransition.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.transition = propTransition.value; renderPhotos(); }
+      if (!item) return;
+      if (isFree() && !FREE_TRANSITIONS.includes(propTransition.value)) {
+        showUpgradePrompt('Upgrade to Pro to unlock all transitions.');
+        propTransition.value = item.transition;
+        return;
+      }
+      item.transition = propTransition.value; renderPhotos(); markDirty();
     });
     propTransDur.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.transDur = Math.max(0.1, Math.min(5, parseFloat(propTransDur.value) || 0.5)); }
+      if (item) { item.transDur = Math.max(0.1, Math.min(5, parseFloat(propTransDur.value) || 0.5)); markDirty(); }
     });
     propMotion.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.motion = propMotion.value; renderPhotos(); }
+      if (!item) return;
+      if (isFree() && propMotion.value !== 'none') {
+        showUpgradePrompt('Upgrade to Pro to unlock Ken Burns and motion effects.');
+        propMotion.value = 'none';
+        return;
+      }
+      item.motion = propMotion.value; renderPhotos(); markDirty();
     });
     propInPoint.addEventListener('change', () => {
       const item = getSelectedPhoto();
@@ -351,7 +363,7 @@
               transDur: 0.5,
               motion: 'none',
             });
-            renderPhotos(); drawRuler();
+            renderPhotos(); drawRuler(); markDirty();
           };
           img.src = ev.target.result;
         };
