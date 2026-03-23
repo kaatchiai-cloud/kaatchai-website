@@ -5478,7 +5478,7 @@ const createStoryboardStep = $('create-storyboard-step');
 const createStoryboardGrid = $('create-storyboard-grid');
 const btnCreateRegeneratePrompts = $('btn-create-regenerate-prompts');
 const createGenerateStep = $('create-generate-step');
-const createImageProvider = $('create-image-provider');
+const createImageCategory = $('create-image-category');
 const createImageSize = $('create-image-size');
 const btnCreateGenerate = $('btn-create-generate');
 const createGenerateProgress = $('create-generate-progress');
@@ -5632,7 +5632,8 @@ function updateTierIndicator() {
     tierIndicator.style.borderLeftColor = 'var(--border)';
   }
   // Show/hide podcast tab
-  if (createModeVideo) createModeVideo.style.display = hasPaidKey() ? '' : 'none';
+  const podcastTab = $('create-mode-video');
+  if (podcastTab) podcastTab.style.display = hasPaidKey() ? '' : 'none';
   // Show/hide image category selector
   const catLabel = $('image-category-label');
   if (catLabel) catLabel.style.display = (hasPaidKey() && !getFreeKey()) ? '' : 'none';
@@ -5691,6 +5692,7 @@ function getTranscriptionModels() {
   return ['gemini-2.5-flash', 'gemini-3-flash'];
 }
 function getImageModels() {
+  // Free tier: Nano Banana is 0/0, only Imagen 4 has quota (25 RPD each)
   const freeModels = ['imagen-4.0-fast-generate-001', 'imagen-4.0-generate-001', 'imagen-4.0-ultra-generate-001'];
   if (currentTier === 'free' && !hasPaidKey()) return freeModels;
   if (currentTier === 'free' && hasPaidKey()) {
@@ -6757,11 +6759,11 @@ Example format:
 [{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
 
 Note: sceneDescription can be empty — it will be generated later per chapter.`
-                  : (() => { const seg = getSegmentDuration(); return `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly ${seg.min}-${seg.max} seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
+                  : `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly ${getSegmentDuration().min}-${getSegmentDuration().max} seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
 
 STRICT RULES (MUST follow ALL):
-1. NO segment may exceed ${seg.max} seconds. If a natural segment is longer, split it into sub-segments of ${seg.max} seconds or less.
-2. Minimum segment length: ${seg.min} seconds. Maximum: ${seg.max} seconds. Hard limit, NO exceptions.`; })()
+1. NO segment may exceed ${getSegmentDuration().max} seconds. If a natural segment is longer, split it into sub-segments of ${getSegmentDuration().max} seconds or less.
+2. Minimum segment length: ${getSegmentDuration().min} seconds. Maximum: ${getSegmentDuration().max} seconds. Hard limit, NO exceptions.
 3. Segments MUST be perfectly contiguous — each segment's startTime MUST equal the previous segment's endTime. No gaps allowed.
 4. First segment startTime MUST be 0. Last segment endTime MUST be exactly ${createAudioBuffer.duration.toFixed(1)}.
 5. EVERY part of the audio must be transcribed. Do NOT skip, summarize, or omit any section in the middle or end.
@@ -7729,14 +7731,13 @@ async function updatePromptFromReference(idx) {
 // Image Generation
 // Gemini Image — tries multiple model names with fallback
 const GEMINI_IMAGE_MODELS = [
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.5-flash-preview-image-generation',
-  'gemini-2.0-flash-preview-image-generation',
+  'gemini-2.5-flash-image',
+  'gemini-3.1-flash-image-preview',
   'gemini-2.5-flash-image',
 ];
 let geminiImageModel = null; // cached after first success
 
-async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl } = {}) {
+async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl } = {}, modelOverride) {
   const sizeHint = width && height ? ` The image should be ${width}x${height} pixels, ${width > height ? 'landscape' : width < height ? 'portrait' : 'square'} orientation.` : '';
   const cleanPrompt = prompt.trim().slice(0, 800);
 
@@ -7762,7 +7763,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
 
-    const modelsToTry = geminiImageModel ? [geminiImageModel] : GEMINI_IMAGE_MODELS;
+    const modelsToTry = modelOverride ? [modelOverride] : (geminiImageModel ? [geminiImageModel] : GEMINI_IMAGE_MODELS);
 
     for (const model of modelsToTry) {
       const resp = await fetch(
@@ -7790,7 +7791,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
 }
 
 // Gemini Imagen — dedicated image model
-async function generateImageImagen(prompt, key, { width, height } = {}) {
+async function generateImageImagen(prompt, key, { width, height } = {}, modelOverride) {
   const cleanPrompt = (prompt.trim() + ' Do NOT include any text, words, letters, captions, or writing in any language in the image.').slice(0, 800);
   // Determine aspect ratio string for Imagen
   let aspectRatio = '16:9';
@@ -7806,11 +7807,12 @@ async function generateImageImagen(prompt, key, { width, height } = {}) {
     else aspectRatio = '9:16';
   }
 
+  const imagenModel = modelOverride || 'imagen-4.0-fast-generate-001';
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${imagenModel}:predict`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         instances: [{ prompt: cleanPrompt }],
         parameters: { sampleCount: 1, aspectRatio }
@@ -7829,8 +7831,7 @@ async function generateImageImagen(prompt, key, { width, height } = {}) {
 
 async function generateSceneImage(idx) {
   const scene = createScenes[idx];
-  const provider = createImageProvider.value;
-  const key = getCreateGeminiKey();
+  const key = getActiveKey();
   const { width, height } = getSelectedImageSize();
 
   // Sync prompt from storyboard or scene card (whichever was edited last)
@@ -7843,19 +7844,31 @@ async function generateSceneImage(idx) {
   updateSceneCardStatus(idx);
 
   try {
-    if (!key) throw new Error('Gemini API key required');
+    if (!key) throw new Error('API key required');
     let imgDataUrl;
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl };
-    // Prepend style prompt if set (applied at generation time, not stored in scene.prompt)
     let effectivePrompt = scene.prompt;
     if (createStylePrompt) {
       effectivePrompt = `Style: ${createStylePrompt}. Scene: ${effectivePrompt}`;
     }
-    if (provider === 'gemini-flash') {
-      imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts);
-    } else {
-      imgDataUrl = await generateImageImagen(effectivePrompt, key, opts);
+    // Try image models in fallback order
+    const models = getImageModels();
+    let lastError = null;
+    for (const model of models) {
+      try {
+        if (model.startsWith('imagen-')) {
+          imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
+        } else {
+          imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+        }
+        break;
+      } catch(e) {
+        lastError = e;
+        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+        throw e;
+      }
     }
+    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Free tier may not support image generation — try adding a paid tier key.');
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
     updateSceneCardImage(idx);
