@@ -4,9 +4,13 @@
 const createPage = $('create-page');
 const btnCreateContent = $('btn-create-content');
 const btnCreateBack = $('btn-create-back');
-const createApiKey = $('create-api-key');
-const btnSaveApiKey = $('btn-save-api-key');
-const createKeyStatus = $('create-key-status');
+const createApiKeyFree = $('create-api-key-free');
+const createApiKeyPaid = $('create-api-key-paid');
+const btnSaveKeyFree = $('btn-save-key-free');
+const btnSaveKeyPaid = $('btn-save-key-paid');
+const keyStatusFree = $('key-status-free');
+const keyStatusPaid = $('key-status-paid');
+const tierIndicator = $('tier-indicator');
 const createAudioInput = $('create-audio-input');
 const btnCreateImportAudio = $('btn-create-import-audio');
 const createAudioName = $('create-audio-name');
@@ -134,16 +138,70 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') navigatePreview(1);
 });
 
+// ── Dual Key Management ──
+let currentTier = 'free';
+
+// Migrate old single key
+const _oldKey = localStorage.getItem('stori_gemini_key');
+if (_oldKey && !localStorage.getItem('stori_gemini_key_free')) {
+  localStorage.setItem('stori_gemini_key_free', _oldKey);
+  localStorage.removeItem('stori_gemini_key');
+}
+
+function getFreeKey() { return localStorage.getItem('stori_gemini_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
+function getPaidKey() { return localStorage.getItem('stori_gemini_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
+function hasPaidKey() { return !!getPaidKey(); }
+function hasAnyKey() { return !!getFreeKey() || !!getPaidKey(); }
+function getActiveKey() {
+  const free = getFreeKey(), paid = getPaidKey();
+  if (currentTier === 'paid' || !free) return paid || free;
+  return free || paid;
+}
+// Alias for backward compatibility
+function getCreateGeminiKey() { return getActiveKey(); }
+
+function updateTierIndicator() {
+  if (!tierIndicator) return;
+  const free = !!getFreeKey(), paid = !!getPaidKey();
+  if (free && paid) {
+    tierIndicator.innerHTML = '🟢 Free tier active (paid as fallback). <strong>Podcast + Multi-language enabled.</strong>';
+    tierIndicator.style.borderLeftColor = 'var(--green)';
+  } else if (free) {
+    tierIndicator.innerHTML = '🟡 Free tier only. <strong>Podcast & multi-language disabled.</strong> Add paid key for more.';
+    tierIndicator.style.borderLeftColor = 'var(--amber)';
+  } else if (paid) {
+    tierIndicator.innerHTML = '🔵 Paid tier. <strong>All features enabled.</strong>';
+    tierIndicator.style.borderLeftColor = 'var(--cyan)';
+  } else {
+    tierIndicator.innerHTML = '⚪ No API key saved.';
+    tierIndicator.style.borderLeftColor = 'var(--border)';
+  }
+  // Show/hide podcast tab
+  if (createModeVideo) createModeVideo.style.display = hasPaidKey() ? '' : 'none';
+  // Show/hide image category selector
+  const catLabel = $('image-category-label');
+  if (catLabel) catLabel.style.display = (hasPaidKey() && !getFreeKey()) ? '' : 'none';
+}
+
+function flashSaveButton(btn, statusEl) {
+  statusEl.textContent = '✓ Saved';
+  statusEl.style.color = '#10b981';
+  btn.style.background = '#10b981';
+  btn.style.color = '#fff';
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; btn.textContent = 'Save'; }, 2000);
+}
+
 // Navigation
 btnCreateContent.addEventListener('click', () => {
   dropZone.classList.add('hidden');
   createPage.classList.add('visible');
-  const saved = localStorage.getItem('stori_gemini_key');
-  if (saved) {
-    createApiKey.value = saved;
-    createKeyStatus.textContent = '✓ Saved';
-    createKeyStatus.style.color = '#10b981';
-  }
+  const savedFree = localStorage.getItem('stori_gemini_key_free');
+  const savedPaid = localStorage.getItem('stori_gemini_key_paid');
+  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
+  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
+  currentTier = 'free';
+  updateTierIndicator();
   updateCreateButtons();
   updateStepStates();
 });
@@ -153,36 +211,82 @@ btnCreateBack.addEventListener('click', () => {
   destroyCreateAudioEditor();
 });
 
-// API Key
-btnSaveApiKey.addEventListener('click', () => {
-  const key = createApiKey.value.trim();
-  if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_gemini_key', key);
-  createKeyStatus.textContent = '✓ Key saved successfully';
-  createKeyStatus.style.color = '#10b981';
-  createKeyStatus.style.fontWeight = '600';
-  createKeyStatus.style.transition = 'opacity 0.3s';
-  createKeyStatus.style.opacity = '1';
-  // Flash the save button green briefly
-  btnSaveApiKey.style.background = '#10b981';
-  btnSaveApiKey.style.color = '#fff';
-  btnSaveApiKey.textContent = '✓ Saved';
-  setTimeout(() => {
-    btnSaveApiKey.style.background = '';
-    btnSaveApiKey.style.color = '';
-    btnSaveApiKey.textContent = 'Save Key';
-    createKeyStatus.style.fontWeight = '';
-  }, 2000);
-  updateCreateButtons();
-  updateStepStates();
+// Save buttons
+btnSaveKeyFree.addEventListener('click', () => {
+  const key = createApiKeyFree.value.trim();
+  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_gemini_key_free', key);
+  flashSaveButton(btnSaveKeyFree, keyStatusFree);
+  updateTierIndicator(); updateCreateButtons(); updateStepStates();
+});
+btnSaveKeyPaid.addEventListener('click', () => {
+  const key = createApiKeyPaid.value.trim();
+  if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_gemini_key_paid', key);
+  flashSaveButton(btnSaveKeyPaid, keyStatusPaid);
+  updateTierIndicator(); updateCreateButtons(); updateStepStates();
 });
 
-function getCreateGeminiKey() {
-  return localStorage.getItem('stori_gemini_key') || createApiKey.value.trim();
+// ── Model Selection ──
+function getTextModels() {
+  if (currentTier === 'paid') return ['gemini-2.5-flash', 'gemini-3-flash'];
+  return ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+}
+function getTranscriptionModels() {
+  return ['gemini-2.5-flash', 'gemini-3-flash'];
+}
+function getImageModels() {
+  const freeModels = ['imagen-4.0-fast-generate-001', 'imagen-4.0-generate-001', 'imagen-4.0-ultra-generate-001'];
+  if (currentTier === 'free' && !hasPaidKey()) return freeModels;
+  if (currentTier === 'free' && hasPaidKey()) {
+    return [...freeModels, 'gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
+  }
+  const cat = $('create-image-category')?.value || 'fast';
+  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-3.1-flash-image-preview'];
+  return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
+}
+function getTTSModels() {
+  if (currentTier === 'paid') return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts'];
+  return ['gemini-2.5-flash-preview-tts'];
+}
+function getSegmentDuration() {
+  return hasPaidKey() ? { min: 5, max: 15 } : { min: 8, max: 20 };
+}
+
+// ── API Call Wrapper with model + key fallback ──
+async function callGeminiAPI(models, body) {
+  const modelList = Array.isArray(models) ? models : [models];
+  const keys = [];
+  if (getFreeKey()) keys.push(getFreeKey());
+  if (getPaidKey() && getPaidKey() !== getFreeKey()) keys.push(getPaidKey());
+  if (keys.length === 0) throw new Error('No API key configured');
+
+  for (const apiKey of keys) {
+    for (const model of modelList) {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        );
+        if (resp.ok) {
+          if (apiKey === getPaidKey() && currentTier === 'free') { currentTier = 'paid'; updateTierIndicator(); }
+          return await resp.json();
+        }
+        if (resp.status === 429 || resp.status === 403) continue;
+        const err = await resp.json().catch(() => ({}));
+        if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
+        throw new Error(err.error?.message || `API error ${resp.status}`);
+      } catch(e) {
+        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+        throw e;
+      }
+    }
+  }
+  throw new Error('All models and API keys exhausted. Please wait and try again.');
 }
 
 function updateCreateButtons() {
-  const hasKey = !!getCreateGeminiKey();
+  const hasKey = hasAnyKey();
   const hasAudio = !!createAudioBuffer;
   btnCreateTranscribe.disabled = !(hasKey && hasAudio);
   // Update transcribe button label based on input mode
@@ -1016,13 +1120,15 @@ function updateStepStates() {
     steps[6].classList.toggle('step-done', allImagesDone);
     steps[6].classList.toggle('step-active', hasScenes && !allImagesDone);
   }
-  // steps[7] = Step 8: Multi-Language (unlocked after images)
+  // steps[7] = Step 8: Multi-Language (unlocked after images, paid tier only)
   if (steps[7]) {
-    if (hasImages) {
+    if (hasImages && hasPaidKey()) {
       steps[7].style.display = '';
       renderPrimaryAudioCard();
+      steps[7].classList.toggle('step-active', true);
+    } else {
+      steps[7].style.display = 'none';
     }
-    steps[7].classList.toggle('step-active', hasImages);
   }
   // steps[8] = Step 9: Send to Editor
   if (steps[8]) {
@@ -1165,13 +1271,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       createTranscribeBar.style.width = '40%';
       createTranscribeLabel.textContent = 'Sending to Gemini for transcription...';
 
-      const transcribeModel = 'gemini-2.5-flash';
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${transcribeModel}:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      const transcribeBody = {
             contents: [{
               parts: [
                 { inline_data: { mime_type: 'audio/wav', data: base64Data } },
@@ -1202,11 +1302,11 @@ Example format:
 [{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
 
 Note: sceneDescription can be empty — it will be generated later per chapter.`
-                  : `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 5-15 seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
+                  : (() => { const seg = getSegmentDuration(); return `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly ${seg.min}-${seg.max} seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
 
 STRICT RULES (MUST follow ALL):
-1. NO segment may exceed 15 seconds. If a natural segment is longer, split it into sub-segments of 15 seconds or less.
-2. Minimum segment length: 5 seconds. Maximum: 15 seconds. Hard limit, NO exceptions.
+1. NO segment may exceed ${seg.max} seconds. If a natural segment is longer, split it into sub-segments of ${seg.max} seconds or less.
+2. Minimum segment length: ${seg.min} seconds. Maximum: ${seg.max} seconds. Hard limit, NO exceptions.`; })()
 3. Segments MUST be perfectly contiguous — each segment's startTime MUST equal the previous segment's endTime. No gaps allowed.
 4. First segment startTime MUST be 0. Last segment endTime MUST be exactly ${createAudioBuffer.duration.toFixed(1)}.
 5. EVERY part of the audio must be transcribed. Do NOT skip, summarize, or omit any section in the middle or end.
@@ -1222,19 +1322,13 @@ Return ONLY a valid JSON array with no markdown formatting, in this exact struct
 Important: sceneDescription should be a vivid, specific image generation prompt — describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
               ]
             }],
-          })
-        }
-      );
+          };
 
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API error ${resp.status}`);
-      }
+      const data = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
 
       createTranscribeBar.style.width = '80%';
       createTranscribeLabel.textContent = 'Processing response...';
 
-      const data = await resp.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('No transcription returned from Gemini');
 
