@@ -158,8 +158,21 @@ btnSaveApiKey.addEventListener('click', () => {
   const key = createApiKey.value.trim();
   if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
   localStorage.setItem('stori_gemini_key', key);
-  createKeyStatus.textContent = '✓ Saved';
+  createKeyStatus.textContent = '✓ Key saved successfully';
   createKeyStatus.style.color = '#10b981';
+  createKeyStatus.style.fontWeight = '600';
+  createKeyStatus.style.transition = 'opacity 0.3s';
+  createKeyStatus.style.opacity = '1';
+  // Flash the save button green briefly
+  btnSaveApiKey.style.background = '#10b981';
+  btnSaveApiKey.style.color = '#fff';
+  btnSaveApiKey.textContent = '✓ Saved';
+  setTimeout(() => {
+    btnSaveApiKey.style.background = '';
+    btnSaveApiKey.style.color = '';
+    btnSaveApiKey.textContent = 'Save Key';
+    createKeyStatus.style.fontWeight = '';
+  }, 2000);
   updateCreateButtons();
   updateStepStates();
 });
@@ -1085,7 +1098,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1152,8 +1165,9 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       createTranscribeBar.style.width = '40%';
       createTranscribeLabel.textContent = 'Sending to Gemini for transcription...';
 
+      const transcribeModel = 'gemini-2.5-flash';
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${transcribeModel}:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1207,7 +1221,7 @@ Return ONLY a valid JSON array with no markdown formatting, in this exact struct
 
 Important: sceneDescription should be a vivid, specific image generation prompt — describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
               ]
-            }]
+            }],
           })
         }
       );
@@ -1468,7 +1482,7 @@ if (btnChapterAiSplit) btnChapterAiSplit.addEventListener('click', async () => {
     ).join('\n');
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1620,7 +1634,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
         const sceneTexts = chScenes.map((s, i) => `Scene ${i} (${fmtShort(s.startTime)}-${fmtShort(s.endTime)}): "${s.text}"`).join('\n');
 
         const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1701,7 +1715,7 @@ async function regenerateChapterScenes(chapterId) {
   try {
     // AI call: split chapter into N contextual segments + generate scene descriptions
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1887,7 +1901,7 @@ btnCreateRegeneratePrompts.addEventListener('click', async () => {
     ).join('\n');
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2119,7 +2133,7 @@ async function updatePromptFromReference(idx) {
   const [, mimeType, base64Data] = match;
 
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2475,7 +2489,7 @@ for (const lang of SUPPORTED_LANGUAGES) {
 
 async function translateText(text, targetLang, apiKey) {
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
