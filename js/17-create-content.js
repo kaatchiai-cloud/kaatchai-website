@@ -4,13 +4,9 @@
 const createPage = $('create-page');
 const btnCreateContent = $('btn-create-content');
 const btnCreateBack = $('btn-create-back');
-const createApiKeyFree = $('create-api-key-free');
-const createApiKeyPaid = $('create-api-key-paid');
-const btnSaveKeyFree = $('btn-save-key-free');
-const btnSaveKeyPaid = $('btn-save-key-paid');
-const keyStatusFree = $('key-status-free');
-const keyStatusPaid = $('key-status-paid');
-const tierIndicator = $('tier-indicator');
+const createApiKey = $('create-api-key');
+const btnSaveApiKey = $('btn-save-api-key');
+const createKeyStatus = $('create-key-status');
 const createAudioInput = $('create-audio-input');
 const btnCreateImportAudio = $('btn-create-import-audio');
 const createAudioName = $('create-audio-name');
@@ -138,71 +134,30 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') navigatePreview(1);
 });
 
-// ── Dual Key Management ──
-let currentTier = 'free';
-
-// Migrate old single key
-const _oldKey = localStorage.getItem('stori_gemini_key');
-if (_oldKey && !localStorage.getItem('stori_gemini_key_free')) {
-  localStorage.setItem('stori_gemini_key_free', _oldKey);
+// ── API Key Management ──
+// Migrate old keys
+const _oldKey = localStorage.getItem('stori_gemini_key') || localStorage.getItem('stori_gemini_key_free') || localStorage.getItem('stori_gemini_key_paid');
+if (_oldKey) {
+  localStorage.setItem('stori_api_key', _oldKey);
   localStorage.removeItem('stori_gemini_key');
+  localStorage.removeItem('stori_gemini_key_free');
+  localStorage.removeItem('stori_gemini_key_paid');
 }
 
-function getFreeKey() { return localStorage.getItem('stori_gemini_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
-function getPaidKey() { return localStorage.getItem('stori_gemini_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
-function hasPaidKey() { return !!getPaidKey(); }
-function hasAnyKey() { return !!getFreeKey() || !!getPaidKey(); }
-function getActiveKey() {
-  const free = getFreeKey(), paid = getPaidKey();
-  if (currentTier === 'paid' || !free) return paid || free;
-  return free || paid;
-}
-// Alias for backward compatibility
-function getCreateGeminiKey() { return getActiveKey(); }
-
-function updateTierIndicator() {
-  if (!tierIndicator) return;
-  const free = !!getFreeKey(), paid = !!getPaidKey();
-  if (free && paid) {
-    tierIndicator.innerHTML = '🟢 Free tier active (paid as fallback). <strong>Podcast + Multi-language enabled.</strong>';
-    tierIndicator.style.borderLeftColor = 'var(--green)';
-  } else if (free) {
-    tierIndicator.innerHTML = '🟡 Free tier only. <strong>Podcast & multi-language disabled.</strong> Add paid key for more.';
-    tierIndicator.style.borderLeftColor = 'var(--amber)';
-  } else if (paid) {
-    tierIndicator.innerHTML = '🔵 Paid tier. <strong>All features enabled.</strong>';
-    tierIndicator.style.borderLeftColor = 'var(--cyan)';
-  } else {
-    tierIndicator.innerHTML = '⚪ No API key saved.';
-    tierIndicator.style.borderLeftColor = 'var(--border)';
-  }
-  // Show/hide podcast tab
-  const podcastTab = $('create-mode-video');
-  if (podcastTab) podcastTab.style.display = hasPaidKey() ? '' : 'none';
-  // Show/hide image category selector
-  const catLabel = $('image-category-label');
-  if (catLabel) catLabel.style.display = (hasPaidKey() && !getFreeKey()) ? '' : 'none';
-}
-
-function flashSaveButton(btn, statusEl) {
-  statusEl.textContent = '✓ Saved';
-  statusEl.style.color = '#10b981';
-  btn.style.background = '#10b981';
-  btn.style.color = '#fff';
-  btn.textContent = '✓ Saved';
-  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; btn.textContent = 'Save'; }, 2000);
+function getCreateGeminiKey() {
+  return localStorage.getItem('stori_api_key') || (createApiKey ? createApiKey.value.trim() : '');
 }
 
 // Navigation
 btnCreateContent.addEventListener('click', () => {
   dropZone.classList.add('hidden');
   createPage.classList.add('visible');
-  const savedFree = localStorage.getItem('stori_gemini_key_free');
-  const savedPaid = localStorage.getItem('stori_gemini_key_paid');
-  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
-  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
-  currentTier = 'free';
-  updateTierIndicator();
+  const saved = localStorage.getItem('stori_api_key');
+  if (saved && createApiKey) {
+    createApiKey.value = saved;
+    createKeyStatus.textContent = '✓ Saved';
+    createKeyStatus.style.color = '#10b981';
+  }
   updateCreateButtons();
   updateStepStates();
 });
@@ -212,83 +167,59 @@ btnCreateBack.addEventListener('click', () => {
   destroyCreateAudioEditor();
 });
 
-// Save buttons
-btnSaveKeyFree.addEventListener('click', () => {
-  const key = createApiKeyFree.value.trim();
-  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_gemini_key_free', key);
-  flashSaveButton(btnSaveKeyFree, keyStatusFree);
-  updateTierIndicator(); updateCreateButtons(); updateStepStates();
-});
-btnSaveKeyPaid.addEventListener('click', () => {
-  const key = createApiKeyPaid.value.trim();
-  if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_gemini_key_paid', key);
-  flashSaveButton(btnSaveKeyPaid, keyStatusPaid);
-  updateTierIndicator(); updateCreateButtons(); updateStepStates();
+// Save key
+btnSaveApiKey.addEventListener('click', () => {
+  const key = createApiKey.value.trim();
+  if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_api_key', key);
+  createKeyStatus.textContent = '✓ Key saved';
+  createKeyStatus.style.color = '#10b981';
+  btnSaveApiKey.style.background = '#10b981';
+  btnSaveApiKey.style.color = '#fff';
+  btnSaveApiKey.textContent = '✓ Saved';
+  setTimeout(() => { btnSaveApiKey.style.background = ''; btnSaveApiKey.style.color = ''; btnSaveApiKey.textContent = 'Save Key'; }, 2000);
+  updateCreateButtons();
+  updateStepStates();
 });
 
-// ── Model Selection ──
-function getTextModels() {
-  if (currentTier === 'paid') return ['gemini-2.5-flash', 'gemini-3-flash'];
-  return ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-}
-function getTranscriptionModels() {
-  return ['gemini-2.5-flash', 'gemini-3-flash'];
-}
+// ── Model Selection (paid tier) ──
+function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
+function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
 function getImageModels() {
-  // Free tier: Nano Banana is 0/0, only Imagen 4 has quota (25 RPD each)
-  const freeModels = ['imagen-4.0-fast-generate-001', 'imagen-4.0-generate-001', 'imagen-4.0-ultra-generate-001'];
-  if (currentTier === 'free' && !hasPaidKey()) return freeModels;
-  if (currentTier === 'free' && hasPaidKey()) {
-    return [...freeModels, 'gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
-  }
   const cat = $('create-image-category')?.value || 'fast';
-  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-3.1-flash-image-preview'];
+  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
   return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
 }
-function getTTSModels() {
-  if (currentTier === 'paid') return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts'];
-  return ['gemini-2.5-flash-preview-tts'];
-}
-function getSegmentDuration() {
-  return hasPaidKey() ? { min: 5, max: 15 } : { min: 8, max: 20 };
-}
+function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
+function getSegmentDuration() { return { min: 5, max: 15 }; }
 
-// ── API Call Wrapper with model + key fallback ──
+// ── API Call Wrapper with model fallback ──
 async function callGeminiAPI(models, body) {
   const modelList = Array.isArray(models) ? models : [models];
-  const keys = [];
-  if (getFreeKey()) keys.push(getFreeKey());
-  if (getPaidKey() && getPaidKey() !== getFreeKey()) keys.push(getPaidKey());
-  if (keys.length === 0) throw new Error('No API key configured');
+  const key = getCreateGeminiKey();
+  if (!key) throw new Error('No API key configured');
 
-  for (const apiKey of keys) {
-    for (const model of modelList) {
-      try {
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-        );
-        if (resp.ok) {
-          if (apiKey === getPaidKey() && currentTier === 'free') { currentTier = 'paid'; updateTierIndicator(); }
-          return await resp.json();
-        }
-        if (resp.status === 429 || resp.status === 403) continue;
-        const err = await resp.json().catch(() => ({}));
-        if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
-        throw new Error(err.error?.message || `API error ${resp.status}`);
-      } catch(e) {
-        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
-        throw e;
-      }
+  for (const model of modelList) {
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (resp.ok) return await resp.json();
+      if (resp.status === 429 || resp.status === 403) continue;
+      const err = await resp.json().catch(() => ({}));
+      if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    } catch(e) {
+      if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+      throw e;
     }
   }
-  throw new Error('All models and API keys exhausted. Please wait and try again.');
+  throw new Error('Rate limit reached. Please wait a moment and try again.');
 }
 
 function updateCreateButtons() {
-  const hasKey = hasAnyKey();
+  const hasKey = !!getCreateGeminiKey();
   const hasAudio = !!createAudioBuffer;
   btnCreateTranscribe.disabled = !(hasKey && hasAudio);
   // Update transcribe button label based on input mode
@@ -1124,7 +1055,7 @@ function updateStepStates() {
   }
   // steps[7] = Step 8: Multi-Language (unlocked after images, paid tier only)
   if (steps[7]) {
-    if (hasImages && hasPaidKey()) {
+    if (hasImages) {
       steps[7].style.display = '';
       renderPrimaryAudioCard();
       steps[7].classList.toggle('step-active', true);
@@ -2277,7 +2208,6 @@ async function updatePromptFromReference(idx) {
 // Gemini Image — tries multiple model names with fallback
 const GEMINI_IMAGE_MODELS = [
   'gemini-2.5-flash-image',
-  'gemini-3.1-flash-image-preview',
   'gemini-2.5-flash-image',
 ];
 let geminiImageModel = null; // cached after first success
@@ -2301,8 +2231,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
   }
 
   const body = JSON.stringify({
-    contents: [{ parts }],
-    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+    contents: [{ parts }]
   });
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -2312,8 +2241,8 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
 
     for (const model of modelsToTry) {
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body }
       );
       if (resp.status === 404) continue;
       if (!resp.ok) {

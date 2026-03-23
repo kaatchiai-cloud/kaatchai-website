@@ -52,29 +52,16 @@
       <button id="btn-create-save-early" style="margin-left:auto; font-size:0.75rem; padding:5px 14px; display:none;">💾 Save Project</button>
     </div>
 
-    <!-- Step 1: API Keys -->
+    <!-- Step 1: API Key -->
     <div class="create-step">
-      <h3><span class="step-num">1</span> API Keys</h3>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Free Tier Key:</label>
-        <div class="create-row">
-          <input type="password" id="create-api-key-free" placeholder="Free tier Gemini API key">
-          <button id="btn-save-key-free" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-          <span id="key-status-free" style="font-size:0.72rem;"></span>
-        </div>
+      <h3><span class="step-num">1</span> Gemini API Key</h3>
+      <div class="create-row">
+        <input type="password" id="create-api-key" placeholder="Paste your Gemini API key (billing enabled)">
+        <button id="btn-save-api-key" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save Key</button>
+        <span id="create-key-status" style="font-size:0.72rem;"></span>
       </div>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Paid Tier Key <span style="color:var(--text-muted);">(optional — enables podcast, multi-language)</span>:</label>
-        <div class="create-row">
-          <input type="password" id="create-api-key-paid" placeholder="Paid tier Gemini API key">
-          <button id="btn-save-key-paid" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-          <span id="key-status-paid" style="font-size:0.72rem;"></span>
-        </div>
-      </div>
-      <div id="tier-indicator" style="font-size:0.72rem; padding:6px 10px; border-radius:6px; background:var(--bg-elevated); border-left:3px solid var(--border);"></div>
       <p style="font-size:0.68rem; color:var(--text-muted); margin-top:6px;">
-        Free key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a>.
-        Paid: enable billing in <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent);">Google Cloud</a> for higher limits.
+        Get key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a> with <a href="https://console.cloud.google.com/billing" target="_blank" style="color:var(--accent);">billing enabled</a>. Image generation: ~$0.04/image.
       </p>
     </div>
 
@@ -283,9 +270,9 @@
     <div class="create-step" id="create-generate-step" style="display:none;">
       <h3><span class="step-num">7</span> Generate Scene Images</h3>
       <div class="create-row" style="flex-wrap:wrap; gap:10px;">
-        <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
+        <label style="color:var(--text-secondary);">Image mode:
           <select id="create-image-category">
-            <option value="fast" selected>⚡ Fast & Cheap ($0.039-$0.067/img)</option>
+            <option value="fast" selected>⚡ Fast ($0.039/img)</option>
             <option value="quality">🎨 Quality ($0.04-$0.08/img)</option>
           </select>
         </label>
