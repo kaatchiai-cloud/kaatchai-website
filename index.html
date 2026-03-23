@@ -19,18 +19,89 @@
   <p class="subtitle">Create stunning videos with photos, text & audio</p>
 
   <div id="drop-zone">
-    <div style="margin-bottom:8px;">
-      <span style="font-size:2.5rem;">🎬</span>
+    <!-- Hero -->
+    <div class="landing-hero">
+      <p class="landing-hero-title">AI-Powered Video Creation</p>
+      <p class="landing-hero-sub">Turn audio, text, or podcasts into beautiful videos with AI-generated visuals. No editing skills needed.</p>
+      <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
+        <button id="btn-create-content" class="primary" style="padding:14px 40px; font-size:0.95rem; border-radius:10px; font-weight:600;">Create Content</button>
+        <button id="btn-new-project" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Edit Content</button>
+        <button id="btn-load-project-home" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Open Project</button>
+      </div>
     </div>
-    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Stori</p>
-    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:28px;">Professional video creation made simple</p>
-    <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
-      <button id="btn-create-content" class="primary" style="padding:12px 36px; font-size:0.9rem; border-radius:10px; font-weight:600;">Create Content</button>
-      <button id="btn-new-project" style="padding:12px 36px; font-size:0.9rem; border-radius:10px;">Edit Content</button>
-      <button id="btn-load-project-home" style="padding:12px 36px; font-size:0.9rem; border-radius:10px;">Open Project</button>
-    </div>
-    <p class="hint" style="margin-top:12px;">Create AI-powered videos, edit existing content, or resume a saved project</p>
 
+    <!-- How It Works -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">How It Works</h2>
+      <div class="landing-steps">
+        <div class="landing-step-card">
+          <div class="landing-step-num">1</div>
+          <div class="landing-step-icon">🎤</div>
+          <h3>Import</h3>
+          <p>Upload audio, record a podcast, or type your script. Stori handles any input.</p>
+        </div>
+        <div class="landing-step-card">
+          <div class="landing-step-num">2</div>
+          <div class="landing-step-icon">🤖</div>
+          <h3>AI Creates</h3>
+          <p>AI transcribes, writes scene descriptions, and generates matching images automatically.</p>
+        </div>
+        <div class="landing-step-card">
+          <div class="landing-step-num">3</div>
+          <div class="landing-step-icon">🎬</div>
+          <h3>Export</h3>
+          <p>Preview, fine-tune in the editor, and export HD video ready for any platform.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">Features</h2>
+      <div class="landing-features">
+        <div class="landing-feature"><span>🎨</span><div><strong>40 Templates</strong><br>Story, education, podcast, marketing & more</div></div>
+        <div class="landing-feature"><span>🖼️</span><div><strong>20 Visual Styles</strong><br>Watercolor, cinematic, anime, pixel art, noir...</div></div>
+        <div class="landing-feature"><span>🎙️</span><div><strong>Podcast Pipeline</strong><br>Chapter splitting, PiP speaker overlay</div></div>
+        <div class="landing-feature"><span>🌍</span><div><strong>Multi-Language</strong><br>AI voiceover in 7 languages with synced subtitles</div></div>
+        <div class="landing-feature"><span>📱</span><div><strong>All Platforms</strong><br>YouTube, Instagram, TikTok, Shorts — any size</div></div>
+        <div class="landing-feature"><span>🔒</span><div><strong>100% Private</strong><br>Everything runs in your browser. No uploads, no servers.</div></div>
+        <div class="landing-feature"><span>🎵</span><div><strong>Audio Editor</strong><br>Cut, trim, insert, silence removal built in</div></div>
+        <div class="landing-feature"><span>✨</span><div><strong>Transitions & Motion</strong><br>Ken Burns, zoom, crossfade, 10+ effects</div></div>
+      </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">Pricing</h2>
+      <div class="landing-pricing">
+        <div class="landing-price-card">
+          <h3>Free</h3>
+          <p class="landing-price">$0</p>
+          <p class="landing-price-sub">Bring your own API key</p>
+          <ul>
+            <li>All features included</li>
+            <li>Unlimited exports</li>
+            <li>40 templates, 20 styles</li>
+            <li>Your Gemini API key</li>
+            <li>Runs 100% locally</li>
+          </ul>
+        </div>
+        <div class="landing-price-card featured">
+          <h3>Pro</h3>
+          <p class="landing-price">Coming Soon</p>
+          <p class="landing-price-sub">We handle the AI</p>
+          <ul>
+            <li>No API key needed</li>
+            <li>Higher quality models</li>
+            <li>Priority image generation</li>
+            <li>Cloud project storage</li>
+            <li>Early access to new features</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Gallery -->
     <div id="project-gallery" style="display:none; margin-top:28px; width:100%; max-width:900px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
         <h3 style="font-size:0.82rem; color:var(--text-secondary); text-align:left;">Recent Projects</h3>

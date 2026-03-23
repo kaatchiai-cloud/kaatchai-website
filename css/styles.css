@@ -56,6 +56,87 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: #fff; font-weight: 700; lette
 #drop-zone p { font-size: 1rem; color: var(--text-secondary); }
 #drop-zone .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
 
+/* Landing page sections */
+.landing-hero { margin-bottom: 40px; }
+.landing-hero-title {
+  font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff, var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-hero-sub { font-size: 0.88rem; color: var(--text-secondary); max-width: 520px; margin: 0 auto; line-height: 1.5; }
+
+.landing-section {
+  width: 100%; max-width: 800px; margin: 0 auto 36px;
+  text-align: center;
+}
+.landing-section-title {
+  font-size: 1rem; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 18px; letter-spacing: 0.5px;
+  position: relative; display: inline-block;
+}
+.landing-section-title::after {
+  content: ''; display: block; width: 40px; height: 2px;
+  background: var(--accent); margin: 6px auto 0; border-radius: 2px;
+}
+
+/* How It Works */
+.landing-steps { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.landing-step-card {
+  flex: 1; min-width: 180px; max-width: 240px;
+  padding: 24px 18px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  position: relative;
+}
+.landing-step-num {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 0.68rem;
+  font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.landing-step-card h3 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px; }
+.landing-step-card p { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Features grid */
+.landing-features {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  text-align: left;
+}
+.landing-feature {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.landing-feature span { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+.landing-feature strong { font-size: 0.78rem; color: var(--text-primary); }
+.landing-feature div { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Pricing */
+.landing-pricing { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.landing-price-card {
+  flex: 1; min-width: 220px; max-width: 300px;
+  padding: 28px 24px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  text-align: center;
+}
+.landing-price-card.featured { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+.landing-price-card h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
+.landing-price { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.landing-price-sub { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 16px; }
+.landing-price-card ul {
+  list-style: none; text-align: left; font-size: 0.75rem; color: var(--text-secondary);
+}
+.landing-price-card ul li { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.landing-price-card ul li::before { content: '✓ '; color: var(--green); font-weight: 600; }
+
+@media (max-width: 600px) {
+  .landing-features { grid-template-columns: 1fr; }
+  .landing-steps { flex-direction: column; align-items: center; }
+  .landing-step-card { max-width: 100%; }
+  .landing-hero-title { font-size: 1.2rem; }
+}
+
 /* ── Create Content Page ── */
 #create-page { width: 100%; max-width: 1080px; display: none; }
 #create-page.visible { display: block; }

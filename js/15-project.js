@@ -156,7 +156,7 @@ function createGalleryCard(p) {
       dt.items.add(new File([blob], 'gallery.aptproj', { type: 'application/json' }));
       projectInput.files = dt.files;
       projectInput.dispatchEvent(new Event('change'));
-    } catch(e) { setStatus('Gallery load error: ' + e.message); }
+    } catch(e) { setStatus('Could not load project from gallery. The project file may be corrupted.'); }
   });
   return card;
 }
@@ -415,7 +415,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
     // Also save to gallery
     try { await saveProjectToGallery(json, defaultName.replace('.aptproj', '')); } catch(e) { console.warn('Gallery save:', e); }
   } catch (e) {
-    if (e.name !== 'AbortError') statusFn('Save error: ' + e.message);
+    if (e.name !== 'AbortError') statusFn('Could not save project. Your browser may be low on storage.');
   }
 }
 
@@ -504,7 +504,7 @@ projectInput.addEventListener('change', async () => {
             nextPhotoId = project.nextPhotoId || 1;
             renderPhotos();
             drawRuler();
-            setStatus(`Project loaded with ${totalPhotos - photoItems.length} media errors`);
+            setStatus(`Project loaded. ${totalPhotos - photoItems.length} image(s) could not be restored.`);
           }
         };
         img.src = p.imgSrc;
@@ -699,7 +699,7 @@ projectInput.addEventListener('change', async () => {
       setStatus(`Project loaded: ${fmt(currentBuffer.duration)} audio, no photos${textInfo}`);
     }
   } catch (e) {
-    setStatus('Load error: ' + e.message);
+    setStatus('Could not open project. The file may be corrupted or from an incompatible version.');
     console.error(e);
   }
 });

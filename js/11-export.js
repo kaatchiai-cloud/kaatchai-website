@@ -157,7 +157,7 @@
         a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         setStatus(`Exported ${fileName} (${(videoBlob.size / 1048576).toFixed(1)} MB) — ${exportW}×${exportH}, ${fps}fps, ${quality}`);
-      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export error: ' + (e.message || String(e))); } }
+      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
       exportProgress.classList.remove('visible');
     });
 
@@ -255,7 +255,7 @@
             setTimeout(() => URL.revokeObjectURL(a.href), 60000);
           } catch (e) {
             console.error(`Export ${track.label} error:`, e);
-            setStatus(`Export error (${track.label}): ${e.message}`);
+            setStatus(`Export failed for ${track.label}. Try a different format.`);
           }
         }
 

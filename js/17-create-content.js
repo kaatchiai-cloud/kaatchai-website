@@ -472,7 +472,7 @@ async function callGeminiAPI(models, body) {
       throw e;
     }
   }
-  throw new Error('Rate limit reached. Please wait a moment and try again.');
+  throw new Error('Rate limit reached on all models. Wait a minute and try again, or switch API tier.');
 }
 
 function updateCreateButtons() {
@@ -522,7 +522,7 @@ createAudioInput.addEventListener('change', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createAudioName.textContent = 'Error: ' + e.message;
+    createAudioName.textContent = 'Could not load audio file. Try MP3 or WAV format.';
   }
 });
 
@@ -550,7 +550,7 @@ if (createPodcastAudioInput) {
       updateStepStates();
       await showCreateAudioEditor();
     } catch (e) {
-      createAudioName.textContent = 'Error: ' + e.message;
+      createAudioName.textContent = 'Could not load audio file. Try MP3 or WAV format.';
     }
   });
 }
@@ -603,7 +603,7 @@ createPipInput.addEventListener('change', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createPipName.textContent = 'Error: ' + e.message;
+    createPipName.textContent = 'Could not load video. Try MP4 or WebM format.';
   }
 });
 
@@ -929,7 +929,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createTtsStatus.textContent = 'Error: ' + friendlyApiError(e.message);
+    createTtsStatus.textContent = 'Audio generation failed. ' + friendlyApiError(e.message);
     createTtsStatus.style.color = '#ef4444';
     console.error('TTS error:', e);
   } finally {
@@ -1622,7 +1622,7 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
     autoSaveCreateState();
 
   } catch (e) {
-    createTranscribeLabel.textContent = 'Error: ' + friendlyApiError(e.message);
+    createTranscribeLabel.textContent = 'Transcription failed. ' + friendlyApiError(e.message);
     createTranscribeLabel.style.color = '#ef4444';
     createTranscribeBar.style.width = '0%';
     createTranscribeProgress.classList.add('visible');
@@ -1815,7 +1815,7 @@ if (btnChapterAiSplit) btnChapterAiSplit.addEventListener('click', async () => {
     renderChapterCards();
     chapterAiStatus.textContent = `Detected ${createChapters.length} chapters`;
   } catch(e) {
-    chapterAiStatus.textContent = 'Error: ' + friendlyApiError(e.message);
+    chapterAiStatus.textContent = 'Chapter detection failed. ' + friendlyApiError(e.message);
     console.error('Chapter detection error:', e);
   }
   btnChapterAiSplit.disabled = false;
@@ -1978,7 +1978,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
     autoSaveCreateState();
   } catch(e) {
     console.error('Chapter storyboard error:', e);
-    chapterAiStatus.textContent = 'Error building storyboard: ' + e.message;
+    chapterAiStatus.textContent = 'Storyboard generation failed. ' + friendlyApiError(e.message);
   }
   btnChapterProceed.disabled = false;
   btnChapterProceed.textContent = 'Generate Storyboard from Chapters →';
@@ -2519,7 +2519,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
       if (attempt === 0) break; // no image, retry once
     }
   }
-  throw new Error('Failed — use the regenerate button to try again.');
+  throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
 }
 
 // Gemini Imagen — dedicated image model

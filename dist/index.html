@@ -71,6 +71,87 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: #fff; font-weight: 700; lette
 #drop-zone p { font-size: 1rem; color: var(--text-secondary); }
 #drop-zone .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
 
+/* Landing page sections */
+.landing-hero { margin-bottom: 40px; }
+.landing-hero-title {
+  font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff, var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-hero-sub { font-size: 0.88rem; color: var(--text-secondary); max-width: 520px; margin: 0 auto; line-height: 1.5; }
+
+.landing-section {
+  width: 100%; max-width: 800px; margin: 0 auto 36px;
+  text-align: center;
+}
+.landing-section-title {
+  font-size: 1rem; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 18px; letter-spacing: 0.5px;
+  position: relative; display: inline-block;
+}
+.landing-section-title::after {
+  content: ''; display: block; width: 40px; height: 2px;
+  background: var(--accent); margin: 6px auto 0; border-radius: 2px;
+}
+
+/* How It Works */
+.landing-steps { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.landing-step-card {
+  flex: 1; min-width: 180px; max-width: 240px;
+  padding: 24px 18px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  position: relative;
+}
+.landing-step-num {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 0.68rem;
+  font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.landing-step-card h3 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px; }
+.landing-step-card p { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Features grid */
+.landing-features {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  text-align: left;
+}
+.landing-feature {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.landing-feature span { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+.landing-feature strong { font-size: 0.78rem; color: var(--text-primary); }
+.landing-feature div { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; }
+
+/* Pricing */
+.landing-pricing { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.landing-price-card {
+  flex: 1; min-width: 220px; max-width: 300px;
+  padding: 28px 24px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  text-align: center;
+}
+.landing-price-card.featured { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+.landing-price-card h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
+.landing-price { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.landing-price-sub { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 16px; }
+.landing-price-card ul {
+  list-style: none; text-align: left; font-size: 0.75rem; color: var(--text-secondary);
+}
+.landing-price-card ul li { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.landing-price-card ul li::before { content: '✓ '; color: var(--green); font-weight: 600; }
+
+@media (max-width: 600px) {
+  .landing-features { grid-template-columns: 1fr; }
+  .landing-steps { flex-direction: column; align-items: center; }
+  .landing-step-card { max-width: 100%; }
+  .landing-hero-title { font-size: 1.2rem; }
+}
+
 /* ── Create Content Page ── */
 #create-page { width: 100%; max-width: 1080px; display: none; }
 #create-page.visible { display: block; }
@@ -1027,18 +1108,89 @@ input:focus, select:focus, textarea:focus {
   <p class="subtitle">Create stunning videos with photos, text & audio</p>
 
   <div id="drop-zone">
-    <div style="margin-bottom:8px;">
-      <span style="font-size:2.5rem;">🎬</span>
+    <!-- Hero -->
+    <div class="landing-hero">
+      <p class="landing-hero-title">AI-Powered Video Creation</p>
+      <p class="landing-hero-sub">Turn audio, text, or podcasts into beautiful videos with AI-generated visuals. No editing skills needed.</p>
+      <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
+        <button id="btn-create-content" class="primary" style="padding:14px 40px; font-size:0.95rem; border-radius:10px; font-weight:600;">Create Content</button>
+        <button id="btn-new-project" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Edit Content</button>
+        <button id="btn-load-project-home" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Open Project</button>
+      </div>
     </div>
-    <p style="font-size:1.05rem; color:var(--text-primary); margin-bottom:6px; font-weight:600;">Welcome to Stori</p>
-    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:28px;">Professional video creation made simple</p>
-    <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
-      <button id="btn-create-content" class="primary" style="padding:12px 36px; font-size:0.9rem; border-radius:10px; font-weight:600;">Create Content</button>
-      <button id="btn-new-project" style="padding:12px 36px; font-size:0.9rem; border-radius:10px;">Edit Content</button>
-      <button id="btn-load-project-home" style="padding:12px 36px; font-size:0.9rem; border-radius:10px;">Open Project</button>
-    </div>
-    <p class="hint" style="margin-top:12px;">Create AI-powered videos, edit existing content, or resume a saved project</p>
 
+    <!-- How It Works -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">How It Works</h2>
+      <div class="landing-steps">
+        <div class="landing-step-card">
+          <div class="landing-step-num">1</div>
+          <div class="landing-step-icon">🎤</div>
+          <h3>Import</h3>
+          <p>Upload audio, record a podcast, or type your script. Stori handles any input.</p>
+        </div>
+        <div class="landing-step-card">
+          <div class="landing-step-num">2</div>
+          <div class="landing-step-icon">🤖</div>
+          <h3>AI Creates</h3>
+          <p>AI transcribes, writes scene descriptions, and generates matching images automatically.</p>
+        </div>
+        <div class="landing-step-card">
+          <div class="landing-step-num">3</div>
+          <div class="landing-step-icon">🎬</div>
+          <h3>Export</h3>
+          <p>Preview, fine-tune in the editor, and export HD video ready for any platform.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">Features</h2>
+      <div class="landing-features">
+        <div class="landing-feature"><span>🎨</span><div><strong>40 Templates</strong><br>Story, education, podcast, marketing & more</div></div>
+        <div class="landing-feature"><span>🖼️</span><div><strong>20 Visual Styles</strong><br>Watercolor, cinematic, anime, pixel art, noir...</div></div>
+        <div class="landing-feature"><span>🎙️</span><div><strong>Podcast Pipeline</strong><br>Chapter splitting, PiP speaker overlay</div></div>
+        <div class="landing-feature"><span>🌍</span><div><strong>Multi-Language</strong><br>AI voiceover in 7 languages with synced subtitles</div></div>
+        <div class="landing-feature"><span>📱</span><div><strong>All Platforms</strong><br>YouTube, Instagram, TikTok, Shorts — any size</div></div>
+        <div class="landing-feature"><span>🔒</span><div><strong>100% Private</strong><br>Everything runs in your browser. No uploads, no servers.</div></div>
+        <div class="landing-feature"><span>🎵</span><div><strong>Audio Editor</strong><br>Cut, trim, insert, silence removal built in</div></div>
+        <div class="landing-feature"><span>✨</span><div><strong>Transitions & Motion</strong><br>Ken Burns, zoom, crossfade, 10+ effects</div></div>
+      </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="landing-section">
+      <h2 class="landing-section-title">Pricing</h2>
+      <div class="landing-pricing">
+        <div class="landing-price-card">
+          <h3>Free</h3>
+          <p class="landing-price">$0</p>
+          <p class="landing-price-sub">Bring your own API key</p>
+          <ul>
+            <li>All features included</li>
+            <li>Unlimited exports</li>
+            <li>40 templates, 20 styles</li>
+            <li>Your Gemini API key</li>
+            <li>Runs 100% locally</li>
+          </ul>
+        </div>
+        <div class="landing-price-card featured">
+          <h3>Pro</h3>
+          <p class="landing-price">Coming Soon</p>
+          <p class="landing-price-sub">We handle the AI</p>
+          <ul>
+            <li>No API key needed</li>
+            <li>Higher quality models</li>
+            <li>Priority image generation</li>
+            <li>Cloud project storage</li>
+            <li>Early access to new features</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Gallery -->
     <div id="project-gallery" style="display:none; margin-top:28px; width:100%; max-width:900px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
         <h3 style="font-size:0.82rem; color:var(--text-secondary); text-align:left;">Recent Projects</h3>
@@ -4262,7 +4414,7 @@ function drawRuler() {
         a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         setStatus(`Exported ${fileName} (${(videoBlob.size / 1048576).toFixed(1)} MB) — ${exportW}×${exportH}, ${fps}fps, ${quality}`);
-      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export error: ' + (e.message || String(e))); } }
+      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
       exportProgress.classList.remove('visible');
     });
 
@@ -4360,7 +4512,7 @@ function drawRuler() {
             setTimeout(() => URL.revokeObjectURL(a.href), 60000);
           } catch (e) {
             console.error(`Export ${track.label} error:`, e);
-            setStatus(`Export error (${track.label}): ${e.message}`);
+            setStatus(`Export failed for ${track.label}. Try a different format.`);
           }
         }
 
@@ -4830,7 +4982,7 @@ function createGalleryCard(p) {
       dt.items.add(new File([blob], 'gallery.aptproj', { type: 'application/json' }));
       projectInput.files = dt.files;
       projectInput.dispatchEvent(new Event('change'));
-    } catch(e) { setStatus('Gallery load error: ' + e.message); }
+    } catch(e) { setStatus('Could not load project from gallery. The project file may be corrupted.'); }
   });
   return card;
 }
@@ -5089,7 +5241,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
     // Also save to gallery
     try { await saveProjectToGallery(json, defaultName.replace('.aptproj', '')); } catch(e) { console.warn('Gallery save:', e); }
   } catch (e) {
-    if (e.name !== 'AbortError') statusFn('Save error: ' + e.message);
+    if (e.name !== 'AbortError') statusFn('Could not save project. Your browser may be low on storage.');
   }
 }
 
@@ -5178,7 +5330,7 @@ projectInput.addEventListener('change', async () => {
             nextPhotoId = project.nextPhotoId || 1;
             renderPhotos();
             drawRuler();
-            setStatus(`Project loaded with ${totalPhotos - photoItems.length} media errors`);
+            setStatus(`Project loaded. ${totalPhotos - photoItems.length} image(s) could not be restored.`);
           }
         };
         img.src = p.imgSrc;
@@ -5373,7 +5525,7 @@ projectInput.addEventListener('change', async () => {
       setStatus(`Project loaded: ${fmt(currentBuffer.duration)} audio, no photos${textInfo}`);
     }
   } catch (e) {
-    setStatus('Load error: ' + e.message);
+    setStatus('Could not open project. The file may be corrupted or from an incompatible version.');
     console.error(e);
   }
 });
@@ -5663,7 +5815,7 @@ const TEMPLATE_CATEGORIES = {
 };
 
 const TEMPLATES = [
-  { id: 'blank', name: 'Blank', category: 'all', size: '', style: '', textMode: 'no-text', description: 'Start from scratch — configure everything manually', gradient: 'linear-gradient(135deg, #2a2a3e, #1a1a2e)' },
+  { id: 'blank', name: 'Blank', category: 'all', size: '', style: '', textMode: 'no-text', description: 'Fully customisable', gradient: 'linear-gradient(135deg, #2a2a3e, #1a1a2e)' },
   // Story
   { id: 'bedtime-story', name: 'Bedtime Story', category: 'story', size: '1280x720', style: 'watercolor', textMode: 'no-text', description: 'Soft watercolor scenes for children\'s bedtime tales', gradient: 'linear-gradient(135deg, #667eea, #764ba2)' },
   { id: 'fairy-tale', name: 'Fairy Tale', category: 'story', size: '1280x720', style: 'oil-painting', textMode: 'no-text', description: 'Rich oil painting style for classic fairy tales', gradient: 'linear-gradient(135deg, #f093fb, #f5576c)' },
@@ -6046,7 +6198,7 @@ async function callGeminiAPI(models, body) {
       throw e;
     }
   }
-  throw new Error('Rate limit reached. Please wait a moment and try again.');
+  throw new Error('Rate limit reached on all models. Wait a minute and try again, or switch API tier.');
 }
 
 function updateCreateButtons() {
@@ -6096,7 +6248,7 @@ createAudioInput.addEventListener('change', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createAudioName.textContent = 'Error: ' + e.message;
+    createAudioName.textContent = 'Could not load audio file. Try MP3 or WAV format.';
   }
 });
 
@@ -6124,7 +6276,7 @@ if (createPodcastAudioInput) {
       updateStepStates();
       await showCreateAudioEditor();
     } catch (e) {
-      createAudioName.textContent = 'Error: ' + e.message;
+      createAudioName.textContent = 'Could not load audio file. Try MP3 or WAV format.';
     }
   });
 }
@@ -6177,7 +6329,7 @@ createPipInput.addEventListener('change', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createPipName.textContent = 'Error: ' + e.message;
+    createPipName.textContent = 'Could not load video. Try MP4 or WebM format.';
   }
 });
 
@@ -6503,7 +6655,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     updateStepStates();
     await showCreateAudioEditor();
   } catch (e) {
-    createTtsStatus.textContent = 'Error: ' + friendlyApiError(e.message);
+    createTtsStatus.textContent = 'Audio generation failed. ' + friendlyApiError(e.message);
     createTtsStatus.style.color = '#ef4444';
     console.error('TTS error:', e);
   } finally {
@@ -7196,7 +7348,7 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
     autoSaveCreateState();
 
   } catch (e) {
-    createTranscribeLabel.textContent = 'Error: ' + friendlyApiError(e.message);
+    createTranscribeLabel.textContent = 'Transcription failed. ' + friendlyApiError(e.message);
     createTranscribeLabel.style.color = '#ef4444';
     createTranscribeBar.style.width = '0%';
     createTranscribeProgress.classList.add('visible');
@@ -7389,7 +7541,7 @@ if (btnChapterAiSplit) btnChapterAiSplit.addEventListener('click', async () => {
     renderChapterCards();
     chapterAiStatus.textContent = `Detected ${createChapters.length} chapters`;
   } catch(e) {
-    chapterAiStatus.textContent = 'Error: ' + friendlyApiError(e.message);
+    chapterAiStatus.textContent = 'Chapter detection failed. ' + friendlyApiError(e.message);
     console.error('Chapter detection error:', e);
   }
   btnChapterAiSplit.disabled = false;
@@ -7552,7 +7704,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
     autoSaveCreateState();
   } catch(e) {
     console.error('Chapter storyboard error:', e);
-    chapterAiStatus.textContent = 'Error building storyboard: ' + e.message;
+    chapterAiStatus.textContent = 'Storyboard generation failed. ' + friendlyApiError(e.message);
   }
   btnChapterProceed.disabled = false;
   btnChapterProceed.textContent = 'Generate Storyboard from Chapters →';
@@ -8093,7 +8245,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
       if (attempt === 0) break; // no image, retry once
     }
   }
-  throw new Error('Failed — use the regenerate button to try again.');
+  throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
 }
 
 // Gemini Imagen — dedicated image model
