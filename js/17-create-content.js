@@ -2323,6 +2323,7 @@ function renderSceneCard(scene, idx, ratio) {
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
         <div class="scene-actions">
           <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
+          <button class="btn-download-img" style="font-size:0.68rem; padding:3px 8px; ${scene.imgDataUrl ? '' : 'display:none;'}">📥 Download</button>
           <button class="btn-ref" style="font-size:0.68rem; padding:3px 8px;">📎 Ref Image</button>
           <input type="file" class="ref-input" accept="image/*" style="display:none;">
           <span class="scene-status ${scene.status || ''}" id="create-scene-status-${idx}">
@@ -2347,6 +2348,18 @@ function renderSceneCard(scene, idx, ratio) {
 
     // Regenerate button
     card.querySelector('.btn-regen').addEventListener('click', () => regenerateScene(idx));
+
+    // Download individual image
+    const btnDownloadImg = card.querySelector('.btn-download-img');
+    if (btnDownloadImg) {
+      btnDownloadImg.addEventListener('click', () => {
+        if (!scene.imgDataUrl) return;
+        const a = document.createElement('a');
+        a.href = scene.imgDataUrl;
+        a.download = `stori-scene-${idx + 1}.png`;
+        a.click();
+      });
+    }
 
     // Reference image upload
     const refInput = card.querySelector('.ref-input');
@@ -2693,7 +2706,37 @@ function updateSceneCardStatus(idx, errorMsg) {
     : scene.status === 'generating' ? '⏳ Generating...'
     : scene.status === 'error' ? `✗ ${errorMsg || 'Error'}`
     : '○ Pending';
+  // Show/hide download button on this card
+  const card = statusEl.closest('.scene-card');
+  if (card) {
+    const dlBtn = card.querySelector('.btn-download-img');
+    if (dlBtn) dlBtn.style.display = scene.imgDataUrl ? '' : 'none';
+  }
+  // Show/hide Download All button
+  const btnDlAll = $('btn-download-all-images');
+  if (btnDlAll && createScenes) {
+    btnDlAll.style.display = createScenes.some(s => s.imgDataUrl) ? '' : 'none';
+  }
   updateCreateButtons();
+}
+
+// Download All Images
+const btnDownloadAllImages = $('btn-download-all-images');
+if (btnDownloadAllImages) {
+  btnDownloadAllImages.addEventListener('click', () => {
+    if (!createScenes) return;
+    const withImages = createScenes.filter(s => s.imgDataUrl);
+    if (withImages.length === 0) return;
+    withImages.forEach((scene, i) => {
+      const idx = createScenes.indexOf(scene);
+      const a = document.createElement('a');
+      a.href = scene.imgDataUrl;
+      a.download = `stori-scene-${idx + 1}.png`;
+      // Stagger downloads to avoid browser blocking
+      setTimeout(() => a.click(), i * 200);
+    });
+    setStatus(`Downloading ${withImages.length} image(s)...`);
+  });
 }
 
 // Regenerate single scene (called from onclick)
