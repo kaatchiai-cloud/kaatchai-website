@@ -120,7 +120,8 @@ function createGalleryCard(p) {
   card.className = 'gallery-card';
   const thumbSrc = p.thumbnail || '';
   const durStr = p.duration ? fmtShort(p.duration) : '—';
-  const dateStr = new Date(p.savedAt).toLocaleDateString();
+  const d = new Date(p.savedAt);
+  const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const epLabel = p.episodeNumber ? `Ep ${p.episodeNumber} · ` : '';
   card.innerHTML = `
     ${thumbSrc ? `<img class="gallery-card-thumb" src="${thumbSrc}" alt="">` : `<div class="gallery-card-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem;">🎬</div>`}
@@ -372,6 +373,18 @@ async function saveProjectToFile(audioBuf, statusFn) {
             name: pip.name,
           };
         } catch(e) { console.warn('PiP save error:', e); return null; }
+      })).then(arr => arr.filter(Boolean)) : undefined,
+      // Language tracks
+      languageTracks: editorLanguageTracks.length > 0 ? await Promise.all(editorLanguageTracks.map(async t => {
+        try {
+          const wavBlob = audioBufferToWavBlob(t.audioBuffer);
+          return {
+            lang: t.lang, langCode: t.langCode,
+            audioData: await blobToBase64(wavBlob),
+            translatedText: t.translatedText,
+            subtitleLang: t.subtitleLang || 'original',
+          };
+        } catch(e) { console.warn('Lang track save error:', e); return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
     };
 
@@ -646,6 +659,26 @@ projectInput.addEventListener('change', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
     if (typeof renderPipList === 'function') renderPipList();
+
+    // Restore language tracks
+    editorLanguageTracks = [];
+    if (project.languageTracks && project.languageTracks.length > 0) {
+      for (const t of project.languageTracks) {
+        try {
+          const arrayBuf = base64ToArrayBuffer(t.audioData);
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+          editorLanguageTracks.push({
+            lang: t.lang, langCode: t.langCode,
+            audioBuffer, translatedText: t.translatedText,
+            subtitleLang: t.subtitleLang || 'original',
+          });
+        } catch(e) { console.warn('Lang track restore error:', e); }
+      }
+      editorOriginalBuffer = currentBuffer;
+      editorOriginalSubtitles = subtitleItems.map(s => ({ ...s }));
+      editorCurrentLang = 'original';
+      if (typeof setupEditorLanguageSelector === 'function') setupEditorLanguageSelector();
+    }
 
     // Show editor
     await refreshWaveform();

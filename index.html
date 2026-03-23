@@ -55,27 +55,36 @@
     <!-- Step 1: API Key -->
     <div class="create-step">
       <h3><span class="step-num">1</span> Gemini API Key</h3>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Free Tier Key:</label>
-        <div class="create-row">
-          <input type="password" id="create-api-key-free" placeholder="Free tier Gemini API key">
-          <button id="btn-save-key-free" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-          <span id="key-status-free" style="font-size:0.72rem;"></span>
+      <div class="tier-cards">
+        <div class="tier-card" id="tier-card-free">
+          <label class="tier-radio">
+            <input type="radio" name="active-tier" value="free" id="tier-radio-free" checked>
+            <span class="tier-label">Free Tier</span>
+          </label>
+          <div class="create-row" style="margin-top:6px;">
+            <input type="password" id="create-api-key-free" placeholder="Free tier API key">
+            <button id="btn-save-key-free" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
+            <span id="key-status-free" style="font-size:0.72rem;"></span>
+          </div>
+          <span id="key-image-status" style="font-size:0.68rem; margin-top:4px; display:block;"></span>
+          <p style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">No credit card needed. Slower image generation (2/min).</p>
         </div>
-        <span id="key-image-status" style="font-size:0.68rem; margin-top:4px; display:block;"></span>
-      </div>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Paid Tier Key <span style="color:var(--text-muted);">(optional)</span>:</label>
-        <div class="create-row">
-          <input type="password" id="create-api-key-paid" placeholder="Paid tier Gemini API key">
-          <button id="btn-save-key-paid" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-          <span id="key-status-paid" style="font-size:0.72rem;"></span>
+        <div class="tier-card" id="tier-card-paid">
+          <label class="tier-radio">
+            <input type="radio" name="active-tier" value="paid" id="tier-radio-paid">
+            <span class="tier-label">Paid Tier</span>
+          </label>
+          <div class="create-row" style="margin-top:6px;">
+            <input type="password" id="create-api-key-paid" placeholder="Paid tier API key">
+            <button id="btn-save-key-paid" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
+            <span id="key-status-paid" style="font-size:0.72rem;"></span>
+          </div>
+          <p style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">Higher quality images + faster generation (~$0.04/image).</p>
         </div>
-        <span style="font-size:0.68rem; color:var(--text-muted); margin-top:4px; display:block;">🎨 Paid tier offers higher quality images (Imagen 4, Nano Banana Pro) + faster generation</span>
       </div>
-      <p style="font-size:0.68rem; color:var(--text-muted); margin-top:6px;">
-        Free key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a> — no credit card needed.
-        Paid: <a href="https://console.cloud.google.com/billing" target="_blank" style="color:var(--accent);">enable billing</a> for premium features.
+      <p style="font-size:0.68rem; color:var(--text-muted); margin-top:8px;">
+        Get key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a>.
+        Paid: <a href="https://console.cloud.google.com/billing" target="_blank" style="color:var(--accent);">enable billing</a> on your project.
       </p>
     </div>
 
@@ -272,6 +281,15 @@
           </select>
           <input type="text" id="create-style-prompt" placeholder="Custom style description..." style="flex:1; min-width:200px; font-size:0.75rem; padding:5px 10px;" disabled>
         </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+          <label style="font-size:0.75rem; color:var(--text-secondary);">Text in images:
+            <select id="create-image-text-mode" style="font-size:0.75rem; padding:5px 10px;">
+              <option value="no-text" selected>No text in images</option>
+              <option value="english-only">English text only</option>
+            </select>
+          </label>
+          <span style="font-size:0.65rem; color:var(--text-muted);">Tamil/Indian scripts don't render well in AI images</span>
+        </div>
       </div>
       <div id="create-storyboard-grid" class="storyboard-grid"></div>
       <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
@@ -323,12 +341,6 @@
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:0.78rem; display:flex; align-items:center; gap:8px; cursor:pointer;">
-          <input type="checkbox" id="create-add-subtitles" checked>
-          Add subtitles from transcript
-        </label>
-      </div>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary" style="padding:10px 32px; font-size:0.85rem; border-radius:10px; font-weight:600;" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" style="padding:10px 24px; font-size:0.85rem; border-radius:10px; font-weight:600;">💾 Save Project</button>

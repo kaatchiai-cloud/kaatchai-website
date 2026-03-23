@@ -100,6 +100,22 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: #fff; font-weight: 700; lette
 .scene-img-placeholder::before {
   content: '🖼'; font-size: 1.5rem; opacity: 0.4;
 }
+/* Tier cards */
+.tier-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.tier-card {
+  flex: 1; min-width: 240px;
+  padding: 10px 14px; background: var(--bg-elevated);
+  border: 2px solid var(--border); border-radius: var(--radius);
+  transition: border-color 0.2s;
+}
+.tier-card.active { border-color: var(--accent); }
+.tier-radio {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+}
+.tier-radio input[type="radio"] { accent-color: var(--accent); }
+.tier-label { font-size: 0.8rem; }
+
 /* Input mode toggle */
 .input-mode-toggle {
   display: flex; gap: 0; margin-bottom: 12px;
@@ -694,7 +710,7 @@ input:focus, select:focus, textarea:focus {
 /* ── Project Gallery ── */
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
   gap: 12px;
 }
 .gallery-card {

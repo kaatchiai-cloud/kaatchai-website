@@ -149,12 +149,52 @@ if (_migKey && !localStorage.getItem('stori_key_free')) {
   localStorage.removeItem('stori_gemini_key_paid');
 }
 
-let freeImageGenAvailable = false; // set after validation
+let freeImageGenAvailable = false;
+let activeTier = 'free'; // 'free' | 'paid'
 
 function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
 function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
-function getCreateGeminiKey() { return getPaidKey() || getFreeKey(); }
-function getImageKey() { return getPaidKey() || (freeImageGenAvailable ? getFreeKey() : null); }
+function getCreateGeminiKey() { return activeTier === 'paid' ? getPaidKey() : getFreeKey(); }
+function getImageKey() { return activeTier === 'paid' ? getPaidKey() : (freeImageGenAvailable ? getFreeKey() : null); }
+function isPaidTier() { return activeTier === 'paid'; }
+
+function updateTierSelector() {
+  const radioFree = $('tier-radio-free');
+  const radioPaid = $('tier-radio-paid');
+  const cardFree = $('tier-card-free');
+  const cardPaid = $('tier-card-paid');
+  if (!radioFree || !radioPaid) return;
+
+  const hasFree = !!getFreeKey();
+  const hasPaid = !!getPaidKey();
+
+  // Auto-select: if only one key, select that tier. If both, default paid.
+  if (hasFree && hasPaid) {
+    if (!localStorage.getItem('stori_active_tier')) activeTier = 'paid';
+  } else if (hasFree) {
+    activeTier = 'free';
+  } else if (hasPaid) {
+    activeTier = 'paid';
+  }
+
+  radioFree.checked = activeTier === 'free';
+  radioPaid.checked = activeTier === 'paid';
+  if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
+  if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
+}
+
+// Radio button listeners
+document.querySelectorAll('input[name="active-tier"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    activeTier = radio.value;
+    localStorage.setItem('stori_active_tier', activeTier);
+    const cardFree = $('tier-card-free');
+    const cardPaid = $('tier-card-paid');
+    if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
+    if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
+    updateCreateButtons();
+  });
+});
 
 // Test if free key supports image generation
 async function validateFreeKeyImageGen(key) {
@@ -209,6 +249,10 @@ btnCreateContent.addEventListener('click', () => {
   const savedPaid = localStorage.getItem('stori_key_paid');
   if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
   if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
+  // Restore active tier
+  const savedTier = localStorage.getItem('stori_active_tier');
+  if (savedTier) activeTier = savedTier;
+  updateTierSelector();
   updateCreateButtons();
   updateStepStates();
 });
@@ -224,7 +268,7 @@ btnSaveKeyFree.addEventListener('click', async () => {
   if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
   localStorage.setItem('stori_key_free', key);
   flashSave(btnSaveKeyFree, keyStatusFree);
-  updateCreateButtons(); updateStepStates();
+  updateTierSelector(); updateCreateButtons(); updateStepStates();
   await validateFreeKeyImageGen(key);
 });
 
@@ -234,21 +278,21 @@ btnSaveKeyPaid.addEventListener('click', () => {
   if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
   localStorage.setItem('stori_key_paid', key);
   flashSave(btnSaveKeyPaid, keyStatusPaid);
-  updateCreateButtons(); updateStepStates();
+  updateTierSelector(); updateCreateButtons(); updateStepStates();
 });
 
 // ── Model Selection (paid tier) ──
 function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
 function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
 function getImageModels() {
-  if (!getPaidKey()) return ['gemini-2.5-flash-image']; // Free tier
+  if (!isPaidTier()) return ['gemini-2.5-flash-image']; // Free tier
   const cat = $('create-image-category')?.value || 'fast';
   if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
   return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
 }
 function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
 function getSegmentDuration() {
-  return getPaidKey() ? { min: 5, max: 15 } : { min: 12, max: 24 };
+  return isPaidTier() ? { min: 5, max: 15 } : { min: 12, max: 24 };
 }
 
 // ── API Call Wrapper with model fallback ──
@@ -288,7 +332,8 @@ function updateCreateButtons() {
   btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl);
   // Show image category only for paid tier
   const catLabel = $('image-category-label');
-  if (catLabel) catLabel.style.display = getPaidKey() ? '' : 'none';
+  if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
+  if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
 }
 
 // Audio Import
@@ -605,9 +650,9 @@ async function generateTTSGemini(text, voiceName, apiKey) {
   return { base64: b64, mimeType: mime };
 }
 
-async function generateTTSGCloud(text, voiceName, apiKey) {
-  // Detect language from voice name
-  const langCode = voiceName.startsWith('ta-') ? 'ta-IN' : 'en-US';
+async function generateTTSGCloud(text, voiceName, apiKey, langCode) {
+  // Use provided langCode or detect from voice name
+  const lc = langCode || (voiceName.startsWith('ta-') ? 'ta-IN' : voiceName.startsWith('hi-') ? 'hi-IN' : voiceName.startsWith('te-') ? 'te-IN' : voiceName.startsWith('ml-') ? 'ml-IN' : voiceName.startsWith('es-') ? 'es-ES' : voiceName.startsWith('fr-') ? 'fr-FR' : 'en-US');
   const resp = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
     {
@@ -615,7 +660,7 @@ async function generateTTSGCloud(text, voiceName, apiKey) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         input: { text },
-        voice: { languageCode: langCode, name: voiceName },
+        voice: { languageCode: lc, name: voiceName },
         audioConfig: { audioEncoding: 'MP3' }
       })
     }
@@ -2386,6 +2431,13 @@ async function generateSceneImage(idx) {
     if (createStylePrompt) {
       effectivePrompt = `Style: ${createStylePrompt}. Scene: ${effectivePrompt}`;
     }
+    // Text mode instruction
+    const textMode = $('create-image-text-mode')?.value || 'no-text';
+    if (textMode === 'no-text') {
+      effectivePrompt += ' STRICT: Do NOT include any text, words, letters, numbers, captions, titles, or writing in ANY language or script in the image. The image must be purely visual with zero text.';
+    } else if (textMode === 'english-only') {
+      effectivePrompt += ' STRICT: If any text appears in the image, it MUST be in English only. Do NOT use Tamil, Hindi, Devanagari, or any non-Latin script. English text only.';
+    }
     // Try image models in fallback order
     const models = getImageModels();
     let lastError = null;
@@ -2501,7 +2553,7 @@ async function runImageGeneration(scenesToGen) {
     const idx = createScenes.indexOf(scenesToGen[i]);
     const pct = Math.round(((i) / total) * 100);
     createGenerateBar.style.width = pct + '%';
-    const isFree = !getPaidKey();
+    const isFree = !isPaidTier();
     if (isFree) {
       createGenerateLabel.textContent = `Generating image ${i + 1} of ${total} (free tier — slower)...`;
     } else {
@@ -2565,13 +2617,13 @@ btnCreateRetryFailed.addEventListener('click', async () => {
 
 // ── Multi-Language Voiceover ──
 const SUPPORTED_LANGUAGES = [
-  { code: 'ta', name: 'Tamil', flag: '🇮🇳', geminiVoice: 'Kore' },
-  { code: 'hi', name: 'Hindi', flag: '🇮🇳', geminiVoice: 'Kore' },
-  { code: 'te', name: 'Telugu', flag: '🇮🇳', geminiVoice: 'Kore' },
-  { code: 'ml', name: 'Malayalam', flag: '🇮🇳', geminiVoice: 'Kore' },
-  { code: 'en', name: 'English', flag: '🇺🇸', geminiVoice: 'Kore' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', geminiVoice: 'Kore' },
-  { code: 'fr', name: 'French', flag: '🇫🇷', geminiVoice: 'Kore' },
+  { code: 'ta', name: 'Tamil', flag: '🇮🇳', gcloudVoice: 'ta-IN-Standard-A', gcloudLang: 'ta-IN' },
+  { code: 'hi', name: 'Hindi', flag: '🇮🇳', gcloudVoice: 'hi-IN-Standard-A', gcloudLang: 'hi-IN' },
+  { code: 'te', name: 'Telugu', flag: '🇮🇳', gcloudVoice: 'te-IN-Standard-A', gcloudLang: 'te-IN' },
+  { code: 'ml', name: 'Malayalam', flag: '🇮🇳', gcloudVoice: 'ml-IN-Standard-A', gcloudLang: 'ml-IN' },
+  { code: 'en', name: 'English', flag: '🇺🇸', gcloudVoice: 'en-US-Standard-D', gcloudLang: 'en-US' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸', gcloudVoice: 'es-ES-Standard-A', gcloudLang: 'es-ES' },
+  { code: 'fr', name: 'French', flag: '🇫🇷', gcloudVoice: 'fr-FR-Standard-A', gcloudLang: 'fr-FR' },
 ];
 
 let languageTracks = []; // [{lang, langCode, audioBuffer, translatedText, status}]
@@ -2617,6 +2669,132 @@ async function translateText(text, targetLang, apiKey) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
+// Audio player state for language cards
+let langPlayerSource = null;
+let langPlayerPlaying = false;
+
+function stopLangPlayer() {
+  if (langPlayerSource) {
+    try { langPlayerSource.stop(); } catch(e) {}
+    langPlayerSource = null;
+  }
+  langPlayerPlaying = false;
+  // Reset all play buttons
+  document.querySelectorAll('.lang-play-btn').forEach(b => b.textContent = '▶');
+}
+
+function playLangAudio(buffer, playBtn) {
+  stopLangPlayer();
+  langPlayerSource = audioCtx.createBufferSource();
+  langPlayerSource.buffer = buffer;
+  langPlayerSource.connect(audioCtx.destination);
+  langPlayerSource.start();
+  langPlayerPlaying = true;
+  playBtn.textContent = '⏸';
+  langPlayerSource.onended = () => {
+    langPlayerPlaying = false;
+    playBtn.textContent = '▶';
+    langPlayerSource = null;
+  };
+}
+
+function buildAudioControls(id) {
+  return `<div class="lang-controls" style="display:flex; gap:3px;">
+    <button class="lang-play-btn" data-player="${id}" style="font-size:0.7rem; padding:2px 6px; cursor:pointer; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">▶</button>
+    <button class="lang-stop-btn" data-player="${id}" style="font-size:0.7rem; padding:2px 6px; cursor:pointer; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">⏹</button>
+  </div>`;
+}
+
+function buildSubtitleSelect(langCode, langName) {
+  // Build options: Original + all supported languages + None (no duplicates)
+  const seen = new Set();
+  let options = '<option value="original">Original</option>';
+  seen.add('original');
+  // Add all supported languages
+  for (const lang of SUPPORTED_LANGUAGES) {
+    if (!seen.has(lang.code)) {
+      options += `<option value="${lang.code}">${lang.name}</option>`;
+      seen.add(lang.code);
+    }
+  }
+  options += '<option value="none">None</option>';
+  return `<label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
+    Sub:
+    <select class="lang-sub-select" data-lang="${langCode}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
+      ${options}
+    </select>
+  </label>`;
+}
+
+// Generate subtitles for a specific audio track based on selected subtitle language
+// Stores in createGeneratedSubtitles map: langCode → subtitleItems array
+let createGeneratedSubtitles = new Map(); // langCode → [{text, startTime, duration, ...}]
+
+function generateSubtitlesForTrack(trackId, subtitleLang) {
+  if (subtitleLang === 'none') {
+    createGeneratedSubtitles.delete(trackId);
+    updateSubtitlePreviewCount();
+    return;
+  }
+
+  if (!createScenes) return;
+
+  let sceneTexts;
+  if (subtitleLang === 'original') {
+    sceneTexts = createScenes.map(s => s.text);
+  } else {
+    // Find the language track with translated text
+    const track = languageTracks.find(t => t.langCode === subtitleLang);
+    if (track && track.translatedText) {
+      // Split translated text proportionally across scenes
+      const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
+      const transWords = track.translatedText.split(/\s+/);
+      let wordIdx = 0;
+      sceneTexts = createScenes.map(s => {
+        const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
+        const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
+        wordIdx += sceneWordCount;
+        return portion;
+      });
+    } else {
+      sceneTexts = createScenes.map(s => s.text);
+    }
+  }
+
+  const subs = [];
+  let subId = 1;
+  for (let i = 0; i < createScenes.length; i++) {
+    const scene = createScenes[i];
+    const text = sceneTexts[i];
+    if (!text || text.trim() === '' || text === '[continued]') continue;
+    const sentences = text.split(/(?<=[.!?।])\s+/).filter(s => s.trim().length > 0);
+    if (sentences.length <= 1) {
+      subs.push({ id: subId++, text: text.trim(), startTime: scene.startTime, duration: scene.duration });
+    } else {
+      const chunks = [];
+      for (let j = 0; j < sentences.length; j += 2) {
+        chunks.push(sentences.slice(j, j + 2).join(' '));
+      }
+      const chunkDur = scene.duration / chunks.length;
+      for (let j = 0; j < chunks.length; j++) {
+        subs.push({ id: subId++, text: chunks[j].trim(), startTime: scene.startTime + j * chunkDur, duration: chunkDur });
+      }
+    }
+  }
+  createGeneratedSubtitles.set(trackId, subs);
+  updateSubtitlePreviewCount();
+}
+
+function updateSubtitlePreviewCount() {
+  let total = 0;
+  for (const [, subs] of createGeneratedSubtitles) total += subs.length;
+  const statusEl = $('language-status');
+  if (statusEl && total > 0) {
+    const trackCount = createGeneratedSubtitles.size;
+    statusEl.textContent = `${languageTracks.filter(t => t.status === 'done').length} language track(s) · ${total} subtitles (${trackCount} track${trackCount > 1 ? 's' : ''})`;
+  }
+}
+
 function renderPrimaryAudioCard() {
   const container = $('language-primary');
   if (!container || !createAudioBuffer) return;
@@ -2626,15 +2804,21 @@ function renderPrimaryAudioCard() {
     <div class="language-card done">
       <span class="lang-name">${flag} ${label}</span>
       <span class="lang-status">Primary · ${fmtShort(createAudioBuffer.duration)}</span>
-      <button class="lang-play" id="lang-play-primary">▶ Play</button>
+      ${buildSubtitleSelect('original', 'Original')}
+      ${buildAudioControls('primary')}
     </div>
   `;
-  container.querySelector('#lang-play-primary').addEventListener('click', () => {
-    const src = audioCtx.createBufferSource();
-    src.buffer = createAudioBuffer;
-    src.connect(audioCtx.destination);
-    src.start();
+  container.querySelector('.lang-play-btn').addEventListener('click', (e) => {
+    if (langPlayerPlaying && langPlayerSource) { stopLangPlayer(); return; }
+    playLangAudio(createAudioBuffer, e.target);
   });
+  container.querySelector('.lang-stop-btn').addEventListener('click', stopLangPlayer);
+  const subSelect = container.querySelector('.lang-sub-select');
+  if (subSelect) {
+    subSelect.addEventListener('change', () => {
+      generateSubtitlesForTrack('primary', subSelect.value);
+    });
+  }
 }
 
 function renderLanguageCard(lang, status, detail) {
@@ -2647,35 +2831,27 @@ function renderLanguageCard(lang, status, detail) {
   }
   card.className = `language-card ${status === 'done' ? 'done' : status === 'error' ? 'error' : ''}`;
   const track = languageTracks.find(t => t.langCode === lang.code);
-  const playBtn = (status === 'done' && track) ? `<button class="lang-play" data-lang="${lang.code}">▶ Play</button>` : '';
-  // Subtitle language selector (shown when done)
-  const subLangOptions = (status === 'done') ? `
-    <label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
-      Sub:
-      <select class="lang-sub-select" data-lang="${lang.code}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
-        <option value="en" selected>English</option>
-        <option value="original">Original</option>
-        <option value="${lang.code}">${lang.name}</option>
-        <option value="none">None</option>
-      </select>
-    </label>` : '';
+  const controls = (status === 'done' && track) ? buildAudioControls(lang.code) : '';
+  const subSelect = (status === 'done') ? buildSubtitleSelect(lang.code, lang.name) : '';
   card.innerHTML = `
     <span class="lang-name">${lang.flag} ${lang.name}</span>
     <span class="lang-status">${detail || status}</span>
-    ${subLangOptions}
-    ${playBtn}
+    ${subSelect}
+    ${controls}
   `;
   if (status === 'done' && track) {
-    card.querySelector('.lang-play').addEventListener('click', () => {
-      const src = audioCtx.createBufferSource();
-      src.buffer = track.audioBuffer;
-      src.connect(audioCtx.destination);
-      src.start();
+    card.querySelector('.lang-play-btn').addEventListener('click', (e) => {
+      if (langPlayerPlaying && langPlayerSource) { stopLangPlayer(); return; }
+      playLangAudio(track.audioBuffer, e.target);
     });
-    const subSelect = card.querySelector('.lang-sub-select');
-    if (subSelect) {
-      subSelect.value = track.subtitleLang || 'en';
-      subSelect.addEventListener('change', () => { track.subtitleLang = subSelect.value; });
+    card.querySelector('.lang-stop-btn').addEventListener('click', stopLangPlayer);
+    const subEl = card.querySelector('.lang-sub-select');
+    if (subEl) {
+      subEl.value = track.subtitleLang || 'original';
+      subEl.addEventListener('change', () => {
+        track.subtitleLang = subEl.value;
+        generateSubtitlesForTrack(lang.code, subEl.value);
+      });
     }
   }
 }
@@ -2700,7 +2876,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
       const translated = await translateText(fullText, lang.name, key);
 
       renderLanguageCard(lang, 'working', 'Generating voice...');
-      const ttsResult = await generateTTSGemini(translated, lang.geminiVoice, key);
+      const ttsResult = await generateTTSGCloud(translated, lang.gcloudVoice, key, lang.gcloudLang);
       let { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
 
       // Match duration to original audio by resampling
@@ -2797,54 +2973,28 @@ btnCreateSendEditor.addEventListener('click', async () => {
     });
   }
 
-  // Auto-generate subtitles from transcript (into separate subtitleItems)
+  // Transfer pre-generated subtitles from Step 8 selections
   subtitleItems = [];
   nextSubtitleId = 1;
   subBlockElements.clear();
   subTimelineContainer.querySelectorAll('.sub-block').forEach(el => el.remove());
-  const createAddSubtitles = $('create-add-subtitles');
-  if (createAddSubtitles && createAddSubtitles.checked && createScenes) {
-    const { width: subW } = getSelectedImageSize();
-    const maxSubWidth = Math.round(subW * 0.85);
-    for (const scene of createScenes) {
-      if (!scene.text || scene.text.trim() === '' || scene.text === '[continued]') continue;
-      // Split long text into sentence-sized subtitle chunks
-      const sentences = scene.text.split(/(?<=[.!?।])\s+/).filter(s => s.trim().length > 0);
-      if (sentences.length <= 1) {
-        subtitleItems.push({
-          id: nextSubtitleId++,
-          text: scene.text.trim(),
-          font: "'Noto Sans Tamil', sans-serif",
-          fontSize: 32, color: '#ffffff',
-          strokeColor: '#000000', strokeWidth: 2,
-          bgColor: '#000000', bgAlpha: 0.5, bold: true,
-          position: 'bot-center',
-          startTime: scene.startTime, duration: scene.duration,
-          animation: 'fade', animDur: 0.3,
-          _maxWidth: maxSubWidth,
-        });
-      } else {
-        const chunks = [];
-        for (let i = 0; i < sentences.length; i += 2) {
-          chunks.push(sentences.slice(i, i + 2).join(' '));
-        }
-        const chunkDur = scene.duration / chunks.length;
-        for (let i = 0; i < chunks.length; i++) {
-          subtitleItems.push({
-            id: nextSubtitleId++,
-            text: chunks[i].trim(),
-            font: "'Noto Sans Tamil', sans-serif",
-            fontSize: 32, color: '#ffffff',
-            strokeColor: '#000000', strokeWidth: 2,
-            bgColor: '#000000', bgAlpha: 0.5, bold: true,
-            position: 'bot-center',
-            startTime: scene.startTime + i * chunkDur,
-            duration: chunkDur,
-            animation: 'fade', animDur: 0.3,
-            _maxWidth: maxSubWidth,
-          });
-        }
-      }
+  const { width: subW } = getSelectedImageSize();
+  const maxSubWidth = Math.round(subW * 0.85);
+  // Use primary track subtitles first, then add language track subtitles
+  const primarySubs = createGeneratedSubtitles.get('primary');
+  if (primarySubs) {
+    for (const sub of primarySubs) {
+      subtitleItems.push({
+        id: nextSubtitleId++, text: sub.text,
+        font: "'Noto Sans Tamil', sans-serif",
+        fontSize: 32, color: '#ffffff',
+        strokeColor: '#000000', strokeWidth: 2,
+        bgColor: '#000000', bgAlpha: 0.5, bold: true,
+        position: 'bot-center',
+        startTime: sub.startTime, duration: sub.duration,
+        animation: 'fade', animDur: 0.3,
+        _maxWidth: maxSubWidth,
+      });
     }
   }
 
@@ -2880,6 +3030,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
     langCode: t.langCode,
     audioBuffer: t.audioBuffer,
     translatedText: t.translatedText,
+    subtitleLang: t.subtitleLang || 'original',
   }));
   // Build per-language subtitle texts (split translated text proportionally across scenes)
   for (const track of editorLanguageTracks) {
@@ -2981,10 +3132,17 @@ btnCreateSaveProject.addEventListener('click', async () => {
   const hadBuffer = currentBuffer;
   const hadPhotos = [...photoItems];
   const hadTexts = [...textItems];
+  const hadLangTracks = [...editorLanguageTracks];
 
   currentBuffer = createAudioBuffer;
   photoItems = [];
   textItems = [];
+  // Include language tracks in save
+  editorLanguageTracks = languageTracks.filter(t => t.status === 'done').map(t => ({
+    lang: t.lang, langCode: t.langCode,
+    audioBuffer: t.audioBuffer, translatedText: t.translatedText,
+    subtitleLang: t.subtitleLang || 'original',
+  }));
 
   // Build photo items from scenes that have images
   if (createScenes) {
@@ -3007,6 +3165,7 @@ btnCreateSaveProject.addEventListener('click', async () => {
   currentBuffer = hadBuffer;
   photoItems = hadPhotos;
   textItems = hadTexts;
+  editorLanguageTracks = hadLangTracks;
 });
 
 // Early save button (in header) — same logic
