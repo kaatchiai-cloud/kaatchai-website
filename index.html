@@ -198,13 +198,15 @@
       </div>
     </div>
 
-    <!-- Step 3: Output Size -->
+    <!-- Step 3: Template & Output Size -->
     <div class="create-step">
-      <h3><span class="step-num">3</span> Output Size</h3>
+      <h3><span class="step-num">3</span> Template & Output Size</h3>
       <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">
-        This sets the size for generated images AND the exported video. Choose based on your target platform.
+        Pick a template to auto-configure style and size, or choose Blank for full control.
       </p>
-      <div class="create-row" style="flex-wrap:wrap; gap:10px;">
+      <div id="template-categories" class="template-categories"></div>
+      <div id="template-grid" class="template-grid"></div>
+      <div class="create-row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
         <label style="color:var(--text-secondary);">Size:
           <select id="create-image-size" style="background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 7px; font-size:0.78rem;">
             <option value="1280x720" selected>1280×720 — 16:9 (YouTube, LinkedIn Video)</option>
@@ -277,6 +279,18 @@
             <option value="minimalist">Minimalist Illustration</option>
             <option value="photorealistic">Photorealistic</option>
             <option value="comic">Comic Book</option>
+            <option value="pixel-art">Pixel Art</option>
+            <option value="3d-render">3D Render</option>
+            <option value="sketch">Pencil Sketch</option>
+            <option value="vintage">Vintage / Retro</option>
+            <option value="flat-design">Flat Design</option>
+            <option value="gothic">Gothic</option>
+            <option value="pastel">Pastel</option>
+            <option value="ukiyo-e">Ukiyo-e</option>
+            <option value="stained-glass">Stained Glass</option>
+            <option value="pop-art">Pop Art</option>
+            <option value="noir">Film Noir</option>
+            <option value="surrealism">Surrealism</option>
             <option value="custom">Custom...</option>
           </select>
           <input type="text" id="create-style-prompt" placeholder="Custom style description..." style="flex:1; min-width:200px; font-size:0.75rem; padding:5px 10px;" disabled>

@@ -116,6 +116,41 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: #fff; font-weight: 700; lette
   content: '🖼'; font-size: 1.5rem; opacity: 0.4;
 }
 /* Tier cards */
+/* Template categories & cards */
+.template-categories {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.tpl-cat-btn {
+  padding: 4px 12px; font-size: 0.72rem; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  color: var(--text-secondary); cursor: pointer; transition: all 0.2s;
+}
+.tpl-cat-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.tpl-cat-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.template-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  max-height: 280px; overflow-y: auto; padding: 2px;
+}
+.template-card {
+  padding: 14px 12px; border-radius: var(--radius);
+  border: 2px solid transparent; cursor: pointer;
+  transition: all 0.2s; min-height: 80px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.template-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.template-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(139,92,246,0.4); }
+.template-card-name {
+  font-size: 0.78rem; font-weight: 600; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5); margin-bottom: 3px;
+}
+.template-card-desc {
+  font-size: 0.62rem; color: rgba(255,255,255,0.8);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5); line-height: 1.3;
+}
+@media (max-width: 700px) {
+  .template-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 .tier-cards { display: flex; gap: 10px; flex-wrap: wrap; }
 .tier-card {
   flex: 1; min-width: 240px;
@@ -1171,13 +1206,15 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
 
-    <!-- Step 3: Output Size -->
+    <!-- Step 3: Template & Output Size -->
     <div class="create-step">
-      <h3><span class="step-num">3</span> Output Size</h3>
+      <h3><span class="step-num">3</span> Template & Output Size</h3>
       <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">
-        This sets the size for generated images AND the exported video. Choose based on your target platform.
+        Pick a template to auto-configure style and size, or choose Blank for full control.
       </p>
-      <div class="create-row" style="flex-wrap:wrap; gap:10px;">
+      <div id="template-categories" class="template-categories"></div>
+      <div id="template-grid" class="template-grid"></div>
+      <div class="create-row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
         <label style="color:var(--text-secondary);">Size:
           <select id="create-image-size" style="background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 7px; font-size:0.78rem;">
             <option value="1280x720" selected>1280×720 — 16:9 (YouTube, LinkedIn Video)</option>
@@ -1250,6 +1287,18 @@ input:focus, select:focus, textarea:focus {
             <option value="minimalist">Minimalist Illustration</option>
             <option value="photorealistic">Photorealistic</option>
             <option value="comic">Comic Book</option>
+            <option value="pixel-art">Pixel Art</option>
+            <option value="3d-render">3D Render</option>
+            <option value="sketch">Pencil Sketch</option>
+            <option value="vintage">Vintage / Retro</option>
+            <option value="flat-design">Flat Design</option>
+            <option value="gothic">Gothic</option>
+            <option value="pastel">Pastel</option>
+            <option value="ukiyo-e">Ukiyo-e</option>
+            <option value="stained-glass">Stained Glass</option>
+            <option value="pop-art">Pop Art</option>
+            <option value="noir">Film Noir</option>
+            <option value="surrealism">Surrealism</option>
             <option value="custom">Custom...</option>
           </select>
           <input type="text" id="create-style-prompt" placeholder="Custom style description..." style="flex:1; min-width:200px; font-size:0.75rem; padding:5px 10px;" disabled>
@@ -4691,6 +4740,7 @@ async function saveProjectToGallery(jsonStr, name) {
     episodeNumber: currentEpisodeNumber || 0,
     stylePrompt: createStylePrompt || '',
     stylePreset: createStylePreset || '',
+    selectedTemplate: selectedTemplate || '',
   };
 
   return new Promise((resolve, reject) => {
@@ -4975,6 +5025,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
+        selectedTemplate: selectedTemplate || '',
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -5207,6 +5258,10 @@ projectInput.addEventListener('change', async () => {
         const stEl = $('create-style-prompt');
         if (spEl) spEl.value = createStylePreset;
         if (stEl) { stEl.value = createStylePrompt; stEl.disabled = createStylePreset !== 'custom'; }
+      }
+      // Restore template
+      if (project.createState.selectedTemplate) {
+        selectedTemplate = project.createState.selectedTemplate;
       }
     } else {
       cameFromCreate = false;
@@ -5567,6 +5622,7 @@ let imagePreviewIndex = 0;
 // Style consistency
 let createStylePrompt = '';
 let createStylePreset = '';
+let selectedTemplate = '';
 const createStylePresetEl = $('create-style-preset');
 const createStylePromptEl = $('create-style-prompt');
 
@@ -5579,7 +5635,159 @@ const STYLE_PRESETS = {
   'minimalist': 'Minimalist illustration with simple shapes, limited color palette, and clean negative space.',
   'photorealistic': 'Ultra-photorealistic image with perfect lighting, sharp details, and natural colors.',
   'comic': 'Comic book art style with bold outlines, halftone dots, dynamic composition, and vivid colors.',
+  'pixel-art': 'Pixel art style with chunky pixels, limited palette, retro 8-bit/16-bit video game aesthetic.',
+  '3d-render': 'Clean 3D rendered illustration with smooth surfaces, soft global illumination, and studio lighting.',
+  'sketch': 'Hand-drawn pencil sketch style with visible strokes, cross-hatching, and paper texture.',
+  'vintage': 'Vintage retro photography with faded colors, film grain, light leaks, and warm sepia undertones.',
+  'flat-design': 'Flat design illustration with bold solid colors, geometric shapes, no shadows or gradients.',
+  'gothic': 'Dark gothic art with intricate details, deep shadows, ornate architecture, and moody atmosphere.',
+  'pastel': 'Soft pastel art with gentle muted colors, dreamy atmosphere, and delicate light diffusion.',
+  'ukiyo-e': 'Japanese ukiyo-e woodblock print style with flowing lines, flat color areas, and nature motifs.',
+  'stained-glass': 'Stained glass art style with bold black outlines, jewel-toned translucent colors, and mosaic composition.',
+  'pop-art': 'Pop art style with bold primary colors, Ben-Day dots, thick outlines, and high contrast graphic design.',
+  'noir': 'Film noir style with high contrast black and white, dramatic shadows, venetian blind lighting, and moody atmosphere.',
+  'surrealism': 'Surrealist art with dreamlike impossible scenes, melting forms, unexpected juxtapositions, and vivid imagination.',
 };
+
+// ── Templates ──
+const TEMPLATE_CATEGORIES = {
+  'all': 'All',
+  'story': 'Story',
+  'education': 'Education',
+  'social': 'Social Media',
+  'marketing': 'Marketing',
+  'podcast': 'Podcast',
+  'kids': 'Kids',
+  'spiritual': 'Spiritual',
+  'music': 'Music',
+};
+
+const TEMPLATES = [
+  { id: 'blank', name: 'Blank', category: 'all', size: '', style: '', textMode: 'no-text', description: 'Start from scratch — configure everything manually', gradient: 'linear-gradient(135deg, #2a2a3e, #1a1a2e)' },
+  // Story
+  { id: 'bedtime-story', name: 'Bedtime Story', category: 'story', size: '1280x720', style: 'watercolor', textMode: 'no-text', description: 'Soft watercolor scenes for children\'s bedtime tales', gradient: 'linear-gradient(135deg, #667eea, #764ba2)' },
+  { id: 'fairy-tale', name: 'Fairy Tale', category: 'story', size: '1280x720', style: 'oil-painting', textMode: 'no-text', description: 'Rich oil painting style for classic fairy tales', gradient: 'linear-gradient(135deg, #f093fb, #f5576c)' },
+  { id: 'mythology', name: 'Mythology', category: 'story', size: '1280x720', style: 'ukiyo-e', textMode: 'no-text', description: 'Epic woodblock-print style for mythological narratives', gradient: 'linear-gradient(135deg, #4facfe, #00f2fe)' },
+  { id: 'horror', name: 'Horror', category: 'story', size: '1280x720', style: 'gothic', textMode: 'no-text', description: 'Dark gothic visuals for horror and thriller stories', gradient: 'linear-gradient(135deg, #0c0c0c, #434343)' },
+  { id: 'sci-fi', name: 'Sci-Fi', category: 'story', size: '1280x720', style: '3d-render', textMode: 'no-text', description: 'Futuristic 3D rendered scenes for science fiction', gradient: 'linear-gradient(135deg, #0f2027, #2c5364)' },
+  { id: 'romance', name: 'Romance', category: 'story', size: '1280x720', style: 'pastel', textMode: 'no-text', description: 'Soft pastel art for love stories', gradient: 'linear-gradient(135deg, #ee9ca7, #ffdde1)' },
+  { id: 'adventure', name: 'Adventure', category: 'story', size: '1280x720', style: 'comic', textMode: 'no-text', description: 'Bold comic book style for action-packed adventures', gradient: 'linear-gradient(135deg, #f7971e, #ffd200)' },
+  { id: 'moral-story', name: 'Moral Story', category: 'story', size: '1280x720', style: 'watercolor', textMode: 'no-text', description: 'Gentle watercolor illustrations for moral lessons', gradient: 'linear-gradient(135deg, #a8edea, #fed6e3)' },
+  // Education
+  { id: 'explainer', name: 'Explainer', category: 'education', size: '1280x720', style: 'sketch', textMode: 'english-only', description: 'Hand-drawn sketch style for explainer videos', gradient: 'linear-gradient(135deg, #5ee7df, #b490ca)' },
+  { id: 'science', name: 'Science', category: 'education', size: '1280x720', style: 'minimalist', textMode: 'english-only', description: 'Minimalist diagrams and visuals for science topics', gradient: 'linear-gradient(135deg, #13547a, #80d0c7)' },
+  { id: 'history', name: 'History', category: 'education', size: '1280x720', style: 'vintage', textMode: 'no-text', description: 'Vintage retro photography for historical narratives', gradient: 'linear-gradient(135deg, #c79081, #dfa579)' },
+  { id: 'geography', name: 'Geography', category: 'education', size: '1280x720', style: 'photorealistic', textMode: 'english-only', description: 'Photorealistic landscapes and maps for geography', gradient: 'linear-gradient(135deg, #11998e, #38ef7d)' },
+  { id: 'math-logic', name: 'Math & Logic', category: 'education', size: '1280x720', style: 'flat-design', textMode: 'english-only', description: 'Clean flat design visuals for math and logic concepts', gradient: 'linear-gradient(135deg, #667eea, #764ba2)' },
+  { id: 'language', name: 'Language Learning', category: 'education', size: '1280x720', style: 'comic', textMode: 'english-only', description: 'Fun comic style for language learning content', gradient: 'linear-gradient(135deg, #ffecd2, #fcb69f)' },
+  // Social Media
+  { id: 'instagram-reel', name: 'Instagram Reel', category: 'social', size: '1080x1920', style: 'cinematic', textMode: 'no-text', description: 'Vertical cinematic visuals for Instagram Reels', gradient: 'linear-gradient(135deg, #f9ce34, #ee2a7b, #6228d7)' },
+  { id: 'tiktok-short', name: 'TikTok / Short', category: 'social', size: '1080x1920', style: 'photorealistic', textMode: 'no-text', description: 'Vertical photorealistic content for TikTok & Shorts', gradient: 'linear-gradient(135deg, #00f2ea, #ff0050)' },
+  { id: 'youtube-video', name: 'YouTube Video', category: 'social', size: '1280x720', style: 'cinematic', textMode: 'english-only', description: 'Widescreen cinematic style for YouTube videos', gradient: 'linear-gradient(135deg, #ff0000, #cc0000)' },
+  { id: 'instagram-post', name: 'Instagram Post', category: 'social', size: '1080x1080', style: 'photorealistic', textMode: 'no-text', description: 'Square format for Instagram feed posts', gradient: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' },
+  { id: 'facebook-post', name: 'Facebook Post', category: 'social', size: '1200x628', style: 'digital-art', textMode: 'english-only', description: 'Landscape digital art for Facebook posts', gradient: 'linear-gradient(135deg, #1877f2, #42b72a)' },
+  { id: 'twitter-banner', name: 'Twitter/X Banner', category: 'social', size: '1500x500', style: 'minimalist', textMode: 'english-only', description: 'Wide banner format for Twitter/X headers', gradient: 'linear-gradient(135deg, #1da1f2, #14171a)' },
+  // Marketing
+  { id: 'product-demo', name: 'Product Demo', category: 'marketing', size: '1280x720', style: '3d-render', textMode: 'english-only', description: '3D rendered product showcase and demo videos', gradient: 'linear-gradient(135deg, #f12711, #f5af19)' },
+  { id: 'brand-story', name: 'Brand Story', category: 'marketing', size: '1280x720', style: 'flat-design', textMode: 'english-only', description: 'Clean flat design visuals for brand narratives', gradient: 'linear-gradient(135deg, #2c3e50, #3498db)' },
+  { id: 'testimonial', name: 'Testimonial', category: 'marketing', size: '1280x720', style: 'photorealistic', textMode: 'no-text', description: 'Professional photorealistic backgrounds for testimonials', gradient: 'linear-gradient(135deg, #bdc3c7, #2c3e50)' },
+  { id: 'event-promo', name: 'Event Promo', category: 'marketing', size: '1080x1920', style: 'pop-art', textMode: 'english-only', description: 'Bold pop art promos for events and launches', gradient: 'linear-gradient(135deg, #eb3349, #f45c43)' },
+  { id: 'real-estate', name: 'Real Estate', category: 'marketing', size: '1280x720', style: 'photorealistic', textMode: 'english-only', description: 'Photorealistic property showcase visuals', gradient: 'linear-gradient(135deg, #56ab2f, #a8e063)' },
+  { id: 'food-restaurant', name: 'Food & Restaurant', category: 'marketing', size: '1080x1080', style: 'photorealistic', textMode: 'no-text', description: 'Mouthwatering photorealistic food visuals', gradient: 'linear-gradient(135deg, #f2994a, #f2c94c)' },
+  // Podcast
+  { id: 'podcast-interview', name: 'Interview', category: 'podcast', size: '1280x720', style: 'minimalist', textMode: 'no-text', description: 'Clean minimalist backgrounds for interview podcasts with PiP', gradient: 'linear-gradient(135deg, #4b6cb7, #182848)' },
+  { id: 'podcast-solo', name: 'Solo Show', category: 'podcast', size: '1280x720', style: 'digital-art', textMode: 'no-text', description: 'Digital art scenes for solo podcast episodes', gradient: 'linear-gradient(135deg, #6a3093, #a044ff)' },
+  { id: 'podcast-truecrime', name: 'True Crime', category: 'podcast', size: '1280x720', style: 'noir', textMode: 'no-text', description: 'Film noir visuals for true crime podcasts', gradient: 'linear-gradient(135deg, #1a1a2e, #e94560)' },
+  { id: 'podcast-comedy', name: 'Comedy', category: 'podcast', size: '1280x720', style: 'pop-art', textMode: 'no-text', description: 'Bold pop art style for comedy podcasts', gradient: 'linear-gradient(135deg, #f7971e, #ffd200)' },
+  { id: 'podcast-news', name: 'News Recap', category: 'podcast', size: '1280x720', style: 'photorealistic', textMode: 'no-text', description: 'Professional photorealistic backdrops for news', gradient: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)' },
+  // Kids
+  { id: 'nursery-rhyme', name: 'Nursery Rhyme', category: 'kids', size: '1280x720', style: 'watercolor', textMode: 'no-text', description: 'Playful watercolor scenes for nursery rhymes', gradient: 'linear-gradient(135deg, #ff9a9e, #fad0c4)' },
+  { id: 'animal-facts', name: 'Animal Facts', category: 'kids', size: '1280x720', style: 'comic', textMode: 'english-only', description: 'Colorful comic illustrations of animals', gradient: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)' },
+  { id: 'abc-numbers', name: 'ABC & Numbers', category: 'kids', size: '1080x1080', style: 'pixel-art', textMode: 'english-only', description: 'Fun pixel art visuals for alphabet and counting', gradient: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)' },
+  { id: 'cartoon-story', name: 'Cartoon Story', category: 'kids', size: '1280x720', style: 'anime', textMode: 'no-text', description: 'Anime-style cartoon visuals for kids\' stories', gradient: 'linear-gradient(135deg, #43e97b, #38f9d7)' },
+  // Spiritual
+  { id: 'meditation', name: 'Meditation', category: 'spiritual', size: '1280x720', style: 'pastel', textMode: 'no-text', description: 'Serene pastel scenes for meditation and calm', gradient: 'linear-gradient(135deg, #89f7fe, #66a6ff)' },
+  { id: 'prayer', name: 'Prayer & Devotional', category: 'spiritual', size: '1280x720', style: 'oil-painting', textMode: 'no-text', description: 'Classical oil painting for devotional content', gradient: 'linear-gradient(135deg, #f6d365, #fda085)' },
+  { id: 'scripture', name: 'Scripture', category: 'spiritual', size: '1280x720', style: 'stained-glass', textMode: 'english-only', description: 'Stained glass art for scripture readings', gradient: 'linear-gradient(135deg, #a18cd1, #fbc2eb)' },
+  { id: 'mythology-retelling', name: 'Mythology Retelling', category: 'spiritual', size: '1280x720', style: 'ukiyo-e', textMode: 'no-text', description: 'Woodblock-print style for mythological retellings', gradient: 'linear-gradient(135deg, #ff9966, #ff5e62)' },
+  // Music
+  { id: 'lyric-video', name: 'Lyric Video', category: 'music', size: '1080x1920', style: 'minimalist', textMode: 'english-only', description: 'Minimalist vertical backgrounds for lyric videos', gradient: 'linear-gradient(135deg, #e1eec3, #f05053)' },
+  { id: 'album-visualizer', name: 'Album Visualizer', category: 'music', size: '1280x720', style: 'surrealism', textMode: 'no-text', description: 'Surrealist abstract art for music visualization', gradient: 'linear-gradient(135deg, #7f00ff, #e100ff)' },
+  { id: 'music-story', name: 'Music Story', category: 'music', size: '1280x720', style: 'anime', textMode: 'no-text', description: 'Anime-style narrative visuals for music stories', gradient: 'linear-gradient(135deg, #fc5c7d, #6a82fb)' },
+];
+
+function renderTemplateGrid(category = 'all') {
+  const grid = $('template-grid');
+  if (!grid) return;
+  const filtered = category === 'all'
+    ? TEMPLATES
+    : TEMPLATES.filter(t => t.category === category || t.id === 'blank');
+  grid.innerHTML = filtered.map(t => `
+    <div class="template-card${selectedTemplate === t.id ? ' selected' : ''}" data-tpl="${t.id}" style="background:${t.gradient};">
+      <div class="template-card-name">${t.name}</div>
+      <div class="template-card-desc">${t.description}</div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.template-card').forEach(card => {
+    card.addEventListener('click', () => applyTemplate(card.dataset.tpl));
+  });
+}
+
+function applyTemplate(templateId) {
+  const tpl = TEMPLATES.find(t => t.id === templateId);
+  if (!tpl) return;
+  selectedTemplate = templateId;
+  // Set output size
+  if (tpl.size && createImageSize) {
+    createImageSize.value = tpl.size;
+  }
+  // Set style
+  if (tpl.style && STYLE_PRESETS[tpl.style]) {
+    createStylePreset = tpl.style;
+    createStylePrompt = STYLE_PRESETS[tpl.style];
+    if (createStylePresetEl) createStylePresetEl.value = tpl.style;
+    if (createStylePromptEl) {
+      createStylePromptEl.value = createStylePrompt;
+      createStylePromptEl.disabled = true;
+    }
+  } else {
+    createStylePreset = '';
+    createStylePrompt = '';
+    if (createStylePresetEl) createStylePresetEl.value = '';
+    if (createStylePromptEl) {
+      createStylePromptEl.value = '';
+      createStylePromptEl.disabled = true;
+    }
+  }
+  // Set text mode
+  const textModeEl = $('create-image-text-mode');
+  if (textModeEl && tpl.textMode) textModeEl.value = tpl.textMode;
+  // Update card selection UI
+  const grid = $('template-grid');
+  if (grid) {
+    grid.querySelectorAll('.template-card').forEach(c => {
+      c.classList.toggle('selected', c.dataset.tpl === templateId);
+    });
+  }
+}
+
+function setTemplateCategoryFilter(cat) {
+  const btns = document.querySelectorAll('.tpl-cat-btn');
+  btns.forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  renderTemplateGrid(cat);
+}
+
+function initTemplateUI() {
+  const catContainer = $('template-categories');
+  if (!catContainer) return;
+  catContainer.innerHTML = Object.entries(TEMPLATE_CATEGORIES).map(([key, label]) =>
+    `<button class="tpl-cat-btn${key === 'all' ? ' active' : ''}" data-cat="${key}">${label}</button>`
+  ).join('');
+  catContainer.querySelectorAll('.tpl-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTemplateCategoryFilter(btn.dataset.cat));
+  });
+  renderTemplateGrid('all');
+}
 
 createStylePresetEl.addEventListener('change', () => {
   const val = createStylePresetEl.value;
@@ -5774,6 +5982,8 @@ btnCreateContent.addEventListener('click', () => {
   updateTierSelector();
   updateCreateButtons();
   updateStepStates();
+  // Render template category buttons + grid
+  initTemplateUI();
 });
 btnCreateBack.addEventListener('click', () => {
   createPage.classList.remove('visible');
@@ -6132,6 +6342,16 @@ function setCreateInputMode(mode) {
   createTextSection.style.display = mode === 'text' ? '' : 'none';
   updateCreateButtons();
   updateStepStates();
+  // Auto-filter templates: podcast tab → show podcast category, others → show all
+  if (mode === 'video') {
+    setTemplateCategoryFilter('podcast');
+    // Clear non-podcast template selection
+    if (selectedTemplate && !selectedTemplate.startsWith('podcast-') && selectedTemplate !== 'blank') {
+      applyTemplate('blank');
+    }
+  } else {
+    setTemplateCategoryFilter('all');
+  }
 }
 createModeVoice.addEventListener('click', () => setCreateInputMode('voice'));
 createModeVideo.addEventListener('click', () => setCreateInputMode('video'));
@@ -6709,6 +6929,7 @@ function autoSaveCreateState() {
       })) : null,
       stylePrompt: createStylePrompt,
       stylePreset: createStylePreset,
+      selectedTemplate: selectedTemplate,
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
@@ -8865,7 +9086,7 @@ btnNewProject.addEventListener('click', (e) => {
   undoStack = []; nextPhotoId = 1; nextTextId = 1;
   selectedPhotoIds.clear(); selectedTextIds.clear();
   cameFromCreate = false;
-  createScenes = null; createTranscript = null; createAudioBuffer = null;
+  createScenes = null; createTranscript = null; createAudioBuffer = null; selectedTemplate = '';
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   const bgmSec = $('bgm-section');

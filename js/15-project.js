@@ -66,6 +66,7 @@ async function saveProjectToGallery(jsonStr, name) {
     episodeNumber: currentEpisodeNumber || 0,
     stylePrompt: createStylePrompt || '',
     stylePreset: createStylePreset || '',
+    selectedTemplate: selectedTemplate || '',
   };
 
   return new Promise((resolve, reject) => {
@@ -350,6 +351,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
+        selectedTemplate: selectedTemplate || '',
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -582,6 +584,10 @@ projectInput.addEventListener('change', async () => {
         const stEl = $('create-style-prompt');
         if (spEl) spEl.value = createStylePreset;
         if (stEl) { stEl.value = createStylePrompt; stEl.disabled = createStylePreset !== 'custom'; }
+      }
+      // Restore template
+      if (project.createState.selectedTemplate) {
+        selectedTemplate = project.createState.selectedTemplate;
       }
     } else {
       cameFromCreate = false;

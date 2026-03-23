@@ -9,7 +9,7 @@ btnNewProject.addEventListener('click', (e) => {
   undoStack = []; nextPhotoId = 1; nextTextId = 1;
   selectedPhotoIds.clear(); selectedTextIds.clear();
   cameFromCreate = false;
-  createScenes = null; createTranscript = null; createAudioBuffer = null;
+  createScenes = null; createTranscript = null; createAudioBuffer = null; selectedTemplate = '';
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   const bgmSec = $('bgm-section');
