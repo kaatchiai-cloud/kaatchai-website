@@ -377,14 +377,16 @@ async function saveProjectToFile(audioBuf, statusFn) {
       // Language tracks
       languageTracks: editorLanguageTracks.length > 0 ? await Promise.all(editorLanguageTracks.map(async t => {
         try {
+          if (!t.audioBuffer) return null;
           const wavBlob = audioBufferToWavBlob(t.audioBuffer);
+          const audioData = await blobToBase64(wavBlob);
           return {
             lang: t.lang, langCode: t.langCode,
-            audioData: await blobToBase64(wavBlob),
+            audioData,
             translatedText: t.translatedText,
-            subtitleLang: t.subtitleLang || 'original',
+            subtitleLang: t.subtitleLang || 'none',
           };
-        } catch(e) { console.warn('Lang track save error:', e); return null; }
+        } catch(e) { return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
     };
 
@@ -670,9 +672,9 @@ projectInput.addEventListener('change', async () => {
           editorLanguageTracks.push({
             lang: t.lang, langCode: t.langCode,
             audioBuffer, translatedText: t.translatedText,
-            subtitleLang: t.subtitleLang || 'original',
+            subtitleLang: t.subtitleLang || 'none',
           });
-        } catch(e) { console.warn('Lang track restore error:', e); }
+        } catch(e) { /* skip failed track */ }
       }
       editorOriginalBuffer = currentBuffer;
       editorOriginalSubtitles = subtitleItems.map(s => ({ ...s }));

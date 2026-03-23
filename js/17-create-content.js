@@ -329,7 +329,7 @@ function updateCreateButtons() {
     btnCreateTranscribe.textContent = createInputMode === 'text' ? '📝 Generate Storyboard' : '🎤 Transcribe with Gemini';
   }
   btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
-  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl);
+  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating;
   // Show image category only for paid tier
   const catLabel = $('image-category-label');
   if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
@@ -1186,17 +1186,15 @@ function autoSaveCreateState() {
       scenes: createScenes ? createScenes.map(s => ({
         prompt: s.prompt, startTime: s.startTime, endTime: s.endTime,
         duration: s.duration, text: s.text, status: s.status,
-        imgDataUrl: s.imgDataUrl, refImageDataUrl: s.refImageDataUrl,
+        // Skip base64 images to stay within localStorage 5MB limit
       })) : null,
       stylePrompt: createStylePrompt,
       stylePreset: createStylePreset,
       timestamp: Date.now(),
     };
-    // Don't save audio buffer (too large) — just save transcript + scenes + images
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
   } catch (e) {
-    // localStorage quota exceeded — silently fail (images are large)
-    console.warn('Auto-save failed (storage full):', e.message);
+    console.warn('Auto-save failed:', e.message);
   }
 }
 
@@ -2265,28 +2263,16 @@ async function updatePromptFromReference(idx) {
   if (!match) throw new Error('Invalid image data');
   const [, mimeType, base64Data] = match;
 
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType, data: base64Data } },
-            { text: `Analyze this reference image and incorporate its visual style into the following image generation prompt. Keep the original scene content but adopt the reference image's style, color palette, mood, composition technique, and artistic approach.\n\nOriginal prompt: "${scene.prompt}"\n\nReturn ONLY the updated prompt text, nothing else. The prompt should describe what to generate, incorporating the visual style from the reference image.` }
-          ]
-        }]
-      })
+  const data = await callGeminiAPI(getTextModels(), {
+      contents: [{
+        parts: [
+          { inlineData: { mimeType, data: base64Data } },
+          { text: `Analyze this reference image carefully. The generated image should resemble the person/people in this reference image — same face, features, appearance, clothing style, and build. Incorporate the reference image's visual style, color palette, and mood as well.\n\nOriginal scene prompt: "${scene.prompt}"\n\nReturn ONLY the updated prompt text that describes the scene while ensuring the person looks like the one in the reference image. Include specific physical descriptions (face shape, hair, skin tone, clothing) from the reference.` }
+        ]
+      }]
     }
   );
 
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${resp.status}`);
-  }
-
-  const data = await resp.json();
   const updatedPrompt = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (updatedPrompt) {
     const oldPrompt = scene.prompt;
@@ -2328,7 +2314,7 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
     const match = refImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
     if (match) {
       parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-      parts.push({ text: `Generate a new image inspired by the style, color palette, and mood of the reference image above. Scene description: ${cleanPrompt}${sizeHint}` });
+      parts.push({ text: `Generate a new image where the person looks exactly like the person in the reference image above — same face, features, hair, skin tone, and appearance. Use the same visual style, color palette, and mood. Scene description: ${cleanPrompt}${sizeHint}` });
     } else {
       parts.push({ text: `Generate an image: ${cleanPrompt}${sizeHint}` });
     }
@@ -2340,8 +2326,8 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
     contents: [{ parts }]
   });
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
 
     const modelsToTry = modelOverride ? [modelOverride] : (geminiImageModel ? [geminiImageModel] : GEMINI_IMAGE_MODELS);
 
@@ -2708,8 +2694,10 @@ function buildAudioControls(id) {
 function buildSubtitleSelect(langCode, langName) {
   // Build options: Original + all supported languages + None (no duplicates)
   const seen = new Set();
-  let options = '<option value="original">Original</option>';
+  let options = '<option value="none" selected>None</option>';
+  options += '<option value="original">Original</option>';
   seen.add('original');
+  seen.add('none');
   // Add all supported languages
   for (const lang of SUPPORTED_LANGUAGES) {
     if (!seen.has(lang.code)) {
@@ -2717,7 +2705,6 @@ function buildSubtitleSelect(langCode, langName) {
       seen.add(lang.code);
     }
   }
-  options += '<option value="none">None</option>';
   return `<label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
     Sub:
     <select class="lang-sub-select" data-lang="${langCode}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
@@ -2728,9 +2715,10 @@ function buildSubtitleSelect(langCode, langName) {
 
 // Generate subtitles for a specific audio track based on selected subtitle language
 // Stores in createGeneratedSubtitles map: langCode → subtitleItems array
-let createGeneratedSubtitles = new Map(); // langCode → [{text, startTime, duration, ...}]
+let createGeneratedSubtitles = new Map();
+let langGenerating = false; // true during language/subtitle generation // langCode → [{text, startTime, duration, ...}]
 
-function generateSubtitlesForTrack(trackId, subtitleLang) {
+async function generateSubtitlesForTrack(trackId, subtitleLang) {
   if (subtitleLang === 'none') {
     createGeneratedSubtitles.delete(trackId);
     updateSubtitlePreviewCount();
@@ -2739,11 +2727,15 @@ function generateSubtitlesForTrack(trackId, subtitleLang) {
 
   if (!createScenes) return;
 
+  langGenerating = true;
+  updateCreateButtons();
+
   let sceneTexts;
   if (subtitleLang === 'original') {
+    // Use original transcript directly
     sceneTexts = createScenes.map(s => s.text);
   } else {
-    // Find the language track with translated text
+    // Check if we have translated text from a language track
     const track = languageTracks.find(t => t.langCode === subtitleLang);
     if (track && track.translatedText) {
       // Split translated text proportionally across scenes
@@ -2757,7 +2749,32 @@ function generateSubtitlesForTrack(trackId, subtitleLang) {
         return portion;
       });
     } else {
-      sceneTexts = createScenes.map(s => s.text);
+      // No existing translation — need to translate now
+      const key = getCreateGeminiKey();
+      const langInfo = SUPPORTED_LANGUAGES.find(l => l.code === subtitleLang);
+      const langName = langInfo ? langInfo.name : subtitleLang;
+      if (key) {
+        try {
+          const statusEl = $('language-status');
+          if (statusEl) { statusEl.textContent = `Translating subtitles to ${langName}...`; statusEl.style.color = ''; }
+          const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
+          const translated = await translateText(fullText, langName, key);
+          const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
+          const transWords = translated.split(/\s+/);
+          let wordIdx = 0;
+          sceneTexts = createScenes.map(s => {
+            const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
+            const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
+            wordIdx += sceneWordCount;
+            return portion;
+          });
+        } catch(e) {
+          console.warn('Subtitle translation error:', e);
+          sceneTexts = createScenes.map(s => s.text); // fallback to original
+        }
+      } else {
+        sceneTexts = createScenes.map(s => s.text);
+      }
     }
   }
 
@@ -2782,6 +2799,8 @@ function generateSubtitlesForTrack(trackId, subtitleLang) {
     }
   }
   createGeneratedSubtitles.set(trackId, subs);
+  langGenerating = false;
+  updateCreateButtons();
   updateSubtitlePreviewCount();
 }
 
@@ -2789,9 +2808,16 @@ function updateSubtitlePreviewCount() {
   let total = 0;
   for (const [, subs] of createGeneratedSubtitles) total += subs.length;
   const statusEl = $('language-status');
-  if (statusEl && total > 0) {
-    const trackCount = createGeneratedSubtitles.size;
-    statusEl.textContent = `${languageTracks.filter(t => t.status === 'done').length} language track(s) · ${total} subtitles (${trackCount} track${trackCount > 1 ? 's' : ''})`;
+  if (statusEl) {
+    const doneCount = languageTracks.filter(t => t.status === 'done').length;
+    if (total > 0) {
+      const trackCount = createGeneratedSubtitles.size;
+      statusEl.textContent = `${doneCount} voice(s) · ${total} subtitles ready (${trackCount} track${trackCount > 1 ? 's' : ''})`;
+      statusEl.style.color = '#10b981';
+    } else if (doneCount > 0) {
+      statusEl.textContent = `${doneCount} voice(s) ready · No subtitles selected`;
+      statusEl.style.color = '';
+    }
   }
 }
 
@@ -2847,7 +2873,7 @@ function renderLanguageCard(lang, status, detail) {
     card.querySelector('.lang-stop-btn').addEventListener('click', stopLangPlayer);
     const subEl = card.querySelector('.lang-sub-select');
     if (subEl) {
-      subEl.value = track.subtitleLang || 'original';
+      subEl.value = track.subtitleLang || 'none';
       subEl.addEventListener('change', () => {
         track.subtitleLang = subEl.value;
         generateSubtitlesForTrack(lang.code, subEl.value);
@@ -2868,6 +2894,8 @@ btnGenerateLanguages.addEventListener('click', async () => {
   if (selectedLangs.length === 0) return;
 
   btnGenerateLanguages.disabled = true;
+  langGenerating = true;
+  updateCreateButtons();
   const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
 
   for (const lang of selectedLangs) {
@@ -2876,8 +2904,53 @@ btnGenerateLanguages.addEventListener('click', async () => {
       const translated = await translateText(fullText, lang.name, key);
 
       renderLanguageCard(lang, 'working', 'Generating voice...');
-      const ttsResult = await generateTTSGCloud(translated, lang.gcloudVoice, key, lang.gcloudLang);
-      let { audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      let audioBuffer;
+      try {
+        // Try full text first
+        const ttsResult = await generateTTSGemini(translated, 'Kore', key);
+        ({ audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType));
+      } catch(ttsErr) {
+        // Full text failed — chunk by ~3 min segments based on sentence boundaries
+        renderLanguageCard(lang, 'working', 'Text too long — generating in chunks...');
+        const sentences = translated.split(/(?<=[.!?।।])\s+/).filter(s => s.trim());
+        // Estimate ~3 min of speech per chunk (~2500 bytes for multibyte, ~3500 for latin)
+        const isMultibyte = /[\u0900-\u0DFF\u0B80-\u0BFF]/.test(translated); // Hindi, Tamil, Telugu, etc.
+        const maxChunkBytes = isMultibyte ? 2500 : 3500;
+        const chunks = [];
+        let current = '';
+        for (const sentence of sentences) {
+          const test = current ? current + ' ' + sentence : sentence;
+          if (new Blob([test]).size > maxChunkBytes && current) {
+            chunks.push(current);
+            current = sentence;
+          } else {
+            current = test;
+          }
+        }
+        if (current) chunks.push(current);
+
+        const chunkBuffers = [];
+        for (let c = 0; c < chunks.length; c++) {
+          renderLanguageCard(lang, 'working', `Generating chunk ${c + 1}/${chunks.length}...`);
+          const chunkResult = await generateTTSGemini(chunks[c], 'Kore', key);
+          const { audioBuffer: chunkBuf } = await decodeBase64Audio(chunkResult.base64, chunkResult.mimeType);
+          chunkBuffers.push(chunkBuf);
+        }
+
+        // Concatenate audio buffers
+        const totalLength = chunkBuffers.reduce((sum, b) => sum + b.length, 0);
+        const sampleRate = chunkBuffers[0].sampleRate;
+        const channels = chunkBuffers[0].numberOfChannels;
+        const merged = audioCtx.createBuffer(channels, totalLength, sampleRate);
+        let offset = 0;
+        for (const buf of chunkBuffers) {
+          for (let ch = 0; ch < channels; ch++) {
+            merged.getChannelData(ch).set(buf.getChannelData(ch), offset);
+          }
+          offset += buf.length;
+        }
+        audioBuffer = merged;
+      }
 
       // Match duration to original audio by resampling
       const targetDur = createAudioBuffer ? createAudioBuffer.duration : audioBuffer.duration;
@@ -2900,7 +2973,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         langCode: lang.code,
         audioBuffer,
         translatedText: translated,
-        subtitleLang: 'en', // default subtitle language
+        subtitleLang: 'none', // default: no subtitle
         status: 'done'
       });
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
@@ -2911,6 +2984,8 @@ btnGenerateLanguages.addEventListener('click', async () => {
   }
 
   btnGenerateLanguages.disabled = false;
+  langGenerating = false;
+  updateCreateButtons();
   const doneTracks = languageTracks.filter(t => t.status === 'done');
   languageStatus.textContent = `${doneTracks.length} language track(s) ready — will be available in the editor`;
 });
@@ -3184,6 +3259,21 @@ btnBackToCreate.addEventListener('click', () => {
         createScenes[i].duration = ep.duration;
         createScenes[i].endTime = ep.startTime + ep.duration;
       }
+    }
+  }
+
+  // Restore language tracks from editor to create flow
+  if (editorLanguageTracks.length > 0 && languageTracks.length === 0) {
+    languageTracks = editorLanguageTracks.map(t => ({
+      lang: t.lang, langCode: t.langCode,
+      audioBuffer: t.audioBuffer, translatedText: t.translatedText,
+      subtitleLang: t.subtitleLang || 'none',
+      status: 'done',
+    }));
+    // Re-render language cards
+    for (const t of languageTracks) {
+      const langInfo = SUPPORTED_LANGUAGES.find(l => l.code === t.langCode);
+      if (langInfo) renderLanguageCard(langInfo, 'done', `Done (${fmtShort(t.audioBuffer.duration)})`);
     }
   }
 
