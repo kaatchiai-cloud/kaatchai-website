@@ -156,7 +156,9 @@
             else etaStr = ` · ~${Math.ceil(remaining)}s left`;
           }
           exportLabel.textContent = `Recording... ${(progress * 100).toFixed(0)}%${etaStr}`;
-          renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+          const bgM = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
+          if (bgM !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+          renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgM);
           renderPiP(ctx, exportW, exportH, elapsed);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
           renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
@@ -269,7 +271,9 @@
               const progress = Math.min(elapsed / track.buffer.duration, 1);
               exportBar.style.width = (progress * 100).toFixed(1) + '%';
               exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})... ${(progress * 100).toFixed(0)}%`;
-              renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+              const bgML = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
+              if (bgML !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
+              renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgML);
               renderPiP(ctx, exportW, exportH, elapsed);
               renderTextOverlays(ctx, exportW, exportH, elapsed, trackSortedTexts);
               if (elapsed >= track.buffer.duration) {

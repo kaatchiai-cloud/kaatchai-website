@@ -556,6 +556,19 @@
     </div>
     <input type="file" id="pip-input" accept="video/*" hidden>
 
+    <div id="bg-video-section" style="display:none;">
+      <div style="display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
+        <span style="font-size:0.72rem; color:var(--text-secondary);">🎬 Video Mode:</span>
+        <select id="bg-video-mode" style="font-size:0.72rem; padding:3px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+          <option value="images-only">Images Only</option>
+          <option value="video-only">Video Only</option>
+          <option value="video-images">Video + Images</option>
+          <option value="video-pip">Video + PiP</option>
+          <option value="video-pip-transition">Video + PiP Transition</option>
+        </select>
+      </div>
+    </div>
+
     <div id="pip-props">
       <button id="pip-props-close" class="props-close-btn" title="Close">✕</button>
       <label>Position:

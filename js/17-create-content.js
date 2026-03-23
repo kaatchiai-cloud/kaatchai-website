@@ -625,9 +625,10 @@ createPipInput.addEventListener('change', async () => {
     createAudioBuffer = createOriginalBuffer;
     createAudioFile = file;
 
-    // Store PiP video
+    // Store PiP video + background video
     createPipVideoEl = videoEl;
     createPipVideoSrc = blobUrl;
+    bgVideoEl = videoEl; // same video for background track
 
     // Update UI
     createAudioName.textContent = `Audio extracted from: ${file.name}`;
@@ -3303,10 +3304,19 @@ btnCreateSendEditor.addEventListener('click', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = '';
     if (typeof renderPipList === 'function') renderPipList();
+    // Set background video track
+    bgVideoEl = createPipVideoEl;
+    const bgVidSec = $('bg-video-section');
+    if (bgVidSec) bgVidSec.style.display = '';
+    const bgVidMode = $('bg-video-mode');
+    if (bgVidMode) bgVidMode.value = bgVideoMode;
   } else {
     pipItems = [];
+    bgVideoEl = null;
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = 'none';
+    const bgVidSec = $('bg-video-section');
+    if (bgVidSec) bgVidSec.style.display = 'none';
   }
 
   // Transfer language tracks to editor

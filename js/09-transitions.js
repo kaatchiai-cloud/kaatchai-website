@@ -170,6 +170,126 @@
       }
     }
 
+    // Helper: check if any photo/image exists at given time
+    function hasImageAtTime(elapsed, sortedItems) {
+      for (const p of sortedItems) {
+        if (elapsed >= p.startTime && elapsed < p.startTime + p.duration) return p;
+      }
+      return null;
+    }
+
+    // Seek background video to correct time
+    function seekBgVideo(elapsed) {
+      if (!bgVideoEl) return;
+      if (Math.abs(bgVideoEl.currentTime - elapsed) > 0.1) {
+        bgVideoEl.currentTime = elapsed;
+      }
+    }
+
+    // Draw background video fullscreen
+    function drawBgVideoFull(ctx, cw, ch, elapsed) {
+      if (!bgVideoEl) return;
+      seekBgVideo(elapsed);
+      drawCoverFit(ctx, bgVideoEl, cw, ch);
+    }
+
+    // Draw background video as PiP (uses shared PiP settings)
+    function drawBgVideoPiP(ctx, cw, ch, elapsed, scale) {
+      if (!bgVideoEl) return;
+      seekBgVideo(elapsed);
+      const s = (scale !== undefined ? scale : 1);
+      const pW = Math.round(cw * pipSize / 100 * s + cw * (1 - s));
+      const pH = pipShape === 'circle' ? pW : Math.round(pW * (bgVideoEl.videoHeight / (bgVideoEl.videoWidth || 1) || 0.75));
+      const pad = Math.max(pipBorder + 4, cw * 0.02);
+      // Interpolate position: fullscreen center → PiP corner
+      const targetX = cw - pW - pad;
+      const targetY = ch - pH - pad;
+      const x = s >= 1 ? targetX : lerp(0, targetX, s);
+      const y = s >= 1 ? targetY : lerp(0, targetY, s);
+      const drawW = s >= 1 ? pW : lerp(cw, pW, s);
+      const drawH = s >= 1 ? pH : lerp(ch, pH, s);
+
+      ctx.save();
+      if (pipShadow && s >= 0.5) {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 12;
+      }
+      if (pipBorder > 0 && s >= 0.5) {
+        ctx.beginPath();
+        drawPipShape(ctx, x - pipBorder, y - pipBorder, drawW + pipBorder * 2, drawH + pipBorder * 2, s >= 0.8 ? pipShape : 'rounded');
+        ctx.fillStyle = pipBorderColor;
+        ctx.fill();
+      }
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      ctx.beginPath();
+      drawPipShape(ctx, x, y, drawW, drawH, s >= 0.8 ? pipShape : 'rounded');
+      ctx.clip();
+      drawCoverFitRect(ctx, bgVideoEl, x, y, drawW, drawH);
+      ctx.restore();
+    }
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    // Render background video based on mode — called by preview/export
+    // Returns 'pip-after' if video PiP should be drawn after image
+    function renderBgVideoBefore(ctx, cw, ch, elapsed, sortedItems) {
+      if (!bgVideoEl || bgVideoMode === 'images-only') return null;
+
+      const activeImage = hasImageAtTime(elapsed, sortedItems);
+
+      if (bgVideoMode === 'video-only') {
+        drawBgVideoFull(ctx, cw, ch, elapsed);
+        return 'skip-images'; // don't render images
+      }
+
+      if (!activeImage) {
+        // No image → video fullscreen for all remaining modes
+        drawBgVideoFull(ctx, cw, ch, elapsed);
+        return 'skip-images'; // nothing else to draw
+      }
+
+      // Image exists
+      if (bgVideoMode === 'video-images') {
+        // Image renders normally, video hidden
+        return null;
+      }
+
+      if (bgVideoMode === 'video-pip') {
+        // Image renders first, then video PiP on top
+        return 'pip-after';
+      }
+
+      if (bgVideoMode === 'video-pip-transition') {
+        return 'pip-transition-after';
+      }
+
+      return null;
+    }
+
+    function renderBgVideoAfter(ctx, cw, ch, elapsed, sortedItems, mode) {
+      if (!bgVideoEl) return;
+      if (mode === 'pip-after') {
+        drawBgVideoPiP(ctx, cw, ch, elapsed, 1);
+      } else if (mode === 'pip-transition-after') {
+        const activeImage = hasImageAtTime(elapsed, sortedItems);
+        if (!activeImage) return;
+        const transDur = 0.5;
+        const timeSinceImageStart = elapsed - activeImage.startTime;
+        const timeToImageEnd = (activeImage.startTime + activeImage.duration) - elapsed;
+        let scale;
+        if (timeSinceImageStart < transDur) {
+          // Transitioning in: fullscreen → PiP
+          scale = easeInOutCubic(Math.min(1, timeSinceImageStart / transDur));
+        } else if (timeToImageEnd < transDur) {
+          // Transitioning out: PiP → fullscreen
+          scale = easeInOutCubic(Math.min(1, timeToImageEnd / transDur));
+        } else {
+          scale = 1; // fully PiP
+        }
+        drawBgVideoPiP(ctx, cw, ch, elapsed, scale);
+      }
+    }
+
     function renderTimelineFrame(ctx, cw, ch, elapsed, sortedItems) {
       ctx.clearRect(0, 0, cw, ch);
       ctx.fillStyle = '#000';

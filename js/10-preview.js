@@ -41,7 +41,9 @@
       const sorted = [...photoItems].sort((a, b) => a.startTime - b.startTime);
       const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
       const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
-      renderTimelineFrame(ctx, width, height, t, sorted);
+      const bgMode = renderBgVideoBefore(ctx, width, height, t, sorted);
+      if (bgMode !== 'skip-images') renderTimelineFrame(ctx, width, height, t, sorted);
+      renderBgVideoAfter(ctx, width, height, t, sorted, bgMode);
       renderPiP(ctx, width, height, t);
       renderTextOverlays(ctx, width, height, t, sortedTexts);
       renderTextOverlays(ctx, width, height, t, sortedSubs);
@@ -180,13 +182,17 @@
         const scale = Math.min(480 / width, 1);
         previewCtx.save();
         previewCtx.scale(scale, scale);
-        renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        const bgM1 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM1);
         renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
         previewCtx.restore();
       } else {
-        renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        const bgM2 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM2);
         renderPiP(previewCtx, previewCW, previewCH, elapsed);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
         renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);

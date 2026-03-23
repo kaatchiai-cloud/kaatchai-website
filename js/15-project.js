@@ -539,6 +539,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
       exportQuality: $('export-quality') ? $('export-quality').value : 'balanced',
       exportFps: $('export-fps') ? $('export-fps').value : '24',
       exportFormat: $('export-format') ? $('export-format').value : 'auto',
+      bgVideoMode: bgVideoMode || 'images-only',
       createState: createScenes ? {
         transcript: createTranscript,
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
@@ -761,6 +762,11 @@ projectInput.addEventListener('change', async () => {
     if (project.exportQuality) { const el = $('export-quality'); if (el) el.value = project.exportQuality; }
     if (project.exportFps) { const el = $('export-fps'); if (el) el.value = project.exportFps; }
     if (project.exportFormat) { const el = $('export-format'); if (el) el.value = project.exportFormat; }
+    if (project.bgVideoMode) {
+      bgVideoMode = project.bgVideoMode;
+      const bgModeEl = $('bg-video-mode');
+      if (bgModeEl) bgModeEl.value = bgVideoMode;
+    }
 
     // Restore create wizard state if saved
     if (project.createState) {
@@ -860,6 +866,12 @@ projectInput.addEventListener('change', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
     if (typeof renderPipList === 'function') renderPipList();
+    // Restore background video from first PiP item
+    if (pipItems.length > 0 && pipItems[0].videoEl) {
+      bgVideoEl = pipItems[0].videoEl;
+      const bgVidSec = $('bg-video-section');
+      if (bgVidSec) bgVidSec.style.display = '';
+    }
 
     // Restore language tracks
     editorLanguageTracks = [];
