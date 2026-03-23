@@ -12,11 +12,13 @@ btnNewProject.addEventListener('click', (e) => {
   createScenes = null; createTranscript = null; createAudioBuffer = null; selectedTemplate = '';
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
-  bgVideoEl = null; bgVideoMode = 'images-only';
+  videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
+  bgVideoMode = 'images-only';
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   const bgVidSec = $('bg-video-section');
   if (bgVidSec) bgVidSec.style.display = 'none';
+  if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   currentSeriesName = ''; currentEpisodeNumber = 0;
   pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
@@ -63,7 +65,7 @@ btnDelete.addEventListener('click', async () => { if(!activeRegion) return; push
 btnInsert.addEventListener('click', () => insertInput.click());
 insertInput.addEventListener('change', async () => { const f=insertInput.files[0]; if(!f)return; insertInput.value=''; const ct=wavesurfer.getCurrentTime(); setStatus(`Inserting at ${fmt(ct)}...`); try{const ib=await loadAudioBuffer(f);pushUndo();currentBuffer=insertAudioAt(currentBuffer,ib,ct);setStatus(`Inserted. ${fmt(currentBuffer.duration)}`);await refreshWaveform();}catch(e){setStatus('Error: '+e.message);} });
 btnUndo.addEventListener('click', async () => { if(!undoStack.length)return; currentBuffer=undoStack.pop(); if(!undoStack.length)btnUndo.disabled=true; setStatus(`Undo. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
-window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderTexts(); renderSubtitles(); });
+window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderVideoTimeline(); renderTexts(); renderSubtitles(); });
 
 // Background video mode dropdown
 const bgVideoModeEl = $('bg-video-mode');

@@ -625,10 +625,9 @@ createPipInput.addEventListener('change', async () => {
     createAudioBuffer = createOriginalBuffer;
     createAudioFile = file;
 
-    // Store PiP video + background video
+    // Store PiP video (also used for video timeline on send to editor)
     createPipVideoEl = videoEl;
     createPipVideoSrc = blobUrl;
-    bgVideoEl = videoEl; // same video for background track
 
     // Update UI
     createAudioName.textContent = `Audio extracted from: ${file.name}`;
@@ -3304,19 +3303,30 @@ btnCreateSendEditor.addEventListener('click', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = '';
     if (typeof renderPipList === 'function') renderPipList();
-    // Set background video track
-    bgVideoEl = createPipVideoEl;
-    const bgVidSec = $('bg-video-section');
-    if (bgVidSec) bgVidSec.style.display = '';
+    // Add podcast video to video timeline track
+    const thumbC = document.createElement('canvas');
+    thumbC.width = 160; thumbC.height = 90;
+    thumbC.getContext('2d').drawImage(createPipVideoEl, 0, 0, 160, 90);
+    const vtThumb = thumbC.toDataURL('image/jpeg', 0.6);
+    const vtImg = new Image(); vtImg.src = vtThumb;
+    videoTimelineItems = [{
+      id: nextVideoTimelineId++,
+      videoEl: createPipVideoEl,
+      videoSrc: createPipVideoSrc,
+      videoDuration: createPipVideoEl.duration,
+      inPoint: 0, outPoint: createPipVideoEl.duration,
+      startTime: 0, duration: currentBuffer.duration,
+      imgSrc: vtThumb, imgEl: vtImg,
+    }];
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
     const bgVidMode = $('bg-video-mode');
     if (bgVidMode) bgVidMode.value = bgVideoMode;
   } else {
     pipItems = [];
-    bgVideoEl = null;
+    videoTimelineItems = [];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = 'none';
-    const bgVidSec = $('bg-video-section');
-    if (bgVidSec) bgVidSec.style.display = 'none';
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   }
 
   // Transfer language tracks to editor

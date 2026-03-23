@@ -649,6 +649,68 @@ input[type="file"] { display: none; }
   border: 1px solid var(--border);
 }
 
+/* ── Video Timeline ── */
+#video-drop-zone {
+  width: 100%; min-height: 70px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--bg-secondary);
+  position: relative; overflow: hidden;
+}
+#video-drop-zone.empty::after {
+  content: 'Add videos using the 🎬 Add Video button';
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  color: var(--text-muted); font-size: 0.75rem; pointer-events: none;
+}
+#video-timeline-container { position: relative; width: 100%; height: 70px; }
+.video-block {
+  position: absolute; top: 4px; height: 62px; border-radius: 6px; overflow: hidden;
+  border: 2px solid rgba(139,92,246,0.3); cursor: grab; user-select: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.video-block:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+.video-block.selected { border-color: var(--cyan); box-shadow: 0 0 12px rgba(6,182,212,0.4); }
+.video-block img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.video-block .video-badge {
+  position: absolute; top: 3px; left: 3px; background: rgba(139,92,246,0.85);
+  color: #fff; font-size: 0.5rem; padding: 1px 4px; border-radius: 3px;
+  pointer-events: none; font-weight: 600;
+}
+.video-block .resize-handle-left,
+.video-block .resize-handle-right {
+  position: absolute; top: 0; width: 6px; height: 100%;
+  cursor: ew-resize; background: rgba(139,92,246,0.6);
+  opacity: 0; transition: opacity 0.15s;
+}
+.video-block .resize-handle-left { left: 0; border-radius: 6px 0 0 6px; }
+.video-block .resize-handle-right { right: 0; border-radius: 0 6px 6px 0; }
+.video-block:hover .resize-handle-left,
+.video-block:hover .resize-handle-right { opacity: 1; }
+.video-block .duration-label {
+  position: absolute; bottom: 0; left: 0; right: 0; text-align: center;
+  font-size: 0.55rem; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.7);
+  padding: 2px 3px; pointer-events: none; white-space: nowrap; overflow: hidden;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.video-block .delete-btn {
+  position: absolute; top: 2px; right: 8px; width: 16px; height: 16px;
+  background: rgba(239,68,68,0.85); border: none; border-radius: 50%;
+  color: #fff; font-size: 0.6rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; z-index: 10;
+  opacity: 0; transition: opacity 0.15s;
+}
+.video-block:hover .delete-btn { opacity: 1; }
+#video-props {
+  display: none; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  font-size: 0.72rem; gap: 6px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 6px; position: relative;
+}
+#video-props.visible { display: flex; }
+#video-props label { color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+#video-props input[type="number"] {
+  width: 58px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); padding: 3px 6px; font-size: 0.72rem;
+}
+
 /* ── Preview ── */
 #preview-overlay {
   display: none; position: fixed; inset: 0;
@@ -1789,6 +1851,32 @@ input:focus, select:focus, textarea:focus {
       <button id="prop-delete" class="danger" style="font-size:0.75rem; padding:4px 10px;">Remove</button>
     </div>
 
+    <!-- Video Timeline -->
+    <div class="section-label" style="margin-top:12px;">
+      Video Timeline
+      <span class="badge" id="video-count">0 videos</span>
+    </div>
+    <div id="video-drop-zone" class="empty">
+      <div id="video-timeline-container">
+        <div id="video-playhead-line"></div>
+      </div>
+    </div>
+    <div id="video-props">
+      <button id="vprop-close" class="props-close-btn" title="Close">✕</button>
+      <span style="font-size:0.7rem; color:var(--accent); font-weight:600;">🎬 Video Clip</span>
+      <label>Start: <input type="number" id="vprop-start" step="0.1" min="0">s</label>
+      <label>Duration: <input type="number" id="vprop-duration" step="0.1" min="0.5">s</label>
+      <label>End: <span id="vprop-end">—</span></label>
+      <div style="border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
+        <span style="font-size:0.68rem; color:var(--text-muted);">Video Trim</span>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:4px; flex-wrap:wrap;">
+          <label>In: <input type="number" id="vprop-in-point" step="0.1" min="0">s</label>
+          <label>Out: <input type="number" id="vprop-out-point" step="0.1" min="0">s</label>
+          <label>Source: <span id="vprop-video-dur" style="color:#e0e0e0">—</span></label>
+        </div>
+      </div>
+    </div>
+
     <!-- Text Timeline -->
     <div class="section-label" style="margin-top:12px;">
       Text Timeline
@@ -2037,8 +2125,11 @@ let pipBorder = 3;
 let pipBorderColor = '#ffffff';
 let pipShadow = true;
 
-// Background video track (podcast mode)
-let bgVideoEl = null;       // <video> element from podcast import
+// Video timeline items (background video track)
+// Each: {id, videoEl, videoSrc, videoDuration, inPoint, outPoint, startTime, duration, imgSrc, imgEl}
+let videoTimelineItems = [];
+let nextVideoTimelineId = 1;
+let selectedVideoIds = new Set();
 let bgVideoMode = 'images-only'; // images-only | video-only | video-images | video-pip | video-pip-transition
 
 // Subtitle items (separate from user text items)
@@ -2653,21 +2744,33 @@ function drawRuler() {
     function addVideoFiles(files, dropX) {
       const dur = aDur();
       const fileArr = [...files].filter(f => f.type.startsWith('video/'));
+      if (fileArr.length === 0) { setStatus('No video files found'); return; }
       fileArr.forEach((file, idx) => {
         const videoEl = document.createElement('video');
         videoEl.muted = true;
         videoEl.preload = 'auto';
         videoEl.playsInline = true;
+        videoEl.crossOrigin = 'anonymous';
         const blobUrl = URL.createObjectURL(file);
         videoEl.src = blobUrl;
+        setStatus(`Loading video: ${file.name}...`);
 
-        videoEl.addEventListener('loadedmetadata', () => {
-          // Seek to first frame for thumbnail
-          videoEl.currentTime = 0.1;
+        videoEl.addEventListener('error', () => {
+          setStatus('Could not load video. Try MP4 or WebM format.');
         });
 
-        videoEl.addEventListener('seeked', async function onSeeked() {
-          videoEl.removeEventListener('seeked', onSeeked);
+        videoEl.addEventListener('loadeddata', async () => {
+          // Wait for first frame to be available
+          try {
+            videoEl.currentTime = 0.1;
+            await new Promise((resolve, reject) => {
+              const onSeeked = () => { videoEl.removeEventListener('seeked', onSeeked); resolve(); };
+              videoEl.addEventListener('seeked', onSeeked);
+              // Fallback timeout if seeked never fires
+              setTimeout(() => { videoEl.removeEventListener('seeked', onSeeked); resolve(); }, 2000);
+            });
+          } catch(e) { /* continue with frame 0 */ }
+
           const thumbDataUrl = await extractVideoThumbnail(videoEl);
           const thumbImg = new Image();
           thumbImg.onload = () => {
@@ -2677,15 +2780,14 @@ function drawRuler() {
               clipDur = Math.min(videoDuration, dur);
               startTime = pxToSec(dropX) + idx * clipDur;
             } else {
-              startTime = photoItems.reduce((max, p) => Math.max(max, p.startTime + p.duration), 0);
+              startTime = videoTimelineItems.reduce((max, v) => Math.max(max, v.startTime + v.duration), 0);
               clipDur = Math.min(videoDuration, dur - startTime);
             }
             startTime = Math.max(0, startTime);
             clipDur = Math.max(0.5, clipDur);
 
-            photoItems.push({
-              id: nextPhotoId++,
-              type: 'video',
+            videoTimelineItems.push({
+              id: nextVideoTimelineId++,
               imgSrc: thumbDataUrl,
               imgEl: thumbImg,
               videoEl: videoEl,
@@ -2695,13 +2797,15 @@ function drawRuler() {
               outPoint: videoDuration,
               startTime,
               duration: clipDur,
-              transition: 'fade',
-              transDur: 0.5,
             });
-            renderPhotos(); drawRuler();
+            renderVideoTimeline(); drawRuler(); markDirty();
+            setStatus(`Video added to video track: ${file.name} (${fmtShort(videoDuration)})`);
+          };
+          thumbImg.onerror = () => {
+            setStatus('Could not generate video thumbnail.');
           };
           thumbImg.src = thumbDataUrl;
-        }, { once: true });
+        });
       });
     }
 
@@ -2723,6 +2827,249 @@ function drawRuler() {
       }
     });
 
+
+
+    // ── 19-video-timeline.js ──
+// ── Video Timeline ──
+const videoDropZone = $('video-drop-zone');
+const videoTimelineContainer = $('video-timeline-container');
+const videoCountEl = $('video-count');
+const videoBlockElements = new Map();
+
+let isVideoDragging = false, isVideoResizing = false, videoDragState = {};
+
+function createVideoBlock(item) {
+  const block = document.createElement('div');
+  block.className = 'video-block';
+  block.dataset.id = item.id;
+
+  const img = document.createElement('img');
+  img.src = item.imgSrc;
+  block.appendChild(img);
+
+  const badge = document.createElement('div');
+  badge.className = 'video-badge';
+  badge.textContent = '🎬';
+  block.appendChild(badge);
+
+  const durLabel = document.createElement('div');
+  durLabel.className = 'duration-label';
+  block.appendChild(durLabel);
+
+  const resL = document.createElement('div');
+  resL.className = 'resize-handle-left';
+  block.appendChild(resL);
+
+  const resR = document.createElement('div');
+  resR.className = 'resize-handle-right';
+  block.appendChild(resR);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'delete-btn'; delBtn.textContent = '×';
+  delBtn.onclick = (e) => {
+    e.stopPropagation();
+    videoTimelineItems = videoTimelineItems.filter(v => v.id !== item.id);
+    selectedVideoIds.delete(item.id);
+    hideVideoProps();
+    renderVideoTimeline(); markDirty();
+  };
+  block.appendChild(delBtn);
+
+  // Drag to move
+  block.addEventListener('mousedown', (e) => {
+    if (e.target === resL || e.target === resR || e.target === delBtn) return;
+    e.preventDefault();
+    if (!selectedVideoIds.has(item.id)) selectVideo(item.id);
+    isVideoDragging = true;
+    const rect = videoTimelineContainer.getBoundingClientRect();
+    videoDragState = { id: item.id, offsetX: e.clientX - rect.left - secToPx(item.startTime), el: block };
+  });
+
+  resR.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!selectedVideoIds.has(item.id)) selectVideo(item.id);
+    isVideoResizing = true;
+    videoDragState = { id: item.id, edge: 'right', startX: e.clientX, origDuration: item.duration, el: block };
+  });
+  resL.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!selectedVideoIds.has(item.id)) selectVideo(item.id);
+    isVideoResizing = true;
+    videoDragState = { id: item.id, edge: 'left', startX: e.clientX, origStart: item.startTime, origDuration: item.duration, el: block };
+  });
+
+  block.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectVideo(item.id);
+  });
+
+  block._durLabel = durLabel;
+  return block;
+}
+
+function updateVideoBlockStyle(block, item) {
+  const left = secToPx(item.startTime);
+  const width = Math.max(durToPx(item.duration), 24);
+  block.style.left = left + 'px';
+  block.style.width = width + 'px';
+  block._durLabel.textContent = `${item.duration.toFixed(1)}s · ${fmtShort(item.startTime)}–${fmtShort(item.startTime + item.duration)}`;
+  block.classList.toggle('selected', selectedVideoIds.has(item.id));
+}
+
+function renderVideoTimeline() {
+  if (!videoDropZone) return;
+  videoDropZone.classList.toggle('empty', videoTimelineItems.length === 0);
+  if (videoCountEl) videoCountEl.textContent = videoTimelineItems.length > 0 ? `${videoTimelineItems.length} video${videoTimelineItems.length !== 1 ? 's' : ''}` : '0 videos';
+
+  // Show bg-video-section if videos exist
+  const bgVidSec = $('bg-video-section');
+  if (bgVidSec) bgVidSec.style.display = videoTimelineItems.length > 0 ? '' : 'none';
+
+  // Remove blocks for deleted items
+  const currentIds = new Set(videoTimelineItems.map(v => v.id));
+  for (const [id, el] of videoBlockElements) {
+    if (!currentIds.has(id)) { el.remove(); videoBlockElements.delete(id); }
+  }
+
+  // Create or update blocks
+  for (const item of videoTimelineItems) {
+    let block = videoBlockElements.get(item.id);
+    if (!block) {
+      block = createVideoBlock(item);
+      videoTimelineContainer.appendChild(block);
+      videoBlockElements.set(item.id, block);
+    }
+    updateVideoBlockStyle(block, item);
+  }
+}
+
+// Selection
+function selectVideo(id) {
+  selectedVideoIds.clear();
+  selectedVideoIds.add(id);
+  renderVideoTimeline();
+  showVideoProps(id);
+}
+
+// Properties panel
+const videoPropsEl = $('video-props');
+const vpropStart = $('vprop-start');
+const vpropDuration = $('vprop-duration');
+const vpropEnd = $('vprop-end');
+const vpropInPoint = $('vprop-in-point');
+const vpropOutPoint = $('vprop-out-point');
+const vpropVideoDur = $('vprop-video-dur');
+
+function showVideoProps(id) {
+  const item = videoTimelineItems.find(v => v.id === id);
+  if (!item || !videoPropsEl) { hideVideoProps(); return; }
+  vpropStart.value = item.startTime.toFixed(1);
+  vpropDuration.value = item.duration.toFixed(1);
+  vpropEnd.textContent = (item.startTime + item.duration).toFixed(1) + 's';
+  vpropInPoint.value = (item.inPoint || 0).toFixed(1);
+  vpropOutPoint.value = (item.outPoint || item.videoDuration).toFixed(1);
+  vpropVideoDur.textContent = (item.videoDuration || 0).toFixed(1) + 's';
+  videoPropsEl.classList.add('visible');
+}
+
+function hideVideoProps() {
+  if (videoPropsEl) videoPropsEl.classList.remove('visible');
+}
+
+function getSelectedVideo() {
+  if (selectedVideoIds.size !== 1) return null;
+  return videoTimelineItems.find(v => v.id === [...selectedVideoIds][0]);
+}
+
+// Property change handlers
+if (vpropStart) {
+  vpropStart.addEventListener('change', () => {
+    const item = getSelectedVideo();
+    if (item) { item.startTime = Math.max(0, parseFloat(vpropStart.value) || 0); renderVideoTimeline(); showVideoProps(item.id); markDirty(); }
+  });
+}
+if (vpropDuration) {
+  vpropDuration.addEventListener('change', () => {
+    const item = getSelectedVideo();
+    if (item) { item.duration = Math.max(0.5, parseFloat(vpropDuration.value) || 1); renderVideoTimeline(); showVideoProps(item.id); markDirty(); }
+  });
+}
+if (vpropInPoint) {
+  vpropInPoint.addEventListener('change', () => {
+    const item = getSelectedVideo();
+    if (item) { item.inPoint = Math.max(0, Math.min(item.outPoint - 0.1, parseFloat(vpropInPoint.value) || 0)); showVideoProps(item.id); markDirty(); }
+  });
+}
+if (vpropOutPoint) {
+  vpropOutPoint.addEventListener('change', () => {
+    const item = getSelectedVideo();
+    if (item) { item.outPoint = Math.min(item.videoDuration, Math.max(item.inPoint + 0.1, parseFloat(vpropOutPoint.value) || item.videoDuration)); showVideoProps(item.id); markDirty(); }
+  });
+}
+
+// Close button
+const vpropClose = $('vprop-close');
+if (vpropClose) vpropClose.addEventListener('click', () => { selectedVideoIds.clear(); hideVideoProps(); renderVideoTimeline(); });
+
+// Drag / Resize handlers
+document.addEventListener('mousemove', (e) => {
+  if (isVideoDragging) {
+    const item = videoTimelineItems.find(v => v.id === videoDragState.id);
+    if (!item) return;
+    const rect = videoTimelineContainer.getBoundingClientRect();
+    const x = e.clientX - rect.left - videoDragState.offsetX;
+    item.startTime = Math.max(0, pxToSec(x));
+    const block = videoDragState.el;
+    if (block) {
+      block.style.left = secToPx(item.startTime) + 'px';
+      block._durLabel.textContent = `${item.duration.toFixed(1)}s · ${fmtShort(item.startTime)}–${fmtShort(item.startTime + item.duration)}`;
+    }
+    showVideoProps(item.id);
+  }
+  if (isVideoResizing) {
+    const item = videoTimelineItems.find(v => v.id === videoDragState.id);
+    if (!item) return;
+    const dx = e.clientX - videoDragState.startX;
+    if (videoDragState.edge === 'right') {
+      item.duration = Math.max(0.5, videoDragState.origDuration + pxToSec(dx));
+    } else {
+      const newStart = Math.max(0, videoDragState.origStart + pxToSec(dx));
+      const delta = newStart - videoDragState.origStart;
+      item.startTime = newStart;
+      item.duration = Math.max(0.5, videoDragState.origDuration - delta);
+    }
+    const block = videoDragState.el;
+    if (block) {
+      block.style.left = secToPx(item.startTime) + 'px';
+      block.style.width = Math.max(durToPx(item.duration), 24) + 'px';
+      block._durLabel.textContent = `${item.duration.toFixed(1)}s · ${fmtShort(item.startTime)}–${fmtShort(item.startTime + item.duration)}`;
+    }
+    showVideoProps(item.id);
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (isVideoDragging || isVideoResizing) {
+    isVideoDragging = false;
+    isVideoResizing = false;
+    renderVideoTimeline();
+    markDirty();
+  }
+});
+
+// Deselect on click outside
+if (videoTimelineContainer) {
+  videoTimelineContainer.addEventListener('click', (e) => {
+    if (e.target === videoTimelineContainer) {
+      selectedVideoIds.clear();
+      hideVideoProps();
+      renderVideoTimeline();
+    }
+  });
+}
+
+// Resize handler
+window.addEventListener('resize', () => { renderVideoTimeline(); });
 
 
     // ── 06-text-timeline.js ──
@@ -3464,30 +3811,39 @@ function drawRuler() {
       return null;
     }
 
-    // Seek background video to correct time
-    function seekBgVideo(elapsed) {
-      if (!bgVideoEl) return;
-      if (Math.abs(bgVideoEl.currentTime - elapsed) > 0.1) {
-        bgVideoEl.currentTime = elapsed;
+    // Find active video clip at current time from video timeline
+    function getActiveVideoClip(elapsed) {
+      for (const v of videoTimelineItems) {
+        if (elapsed >= v.startTime && elapsed < v.startTime + v.duration && v.videoEl) return v;
+      }
+      return null;
+    }
+
+    // Seek a video clip to correct time based on timeline position
+    function seekVideoClip(clip, elapsed) {
+      const localTime = elapsed - clip.startTime;
+      const videoTime = (clip.inPoint || 0) + localTime;
+      const clampedTime = Math.min(videoTime, clip.outPoint || clip.videoDuration || clip.videoEl.duration);
+      if (Math.abs(clip.videoEl.currentTime - clampedTime) > 0.1) {
+        clip.videoEl.currentTime = clampedTime;
       }
     }
 
-    // Draw background video fullscreen
-    function drawBgVideoFull(ctx, cw, ch, elapsed) {
-      if (!bgVideoEl) return;
-      seekBgVideo(elapsed);
-      drawCoverFit(ctx, bgVideoEl, cw, ch);
+    // Draw video clip fullscreen
+    function drawVideoClipFull(ctx, cw, ch, elapsed, clip) {
+      if (!clip || !clip.videoEl) return;
+      seekVideoClip(clip, elapsed);
+      drawCoverFit(ctx, clip.videoEl, cw, ch);
     }
 
-    // Draw background video as PiP (uses shared PiP settings)
-    function drawBgVideoPiP(ctx, cw, ch, elapsed, scale) {
-      if (!bgVideoEl) return;
-      seekBgVideo(elapsed);
+    // Draw video clip as PiP (uses shared PiP settings)
+    function drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale) {
+      if (!clip || !clip.videoEl) return;
+      seekVideoClip(clip, elapsed);
       const s = (scale !== undefined ? scale : 1);
       const pW = Math.round(cw * pipSize / 100 * s + cw * (1 - s));
-      const pH = pipShape === 'circle' ? pW : Math.round(pW * (bgVideoEl.videoHeight / (bgVideoEl.videoWidth || 1) || 0.75));
+      const pH = pipShape === 'circle' ? pW : Math.round(pW * (clip.videoEl.videoHeight / (clip.videoEl.videoWidth || 1) || 0.75));
       const pad = Math.max(pipBorder + 4, cw * 0.02);
-      // Interpolate position: fullscreen center → PiP corner
       const targetX = cw - pW - pad;
       const targetY = ch - pH - pad;
       const x = s >= 1 ? targetX : lerp(0, targetX, s);
@@ -3510,7 +3866,7 @@ function drawRuler() {
       ctx.beginPath();
       drawPipShape(ctx, x, y, drawW, drawH, s >= 0.8 ? pipShape : 'rounded');
       ctx.clip();
-      drawCoverFitRect(ctx, bgVideoEl, x, y, drawW, drawH);
+      drawCoverFitRect(ctx, clip.videoEl, x, y, drawW, drawH);
       ctx.restore();
     }
 
@@ -3519,29 +3875,27 @@ function drawRuler() {
     // Render background video based on mode — called by preview/export
     // Returns 'pip-after' if video PiP should be drawn after image
     function renderBgVideoBefore(ctx, cw, ch, elapsed, sortedItems) {
-      if (!bgVideoEl || bgVideoMode === 'images-only') return null;
+      if (bgVideoMode === 'images-only') return null;
+      const clip = getActiveVideoClip(elapsed);
+      if (!clip) return null;
 
       const activeImage = hasImageAtTime(elapsed, sortedItems);
 
       if (bgVideoMode === 'video-only') {
-        drawBgVideoFull(ctx, cw, ch, elapsed);
-        return 'skip-images'; // don't render images
+        drawVideoClipFull(ctx, cw, ch, elapsed, clip);
+        return 'skip-images';
       }
 
       if (!activeImage) {
-        // No image → video fullscreen for all remaining modes
-        drawBgVideoFull(ctx, cw, ch, elapsed);
-        return 'skip-images'; // nothing else to draw
+        drawVideoClipFull(ctx, cw, ch, elapsed, clip);
+        return 'skip-images';
       }
 
-      // Image exists
       if (bgVideoMode === 'video-images') {
-        // Image renders normally, video hidden
         return null;
       }
 
       if (bgVideoMode === 'video-pip') {
-        // Image renders first, then video PiP on top
         return 'pip-after';
       }
 
@@ -3553,9 +3907,11 @@ function drawRuler() {
     }
 
     function renderBgVideoAfter(ctx, cw, ch, elapsed, sortedItems, mode) {
-      if (!bgVideoEl) return;
+      if (!mode) return;
+      const clip = getActiveVideoClip(elapsed);
+      if (!clip) return;
       if (mode === 'pip-after') {
-        drawBgVideoPiP(ctx, cw, ch, elapsed, 1);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, 1);
       } else if (mode === 'pip-transition-after') {
         const activeImage = hasImageAtTime(elapsed, sortedItems);
         if (!activeImage) return;
@@ -3564,15 +3920,13 @@ function drawRuler() {
         const timeToImageEnd = (activeImage.startTime + activeImage.duration) - elapsed;
         let scale;
         if (timeSinceImageStart < transDur) {
-          // Transitioning in: fullscreen → PiP
           scale = easeInOutCubic(Math.min(1, timeSinceImageStart / transDur));
         } else if (timeToImageEnd < transDur) {
-          // Transitioning out: PiP → fullscreen
           scale = easeInOutCubic(Math.min(1, timeToImageEnd / transDur));
         } else {
-          scale = 1; // fully PiP
+          scale = 1;
         }
-        drawBgVideoPiP(ctx, cw, ch, elapsed, scale);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale);
       }
     }
 
@@ -5669,6 +6023,19 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
+      // Video timeline
+      videoTimeline: videoTimelineItems.length > 0 ? await Promise.all(videoTimelineItems.map(async vt => {
+        try {
+          const resp = await fetch(vt.videoSrc);
+          const blob = await resp.blob();
+          return {
+            videoData: await blobToBase64(blob),
+            videoDuration: vt.videoDuration,
+            inPoint: vt.inPoint, outPoint: vt.outPoint,
+            startTime: vt.startTime, duration: vt.duration,
+          };
+        } catch(e) { console.warn('Video timeline save error:', e); return null; }
+      })).then(arr => arr.filter(Boolean)) : undefined,
       // PiP (multiple)
       pipItems: pipItems.length > 0 ? await Promise.all(pipItems.map(async pip => {
         try {
@@ -5982,12 +6349,36 @@ projectInput.addEventListener('change', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
     if (typeof renderPipList === 'function') renderPipList();
-    // Restore background video from first PiP item
-    if (pipItems.length > 0 && pipItems[0].videoEl) {
-      bgVideoEl = pipItems[0].videoEl;
-      const bgVidSec = $('bg-video-section');
-      if (bgVidSec) bgVidSec.style.display = '';
+    // Restore video timeline items
+    videoTimelineItems = [];
+    if (project.videoTimeline && project.videoTimeline.length > 0) {
+      for (const vt of project.videoTimeline) {
+        try {
+          const blob = base64ToBlob(vt.videoData);
+          const blobUrl = URL.createObjectURL(blob);
+          const videoEl = document.createElement('video');
+          videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+          videoEl.src = blobUrl;
+          await new Promise(r => { videoEl.onloadeddata = r; videoEl.onerror = r; });
+          // Generate thumbnail
+          videoEl.currentTime = 0.1;
+          await new Promise(r => { videoEl.onseeked = r; setTimeout(r, 1000); });
+          const tc = document.createElement('canvas'); tc.width = 160; tc.height = 90;
+          tc.getContext('2d').drawImage(videoEl, 0, 0, 160, 90);
+          const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
+          const thumbImg = new Image(); thumbImg.src = thumbUrl;
+          videoTimelineItems.push({
+            id: nextVideoTimelineId++,
+            videoEl, videoSrc: blobUrl,
+            videoDuration: vt.videoDuration,
+            inPoint: vt.inPoint || 0, outPoint: vt.outPoint || vt.videoDuration,
+            startTime: vt.startTime || 0, duration: vt.duration || vt.videoDuration,
+            imgSrc: thumbUrl, imgEl: thumbImg,
+          });
+        } catch(e) { console.warn('Video timeline restore error:', e); }
+      }
     }
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
 
     // Restore language tracks
     editorLanguageTracks = [];
@@ -6852,10 +7243,9 @@ createPipInput.addEventListener('change', async () => {
     createAudioBuffer = createOriginalBuffer;
     createAudioFile = file;
 
-    // Store PiP video + background video
+    // Store PiP video (also used for video timeline on send to editor)
     createPipVideoEl = videoEl;
     createPipVideoSrc = blobUrl;
-    bgVideoEl = videoEl; // same video for background track
 
     // Update UI
     createAudioName.textContent = `Audio extracted from: ${file.name}`;
@@ -9531,19 +9921,30 @@ btnCreateSendEditor.addEventListener('click', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = '';
     if (typeof renderPipList === 'function') renderPipList();
-    // Set background video track
-    bgVideoEl = createPipVideoEl;
-    const bgVidSec = $('bg-video-section');
-    if (bgVidSec) bgVidSec.style.display = '';
+    // Add podcast video to video timeline track
+    const thumbC = document.createElement('canvas');
+    thumbC.width = 160; thumbC.height = 90;
+    thumbC.getContext('2d').drawImage(createPipVideoEl, 0, 0, 160, 90);
+    const vtThumb = thumbC.toDataURL('image/jpeg', 0.6);
+    const vtImg = new Image(); vtImg.src = vtThumb;
+    videoTimelineItems = [{
+      id: nextVideoTimelineId++,
+      videoEl: createPipVideoEl,
+      videoSrc: createPipVideoSrc,
+      videoDuration: createPipVideoEl.duration,
+      inPoint: 0, outPoint: createPipVideoEl.duration,
+      startTime: 0, duration: currentBuffer.duration,
+      imgSrc: vtThumb, imgEl: vtImg,
+    }];
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
     const bgVidMode = $('bg-video-mode');
     if (bgVidMode) bgVidMode.value = bgVideoMode;
   } else {
     pipItems = [];
-    bgVideoEl = null;
+    videoTimelineItems = [];
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = 'none';
-    const bgVidSec = $('bg-video-section');
-    if (bgVidSec) bgVidSec.style.display = 'none';
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   }
 
   // Transfer language tracks to editor
@@ -9804,11 +10205,13 @@ btnNewProject.addEventListener('click', (e) => {
   createScenes = null; createTranscript = null; createAudioBuffer = null; selectedTemplate = '';
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
-  bgVideoEl = null; bgVideoMode = 'images-only';
+  videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
+  bgVideoMode = 'images-only';
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   const bgVidSec = $('bg-video-section');
   if (bgVidSec) bgVidSec.style.display = 'none';
+  if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   currentSeriesName = ''; currentEpisodeNumber = 0;
   pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
@@ -9855,7 +10258,7 @@ btnDelete.addEventListener('click', async () => { if(!activeRegion) return; push
 btnInsert.addEventListener('click', () => insertInput.click());
 insertInput.addEventListener('change', async () => { const f=insertInput.files[0]; if(!f)return; insertInput.value=''; const ct=wavesurfer.getCurrentTime(); setStatus(`Inserting at ${fmt(ct)}...`); try{const ib=await loadAudioBuffer(f);pushUndo();currentBuffer=insertAudioAt(currentBuffer,ib,ct);setStatus(`Inserted. ${fmt(currentBuffer.duration)}`);await refreshWaveform();}catch(e){setStatus('Error: '+e.message);} });
 btnUndo.addEventListener('click', async () => { if(!undoStack.length)return; currentBuffer=undoStack.pop(); if(!undoStack.length)btnUndo.disabled=true; setStatus(`Undo. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
-window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderTexts(); renderSubtitles(); });
+window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderVideoTimeline(); renderTexts(); renderSubtitles(); });
 
 // Background video mode dropdown
 const bgVideoModeEl = $('bg-video-mode');

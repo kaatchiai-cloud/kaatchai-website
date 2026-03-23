@@ -45,8 +45,11 @@ let pipBorder = 3;
 let pipBorderColor = '#ffffff';
 let pipShadow = true;
 
-// Background video track (podcast mode)
-let bgVideoEl = null;       // <video> element from podcast import
+// Video timeline items (background video track)
+// Each: {id, videoEl, videoSrc, videoDuration, inPoint, outPoint, startTime, duration, imgSrc, imgEl}
+let videoTimelineItems = [];
+let nextVideoTimelineId = 1;
+let selectedVideoIds = new Set();
 let bgVideoMode = 'images-only'; // images-only | video-only | video-images | video-pip | video-pip-transition
 
 // Subtitle items (separate from user text items)

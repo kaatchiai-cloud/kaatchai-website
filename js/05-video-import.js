@@ -13,21 +13,33 @@
     function addVideoFiles(files, dropX) {
       const dur = aDur();
       const fileArr = [...files].filter(f => f.type.startsWith('video/'));
+      if (fileArr.length === 0) { setStatus('No video files found'); return; }
       fileArr.forEach((file, idx) => {
         const videoEl = document.createElement('video');
         videoEl.muted = true;
         videoEl.preload = 'auto';
         videoEl.playsInline = true;
+        videoEl.crossOrigin = 'anonymous';
         const blobUrl = URL.createObjectURL(file);
         videoEl.src = blobUrl;
+        setStatus(`Loading video: ${file.name}...`);
 
-        videoEl.addEventListener('loadedmetadata', () => {
-          // Seek to first frame for thumbnail
-          videoEl.currentTime = 0.1;
+        videoEl.addEventListener('error', () => {
+          setStatus('Could not load video. Try MP4 or WebM format.');
         });
 
-        videoEl.addEventListener('seeked', async function onSeeked() {
-          videoEl.removeEventListener('seeked', onSeeked);
+        videoEl.addEventListener('loadeddata', async () => {
+          // Wait for first frame to be available
+          try {
+            videoEl.currentTime = 0.1;
+            await new Promise((resolve, reject) => {
+              const onSeeked = () => { videoEl.removeEventListener('seeked', onSeeked); resolve(); };
+              videoEl.addEventListener('seeked', onSeeked);
+              // Fallback timeout if seeked never fires
+              setTimeout(() => { videoEl.removeEventListener('seeked', onSeeked); resolve(); }, 2000);
+            });
+          } catch(e) { /* continue with frame 0 */ }
+
           const thumbDataUrl = await extractVideoThumbnail(videoEl);
           const thumbImg = new Image();
           thumbImg.onload = () => {
@@ -37,15 +49,14 @@
               clipDur = Math.min(videoDuration, dur);
               startTime = pxToSec(dropX) + idx * clipDur;
             } else {
-              startTime = photoItems.reduce((max, p) => Math.max(max, p.startTime + p.duration), 0);
+              startTime = videoTimelineItems.reduce((max, v) => Math.max(max, v.startTime + v.duration), 0);
               clipDur = Math.min(videoDuration, dur - startTime);
             }
             startTime = Math.max(0, startTime);
             clipDur = Math.max(0.5, clipDur);
 
-            photoItems.push({
-              id: nextPhotoId++,
-              type: 'video',
+            videoTimelineItems.push({
+              id: nextVideoTimelineId++,
               imgSrc: thumbDataUrl,
               imgEl: thumbImg,
               videoEl: videoEl,
@@ -55,13 +66,15 @@
               outPoint: videoDuration,
               startTime,
               duration: clipDur,
-              transition: 'fade',
-              transDur: 0.5,
             });
-            renderPhotos(); drawRuler();
+            renderVideoTimeline(); drawRuler(); markDirty();
+            setStatus(`Video added to video track: ${file.name} (${fmtShort(videoDuration)})`);
+          };
+          thumbImg.onerror = () => {
+            setStatus('Could not generate video thumbnail.');
           };
           thumbImg.src = thumbDataUrl;
-        }, { once: true });
+        });
       });
     }
 

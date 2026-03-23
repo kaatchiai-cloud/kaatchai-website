@@ -178,30 +178,39 @@
       return null;
     }
 
-    // Seek background video to correct time
-    function seekBgVideo(elapsed) {
-      if (!bgVideoEl) return;
-      if (Math.abs(bgVideoEl.currentTime - elapsed) > 0.1) {
-        bgVideoEl.currentTime = elapsed;
+    // Find active video clip at current time from video timeline
+    function getActiveVideoClip(elapsed) {
+      for (const v of videoTimelineItems) {
+        if (elapsed >= v.startTime && elapsed < v.startTime + v.duration && v.videoEl) return v;
+      }
+      return null;
+    }
+
+    // Seek a video clip to correct time based on timeline position
+    function seekVideoClip(clip, elapsed) {
+      const localTime = elapsed - clip.startTime;
+      const videoTime = (clip.inPoint || 0) + localTime;
+      const clampedTime = Math.min(videoTime, clip.outPoint || clip.videoDuration || clip.videoEl.duration);
+      if (Math.abs(clip.videoEl.currentTime - clampedTime) > 0.1) {
+        clip.videoEl.currentTime = clampedTime;
       }
     }
 
-    // Draw background video fullscreen
-    function drawBgVideoFull(ctx, cw, ch, elapsed) {
-      if (!bgVideoEl) return;
-      seekBgVideo(elapsed);
-      drawCoverFit(ctx, bgVideoEl, cw, ch);
+    // Draw video clip fullscreen
+    function drawVideoClipFull(ctx, cw, ch, elapsed, clip) {
+      if (!clip || !clip.videoEl) return;
+      seekVideoClip(clip, elapsed);
+      drawCoverFit(ctx, clip.videoEl, cw, ch);
     }
 
-    // Draw background video as PiP (uses shared PiP settings)
-    function drawBgVideoPiP(ctx, cw, ch, elapsed, scale) {
-      if (!bgVideoEl) return;
-      seekBgVideo(elapsed);
+    // Draw video clip as PiP (uses shared PiP settings)
+    function drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale) {
+      if (!clip || !clip.videoEl) return;
+      seekVideoClip(clip, elapsed);
       const s = (scale !== undefined ? scale : 1);
       const pW = Math.round(cw * pipSize / 100 * s + cw * (1 - s));
-      const pH = pipShape === 'circle' ? pW : Math.round(pW * (bgVideoEl.videoHeight / (bgVideoEl.videoWidth || 1) || 0.75));
+      const pH = pipShape === 'circle' ? pW : Math.round(pW * (clip.videoEl.videoHeight / (clip.videoEl.videoWidth || 1) || 0.75));
       const pad = Math.max(pipBorder + 4, cw * 0.02);
-      // Interpolate position: fullscreen center → PiP corner
       const targetX = cw - pW - pad;
       const targetY = ch - pH - pad;
       const x = s >= 1 ? targetX : lerp(0, targetX, s);
@@ -224,7 +233,7 @@
       ctx.beginPath();
       drawPipShape(ctx, x, y, drawW, drawH, s >= 0.8 ? pipShape : 'rounded');
       ctx.clip();
-      drawCoverFitRect(ctx, bgVideoEl, x, y, drawW, drawH);
+      drawCoverFitRect(ctx, clip.videoEl, x, y, drawW, drawH);
       ctx.restore();
     }
 
@@ -233,29 +242,27 @@
     // Render background video based on mode — called by preview/export
     // Returns 'pip-after' if video PiP should be drawn after image
     function renderBgVideoBefore(ctx, cw, ch, elapsed, sortedItems) {
-      if (!bgVideoEl || bgVideoMode === 'images-only') return null;
+      if (bgVideoMode === 'images-only') return null;
+      const clip = getActiveVideoClip(elapsed);
+      if (!clip) return null;
 
       const activeImage = hasImageAtTime(elapsed, sortedItems);
 
       if (bgVideoMode === 'video-only') {
-        drawBgVideoFull(ctx, cw, ch, elapsed);
-        return 'skip-images'; // don't render images
+        drawVideoClipFull(ctx, cw, ch, elapsed, clip);
+        return 'skip-images';
       }
 
       if (!activeImage) {
-        // No image → video fullscreen for all remaining modes
-        drawBgVideoFull(ctx, cw, ch, elapsed);
-        return 'skip-images'; // nothing else to draw
+        drawVideoClipFull(ctx, cw, ch, elapsed, clip);
+        return 'skip-images';
       }
 
-      // Image exists
       if (bgVideoMode === 'video-images') {
-        // Image renders normally, video hidden
         return null;
       }
 
       if (bgVideoMode === 'video-pip') {
-        // Image renders first, then video PiP on top
         return 'pip-after';
       }
 
@@ -267,9 +274,11 @@
     }
 
     function renderBgVideoAfter(ctx, cw, ch, elapsed, sortedItems, mode) {
-      if (!bgVideoEl) return;
+      if (!mode) return;
+      const clip = getActiveVideoClip(elapsed);
+      if (!clip) return;
       if (mode === 'pip-after') {
-        drawBgVideoPiP(ctx, cw, ch, elapsed, 1);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, 1);
       } else if (mode === 'pip-transition-after') {
         const activeImage = hasImageAtTime(elapsed, sortedItems);
         if (!activeImage) return;
@@ -278,15 +287,13 @@
         const timeToImageEnd = (activeImage.startTime + activeImage.duration) - elapsed;
         let scale;
         if (timeSinceImageStart < transDur) {
-          // Transitioning in: fullscreen → PiP
           scale = easeInOutCubic(Math.min(1, timeSinceImageStart / transDur));
         } else if (timeToImageEnd < transDur) {
-          // Transitioning out: PiP → fullscreen
           scale = easeInOutCubic(Math.min(1, timeToImageEnd / transDur));
         } else {
-          scale = 1; // fully PiP
+          scale = 1;
         }
-        drawBgVideoPiP(ctx, cw, ch, elapsed, scale);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale);
       }
     }
 

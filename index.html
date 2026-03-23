@@ -671,6 +671,32 @@
       <button id="prop-delete" class="danger" style="font-size:0.75rem; padding:4px 10px;">Remove</button>
     </div>
 
+    <!-- Video Timeline -->
+    <div class="section-label" style="margin-top:12px;">
+      Video Timeline
+      <span class="badge" id="video-count">0 videos</span>
+    </div>
+    <div id="video-drop-zone" class="empty">
+      <div id="video-timeline-container">
+        <div id="video-playhead-line"></div>
+      </div>
+    </div>
+    <div id="video-props">
+      <button id="vprop-close" class="props-close-btn" title="Close">✕</button>
+      <span style="font-size:0.7rem; color:var(--accent); font-weight:600;">🎬 Video Clip</span>
+      <label>Start: <input type="number" id="vprop-start" step="0.1" min="0">s</label>
+      <label>Duration: <input type="number" id="vprop-duration" step="0.1" min="0.5">s</label>
+      <label>End: <span id="vprop-end">—</span></label>
+      <div style="border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
+        <span style="font-size:0.68rem; color:var(--text-muted);">Video Trim</span>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:4px; flex-wrap:wrap;">
+          <label>In: <input type="number" id="vprop-in-point" step="0.1" min="0">s</label>
+          <label>Out: <input type="number" id="vprop-out-point" step="0.1" min="0">s</label>
+          <label>Source: <span id="vprop-video-dur" style="color:#e0e0e0">—</span></label>
+        </div>
+      </div>
+    </div>
+
     <!-- Text Timeline -->
     <div class="section-label" style="margin-top:12px;">
       Text Timeline
@@ -876,6 +902,7 @@
   <script src="js/03-ruler.js"></script>
   <script src="js/04-photo-timeline.js"></script>
   <script src="js/05-video-import.js"></script>
+  <script src="js/19-video-timeline.js"></script>
   <script src="js/06-text-timeline.js"></script>
   <script src="js/09-transitions.js"></script>
   <script src="js/07-text-renderer.js"></script>

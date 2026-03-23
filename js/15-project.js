@@ -553,6 +553,19 @@ async function saveProjectToFile(audioBuf, statusFn) {
         volume: bgmVolume,
         loop: bgmLoop,
       } : undefined,
+      // Video timeline
+      videoTimeline: videoTimelineItems.length > 0 ? await Promise.all(videoTimelineItems.map(async vt => {
+        try {
+          const resp = await fetch(vt.videoSrc);
+          const blob = await resp.blob();
+          return {
+            videoData: await blobToBase64(blob),
+            videoDuration: vt.videoDuration,
+            inPoint: vt.inPoint, outPoint: vt.outPoint,
+            startTime: vt.startTime, duration: vt.duration,
+          };
+        } catch(e) { console.warn('Video timeline save error:', e); return null; }
+      })).then(arr => arr.filter(Boolean)) : undefined,
       // PiP (multiple)
       pipItems: pipItems.length > 0 ? await Promise.all(pipItems.map(async pip => {
         try {
@@ -866,12 +879,36 @@ projectInput.addEventListener('change', async () => {
     const pipSec = $('pip-section');
     if (pipSec) pipSec.style.display = pipItems.length > 0 ? '' : 'none';
     if (typeof renderPipList === 'function') renderPipList();
-    // Restore background video from first PiP item
-    if (pipItems.length > 0 && pipItems[0].videoEl) {
-      bgVideoEl = pipItems[0].videoEl;
-      const bgVidSec = $('bg-video-section');
-      if (bgVidSec) bgVidSec.style.display = '';
+    // Restore video timeline items
+    videoTimelineItems = [];
+    if (project.videoTimeline && project.videoTimeline.length > 0) {
+      for (const vt of project.videoTimeline) {
+        try {
+          const blob = base64ToBlob(vt.videoData);
+          const blobUrl = URL.createObjectURL(blob);
+          const videoEl = document.createElement('video');
+          videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+          videoEl.src = blobUrl;
+          await new Promise(r => { videoEl.onloadeddata = r; videoEl.onerror = r; });
+          // Generate thumbnail
+          videoEl.currentTime = 0.1;
+          await new Promise(r => { videoEl.onseeked = r; setTimeout(r, 1000); });
+          const tc = document.createElement('canvas'); tc.width = 160; tc.height = 90;
+          tc.getContext('2d').drawImage(videoEl, 0, 0, 160, 90);
+          const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
+          const thumbImg = new Image(); thumbImg.src = thumbUrl;
+          videoTimelineItems.push({
+            id: nextVideoTimelineId++,
+            videoEl, videoSrc: blobUrl,
+            videoDuration: vt.videoDuration,
+            inPoint: vt.inPoint || 0, outPoint: vt.outPoint || vt.videoDuration,
+            startTime: vt.startTime || 0, duration: vt.duration || vt.videoDuration,
+            imgSrc: thumbUrl, imgEl: thumbImg,
+          });
+        } catch(e) { console.warn('Video timeline restore error:', e); }
+      }
     }
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
 
     // Restore language tracks
     editorLanguageTracks = [];
