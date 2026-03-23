@@ -4,9 +4,13 @@
 const createPage = $('create-page');
 const btnCreateContent = $('btn-create-content');
 const btnCreateBack = $('btn-create-back');
-const createApiKey = $('create-api-key');
-const btnSaveApiKey = $('btn-save-api-key');
-const createKeyStatus = $('create-key-status');
+const createApiKeyFree = $('create-api-key-free');
+const createApiKeyPaid = $('create-api-key-paid');
+const btnSaveKeyFree = $('btn-save-key-free');
+const btnSaveKeyPaid = $('btn-save-key-paid');
+const keyStatusFree = $('key-status-free');
+const keyStatusPaid = $('key-status-paid');
+const keyImageStatus = $('key-image-status');
 const createAudioInput = $('create-audio-input');
 const btnCreateImportAudio = $('btn-create-import-audio');
 const createAudioName = $('create-audio-name');
@@ -136,28 +140,75 @@ document.addEventListener('keydown', (e) => {
 
 // ── API Key Management ──
 // Migrate old keys
-const _oldKey = localStorage.getItem('stori_gemini_key') || localStorage.getItem('stori_gemini_key_free') || localStorage.getItem('stori_gemini_key_paid');
-if (_oldKey) {
-  localStorage.setItem('stori_api_key', _oldKey);
+const _migKey = localStorage.getItem('stori_gemini_key') || localStorage.getItem('stori_api_key');
+if (_migKey && !localStorage.getItem('stori_key_free')) {
+  localStorage.setItem('stori_key_free', _migKey);
   localStorage.removeItem('stori_gemini_key');
+  localStorage.removeItem('stori_api_key');
   localStorage.removeItem('stori_gemini_key_free');
   localStorage.removeItem('stori_gemini_key_paid');
 }
 
-function getCreateGeminiKey() {
-  return localStorage.getItem('stori_api_key') || (createApiKey ? createApiKey.value.trim() : '');
+let freeImageGenAvailable = false; // set after validation
+
+function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
+function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
+function getCreateGeminiKey() { return getPaidKey() || getFreeKey(); }
+function getImageKey() { return getPaidKey() || (freeImageGenAvailable ? getFreeKey() : null); }
+
+// Test if free key supports image generation
+async function validateFreeKeyImageGen(key) {
+  if (!key) return false;
+  keyImageStatus.textContent = '⏳ Checking image generation...';
+  keyImageStatus.style.color = 'var(--text-muted)';
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Generate a small blue circle' }] }] })
+      }
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      const hasImage = data.candidates?.[0]?.content?.parts?.some(p => p.inlineData);
+      if (hasImage) {
+        freeImageGenAvailable = true;
+        keyImageStatus.textContent = '✓ Image generation available on free tier';
+        keyImageStatus.style.color = '#10b981';
+        return true;
+      }
+    }
+    freeImageGenAvailable = false;
+    keyImageStatus.textContent = '⚠ Image generation not available — add paid key for images';
+    keyImageStatus.style.color = '#f59e0b';
+    return false;
+  } catch(e) {
+    freeImageGenAvailable = false;
+    keyImageStatus.textContent = '⚠ Could not verify image generation';
+    keyImageStatus.style.color = '#f59e0b';
+    return false;
+  }
+}
+
+function flashSave(btn, statusEl) {
+  statusEl.textContent = '✓ Saved';
+  statusEl.style.color = '#10b981';
+  btn.style.background = '#10b981';
+  btn.style.color = '#fff';
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; btn.textContent = 'Save'; }, 2000);
 }
 
 // Navigation
 btnCreateContent.addEventListener('click', () => {
   dropZone.classList.add('hidden');
   createPage.classList.add('visible');
-  const saved = localStorage.getItem('stori_api_key');
-  if (saved && createApiKey) {
-    createApiKey.value = saved;
-    createKeyStatus.textContent = '✓ Saved';
-    createKeyStatus.style.color = '#10b981';
-  }
+  const savedFree = localStorage.getItem('stori_key_free');
+  const savedPaid = localStorage.getItem('stori_key_paid');
+  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
+  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
   updateCreateButtons();
   updateStepStates();
 });
@@ -167,37 +218,44 @@ btnCreateBack.addEventListener('click', () => {
   destroyCreateAudioEditor();
 });
 
-// Save key
-btnSaveApiKey.addEventListener('click', () => {
-  const key = createApiKey.value.trim();
-  if (!key) { createKeyStatus.textContent = 'Enter a key'; createKeyStatus.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_api_key', key);
-  createKeyStatus.textContent = '✓ Key saved';
-  createKeyStatus.style.color = '#10b981';
-  btnSaveApiKey.style.background = '#10b981';
-  btnSaveApiKey.style.color = '#fff';
-  btnSaveApiKey.textContent = '✓ Saved';
-  setTimeout(() => { btnSaveApiKey.style.background = ''; btnSaveApiKey.style.color = ''; btnSaveApiKey.textContent = 'Save Key'; }, 2000);
-  updateCreateButtons();
-  updateStepStates();
+// Save free key + validate image gen
+btnSaveKeyFree.addEventListener('click', async () => {
+  const key = createApiKeyFree.value.trim();
+  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_free', key);
+  flashSave(btnSaveKeyFree, keyStatusFree);
+  updateCreateButtons(); updateStepStates();
+  await validateFreeKeyImageGen(key);
+});
+
+// Save paid key
+btnSaveKeyPaid.addEventListener('click', () => {
+  const key = createApiKeyPaid.value.trim();
+  if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_paid', key);
+  flashSave(btnSaveKeyPaid, keyStatusPaid);
+  updateCreateButtons(); updateStepStates();
 });
 
 // ── Model Selection (paid tier) ──
 function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
 function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
 function getImageModels() {
+  if (!getPaidKey()) return ['gemini-2.5-flash-image']; // Free tier
   const cat = $('create-image-category')?.value || 'fast';
   if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
   return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
 }
 function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
-function getSegmentDuration() { return { min: 5, max: 15 }; }
+function getSegmentDuration() {
+  return getPaidKey() ? { min: 5, max: 15 } : { min: 12, max: 24 };
+}
 
 // ── API Call Wrapper with model fallback ──
 async function callGeminiAPI(models, body) {
   const modelList = Array.isArray(models) ? models : [models];
   const key = getCreateGeminiKey();
-  if (!key) throw new Error('No API key configured');
+  if (!key) throw new Error('No API key configured. Enter a free or paid tier key in Step 1.');
 
   for (const model of modelList) {
     try {
@@ -219,7 +277,7 @@ async function callGeminiAPI(models, body) {
 }
 
 function updateCreateButtons() {
-  const hasKey = !!getCreateGeminiKey();
+  const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
   btnCreateTranscribe.disabled = !(hasKey && hasAudio);
   // Update transcribe button label based on input mode
@@ -228,6 +286,9 @@ function updateCreateButtons() {
   }
   btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
   btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl);
+  // Show image category only for paid tier
+  const catLabel = $('image-category-label');
+  if (catLabel) catLabel.style.display = getPaidKey() ? '' : 'none';
 }
 
 // Audio Import
@@ -1014,7 +1075,7 @@ function parseGeminiJson(text) {
 // Step state indicators (#7 + #9)
 function updateStepStates() {
   const steps = createPage.querySelectorAll('.create-step');
-  const hasKey = !!getCreateGeminiKey();
+  const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
   const hasTranscript = !!createTranscript;
   const hasScenes = createScenes && createScenes.length > 0;
@@ -2305,7 +2366,7 @@ async function generateImageImagen(prompt, key, { width, height } = {}, modelOve
 
 async function generateSceneImage(idx) {
   const scene = createScenes[idx];
-  const key = getActiveKey();
+  const key = getImageKey() || getCreateGeminiKey();
   const { width, height } = getSelectedImageSize();
 
   // Sync prompt from storyboard or scene card (whichever was edited last)
@@ -2440,8 +2501,21 @@ async function runImageGeneration(scenesToGen) {
     const idx = createScenes.indexOf(scenesToGen[i]);
     const pct = Math.round(((i) / total) * 100);
     createGenerateBar.style.width = pct + '%';
-    createGenerateLabel.textContent = `Generating image ${i + 1} of ${total}...`;
+    const isFree = !getPaidKey();
+    if (isFree) {
+      createGenerateLabel.textContent = `Generating image ${i + 1} of ${total} (free tier — slower)...`;
+    } else {
+      createGenerateLabel.textContent = `Generating image ${i + 1} of ${total}...`;
+    }
     await generateSceneImage(idx);
+    // Free tier: 2 IPM limit — wait 30s between images
+    if (isFree && i < total - 1) {
+      for (let wait = 30; wait > 0; wait--) {
+        createGenerateLabel.textContent = `Image ${i + 1} done. Next in ${wait}s (free tier: 2 images/min)...`;
+        await new Promise(r => setTimeout(r, 1000));
+        if (!generateRunning) break;
+      }
+    }
   }
 
   generateRunning = false;

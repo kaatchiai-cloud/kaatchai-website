@@ -55,13 +55,27 @@
     <!-- Step 1: API Key -->
     <div class="create-step">
       <h3><span class="step-num">1</span> Gemini API Key</h3>
-      <div class="create-row">
-        <input type="password" id="create-api-key" placeholder="Paste your Gemini API key (billing enabled)">
-        <button id="btn-save-api-key" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save Key</button>
-        <span id="create-key-status" style="font-size:0.72rem;"></span>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Free Tier Key:</label>
+        <div class="create-row">
+          <input type="password" id="create-api-key-free" placeholder="Free tier Gemini API key">
+          <button id="btn-save-key-free" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
+          <span id="key-status-free" style="font-size:0.72rem;"></span>
+        </div>
+        <span id="key-image-status" style="font-size:0.68rem; margin-top:4px; display:block;"></span>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px; display:block;">Paid Tier Key <span style="color:var(--text-muted);">(optional)</span>:</label>
+        <div class="create-row">
+          <input type="password" id="create-api-key-paid" placeholder="Paid tier Gemini API key">
+          <button id="btn-save-key-paid" style="font-size:0.75rem; padding:5px 14px;">Save</button>
+          <span id="key-status-paid" style="font-size:0.72rem;"></span>
+        </div>
+        <span style="font-size:0.68rem; color:var(--text-muted); margin-top:4px; display:block;">🎨 Paid tier offers higher quality images (Imagen 4, Nano Banana Pro) + faster generation</span>
       </div>
       <p style="font-size:0.68rem; color:var(--text-muted); margin-top:6px;">
-        Get key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a> with <a href="https://console.cloud.google.com/billing" target="_blank" style="color:var(--accent);">billing enabled</a>. Image generation: ~$0.04/image.
+        Free key from <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent);">aistudio.google.com</a> — no credit card needed.
+        Paid: <a href="https://console.cloud.google.com/billing" target="_blank" style="color:var(--accent);">enable billing</a> for premium features.
       </p>
     </div>
 
@@ -270,7 +284,7 @@
     <div class="create-step" id="create-generate-step" style="display:none;">
       <h3><span class="step-num">7</span> Generate Scene Images</h3>
       <div class="create-row" style="flex-wrap:wrap; gap:10px;">
-        <label style="color:var(--text-secondary);">Image mode:
+        <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
           <select id="create-image-category">
             <option value="fast" selected>⚡ Fast ($0.039/img)</option>
             <option value="quality">🎨 Quality ($0.04-$0.08/img)</option>
