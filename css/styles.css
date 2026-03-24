@@ -1475,7 +1475,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius); overflow: hidden; position: relative;
   text-align: center; margin: 0 auto;
 }
-.reel-seg-card img { width: 100%; height: auto; max-height: 240px; object-fit: cover; display: block; }
+.reel-seg-card img, .reel-seg-card video { width: 100%; display: block; }
 .reel-seg-card .reel-seg-info {
   padding: 4px 6px; color: var(--text-secondary);
 }

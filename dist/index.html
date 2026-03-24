@@ -1494,7 +1494,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius); overflow: hidden; position: relative;
   text-align: center; margin: 0 auto;
 }
-.reel-seg-card img { width: 100%; height: auto; max-height: 240px; object-fit: cover; display: block; }
+.reel-seg-card img, .reel-seg-card video { width: 100%; display: block; }
 .reel-seg-card .reel-seg-info {
   padding: 4px 6px; color: var(--text-secondary);
 }
@@ -12496,7 +12496,7 @@ function renderReelPresetSegments() {
   if (reelSegments.length === 0) { container.innerHTML = ''; return; }
   container.innerHTML = `<div class="reel-segments-list">${reelSegments.map((seg, i) => `
     <div class="reel-seg-card" data-seg="${i}">
-      <img src="${seg.thumbDataUrl}" style="width:100%; height:56px; object-fit:cover;">
+      <video class="seg-video" data-si="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata" style="width:100%; display:block;"></video>
       <div class="reel-seg-info">
         <span class="text-2xs">${fmtShort(seg.start)} — ${fmtShort(seg.end)} (${(seg.end - seg.start).toFixed(0)}s)</span>
       </div>
@@ -12510,26 +12510,32 @@ function renderReelPresetSegments() {
     </div>
   `).join('')}</div>`;
 
-  // Play handlers
+  // Seek each video to segment start for thumbnail
+  container.querySelectorAll('.seg-video').forEach(vid => {
+    const idx = parseInt(vid.dataset.si);
+    vid.currentTime = reelSegments[idx].start;
+  });
+
+  // Play handlers — each segment uses its own <video> element
   container.querySelectorAll('.seg-play').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.si);
       const seg = reelSegments[idx];
-      if (!reelPreviewVideo || !seg) return;
+      const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
+      if (!vid || !seg) return;
       stopSegPreview();
       segPreviewPlaying = idx;
-      reelPreviewVideo.currentTime = seg.start;
-      reelPreviewVideo.muted = false;
-      reelPreviewVideo.play();
+      vid.currentTime = seg.start;
+      vid.muted = false;
+      vid.play();
       btn.classList.add('hidden');
       container.querySelector(`.seg-pause[data-si="${idx}"]`).classList.remove('hidden');
-      // Update time + auto-stop at end
       const timeEl = $(`seg-time-${idx}`);
       const interval = setInterval(() => {
         if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
-        const elapsed = reelPreviewVideo.currentTime - seg.start;
+        const elapsed = vid.currentTime - seg.start;
         if (timeEl) timeEl.textContent = fmtShort(Math.max(0, elapsed));
-        if (reelPreviewVideo.currentTime >= seg.end) {
+        if (vid.currentTime >= seg.end || vid.paused) {
           stopSegPreview();
           clearInterval(interval);
         }
@@ -12543,6 +12549,8 @@ function renderReelPresetSegments() {
     btn.addEventListener('click', () => {
       stopSegPreview();
       const idx = parseInt(btn.dataset.si);
+      const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
+      if (vid) { vid.currentTime = reelSegments[idx].start; vid.muted = true; }
       const timeEl = $(`seg-time-${idx}`);
       if (timeEl) timeEl.textContent = '0:00';
     });
@@ -12558,9 +12566,9 @@ function renderReelPresetSegments() {
 }
 
 function stopSegPreview() {
-  if (reelPreviewVideo) { reelPreviewVideo.pause(); reelPreviewVideo.muted = true; }
+  // Pause all segment videos
+  document.querySelectorAll('.seg-video').forEach(v => { v.pause(); v.muted = true; });
   segPreviewPlaying = null;
-  // Reset play/pause buttons
   document.querySelectorAll('.seg-play').forEach(b => b.classList.remove('hidden'));
   document.querySelectorAll('.seg-pause').forEach(b => b.classList.add('hidden'));
 }
