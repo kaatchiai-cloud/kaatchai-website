@@ -23,6 +23,7 @@
       <p class="subtitle">AI Visual Story Creator</p>
     </div>
     <div id="user-section" class="top-bar-right">
+      <span id="session-cost" class="session-cost" style="display:none;" title="Estimated API cost this session. Actual billing may differ based on your API provider."></span>
       <div id="user-signed-out">
         <button id="btn-sign-in" class="btn-sm primary">Sign In</button>
       </div>
@@ -66,11 +67,12 @@
     <!-- Hero -->
     <div class="landing-hero">
       <p class="landing-hero-title">Turn Your Voice into Illustrated Videos</p>
-      <p class="landing-hero-sub">Speak it, type it, or upload a podcast — Stori generates unique AI visuals for every scene and assembles a ready-to-post video. No stock footage. No design skills. Every image made for your story.</p>
+      <p class="landing-hero-sub">Your voice becomes illustrated video. AI generates unique visuals for every scene — no stock footage, no design skills needed.</p>
       <div class="flex flex-wrap flex-center gap-lg mt-lg">
         <button id="btn-create-content" class="primary btn-lg">Create a Story</button>
-        <button id="btn-new-project" class="btn-lg">Edit Content</button>
-        <button id="btn-load-project-home" class="btn-lg">Open Project</button>
+        <button id="btn-create-reel" class="btn-lg" style="background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7); border:none; color:#fff;">Create Reel/Short</button>
+        <button id="btn-new-project" class="btn-ghost">Edit Content</button>
+        <button id="btn-load-project-home" class="btn-ghost">Open Project</button>
       </div>
     </div>
 
@@ -150,6 +152,7 @@
             <li>3 saved projects</li>
             <li>Stori watermark</li>
           </ul>
+          <button class="btn-md w-full mt-md" onclick="document.getElementById('btn-create-content').click();">Get Started Free</button>
         </div>
         <div class="landing-price-card featured">
           <h3>Pro</h3>
@@ -163,6 +166,7 @@
             <li>Full audio editor, BGM, transitions</li>
             <li>Unlimited projects, no watermark</li>
           </ul>
+          <button class="primary btn-md w-full mt-md">Upgrade to Pro</button>
         </div>
       </div>
       <!-- Temporary plan toggle for testing -->
@@ -224,6 +228,7 @@
         Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a>.
         Paid: <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">enable billing</a> on your project.
       </p>
+      <p class="cost-disclaimer">Cost estimates shown in the app are approximate and based on published API pricing. Actual charges are determined by your API provider and may vary. Stori does not charge for API usage — costs are billed directly by Google to your account. For actual usage and billing, check your <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">Google Cloud Console</a>.</p>
     </div>
 
     <!-- Step 2: Input -->
@@ -534,6 +539,184 @@
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Reel/Short Creator ═══ -->
+  <div id="reel-page">
+    <div class="reel-header">
+      <button id="btn-reel-back" class="btn-sm">← Back</button>
+      <h2>🎬 Create Reel/Short</h2>
+    </div>
+
+    <!-- Reel API Key -->
+    <div class="reel-step" id="reel-step-key">
+      <h3><span class="step-num">1</span> API Keys</h3>
+      <div class="form-row mb-md">
+        <span class="text-xs text-secondary" style="min-width:70px;">Free tier:</span>
+        <input type="password" id="reel-api-key-free" placeholder="Free Gemini API key (subtitles, transcription)" style="width:280px;">
+        <button id="btn-reel-save-key-free" class="primary btn-xs">Save</button>
+        <span id="reel-key-status-free" class="text-xs text-muted"></span>
+      </div>
+      <div class="form-row mb-md">
+        <span class="text-xs text-secondary" style="min-width:70px;">Paid tier:</span>
+        <input type="password" id="reel-api-key-paid" placeholder="Paid Gemini API key (image gen, faster)" style="width:280px;">
+        <button id="btn-reel-save-key-paid" class="btn-xs">Save</button>
+        <span id="reel-key-status-paid" class="text-xs text-muted"></span>
+      </div>
+      <p class="hint-text">Free key: subtitles + transcription (no cost). Paid key: image generation + faster processing. Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a></p>
+    </div>
+
+    <!-- Reel Step 2: Input -->
+    <div class="reel-step" id="reel-step-input">
+      <h3><span class="step-num">2</span> Input</h3>
+      <div class="input-mode-toggle mb-md">
+        <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
+        <button id="reel-mode-text" class="mode-btn">📝 Text</button>
+        <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
+      </div>
+      <div id="reel-audio-section">
+        <div class="form-row">
+          <button id="btn-reel-import-audio" class="btn-md">🎵 Choose Audio File</button>
+          <span id="reel-audio-name" class="text-sm text-muted"></span>
+        </div>
+        <input type="file" id="reel-audio-input" accept="audio/*,video/*,.mp3,.wav,.m4a" class="hidden">
+      </div>
+      <div id="reel-text-section" class="hidden">
+        <textarea id="reel-text-input" placeholder="Type or paste your script (keep it short — 30 to 120 seconds)..." rows="4" class="w-full"></textarea>
+      </div>
+      <div id="reel-video-section" class="hidden">
+        <div class="form-row">
+          <button id="btn-reel-import-video" class="btn-md">🎬 Choose Video File</button>
+          <span id="reel-video-name" class="text-sm text-muted"></span>
+        </div>
+        <input type="file" id="reel-video-input" accept="video/*" class="hidden">
+        <div id="reel-segment-picker" class="hidden mt-md">
+          <div class="reel-video-preview">
+            <video id="reel-preview-video" playsinline muted></video>
+            <div class="reel-video-controls">
+              <button id="btn-reel-vid-play" class="btn-xs">▶ Play</button>
+              <button id="btn-reel-vid-pause" class="btn-xs">⏸ Pause</button>
+              <button id="btn-reel-vid-stop" class="btn-xs">⏹ Stop</button>
+              <span id="reel-vid-time" class="text-xs text-muted">0:00</span>
+            </div>
+          </div>
+          <div id="reel-waveform"></div>
+          <div class="form-row mt-sm">
+            <span id="reel-segment-info" class="text-xs text-muted">Select a segment on the waveform</span>
+            <button id="btn-reel-play-segment" class="btn-xs">▶ Play Segment</button>
+            <button id="btn-reel-use-segment" class="btn-xs primary">✓ Use Segment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reel Step 2: Presets -->
+    <div class="reel-step" id="reel-step-presets">
+      <h3><span class="step-num">3</span> Presets</h3>
+      <div id="reel-edit-mode-row" class="form-row mb-md hidden">
+        <span class="text-sm text-secondary">Edit mode:</span>
+        <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
+        <label class="form-label"><input type="radio" name="reel-edit-mode" value="auto-cut"> Auto-cut + Subtitles</label>
+      </div>
+      <div class="reel-presets-grid">
+        <label class="form-label">Platform:
+          <select id="reel-platform">
+            <option value="instagram">Instagram Reel</option>
+            <option value="youtube">YouTube Short</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+        </label>
+        <label class="form-label">Duration:
+          <select id="reel-duration">
+            <option value="30">30 seconds</option>
+            <option value="60" selected>60 seconds</option>
+            <option value="90">90 seconds</option>
+            <option value="120">120 seconds</option>
+          </select>
+        </label>
+        <label class="form-label">Visual style:
+          <select id="reel-style"></select>
+        </label>
+        <label class="form-label">Transition:
+          <select id="reel-transition">
+            <option value="quick-cut">Quick Cut</option>
+            <option value="whip-pan" selected>Whip Pan</option>
+            <option value="zoom-in">Zoom In</option>
+            <option value="crossfade">Crossfade</option>
+            <option value="flash">Flash</option>
+          </select>
+        </label>
+        <label class="form-label">Subtitle:
+          <select id="reel-subtitle-style">
+            <option value="highlight" selected>Highlight</option>
+            <option value="word-by-word">Word by Word</option>
+            <option value="karaoke">Karaoke</option>
+            <option value="bold-center">Bold Center</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row mt-md">
+        <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
+        <span id="reel-generate-status" class="text-sm text-muted"></span>
+      </div>
+      <div class="create-progress hidden" id="reel-progress">
+        <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
+        <div class="label" id="reel-progress-label">Generating...</div>
+      </div>
+    </div>
+
+    <!-- Reel Step 4: Mini Editor + Preview -->
+    <div class="reel-step hidden" id="reel-step-editor">
+      <h3><span class="step-num">4</span> Preview & Edit</h3>
+      <div class="reel-editor-vertical">
+        <div class="reel-canvas-wrap">
+          <canvas id="reel-canvas" width="1080" height="1920"></canvas>
+        </div>
+        <div class="reel-playback form-row mt-md">
+          <button id="btn-reel-play" class="btn-sm">▶ Play</button>
+          <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
+          <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
+          <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
+          <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+        </div>
+        <div class="reel-scenes mt-md" id="reel-scene-list"></div>
+        <div class="reel-settings mt-md">
+          <label class="form-label">Style: <select id="reel-edit-style"></select></label>
+          <label class="form-label">Transition: <select id="reel-edit-transition"></select></label>
+          <label class="form-label">Subtitle style: <select id="reel-edit-subtitle"></select></label>
+          <label class="form-label">Subtitle language:
+            <select id="reel-subtitle-lang">
+              <option value="original" selected>Original</option>
+              <option value="en">English</option>
+              <option value="ta">Tamil</option>
+              <option value="hi">Hindi</option>
+              <option value="te">Telugu</option>
+              <option value="ml">Malayalam</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select>
+          </label>
+          <label class="form-label">Sub color: <input type="color" id="reel-sub-color" value="#ffffff"></label>
+          <label class="form-label">Outline: <input type="color" id="reel-sub-outline" value="#000000"></label>
+          <label class="form-label">Backdrop:
+            <select id="reel-sub-backdrop">
+              <option value="dark" selected>Dark</option>
+              <option value="blur">Blur</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
+          <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
+        </div>
+        <div class="form-row mt-md">
+          <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
+          <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
+          <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1085,6 +1268,7 @@
   <script src="js/17b-create-references.js"></script>
   <script src="js/17c-create-pipeline.js"></script>
   <script src="js/17d-create-languages.js"></script>
+  <script src="js/20-reels-creator.js"></script>
   <script src="js/18-navigation.js"></script>
   <script src="https://unpkg.com/@niccoborg/capacitor-core@latest/dist/capacitor.js" nomodule></script>
 </body>

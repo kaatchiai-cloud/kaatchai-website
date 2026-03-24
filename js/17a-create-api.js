@@ -424,7 +424,7 @@ async function callGeminiAPI(models, body) {
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
-      if (resp.ok) return await resp.json();
+      if (resp.ok) { trackCost('textGeneration', 1); return await resp.json(); }
       if (resp.status === 429 || resp.status === 403) continue;
       const err = await resp.json().catch(() => ({}));
       if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
@@ -451,4 +451,28 @@ function updateCreateButtons() {
   const catLabel = $('image-category-label');
   if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
   if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
+  // Update cost hints on buttons
+  updateCostHints();
+}
+
+function updateCostHints() {
+  const sceneCount = createScenes ? createScenes.length : 0;
+  const pendingCount = createScenes ? createScenes.filter(s => s.status !== 'done').length : 0;
+  // Transcribe button
+  if (btnCreateTranscribe && !btnCreateTranscribe.disabled) {
+    btnCreateTranscribe.title = `Estimated cost: ~$${estimateCost('transcription', 1)}`;
+  }
+  // Generate images button
+  if (btnCreateGenerate && sceneCount > 0) {
+    const type = isPaidTier() ? 'imageGenQuality' : 'imageGenFast';
+    btnCreateGenerate.title = `Estimated cost: ~$${estimateCost(type, pendingCount)} (${pendingCount} images)`;
+  }
+  // Language generate button
+  const langBtn = $('btn-generate-languages');
+  if (langBtn) {
+    const checked = document.querySelectorAll('#language-checkboxes input:checked');
+    if (checked.length > 0) {
+      langBtn.title = `Estimated cost: ~$${estimateCost('ttsPerLang', checked.length)} (${checked.length} languages)`;
+    }
+  }
 }

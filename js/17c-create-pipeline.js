@@ -518,6 +518,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     createAudioBuffer = audioBuffer;
     createOriginalBuffer = audioBuffer;
 
+    trackCost('tts', 1);
     createTtsStatus.textContent = `Audio generated (${audioBuffer.duration.toFixed(1)}s)`;
     btnCreateGenerateTts.textContent = '🔊 Regenerate Audio';
     updateCreateButtons();
@@ -1185,6 +1186,7 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
     }
 
     // ── Common: save raw transcript ──
+    trackCost('transcription', 1);
     createTranscript = segments;
 
     createTranscriptOutput.textContent = segments.map(s =>
@@ -2239,6 +2241,7 @@ async function generateSceneImage(idx) {
     if (!imgDataUrl) throw lastError || new Error('Image generation failed. Free tier may not support image generation — try adding a paid tier key.');
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
+    trackCost(isPaidTier() ? 'imageGenQuality' : 'imageGenFast', 1);
     updateSceneCardImage(idx);
     updateSceneCardStatus(idx);
     autoSaveCreateState();

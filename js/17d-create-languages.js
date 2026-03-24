@@ -377,6 +377,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         subtitleLang: 'none', // default: no subtitle
         status: 'done'
       });
+      trackCost('ttsPerLang', 1);
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
     } catch(e) {
       renderLanguageCard(lang, 'error', friendlyApiError(e.message));

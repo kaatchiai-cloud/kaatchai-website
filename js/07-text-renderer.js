@@ -224,3 +224,111 @@
         ctx.restore();
       }
     }
+
+    // ── Reel Subtitle Renderer (word-level) ──
+    function renderReelSubtitle(ctx, cw, ch, elapsed, words, style) {
+      if (!words || words.length === 0 || style === 'none') return;
+      ctx.save();
+
+      const color = typeof reelSubColor !== 'undefined' ? reelSubColor : '#ffffff';
+      const outline = typeof reelSubOutline !== 'undefined' ? reelSubOutline : '#000000';
+      const backdrop = typeof reelSubBackdrop !== 'undefined' ? reelSubBackdrop : 'dark';
+      const accentColor = 'var(--accent)' === 'var(--accent)' ? '#a078ff' : '#a078ff'; // resolved
+      const fontSize = Math.round(cw * 0.06);
+      const font = `700 ${fontSize}px Poppins, sans-serif`;
+      const y = ch * 0.78;
+      const maxWidth = cw * 0.85;
+
+      function drawBackdrop(x, bY, w, h) {
+        if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(x, bY, w, h); }
+        else if (backdrop === 'blur') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(x, bY, w, h); }
+        // 'none' = no backdrop
+      }
+      function drawTextWithOutline(text, tx, ty) {
+        if (outline && outline !== 'transparent') {
+          ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+          ctx.strokeText(text, tx, ty);
+        }
+        ctx.fillText(text, tx, ty);
+      }
+
+      if (style === 'word-by-word') {
+        const word = words.find(w => elapsed >= w.start && elapsed < w.end);
+        if (word) {
+          ctx.font = font; ctx.textAlign = 'center';
+          const m = ctx.measureText(word.word);
+          drawBackdrop(cw/2 - m.width/2 - 12, y - fontSize - 4, m.width + 24, fontSize + 16);
+          ctx.fillStyle = color;
+          drawTextWithOutline(word.word, cw / 2, y);
+        }
+      } else if (style === 'highlight') {
+        const segWords = getSegmentWords(words, elapsed);
+        if (segWords.length > 0) {
+          const sentence = segWords.map(w => w.word).join(' ');
+          const currentWord = segWords.find(w => elapsed >= w.start && elapsed < w.end);
+          ctx.font = `600 ${Math.round(fontSize * 0.7)}px Poppins, sans-serif`;
+          ctx.textAlign = 'center';
+          const metrics = ctx.measureText(sentence);
+          const bgW = Math.min(metrics.width + 24, maxWidth);
+          drawBackdrop(cw/2 - bgW/2, y - fontSize * 0.7 - 4, bgW, fontSize * 0.7 + 16);
+          let xPos = cw/2 - metrics.width/2;
+          for (const w of segWords) {
+            ctx.fillStyle = (currentWord && w.word === currentWord.word && w.start === currentWord.start) ? accentColor : color;
+            ctx.textAlign = 'left';
+            drawTextWithOutline(w.word + ' ', xPos, y);
+            xPos += ctx.measureText(w.word + ' ').width;
+          }
+        }
+      } else if (style === 'karaoke') {
+        const visible = words.filter(w => elapsed >= w.start);
+        if (visible.length > 0) {
+          const recent = visible.slice(-6);
+          const text = recent.map(w => w.word).join(' ');
+          ctx.font = `600 ${Math.round(fontSize * 0.8)}px Poppins, sans-serif`;
+          ctx.textAlign = 'center';
+          const metrics = ctx.measureText(text);
+          drawBackdrop(cw/2 - metrics.width/2 - 12, y - fontSize * 0.8 - 4, metrics.width + 24, fontSize * 0.8 + 16);
+          ctx.fillStyle = color;
+          drawTextWithOutline(text, cw/2, y);
+        }
+      } else if (style === 'bold-center') {
+        const group = getCurrentWordGroup(words, elapsed, 3);
+        if (group) {
+          ctx.font = font; ctx.textAlign = 'center';
+          const metrics = ctx.measureText(group);
+          drawBackdrop(cw/2 - metrics.width/2 - 16, y - fontSize - 6, metrics.width + 32, fontSize + 20);
+          ctx.fillStyle = color;
+          drawTextWithOutline(group, cw/2, y);
+        }
+      }
+      ctx.restore();
+    }
+
+    // Helper: get words belonging to the same sentence/segment at current time
+    function getSegmentWords(words, elapsed) {
+      // Find the word at current time, then grab surrounding words (up to ~8 words)
+      const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+      if (idx < 0) {
+        // Between words — find closest
+        const closest = words.reduce((best, w, i) => {
+          const dist = Math.abs(w.start - elapsed);
+          return dist < best.dist ? { dist, idx: i } : best;
+        }, { dist: Infinity, idx: -1 });
+        if (closest.idx < 0) return [];
+        const start = Math.max(0, closest.idx - 3);
+        const end = Math.min(words.length, closest.idx + 5);
+        return words.slice(start, end);
+      }
+      const start = Math.max(0, idx - 3);
+      const end = Math.min(words.length, idx + 5);
+      return words.slice(start, end);
+    }
+
+    // Helper: get a group of N words around current time
+    function getCurrentWordGroup(words, elapsed, groupSize) {
+      const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+      if (idx < 0) return null;
+      const groupStart = Math.floor(idx / groupSize) * groupSize;
+      const group = words.slice(groupStart, groupStart + groupSize);
+      return group.map(w => w.word).join(' ');
+    }

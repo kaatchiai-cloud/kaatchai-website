@@ -48,12 +48,12 @@
   /* Typography scale */
   --text-2xs: 0.62rem;
   --text-xs: 0.68rem;
-  --text-sm: 0.75rem;
-  --text-base: 0.78rem;
-  --text-md: 0.85rem;
-  --text-lg: 0.95rem;
-  --text-xl: 1.1rem;
-  --text-2xl: 1.6rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.875rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.05rem;
+  --text-xl: 1.2rem;
+  --text-2xl: 2.2rem;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -122,7 +122,17 @@ body {
 .top-bar-left { }
 .top-bar-left h1 { margin-bottom: 2px; }
 .top-bar-left .subtitle { margin-bottom: 0; }
-.top-bar-right { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.top-bar-right { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; }
+.session-cost {
+  font-size: var(--text-xs); color: var(--amber);
+  background: var(--amber-soft); padding: 3px 8px;
+  border-radius: 12px; cursor: help; white-space: nowrap;
+}
+.cost-disclaimer {
+  font-size: var(--text-2xs); color: var(--text-muted);
+  margin-top: 6px; line-height: 1.4; font-style: italic;
+  opacity: 0.8;
+}
 
 h1 { font-size: 1.5rem; margin-bottom: 2px; color: var(--text-primary); font-weight: 700; letter-spacing: 1px; }
 .subtitle { font-size: var(--text-base); color: var(--text-muted); margin-bottom: 20px; font-weight: 300; letter-spacing: 0.5px; }
@@ -187,6 +197,9 @@ button.danger { background: transparent; border-color: var(--red); color: var(--
 button.danger:hover { background: var(--red-soft); }
 
 .btn-lg { padding: 12px 36px; font-size: var(--text-lg); border-radius: var(--radius); font-weight: 600; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: var(--text-sm); padding: 8px 20px; }
+.btn-ghost:hover { border-color: var(--border-hover); color: var(--text-primary); }
+button.primary:hover { box-shadow: 0 4px 24px var(--accent-glow); }
 .btn-md { padding: 6px 16px; font-size: var(--text-base); }
 .btn-sm { padding: 4px 10px; font-size: var(--text-sm); }
 .btn-xs { padding: 3px 8px; font-size: var(--text-xs); }
@@ -256,7 +269,13 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   box-shadow: 0 4px 30px rgba(0,0,0,0.3);
 }
 #drop-zone button { cursor: pointer; }
-#drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+/* Animated border glow on hero card */
+@keyframes hero-glow {
+  0%, 100% { border-color: rgba(160,120,255,0.08); box-shadow: 0 4px 30px rgba(0,0,0,0.3); }
+  50% { border-color: rgba(160,120,255,0.2); box-shadow: 0 4px 40px rgba(160,120,255,0.1); }
+}
+#drop-zone { animation: hero-glow 4s ease-in-out infinite; }
+#drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); animation: none; }
 #drop-zone.hidden { display: none; }
 #drop-zone > p { font-size: 1rem; color: var(--text-secondary); }
 #drop-zone .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
@@ -269,12 +288,15 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.landing-hero-sub { font-size: 0.88rem; color: var(--text-secondary); max-width: 520px; margin: 0 auto; line-height: 1.5; }
+.landing-hero-title { text-shadow: 0 0 40px rgba(160,120,255,0.3); }
+.landing-hero-sub { font-size: var(--text-base); color: var(--text-secondary); max-width: 480px; margin: 0 auto; line-height: 1.6; }
 
 .landing-section {
   width: 100%; max-width: 800px; margin: 0 auto 36px;
-  text-align: center;
+  text-align: center; padding: 24px 20px; border-radius: var(--radius-lg);
 }
+.landing-section:nth-child(even) { background: rgba(255,255,255,0.015); }
+.landing-section:nth-child(odd) { background: transparent; }
 .landing-section-title {
   font-size: 1rem; font-weight: 600; color: var(--text-primary);
   margin-bottom: 18px; letter-spacing: 0.5px;
@@ -286,7 +308,12 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 
 /* How It Works */
-.landing-steps { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.landing-steps { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; position: relative; }
+.landing-steps::before {
+  content: ''; position: absolute; top: 12px; left: 20%; right: 20%;
+  height: 2px; border-top: 2px dashed rgba(160,120,255,0.25); z-index: 0;
+}
+.landing-step-card { z-index: 1; }
 .landing-step-card {
   flex: 1; min-width: 180px; max-width: 240px;
   padding: 24px 18px; background: var(--bg-elevated);
@@ -299,7 +326,13 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   background: var(--accent); color: #fff; font-size: 0.68rem;
   font-weight: 700; display: flex; align-items: center; justify-content: center;
 }
-.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+.landing-step-card:nth-child(2) .landing-step-icon { animation-delay: 0.5s; }
+.landing-step-card:nth-child(3) .landing-step-icon { animation-delay: 1s; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
 .landing-step-card h3 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px; }
 .landing-step-card p { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
 
@@ -312,6 +345,13 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   display: flex; gap: 12px; align-items: flex-start;
   padding: 14px 16px; background: var(--bg-elevated);
   border: 1px solid var(--border); border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.landing-feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(160,120,255,0.15);
+  border-left-color: #fff;
 }
 .landing-feature span { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
 .landing-feature strong { font-size: 0.78rem; color: var(--text-primary); }
@@ -339,7 +379,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   .landing-features { grid-template-columns: 1fr; }
   .landing-steps { flex-direction: column; align-items: center; }
   .landing-step-card { max-width: 100%; }
-  .landing-hero-title { font-size: 1.2rem; }
+  .landing-hero-title { font-size: 1.5rem; }
 }
 
 /* ── Create Content Page ── */
@@ -1425,6 +1465,67 @@ input:focus, select:focus, textarea:focus {
 .bgm-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; }
 .bgm-remove-btn:hover { background: var(--red); color: #fff; }
 
+/* ── Reel/Short Creator ── */
+#reel-page { width: 100%; max-width: 1080px; display: none; }
+#reel-page.visible { display: block; }
+.reel-header { position: relative; text-align: center; margin-bottom: 18px; }
+.reel-header h2 { font-size: var(--text-xl); font-weight: 600; }
+.reel-header #btn-reel-back { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
+.reel-step {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; margin-bottom: 12px;
+}
+.reel-step h3 { font-size: var(--text-md); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.reel-presets-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px; max-width: 600px; margin: 0 auto;
+}
+.reel-step { text-align: center; }
+.reel-step h3 { justify-content: center; }
+.reel-step .form-row { justify-content: center; }
+.reel-step .input-mode-toggle { margin: 0 auto 12px; }
+.reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
+.reel-step select { cursor: pointer; }
+.reel-settings { justify-content: center; }
+.reel-editor-vertical { display: flex; flex-direction: column; align-items: center; }
+.reel-canvas-wrap {
+  width: 220px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border); background: #000;
+}
+.reel-canvas-wrap canvas { width: 100%; height: auto; display: block; }
+.reel-playback { max-width: 500px; width: 100%; }
+.reel-scenes {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.reel-scene-thumb {
+  width: 56px; height: 56px; border-radius: var(--radius-sm);
+  overflow: hidden; border: 2px solid var(--border); cursor: pointer;
+  position: relative;
+}
+.reel-scene-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.reel-scene-thumb.active { border-color: var(--accent); }
+.reel-scene-thumb .reel-scene-num {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  font-size: var(--text-2xs); background: rgba(0,0,0,0.7);
+  color: #fff; text-align: center; padding: 1px;
+}
+.reel-video-preview {
+  width: 100%; max-width: 400px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border); background: #000;
+  margin: 0 auto 8px;
+}
+.reel-video-preview video { width: 100%; display: block; }
+.reel-video-controls {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: var(--bg-elevated); justify-content: center;
+}
+.reel-settings { display: flex; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 768px) {
+  .reel-canvas-wrap { width: 180px; }
+  .reel-presets-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
@@ -1435,7 +1536,7 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 768px) {
   body { padding: 12px 12px; }
   #drop-zone { padding: 30px 20px; }
-  .landing-hero-title { font-size: 1.2rem; }
+  .landing-hero-title { font-size: 1.5rem; }
   .landing-hero-sub { font-size: var(--text-base); }
   .landing-features { grid-template-columns: 1fr; }
   .landing-steps { flex-direction: column; align-items: center; }
@@ -1482,6 +1583,7 @@ input:focus, select:focus, textarea:focus {
       <p class="subtitle">AI Visual Story Creator</p>
     </div>
     <div id="user-section" class="top-bar-right">
+      <span id="session-cost" class="session-cost" style="display:none;" title="Estimated API cost this session. Actual billing may differ based on your API provider."></span>
       <div id="user-signed-out">
         <button id="btn-sign-in" class="btn-sm primary">Sign In</button>
       </div>
@@ -1525,11 +1627,12 @@ input:focus, select:focus, textarea:focus {
     <!-- Hero -->
     <div class="landing-hero">
       <p class="landing-hero-title">Turn Your Voice into Illustrated Videos</p>
-      <p class="landing-hero-sub">Speak it, type it, or upload a podcast — Stori generates unique AI visuals for every scene and assembles a ready-to-post video. No stock footage. No design skills. Every image made for your story.</p>
+      <p class="landing-hero-sub">Your voice becomes illustrated video. AI generates unique visuals for every scene — no stock footage, no design skills needed.</p>
       <div class="flex flex-wrap flex-center gap-lg mt-lg">
         <button id="btn-create-content" class="primary btn-lg">Create a Story</button>
-        <button id="btn-new-project" class="btn-lg">Edit Content</button>
-        <button id="btn-load-project-home" class="btn-lg">Open Project</button>
+        <button id="btn-create-reel" class="btn-lg" style="background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7); border:none; color:#fff;">Create Reel/Short</button>
+        <button id="btn-new-project" class="btn-ghost">Edit Content</button>
+        <button id="btn-load-project-home" class="btn-ghost">Open Project</button>
       </div>
     </div>
 
@@ -1609,6 +1712,7 @@ input:focus, select:focus, textarea:focus {
             <li>3 saved projects</li>
             <li>Stori watermark</li>
           </ul>
+          <button class="btn-md w-full mt-md" onclick="document.getElementById('btn-create-content').click();">Get Started Free</button>
         </div>
         <div class="landing-price-card featured">
           <h3>Pro</h3>
@@ -1622,6 +1726,7 @@ input:focus, select:focus, textarea:focus {
             <li>Full audio editor, BGM, transitions</li>
             <li>Unlimited projects, no watermark</li>
           </ul>
+          <button class="primary btn-md w-full mt-md">Upgrade to Pro</button>
         </div>
       </div>
       <!-- Temporary plan toggle for testing -->
@@ -1683,6 +1788,7 @@ input:focus, select:focus, textarea:focus {
         Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a>.
         Paid: <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">enable billing</a> on your project.
       </p>
+      <p class="cost-disclaimer">Cost estimates shown in the app are approximate and based on published API pricing. Actual charges are determined by your API provider and may vary. Stori does not charge for API usage — costs are billed directly by Google to your account. For actual usage and billing, check your <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">Google Cloud Console</a>.</p>
     </div>
 
     <!-- Step 2: Input -->
@@ -1993,6 +2099,184 @@ input:focus, select:focus, textarea:focus {
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Reel/Short Creator ═══ -->
+  <div id="reel-page">
+    <div class="reel-header">
+      <button id="btn-reel-back" class="btn-sm">← Back</button>
+      <h2>🎬 Create Reel/Short</h2>
+    </div>
+
+    <!-- Reel API Key -->
+    <div class="reel-step" id="reel-step-key">
+      <h3><span class="step-num">1</span> API Keys</h3>
+      <div class="form-row mb-md">
+        <span class="text-xs text-secondary" style="min-width:70px;">Free tier:</span>
+        <input type="password" id="reel-api-key-free" placeholder="Free Gemini API key (subtitles, transcription)" style="width:280px;">
+        <button id="btn-reel-save-key-free" class="primary btn-xs">Save</button>
+        <span id="reel-key-status-free" class="text-xs text-muted"></span>
+      </div>
+      <div class="form-row mb-md">
+        <span class="text-xs text-secondary" style="min-width:70px;">Paid tier:</span>
+        <input type="password" id="reel-api-key-paid" placeholder="Paid Gemini API key (image gen, faster)" style="width:280px;">
+        <button id="btn-reel-save-key-paid" class="btn-xs">Save</button>
+        <span id="reel-key-status-paid" class="text-xs text-muted"></span>
+      </div>
+      <p class="hint-text">Free key: subtitles + transcription (no cost). Paid key: image generation + faster processing. Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a></p>
+    </div>
+
+    <!-- Reel Step 2: Input -->
+    <div class="reel-step" id="reel-step-input">
+      <h3><span class="step-num">2</span> Input</h3>
+      <div class="input-mode-toggle mb-md">
+        <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
+        <button id="reel-mode-text" class="mode-btn">📝 Text</button>
+        <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
+      </div>
+      <div id="reel-audio-section">
+        <div class="form-row">
+          <button id="btn-reel-import-audio" class="btn-md">🎵 Choose Audio File</button>
+          <span id="reel-audio-name" class="text-sm text-muted"></span>
+        </div>
+        <input type="file" id="reel-audio-input" accept="audio/*,video/*,.mp3,.wav,.m4a" class="hidden">
+      </div>
+      <div id="reel-text-section" class="hidden">
+        <textarea id="reel-text-input" placeholder="Type or paste your script (keep it short — 30 to 120 seconds)..." rows="4" class="w-full"></textarea>
+      </div>
+      <div id="reel-video-section" class="hidden">
+        <div class="form-row">
+          <button id="btn-reel-import-video" class="btn-md">🎬 Choose Video File</button>
+          <span id="reel-video-name" class="text-sm text-muted"></span>
+        </div>
+        <input type="file" id="reel-video-input" accept="video/*" class="hidden">
+        <div id="reel-segment-picker" class="hidden mt-md">
+          <div class="reel-video-preview">
+            <video id="reel-preview-video" playsinline muted></video>
+            <div class="reel-video-controls">
+              <button id="btn-reel-vid-play" class="btn-xs">▶ Play</button>
+              <button id="btn-reel-vid-pause" class="btn-xs">⏸ Pause</button>
+              <button id="btn-reel-vid-stop" class="btn-xs">⏹ Stop</button>
+              <span id="reel-vid-time" class="text-xs text-muted">0:00</span>
+            </div>
+          </div>
+          <div id="reel-waveform"></div>
+          <div class="form-row mt-sm">
+            <span id="reel-segment-info" class="text-xs text-muted">Select a segment on the waveform</span>
+            <button id="btn-reel-play-segment" class="btn-xs">▶ Play Segment</button>
+            <button id="btn-reel-use-segment" class="btn-xs primary">✓ Use Segment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reel Step 2: Presets -->
+    <div class="reel-step" id="reel-step-presets">
+      <h3><span class="step-num">3</span> Presets</h3>
+      <div id="reel-edit-mode-row" class="form-row mb-md hidden">
+        <span class="text-sm text-secondary">Edit mode:</span>
+        <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
+        <label class="form-label"><input type="radio" name="reel-edit-mode" value="auto-cut"> Auto-cut + Subtitles</label>
+      </div>
+      <div class="reel-presets-grid">
+        <label class="form-label">Platform:
+          <select id="reel-platform">
+            <option value="instagram">Instagram Reel</option>
+            <option value="youtube">YouTube Short</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+        </label>
+        <label class="form-label">Duration:
+          <select id="reel-duration">
+            <option value="30">30 seconds</option>
+            <option value="60" selected>60 seconds</option>
+            <option value="90">90 seconds</option>
+            <option value="120">120 seconds</option>
+          </select>
+        </label>
+        <label class="form-label">Visual style:
+          <select id="reel-style"></select>
+        </label>
+        <label class="form-label">Transition:
+          <select id="reel-transition">
+            <option value="quick-cut">Quick Cut</option>
+            <option value="whip-pan" selected>Whip Pan</option>
+            <option value="zoom-in">Zoom In</option>
+            <option value="crossfade">Crossfade</option>
+            <option value="flash">Flash</option>
+          </select>
+        </label>
+        <label class="form-label">Subtitle:
+          <select id="reel-subtitle-style">
+            <option value="highlight" selected>Highlight</option>
+            <option value="word-by-word">Word by Word</option>
+            <option value="karaoke">Karaoke</option>
+            <option value="bold-center">Bold Center</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row mt-md">
+        <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
+        <span id="reel-generate-status" class="text-sm text-muted"></span>
+      </div>
+      <div class="create-progress hidden" id="reel-progress">
+        <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
+        <div class="label" id="reel-progress-label">Generating...</div>
+      </div>
+    </div>
+
+    <!-- Reel Step 4: Mini Editor + Preview -->
+    <div class="reel-step hidden" id="reel-step-editor">
+      <h3><span class="step-num">4</span> Preview & Edit</h3>
+      <div class="reel-editor-vertical">
+        <div class="reel-canvas-wrap">
+          <canvas id="reel-canvas" width="1080" height="1920"></canvas>
+        </div>
+        <div class="reel-playback form-row mt-md">
+          <button id="btn-reel-play" class="btn-sm">▶ Play</button>
+          <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
+          <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
+          <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
+          <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+        </div>
+        <div class="reel-scenes mt-md" id="reel-scene-list"></div>
+        <div class="reel-settings mt-md">
+          <label class="form-label">Style: <select id="reel-edit-style"></select></label>
+          <label class="form-label">Transition: <select id="reel-edit-transition"></select></label>
+          <label class="form-label">Subtitle style: <select id="reel-edit-subtitle"></select></label>
+          <label class="form-label">Subtitle language:
+            <select id="reel-subtitle-lang">
+              <option value="original" selected>Original</option>
+              <option value="en">English</option>
+              <option value="ta">Tamil</option>
+              <option value="hi">Hindi</option>
+              <option value="te">Telugu</option>
+              <option value="ml">Malayalam</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select>
+          </label>
+          <label class="form-label">Sub color: <input type="color" id="reel-sub-color" value="#ffffff"></label>
+          <label class="form-label">Outline: <input type="color" id="reel-sub-outline" value="#000000"></label>
+          <label class="form-label">Backdrop:
+            <select id="reel-sub-backdrop">
+              <option value="dark" selected>Dark</option>
+              <option value="blur">Blur</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
+          <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
+        </div>
+        <div class="form-row mt-md">
+          <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
+          <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
+          <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2600,6 +2884,39 @@ let logoPosition = 'top-right'; // top-left | top-right | bot-left | bot-right
 let logoSize = 10;              // percentage of canvas width
 let logoOpacity = 0.8;
 
+// ── Reel/Short Mode ──
+let reelMode = false;
+let reelPlatform = 'instagram';
+let reelDuration = 60;
+let reelSubtitleStyle = 'highlight';
+let reelTransition = 'whip-pan';
+let reelWords = []; // word-level timestamps [{word, start, end}, ...]
+let reelSubColor = '#ffffff';
+let reelSubOutline = '#000000';
+let reelSubBackdrop = 'dark'; // dark | blur | none
+
+const REEL_PLATFORMS = {
+  'instagram': { width: 1080, height: 1920, maxDur: 90, label: 'Instagram Reel' },
+  'youtube':   { width: 1080, height: 1920, maxDur: 60, label: 'YouTube Short' },
+  'tiktok':    { width: 1080, height: 1920, maxDur: 180, label: 'TikTok' },
+};
+
+const REEL_TRANSITIONS = {
+  'quick-cut':  { transition: 'none', transDur: 0.1, motion: 'slow-zoom-in', label: 'Quick Cut' },
+  'whip-pan':   { transition: 'whip-pan', transDur: 0.3, motion: 'slow-zoom-in', label: 'Whip Pan' },
+  'zoom-in':    { transition: 'zoom-in', transDur: 0.3, motion: 'none', label: 'Zoom In' },
+  'crossfade':  { transition: 'crossfade', transDur: 0.4, motion: 'ken-burns', label: 'Crossfade' },
+  'flash':      { transition: 'flash', transDur: 0.2, motion: 'none', label: 'Flash' },
+};
+
+const REEL_SUBTITLE_STYLES = {
+  'word-by-word': 'Word by Word',
+  'highlight': 'Highlight',
+  'karaoke': 'Karaoke',
+  'bold-center': 'Bold Center',
+  'none': 'None',
+};
+
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
 let nextSubtitleId = 1;
@@ -2652,6 +2969,49 @@ const FREE_TRANSITIONS = ['none', 'fade'];
 // Autosave
 let autosaveDirty = false;
 function markDirty() { autosaveDirty = true; }
+
+// ── Cost Estimation ──
+const COST_ESTIMATES = {
+  transcription: 0.003,      // per 5 min audio
+  textGeneration: 0.001,     // per call (scene descriptions, translation)
+  imageGenFast: 0.039,       // per image (fast/free tier)
+  imageGenQuality: 0.08,     // per image (quality tier)
+  tts: 0.003,                // per 5 min TTS
+  ttsPerLang: 0.02,          // per language track (translate + TTS)
+  visionDescribe: 0.002,     // per image description (auto-describe)
+};
+let sessionCost = 0;
+let sessionCalls = 0;
+
+function trackCost(type, count) {
+  const unitCost = COST_ESTIMATES[type] || 0;
+  const cost = unitCost * (count || 1);
+  sessionCost += cost;
+  sessionCalls += (count || 1);
+  updateCostDisplay();
+}
+
+function updateCostDisplay() {
+  const el = $('session-cost');
+  if (el) {
+    if (sessionCost > 0) {
+      el.textContent = `~$${sessionCost.toFixed(3)} est. (${sessionCalls} calls)`;
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+}
+
+function resetSessionCost() {
+  sessionCost = 0; sessionCalls = 0;
+  updateCostDisplay();
+}
+
+function estimateCost(type, count) {
+  const unitCost = COST_ESTIMATES[type] || 0;
+  return (unitCost * (count || 1)).toFixed(3);
+}
 
 // Upgrade prompt
 function showUpgradePrompt(msg) {
@@ -5136,6 +5496,114 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         ctx.filter = 'none';
         ctx.restore();
       }
+    }
+
+    // ── Reel Subtitle Renderer (word-level) ──
+    function renderReelSubtitle(ctx, cw, ch, elapsed, words, style) {
+      if (!words || words.length === 0 || style === 'none') return;
+      ctx.save();
+
+      const color = typeof reelSubColor !== 'undefined' ? reelSubColor : '#ffffff';
+      const outline = typeof reelSubOutline !== 'undefined' ? reelSubOutline : '#000000';
+      const backdrop = typeof reelSubBackdrop !== 'undefined' ? reelSubBackdrop : 'dark';
+      const accentColor = 'var(--accent)' === 'var(--accent)' ? '#a078ff' : '#a078ff'; // resolved
+      const fontSize = Math.round(cw * 0.06);
+      const font = `700 ${fontSize}px Poppins, sans-serif`;
+      const y = ch * 0.78;
+      const maxWidth = cw * 0.85;
+
+      function drawBackdrop(x, bY, w, h) {
+        if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(x, bY, w, h); }
+        else if (backdrop === 'blur') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(x, bY, w, h); }
+        // 'none' = no backdrop
+      }
+      function drawTextWithOutline(text, tx, ty) {
+        if (outline && outline !== 'transparent') {
+          ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+          ctx.strokeText(text, tx, ty);
+        }
+        ctx.fillText(text, tx, ty);
+      }
+
+      if (style === 'word-by-word') {
+        const word = words.find(w => elapsed >= w.start && elapsed < w.end);
+        if (word) {
+          ctx.font = font; ctx.textAlign = 'center';
+          const m = ctx.measureText(word.word);
+          drawBackdrop(cw/2 - m.width/2 - 12, y - fontSize - 4, m.width + 24, fontSize + 16);
+          ctx.fillStyle = color;
+          drawTextWithOutline(word.word, cw / 2, y);
+        }
+      } else if (style === 'highlight') {
+        const segWords = getSegmentWords(words, elapsed);
+        if (segWords.length > 0) {
+          const sentence = segWords.map(w => w.word).join(' ');
+          const currentWord = segWords.find(w => elapsed >= w.start && elapsed < w.end);
+          ctx.font = `600 ${Math.round(fontSize * 0.7)}px Poppins, sans-serif`;
+          ctx.textAlign = 'center';
+          const metrics = ctx.measureText(sentence);
+          const bgW = Math.min(metrics.width + 24, maxWidth);
+          drawBackdrop(cw/2 - bgW/2, y - fontSize * 0.7 - 4, bgW, fontSize * 0.7 + 16);
+          let xPos = cw/2 - metrics.width/2;
+          for (const w of segWords) {
+            ctx.fillStyle = (currentWord && w.word === currentWord.word && w.start === currentWord.start) ? accentColor : color;
+            ctx.textAlign = 'left';
+            drawTextWithOutline(w.word + ' ', xPos, y);
+            xPos += ctx.measureText(w.word + ' ').width;
+          }
+        }
+      } else if (style === 'karaoke') {
+        const visible = words.filter(w => elapsed >= w.start);
+        if (visible.length > 0) {
+          const recent = visible.slice(-6);
+          const text = recent.map(w => w.word).join(' ');
+          ctx.font = `600 ${Math.round(fontSize * 0.8)}px Poppins, sans-serif`;
+          ctx.textAlign = 'center';
+          const metrics = ctx.measureText(text);
+          drawBackdrop(cw/2 - metrics.width/2 - 12, y - fontSize * 0.8 - 4, metrics.width + 24, fontSize * 0.8 + 16);
+          ctx.fillStyle = color;
+          drawTextWithOutline(text, cw/2, y);
+        }
+      } else if (style === 'bold-center') {
+        const group = getCurrentWordGroup(words, elapsed, 3);
+        if (group) {
+          ctx.font = font; ctx.textAlign = 'center';
+          const metrics = ctx.measureText(group);
+          drawBackdrop(cw/2 - metrics.width/2 - 16, y - fontSize - 6, metrics.width + 32, fontSize + 20);
+          ctx.fillStyle = color;
+          drawTextWithOutline(group, cw/2, y);
+        }
+      }
+      ctx.restore();
+    }
+
+    // Helper: get words belonging to the same sentence/segment at current time
+    function getSegmentWords(words, elapsed) {
+      // Find the word at current time, then grab surrounding words (up to ~8 words)
+      const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+      if (idx < 0) {
+        // Between words — find closest
+        const closest = words.reduce((best, w, i) => {
+          const dist = Math.abs(w.start - elapsed);
+          return dist < best.dist ? { dist, idx: i } : best;
+        }, { dist: Infinity, idx: -1 });
+        if (closest.idx < 0) return [];
+        const start = Math.max(0, closest.idx - 3);
+        const end = Math.min(words.length, closest.idx + 5);
+        return words.slice(start, end);
+      }
+      const start = Math.max(0, idx - 3);
+      const end = Math.min(words.length, idx + 5);
+      return words.slice(start, end);
+    }
+
+    // Helper: get a group of N words around current time
+    function getCurrentWordGroup(words, elapsed, groupSize) {
+      const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+      if (idx < 0) return null;
+      const groupStart = Math.floor(idx / groupSize) * groupSize;
+      const group = words.slice(groupStart, groupStart + groupSize);
+      return group.map(w => w.word).join(' ');
     }
 
 
@@ -7995,7 +8463,7 @@ async function callGeminiAPI(models, body) {
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
-      if (resp.ok) return await resp.json();
+      if (resp.ok) { trackCost('textGeneration', 1); return await resp.json(); }
       if (resp.status === 429 || resp.status === 403) continue;
       const err = await resp.json().catch(() => ({}));
       if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
@@ -8022,6 +8490,30 @@ function updateCreateButtons() {
   const catLabel = $('image-category-label');
   if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
   if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
+  // Update cost hints on buttons
+  updateCostHints();
+}
+
+function updateCostHints() {
+  const sceneCount = createScenes ? createScenes.length : 0;
+  const pendingCount = createScenes ? createScenes.filter(s => s.status !== 'done').length : 0;
+  // Transcribe button
+  if (btnCreateTranscribe && !btnCreateTranscribe.disabled) {
+    btnCreateTranscribe.title = `Estimated cost: ~$${estimateCost('transcription', 1)}`;
+  }
+  // Generate images button
+  if (btnCreateGenerate && sceneCount > 0) {
+    const type = isPaidTier() ? 'imageGenQuality' : 'imageGenFast';
+    btnCreateGenerate.title = `Estimated cost: ~$${estimateCost(type, pendingCount)} (${pendingCount} images)`;
+  }
+  // Language generate button
+  const langBtn = $('btn-generate-languages');
+  if (langBtn) {
+    const checked = document.querySelectorAll('#language-checkboxes input:checked');
+    if (checked.length > 0) {
+      langBtn.title = `Estimated cost: ~$${estimateCost('ttsPerLang', checked.length)} (${checked.length} languages)`;
+    }
+  }
 }
 
 
@@ -8157,6 +8649,7 @@ async function autoDescribeRef(type, id) {
     const data = await callGeminiAPI(getTranscriptionModels(), body);
     const desc = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (desc) {
+      trackCost('visionDescribe', 1);
       item.description = desc;
       if (type === 'char') renderCharacterCards();
       else renderEnvironmentCards();
@@ -8863,6 +9356,7 @@ btnCreateGenerateTts.addEventListener('click', async () => {
     createAudioBuffer = audioBuffer;
     createOriginalBuffer = audioBuffer;
 
+    trackCost('tts', 1);
     createTtsStatus.textContent = `Audio generated (${audioBuffer.duration.toFixed(1)}s)`;
     btnCreateGenerateTts.textContent = '🔊 Regenerate Audio';
     updateCreateButtons();
@@ -9530,6 +10024,7 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
     }
 
     // ── Common: save raw transcript ──
+    trackCost('transcription', 1);
     createTranscript = segments;
 
     createTranscriptOutput.textContent = segments.map(s =>
@@ -10584,6 +11079,7 @@ async function generateSceneImage(idx) {
     if (!imgDataUrl) throw lastError || new Error('Image generation failed. Free tier may not support image generation — try adding a paid tier key.');
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
+    trackCost(isPaidTier() ? 'imageGenQuality' : 'imageGenFast', 1);
     updateSceneCardImage(idx);
     updateSceneCardStatus(idx);
     autoSaveCreateState();
@@ -11153,6 +11649,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         subtitleLang: 'none', // default: no subtitle
         status: 'done'
       });
+      trackCost('ttsPerLang', 1);
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
     } catch(e) {
       renderLanguageCard(lang, 'error', friendlyApiError(e.message));
@@ -11534,6 +12031,846 @@ btnBackToCreate.addEventListener('click', () => {
 
     updateCreateButtons();
   }
+});
+
+
+    // ── 20-reels-creator.js ──
+// ══════════════════════════════════════════
+//  REEL / SHORT CREATOR
+// ══════════════════════════════════════════
+const reelPage = $('reel-page');
+const btnCreateReel = $('btn-create-reel');
+const btnReelBack = $('btn-reel-back');
+const reelStepInput = $('reel-step-input');
+const reelStepPresets = $('reel-step-presets');
+const reelStepEditor = $('reel-step-editor');
+
+// Input mode
+const reelModeAudio = $('reel-mode-audio');
+const reelModeText = $('reel-mode-text');
+const reelModeVideo = $('reel-mode-video');
+const reelAudioSection = $('reel-audio-section');
+const reelTextSection = $('reel-text-section');
+const reelVideoSection = $('reel-video-section');
+const reelAudioInput = $('reel-audio-input');
+const reelAudioName = $('reel-audio-name');
+const reelVideoInput = $('reel-video-input');
+const reelVideoName = $('reel-video-name');
+const reelTextInput = $('reel-text-input');
+const btnReelImportAudio = $('btn-reel-import-audio');
+const btnReelImportVideo = $('btn-reel-import-video');
+
+// Video segment picker
+const reelSegmentPicker = $('reel-segment-picker');
+const reelPreviewVideo = $('reel-preview-video');
+const reelSegmentInfo = $('reel-segment-info');
+const btnReelPlaySegment = $('btn-reel-play-segment');
+const btnReelUseSegment = $('btn-reel-use-segment');
+
+// Presets
+const reelPlatformEl = $('reel-platform');
+const reelDurationEl = $('reel-duration');
+const reelStyleEl = $('reel-style');
+const reelTransitionEl = $('reel-transition');
+const reelSubtitleStyleEl = $('reel-subtitle-style');
+const btnReelGenerate = $('btn-reel-generate');
+const reelGenerateStatus = $('reel-generate-status');
+const reelProgressEl = $('reel-progress');
+const reelProgressBar = $('reel-progress-bar');
+const reelProgressLabel = $('reel-progress-label');
+
+// Mini editor
+const reelCanvas = $('reel-canvas');
+const reelSceneList = $('reel-scene-list');
+const btnReelPlay = $('btn-reel-play');
+const btnReelStop = $('btn-reel-stop');
+const reelScrub = $('reel-scrub');
+const reelTimeEl = $('reel-time');
+const btnReelExport = $('btn-reel-export');
+const btnReelFullEditor = $('btn-reel-full-editor');
+const reelBgmInput = $('reel-bgm-input');
+const btnReelBgm = $('btn-reel-bgm');
+
+// State
+let reelAudioBuffer = null;
+let reelScenes = null;
+let reelInputMode = 'audio'; // audio | text | video
+let reelVideoEl = null;
+let reelVideoSrc = null;
+let reelWavesurfer = null;
+let reelRegion = null;
+let reelPlaying = false;
+let reelAnimId = null;
+let reelStartTime = 0;
+let reelBgmBuffer = null;
+
+// ── Reel API Keys (free for subtitles, paid for image gen) ──
+const reelApiKeyFreeEl = $('reel-api-key-free');
+const reelApiKeyPaidEl = $('reel-api-key-paid');
+const btnReelSaveKeyFree = $('btn-reel-save-key-free');
+const btnReelSaveKeyPaid = $('btn-reel-save-key-paid');
+const reelKeyStatusFree = $('reel-key-status-free');
+const reelKeyStatusPaid = $('reel-key-status-paid');
+
+function getReelFreeKey() {
+  return localStorage.getItem('stori_key_free') || (reelApiKeyFreeEl ? reelApiKeyFreeEl.value.trim() : '');
+}
+function getReelPaidKey() {
+  return localStorage.getItem('stori_key_paid') || (reelApiKeyPaidEl ? reelApiKeyPaidEl.value.trim() : '');
+}
+function getReelApiKey() { return getReelFreeKey() || getReelPaidKey(); }
+function getReelImageKey() { return getReelPaidKey() || getReelFreeKey(); }
+
+if (btnReelSaveKeyFree) btnReelSaveKeyFree.addEventListener('click', () => {
+  const key = reelApiKeyFreeEl.value.trim();
+  if (!key) { reelKeyStatusFree.textContent = 'Enter a key'; reelKeyStatusFree.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_free', key);
+  reelKeyStatusFree.textContent = '✓ Saved';
+  reelKeyStatusFree.style.color = '#10b981';
+});
+if (btnReelSaveKeyPaid) btnReelSaveKeyPaid.addEventListener('click', () => {
+  const key = reelApiKeyPaidEl.value.trim();
+  if (!key) { reelKeyStatusPaid.textContent = 'Enter a key'; reelKeyStatusPaid.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_paid', key);
+  reelKeyStatusPaid.textContent = '✓ Saved';
+  reelKeyStatusPaid.style.color = '#10b981';
+});
+
+let reelEditMode = 'subtitles'; // subtitles | auto-cut
+
+// ── Navigation ──
+if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
+  dropZone.classList.add('hidden');
+  reelPage.classList.add('visible');
+  reelMode = true;
+  // Load saved keys
+  const savedFree = localStorage.getItem('stori_key_free');
+  const savedPaid = localStorage.getItem('stori_key_paid');
+  if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
+  if (savedPaid && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedPaid; reelKeyStatusPaid.textContent = '✓ Saved'; reelKeyStatusPaid.style.color = '#10b981'; }
+  // Populate style dropdown from STYLE_PRESETS
+  if (reelStyleEl && reelStyleEl.options.length <= 1) {
+    reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
+      `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
+    ).join('');
+    reelStyleEl.value = 'cinematic';
+  }
+  // Copy to edit dropdowns
+  const editStyle = $('reel-edit-style');
+  const editTrans = $('reel-edit-transition');
+  const editSub = $('reel-edit-subtitle');
+  if (editStyle) editStyle.innerHTML = reelStyleEl.innerHTML;
+  if (editTrans) editTrans.innerHTML = reelTransitionEl.innerHTML;
+  if (editSub) editSub.innerHTML = reelSubtitleStyleEl.innerHTML;
+});
+
+if (btnReelBack) btnReelBack.addEventListener('click', () => {
+  reelPage.classList.remove('visible');
+  dropZone.classList.remove('hidden');
+  reelMode = false;
+  stopReelPreview();
+});
+
+// ── Input Mode Toggle ──
+function setReelInputMode(mode) {
+  reelInputMode = mode;
+  reelModeAudio.classList.toggle('active', mode === 'audio');
+  reelModeText.classList.toggle('active', mode === 'text');
+  reelModeVideo.classList.toggle('active', mode === 'video');
+  reelAudioSection.classList.toggle('hidden', mode !== 'audio');
+  reelTextSection.classList.toggle('hidden', mode !== 'text');
+  reelVideoSection.classList.toggle('hidden', mode !== 'video');
+  // Video mode: show edit mode toggle, hide visual style (video has its own visuals)
+  const editModeRow = $('reel-edit-mode-row');
+  if (editModeRow) editModeRow.classList.toggle('hidden', mode !== 'video');
+  // Hide style + transition for video mode (not needed — video is the visual)
+  if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
+  if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
+}
+// Edit mode radio
+document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    reelEditMode = radio.value;
+    // Show/hide transition for auto-cut mode
+    if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (reelInputMode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
+  });
+});
+
+if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
+if (reelModeText) reelModeText.addEventListener('click', () => setReelInputMode('text'));
+if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
+
+// ── Audio Import ──
+if (btnReelImportAudio) btnReelImportAudio.addEventListener('click', () => reelAudioInput.click());
+if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
+  const file = reelAudioInput.files[0];
+  if (!file) return;
+  reelAudioInput.value = '';
+  try {
+    showPageLoader('Decoding audio...');
+    const arrayBuf = await file.arrayBuffer();
+    reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
+    hidePageLoader();
+  } catch(e) {
+    hidePageLoader();
+    reelAudioName.textContent = 'Could not load audio file.';
+  }
+});
+
+// ── Video Import + Segment Picker ──
+if (btnReelImportVideo) btnReelImportVideo.addEventListener('click', () => reelVideoInput.click());
+if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
+  const file = reelVideoInput.files[0];
+  if (!file) return;
+  reelVideoInput.value = '';
+  showPageLoader('Loading video...');
+  try {
+    const blobUrl = URL.createObjectURL(file);
+    reelPreviewVideo.src = blobUrl;
+    reelVideoSrc = blobUrl;
+    await new Promise((resolve, reject) => {
+      reelPreviewVideo.onloadeddata = resolve;
+      reelPreviewVideo.onerror = reject;
+    });
+    reelVideoName.textContent = `${file.name} (${fmtShort(reelPreviewVideo.duration)})`;
+    reelVideoEl = reelPreviewVideo;
+    // Extract audio for waveform
+    const arrayBuf = await file.arrayBuffer();
+    reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    // Init waveform
+    initReelWaveform();
+    reelSegmentPicker.classList.remove('hidden');
+    hidePageLoader();
+  } catch(e) {
+    hidePageLoader();
+    reelVideoName.textContent = 'Could not load video.';
+  }
+});
+
+function initReelWaveform() {
+  if (reelWavesurfer) reelWavesurfer.destroy();
+  reelWavesurfer = WaveSurfer.create({
+    container: '#reel-waveform',
+    waveColor: 'rgba(160,120,255,0.4)',
+    progressColor: 'rgba(160,120,255,0.7)',
+    height: 60,
+    barWidth: 2,
+    barGap: 1,
+    cursorColor: '#fff',
+  });
+  const regionsPlugin = reelWavesurfer.registerPlugin(WaveSurfer.Regions.create());
+  const blob = audioBufferToWavBlob(reelAudioBuffer);
+  const url = URL.createObjectURL(blob);
+  reelWavesurfer.load(url);
+  reelWavesurfer.on('ready', () => {
+    URL.revokeObjectURL(url);
+    const dur = reelAudioBuffer.duration;
+    const regionDur = Math.min(reelDuration, dur);
+    reelRegion = regionsPlugin.addRegion({
+      start: 0, end: regionDur,
+      color: 'rgba(160,120,255,0.2)',
+      drag: true, resize: true,
+    });
+    updateReelSegmentInfo();
+    regionsPlugin.on('region-updated', updateReelSegmentInfo);
+  });
+  // Sync video with waveform cursor
+  reelWavesurfer.on('timeupdate', (time) => {
+    if (reelPreviewVideo) reelPreviewVideo.currentTime = time;
+  });
+}
+
+function updateReelSegmentInfo() {
+  if (!reelRegion) return;
+  const dur = (reelRegion.end - reelRegion.start).toFixed(1);
+  reelSegmentInfo.textContent = `Selected: ${fmtShort(reelRegion.start)} — ${fmtShort(reelRegion.end)} (${dur}s)`;
+}
+
+if (btnReelPlaySegment) btnReelPlaySegment.addEventListener('click', () => {
+  if (reelRegion && reelWavesurfer) reelRegion.play();
+});
+
+// Video preview playback controls
+const btnReelVidPlay = $('btn-reel-vid-play');
+const btnReelVidPause = $('btn-reel-vid-pause');
+const btnReelVidStop = $('btn-reel-vid-stop');
+const reelVidTime = $('reel-vid-time');
+
+if (btnReelVidPlay) btnReelVidPlay.addEventListener('click', () => {
+  if (reelPreviewVideo) { reelPreviewVideo.muted = false; reelPreviewVideo.play(); }
+  if (reelWavesurfer) reelWavesurfer.play();
+});
+if (btnReelVidPause) btnReelVidPause.addEventListener('click', () => {
+  if (reelPreviewVideo) reelPreviewVideo.pause();
+  if (reelWavesurfer) reelWavesurfer.pause();
+});
+if (btnReelVidStop) btnReelVidStop.addEventListener('click', () => {
+  if (reelPreviewVideo) { reelPreviewVideo.pause(); reelPreviewVideo.currentTime = 0; }
+  if (reelWavesurfer) reelWavesurfer.stop();
+});
+// Update time display
+if (reelPreviewVideo) reelPreviewVideo.addEventListener('timeupdate', () => {
+  if (reelVidTime) reelVidTime.textContent = fmtShort(reelPreviewVideo.currentTime);
+});
+
+if (btnReelUseSegment) btnReelUseSegment.addEventListener('click', async () => {
+  if (!reelRegion || !reelAudioBuffer) return;
+  // Extract the selected segment
+  const start = reelRegion.start;
+  const end = reelRegion.end;
+  reelAudioBuffer = extractRegion(reelAudioBuffer, start, end);
+  reelSegmentInfo.textContent = `Segment extracted: ${fmtShort(end - start)}`;
+  btnReelUseSegment.textContent = '✓ Segment Ready';
+  btnReelUseSegment.disabled = true;
+});
+
+// ── Preset handlers ──
+if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; });
+if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
+if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
+if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; });
+
+// ── Generate Reel ──
+if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
+  const key = getReelApiKey();
+  if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
+
+  // Get audio — from text input if text mode
+  if (reelInputMode === 'text') {
+    const text = reelTextInput.value.trim();
+    if (!text) { reelGenerateStatus.textContent = 'Enter some text.'; return; }
+    reelGenerateStatus.textContent = 'Generating audio from text...';
+    setStatus('Generating TTS...', true);
+    try {
+      const ttsModels = getTTSModels();
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text }] }],
+            generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+          })
+        }
+      );
+      if (!resp.ok) throw new Error('TTS failed');
+      const data = await resp.json();
+      const part = data.candidates?.[0]?.content?.parts?.[0];
+      if (!part?.inlineData?.data) throw new Error('No audio returned');
+      const b64 = part.inlineData.data;
+      const binary = atob(b64);
+      const buf = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+      const audioArrayBuf = buf.buffer;
+      reelAudioBuffer = await audioCtx.decodeAudioData(audioArrayBuf);
+      trackCost('tts', 1);
+    } catch(e) {
+      reelGenerateStatus.textContent = 'TTS error: ' + e.message;
+      setStatus('TTS failed');
+      return;
+    }
+  }
+
+  if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio or enter text first.'; return; }
+
+  // Trim audio to selected duration if longer
+  const maxDur = reelDuration;
+  if (reelAudioBuffer.duration > maxDur + 1) {
+    reelAudioBuffer = extractRegion(reelAudioBuffer, 0, maxDur);
+  }
+
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+  const stylePrompt = STYLE_PRESETS[styleName] || '';
+  const transPreset = REEL_TRANSITIONS[reelTransition] || REEL_TRANSITIONS['whip-pan'];
+
+  btnReelGenerate.disabled = true;
+  reelProgressEl.classList.remove('hidden');
+
+  try {
+    // Step 1: Transcribe with word-level timestamps
+    reelProgressLabel.textContent = 'Transcribing...';
+    reelProgressBar.style.width = '10%';
+    setStatus('Transcribing audio...', true);
+
+    const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
+    const b64Audio = await blobToBase64(wavBlob);
+
+    const segDur = Math.max(3, Math.min(10, reelAudioBuffer.duration / 6));
+    const transcribeBody = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
+        { text: `Transcribe this audio into segments of ${segDur.toFixed(0)}-${(segDur*2).toFixed(0)} seconds each. Return JSON array: [{"startTime": 0.0, "endTime": 5.0, "text": "...", "sceneDescription": "vivid visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. Include word-level timestamps for subtitle rendering. Ensure segments cover the full audio duration of ${reelAudioBuffer.duration.toFixed(1)} seconds.` }
+      ]}]
+    };
+    const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
+    trackCost('transcription', 1);
+    const transcribeText = transcribeData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const segments = parseGeminiJson(transcribeText);
+
+    // Collect all words for subtitle rendering
+    reelWords = [];
+    for (const seg of segments) {
+      if (seg.words) reelWords.push(...seg.words);
+    }
+
+    const isVideoMode = reelInputMode === 'video' && reelVideoEl;
+
+    if (isVideoMode && reelEditMode === 'subtitles') {
+      // Video + subtitles only: one scene = entire segment, no cuts
+      reelScenes = [{
+        startTime: 0, endTime: reelAudioBuffer.duration,
+        duration: reelAudioBuffer.duration,
+        text: segments.map(s => s.text).join(' '), words: reelWords,
+        imgDataUrl: null, status: 'done', isVideo: true,
+        transition: 'none', transDur: 0, motion: 'none',
+      }];
+    } else if (isVideoMode && reelEditMode === 'auto-cut') {
+      // Video + auto-cut: each segment becomes a scene with transitions
+      reelScenes = segments.map(s => ({
+        startTime: s.startTime, endTime: s.endTime,
+        duration: s.endTime - s.startTime,
+        text: s.text, words: s.words || [],
+        imgDataUrl: null, status: 'done', isVideo: true,
+        transition: transPreset.transition,
+        transDur: transPreset.transDur,
+        motion: 'none',
+      }));
+    } else {
+      // Audio/Text mode: need image generation
+      reelScenes = segments.map(s => ({
+        prompt: s.sceneDescription || s.text,
+        startTime: s.startTime, endTime: s.endTime,
+        duration: s.endTime - s.startTime,
+        text: s.text, words: s.words || [],
+        imgDataUrl: null, status: 'pending',
+        transition: transPreset.transition,
+        transDur: transPreset.transDur,
+        motion: transPreset.motion,
+      }));
+
+      // Step 2: Generate images (only for audio/text mode)
+      reelProgressLabel.textContent = 'Generating images...';
+      reelProgressBar.style.width = '30%';
+
+      const imageKey = getReelImageKey();
+      if (!imageKey) {
+        reelProgressLabel.textContent = 'Paid API key needed for image generation. Add one in Step 1.';
+        setStatus('Image generation requires an API key');
+        btnReelGenerate.disabled = false;
+        return;
+      }
+
+      const models = getImageModels();
+      for (let i = 0; i < reelScenes.length; i++) {
+        const scene = reelScenes[i];
+        reelProgressLabel.textContent = `Generating image ${i + 1} of ${reelScenes.length}...`;
+        reelProgressBar.style.width = `${30 + (i / reelScenes.length) * 60}%`;
+        setStatus(`Generating image ${i + 1}/${reelScenes.length}...`, true);
+
+        let effectivePrompt = stylePrompt ? `Style: ${stylePrompt}. Scene: ${scene.prompt}` : scene.prompt;
+        effectivePrompt += ' STRICT: Do NOT include any text in the image. Vertical 9:16 portrait composition.';
+
+        let imgDataUrl = null;
+        for (const model of models) {
+          try {
+            if (model.startsWith('imagen-')) {
+              imgDataUrl = await generateImageImagen(effectivePrompt, imageKey, { width: platform.width, height: platform.height }, model);
+            } else {
+              imgDataUrl = await generateImageGeminiFlash(effectivePrompt, imageKey, { width: platform.width, height: platform.height }, model);
+            }
+            break;
+          } catch(e) { continue; }
+        }
+        if (imgDataUrl) {
+          scene.imgDataUrl = imgDataUrl;
+          scene.status = 'done';
+          trackCost('imageGenFast', 1);
+        } else {
+          scene.status = 'error';
+        }
+
+        // Free tier wait
+        if (!isPaidTier() && i < reelScenes.length - 1) {
+          reelProgressLabel.textContent = `Waiting for rate limit...`;
+          await new Promise(r => setTimeout(r, 30000));
+        }
+      }
+    }
+
+    // Step 3: Show mini editor
+    reelProgressBar.style.width = '100%';
+    reelProgressLabel.textContent = 'Done!';
+    setStatus('Reel generated!');
+    reelStepEditor.classList.remove('hidden');
+    renderReelScenes();
+    renderReelFrame(0);
+
+  } catch(e) {
+    reelProgressLabel.textContent = 'Error: ' + (e.message || 'Generation failed');
+    setStatus('Reel generation failed');
+  }
+  btnReelGenerate.disabled = false;
+});
+
+// ── Mini Editor ──
+function renderReelScenes() {
+  if (!reelSceneList || !reelScenes) return;
+  // Hide style/transition for video mode in mini editor
+  const isVid = reelScenes.some(s => s.isVideo);
+  const editStyleLabel = reelEditStyle ? reelEditStyle.closest('label') : null;
+  const editTransLabel = reelEditTransition ? reelEditTransition.closest('label') : null;
+  if (editStyleLabel) editStyleLabel.style.display = isVid ? 'none' : '';
+  if (editTransLabel) editTransLabel.style.display = (isVid && reelEditMode === 'subtitles') ? 'none' : '';
+  reelSceneList.innerHTML = reelScenes.map((s, i) => `
+    <div class="reel-scene-thumb ${i === 0 ? 'active' : ''}" data-reel-scene="${i}">
+      ${s.imgDataUrl ? `<img src="${s.imgDataUrl}" alt="Scene ${i+1}">` : '<div style="width:100%;height:100%;background:var(--bg-input);"></div>'}
+      <div class="reel-scene-num">${i + 1}</div>
+    </div>
+  `).join('');
+  reelSceneList.querySelectorAll('.reel-scene-thumb').forEach(thumb => {
+    thumb.addEventListener('click', () => {
+      const idx = parseInt(thumb.dataset.reelScene);
+      renderReelFrame(reelScenes[idx].startTime);
+      reelSceneList.querySelectorAll('.reel-scene-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+    });
+  });
+}
+
+function renderReelFrame(time) {
+  if (!reelCanvas || !reelScenes) return;
+  const platform = REEL_PLATFORMS[reelPlatform];
+  reelCanvas.width = platform.width;
+  reelCanvas.height = platform.height;
+  const ctx = reelCanvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, platform.width, platform.height);
+
+  // Find scene at time
+  const scene = reelScenes.find(s => time >= s.startTime && time < s.endTime);
+  if (scene) {
+    if (scene.isVideo && reelVideoEl) {
+      // Video mode: draw video frame
+      reelVideoEl.currentTime = time;
+      try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+    } else if (scene.imgDataUrl) {
+      // Image mode: draw generated image
+      const img = new Image();
+      img.src = scene.imgDataUrl;
+      try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
+    }
+  }
+
+  // Render word-level subtitle
+  if (reelSubtitleStyle !== 'none' && reelWords.length > 0) {
+    renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, reelSubtitleStyle);
+  }
+}
+
+// ── Playback ──
+let reelAudioSource = null;
+const btnReelPause = $('btn-reel-pause');
+
+if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
+  if (reelPlaying) return;
+  if (!reelAudioBuffer) return;
+  reelPlaying = true;
+  reelAudioSource = audioCtx.createBufferSource();
+  reelAudioSource.buffer = reelAudioBuffer;
+  reelAudioSource.connect(audioCtx.destination);
+  reelAudioSource.start();
+  reelStartTime = audioCtx.currentTime;
+  reelAudioSource.onended = () => { reelPlaying = false; reelAudioSource = null; };
+
+  function animate() {
+    if (!reelPlaying) return;
+    const elapsed = audioCtx.currentTime - reelStartTime;
+    if (elapsed >= reelAudioBuffer.duration) { stopReelPreview(); return; }
+    renderReelFrame(elapsed);
+    if (reelScrub) reelScrub.value = (elapsed / reelAudioBuffer.duration * 1000).toFixed(0);
+    if (reelTimeEl) reelTimeEl.textContent = `${fmtShort(elapsed)} / ${fmtShort(reelAudioBuffer.duration)}`;
+    reelAnimId = requestAnimationFrame(animate);
+  }
+  animate();
+});
+
+if (btnReelPause) btnReelPause.addEventListener('click', () => {
+  stopReelPreview();
+});
+
+if (btnReelStop) btnReelStop.addEventListener('click', () => {
+  stopReelPreview();
+  renderReelFrame(0);
+  if (reelScrub) reelScrub.value = 0;
+  if (reelTimeEl) reelTimeEl.textContent = `0:00 / ${fmtShort(reelAudioBuffer ? reelAudioBuffer.duration : 0)}`;
+});
+
+function stopReelPreview() {
+  reelPlaying = false;
+  if (reelAnimId) cancelAnimationFrame(reelAnimId);
+  if (reelAudioSource) { try { reelAudioSource.stop(); } catch(e) {} reelAudioSource = null; }
+}
+
+if (reelScrub) reelScrub.addEventListener('input', () => {
+  if (reelPlaying) return;
+  const time = (reelScrub.value / 1000) * (reelAudioBuffer ? reelAudioBuffer.duration : 0);
+  renderReelFrame(time);
+  if (reelTimeEl) reelTimeEl.textContent = `${fmtShort(time)} / ${fmtShort(reelAudioBuffer ? reelAudioBuffer.duration : 0)}`;
+});
+
+// ── Edit dropdowns sync ──
+const reelEditStyle = $('reel-edit-style');
+const reelEditTransition = $('reel-edit-transition');
+const reelEditSubtitle = $('reel-edit-subtitle');
+
+if (reelEditStyle) reelEditStyle.addEventListener('change', () => {
+  if (reelStyleEl) reelStyleEl.value = reelEditStyle.value;
+});
+if (reelEditTransition) reelEditTransition.addEventListener('change', () => {
+  reelTransition = reelEditTransition.value;
+  if (reelTransitionEl) reelTransitionEl.value = reelEditTransition.value;
+  const preset = REEL_TRANSITIONS[reelTransition];
+  if (preset && reelScenes) {
+    reelScenes.forEach(s => { s.transition = preset.transition; s.transDur = preset.transDur; s.motion = preset.motion; });
+  }
+});
+if (reelEditSubtitle) reelEditSubtitle.addEventListener('change', () => {
+  reelSubtitleStyle = reelEditSubtitle.value;
+  if (reelSubtitleStyleEl) reelSubtitleStyleEl.value = reelEditSubtitle.value;
+});
+
+// ── Subtitle Language Translation ──
+let reelTranslatedWords = {};  // cache: langCode → [{word, start, end}]
+const reelSubtitleLangEl = $('reel-subtitle-lang');
+
+if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () => {
+  const lang = reelSubtitleLangEl.value;
+  if (lang === 'original') {
+    // Reset to original words
+    reelWords = [];
+    if (reelScenes) reelScenes.forEach(s => { if (s.words) reelWords.push(...s.words); });
+    return;
+  }
+  // Check cache
+  if (reelTranslatedWords[lang]) {
+    reelWords = reelTranslatedWords[lang];
+    return;
+  }
+  // Translate
+  const key = getReelApiKey();
+  if (!key) { setStatus('API key needed for translation'); return; }
+  setStatus('Translating subtitles...', true);
+  try {
+    const originalText = reelWords.map(w => w.word).join(' ');
+    const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+    const body = {
+      contents: [{ parts: [{ text: `Translate the following text to ${langNames[lang] || lang}. Return ONLY the translated text, nothing else:\n\n${originalText}` }] }]
+    };
+    const data = await callGeminiAPI(getTranscriptionModels(), body);
+    trackCost('textGeneration', 1);
+    const translated = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (translated) {
+      // Map translated words back to original timings proportionally
+      const transWords = translated.split(/\s+/);
+      const origWords = reelWords;
+      const totalDur = origWords.length > 0 ? origWords[origWords.length - 1].end - origWords[0].start : 0;
+      const wordDur = totalDur / transWords.length;
+      const startTime = origWords.length > 0 ? origWords[0].start : 0;
+      const mappedWords = transWords.map((w, i) => ({
+        word: w,
+        start: startTime + i * wordDur,
+        end: startTime + (i + 1) * wordDur,
+      }));
+      reelTranslatedWords[lang] = mappedWords;
+      reelWords = mappedWords;
+      setStatus(`Subtitles translated to ${langNames[lang]}`);
+    }
+  } catch(e) {
+    setStatus('Translation failed: ' + e.message);
+  }
+});
+
+// ── Subtitle Styling Controls ──
+const reelSubColorEl = $('reel-sub-color');
+const reelSubOutlineEl = $('reel-sub-outline');
+const reelSubBackdropEl = $('reel-sub-backdrop');
+if (reelSubColorEl) reelSubColorEl.addEventListener('input', () => { reelSubColor = reelSubColorEl.value; });
+if (reelSubOutlineEl) reelSubOutlineEl.addEventListener('input', () => { reelSubOutline = reelSubOutlineEl.value; });
+if (reelSubBackdropEl) reelSubBackdropEl.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropEl.value; });
+
+// ── Save Reel Project ──
+const btnReelSaveProject = $('btn-reel-save-project');
+if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () => {
+  if (!reelAudioBuffer) { setStatus('Nothing to save'); return; }
+  setStatus('Saving reel project...', true);
+  try {
+    const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
+    const audioBase64 = await blobToBase64(wavBlob);
+    const project = {
+      version: 1,
+      type: 'reel',
+      platform: reelPlatform,
+      duration: reelDuration,
+      subtitleStyle: reelSubtitleStyle,
+      transition: reelTransition,
+      subColor: reelSubColor,
+      subOutline: reelSubOutline,
+      subBackdrop: reelSubBackdrop,
+      audio: { data: audioBase64, duration: reelAudioBuffer.duration },
+      scenes: reelScenes ? reelScenes.map(s => ({
+        startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+        text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+        isVideo: s.isVideo, transition: s.transition,
+      })) : [],
+      words: reelWords,
+    };
+    const json = JSON.stringify(project);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `stori-reel-${Date.now()}.storireel`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    setStatus(`Reel project saved (${(json.length / 1024).toFixed(0)} KB)`);
+  } catch(e) {
+    setStatus('Save failed: ' + e.message);
+  }
+});
+
+// ── BGM ──
+if (btnReelBgm) btnReelBgm.addEventListener('click', () => reelBgmInput.click());
+if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
+  const file = reelBgmInput.files[0];
+  if (!file) return;
+  reelBgmInput.value = '';
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    reelBgmBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    btnReelBgm.textContent = `♫ ${file.name}`;
+  } catch(e) { btnReelBgm.textContent = '+ Add BGM (error)'; }
+});
+
+// ── Export ──
+if (btnReelExport) btnReelExport.addEventListener('click', async () => {
+  if (!reelAudioBuffer || !reelScenes) return;
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const canvas = document.createElement('canvas');
+  canvas.width = platform.width; canvas.height = platform.height;
+  const ctx = canvas.getContext('2d');
+  const fps = 30;
+  const stream = canvas.captureStream(fps);
+
+  setStatus('Exporting Reel...', true);
+  btnReelExport.disabled = true;
+
+  try {
+    const audioDest = audioCtx.createMediaStreamDestination();
+    const audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = reelAudioBuffer;
+    audioSource.connect(audioDest);
+    if (reelBgmBuffer) {
+      const bgmSource = audioCtx.createBufferSource();
+      bgmSource.buffer = reelBgmBuffer;
+      bgmSource.loop = true;
+      const bgmGain = audioCtx.createGain();
+      bgmGain.gain.value = 0.3;
+      bgmSource.connect(bgmGain);
+      bgmGain.connect(audioDest);
+      bgmSource.start();
+    }
+    const combinedStream = new MediaStream([...stream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+    const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 8000000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise(r => { recorder.onstop = r; });
+
+    // Preload scene images
+    const sceneImages = reelScenes.map(s => {
+      if (!s.imgDataUrl) return null;
+      const img = new Image(); img.src = s.imgDataUrl; return img;
+    });
+
+    const timerWorker = new Worker(URL.createObjectURL(new Blob([
+      `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
+    ], { type: 'text/javascript' })));
+
+    recorder.start(100); audioSource.start();
+    const t0 = performance.now();
+    let stopped = false;
+
+    timerWorker.onmessage = () => {
+      if (stopped) return;
+      const elapsed = (performance.now() - t0) / 1000;
+      if (elapsed >= reelAudioBuffer.duration) {
+        stopped = true; timerWorker.postMessage('stop'); timerWorker.terminate(); recorder.stop(); return;
+      }
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, platform.width, platform.height);
+      const scene = reelScenes.find((s, i) => elapsed >= s.startTime && elapsed < s.endTime);
+      if (scene) {
+        if (scene.isVideo && reelVideoEl) {
+          reelVideoEl.currentTime = elapsed;
+          try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+        } else {
+          const idx = reelScenes.indexOf(scene);
+          const img = sceneImages[idx];
+          if (img) { try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {} }
+        }
+      }
+      if (reelSubtitleStyle !== 'none' && reelWords.length > 0) {
+        renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, reelSubtitleStyle);
+      }
+      if (isFree()) {
+        ctx.save(); ctx.globalAlpha = 0.5;
+        ctx.font = '600 20px Poppins, sans-serif'; ctx.fillStyle = '#fff';
+        ctx.textAlign = 'right'; ctx.fillText('Made with Stori', platform.width - 16, platform.height - 16);
+        ctx.restore();
+      }
+    };
+    timerWorker.postMessage('start');
+    await done;
+
+    const videoBlob = new Blob(chunks, { type: mimeType });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(videoBlob);
+    a.download = `stori-reel.webm`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    setStatus(`Reel exported (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
+  } catch(e) {
+    setStatus('Export failed: ' + e.message);
+  }
+  btnReelExport.disabled = false;
+});
+
+// ── Open in Full Editor ──
+if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
+  if (!reelAudioBuffer || !reelScenes) return;
+  // Transfer to main editor
+  currentBuffer = reelAudioBuffer;
+  photoItems = [];
+  const platform = REEL_PLATFORMS[reelPlatform];
+  for (const scene of reelScenes) {
+    if (!scene.imgDataUrl) continue;
+    const img = new Image(); img.src = scene.imgDataUrl;
+    photoItems.push({
+      id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
+      startTime: scene.startTime, duration: scene.duration,
+      transition: scene.transition, transDur: scene.transDur, motion: scene.motion,
+    });
+  }
+  if (reelBgmBuffer) bgmBuffer = reelBgmBuffer;
+  // Set image size
+  if (createImageSize) createImageSize.value = `${platform.width}x${platform.height}`;
+
+  reelPage.classList.remove('visible');
+  editorEl.classList.add('visible');
+  updateAudioControls();
+  applyEditorPlanGating();
+  loadEditorLibrary();
+  drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
+  setStatus(`Reel transferred to editor: ${photoItems.length} scenes`);
 });
 
 

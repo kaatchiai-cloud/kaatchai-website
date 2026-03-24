@@ -74,6 +74,39 @@ let logoPosition = 'top-right'; // top-left | top-right | bot-left | bot-right
 let logoSize = 10;              // percentage of canvas width
 let logoOpacity = 0.8;
 
+// ── Reel/Short Mode ──
+let reelMode = false;
+let reelPlatform = 'instagram';
+let reelDuration = 60;
+let reelSubtitleStyle = 'highlight';
+let reelTransition = 'whip-pan';
+let reelWords = []; // word-level timestamps [{word, start, end}, ...]
+let reelSubColor = '#ffffff';
+let reelSubOutline = '#000000';
+let reelSubBackdrop = 'dark'; // dark | blur | none
+
+const REEL_PLATFORMS = {
+  'instagram': { width: 1080, height: 1920, maxDur: 90, label: 'Instagram Reel' },
+  'youtube':   { width: 1080, height: 1920, maxDur: 60, label: 'YouTube Short' },
+  'tiktok':    { width: 1080, height: 1920, maxDur: 180, label: 'TikTok' },
+};
+
+const REEL_TRANSITIONS = {
+  'quick-cut':  { transition: 'none', transDur: 0.1, motion: 'slow-zoom-in', label: 'Quick Cut' },
+  'whip-pan':   { transition: 'whip-pan', transDur: 0.3, motion: 'slow-zoom-in', label: 'Whip Pan' },
+  'zoom-in':    { transition: 'zoom-in', transDur: 0.3, motion: 'none', label: 'Zoom In' },
+  'crossfade':  { transition: 'crossfade', transDur: 0.4, motion: 'ken-burns', label: 'Crossfade' },
+  'flash':      { transition: 'flash', transDur: 0.2, motion: 'none', label: 'Flash' },
+};
+
+const REEL_SUBTITLE_STYLES = {
+  'word-by-word': 'Word by Word',
+  'highlight': 'Highlight',
+  'karaoke': 'Karaoke',
+  'bold-center': 'Bold Center',
+  'none': 'None',
+};
+
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
 let nextSubtitleId = 1;
@@ -126,6 +159,49 @@ const FREE_TRANSITIONS = ['none', 'fade'];
 // Autosave
 let autosaveDirty = false;
 function markDirty() { autosaveDirty = true; }
+
+// ── Cost Estimation ──
+const COST_ESTIMATES = {
+  transcription: 0.003,      // per 5 min audio
+  textGeneration: 0.001,     // per call (scene descriptions, translation)
+  imageGenFast: 0.039,       // per image (fast/free tier)
+  imageGenQuality: 0.08,     // per image (quality tier)
+  tts: 0.003,                // per 5 min TTS
+  ttsPerLang: 0.02,          // per language track (translate + TTS)
+  visionDescribe: 0.002,     // per image description (auto-describe)
+};
+let sessionCost = 0;
+let sessionCalls = 0;
+
+function trackCost(type, count) {
+  const unitCost = COST_ESTIMATES[type] || 0;
+  const cost = unitCost * (count || 1);
+  sessionCost += cost;
+  sessionCalls += (count || 1);
+  updateCostDisplay();
+}
+
+function updateCostDisplay() {
+  const el = $('session-cost');
+  if (el) {
+    if (sessionCost > 0) {
+      el.textContent = `~$${sessionCost.toFixed(3)} est. (${sessionCalls} calls)`;
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+}
+
+function resetSessionCost() {
+  sessionCost = 0; sessionCalls = 0;
+  updateCostDisplay();
+}
+
+function estimateCost(type, count) {
+  const unitCost = COST_ESTIMATES[type] || 0;
+  return (unitCost * (count || 1)).toFixed(3);
+}
 
 // Upgrade prompt
 function showUpgradePrompt(msg) {

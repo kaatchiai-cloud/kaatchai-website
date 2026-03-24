@@ -129,6 +129,7 @@ async function autoDescribeRef(type, id) {
     const data = await callGeminiAPI(getTranscriptionModels(), body);
     const desc = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (desc) {
+      trackCost('visionDescribe', 1);
       item.description = desc;
       if (type === 'char') renderCharacterCards();
       else renderEnvironmentCards();
