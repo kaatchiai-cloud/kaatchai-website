@@ -1557,9 +1557,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; width: 100%;
 }
 .reel-all-previews:empty { display: none; }
-.reel-all-previews:not(:empty) + #reel-single-preview { display: none; }
 .reel-preview-card {
-  width: 160px; background: var(--bg-elevated); border: 1px solid var(--border);
+  width: 80px; background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius-sm); overflow: hidden; text-align: center;
 }
 .reel-preview-card video {
