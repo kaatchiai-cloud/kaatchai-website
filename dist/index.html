@@ -141,7 +141,7 @@ h1 { font-size: 1.5rem; margin-bottom: 2px; color: var(--text-primary); font-wei
   width: 260px; background: var(--bg-card);
   border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1000;
-  overflow: hidden;
+  overflow: hidden; cursor: default;
 }
 .user-dropdown.hidden { display: none; }
 .user-dropdown-header {
@@ -176,7 +176,7 @@ button, .btn {
   font-family: inherit; cursor: pointer; border: 1px solid var(--border);
   background: var(--bg-elevated); color: var(--text-primary);
   border-radius: var(--radius-sm); font-size: var(--text-sm);
-  padding: 5px 12px; transition: all 0.15s;
+  padding: 5px 12px; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
 }
 button:hover, .btn:hover { border-color: var(--border-hover); background: var(--bg-input); }
 button:focus-visible, .btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
