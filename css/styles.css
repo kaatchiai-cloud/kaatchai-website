@@ -29,7 +29,7 @@
   /* Typography scale */
   --text-2xs: 0.62rem;
   --text-xs: 0.68rem;
-  --text-sm: 0.72rem;
+  --text-sm: 0.75rem;
   --text-base: 0.78rem;
   --text-md: 0.85rem;
   --text-lg: 0.95rem;
@@ -184,7 +184,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 .landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
 .landing-step-card h3 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px; }
-.landing-step-card p { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+.landing-step-card p { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
 
 /* Features grid */
 .landing-features {
@@ -198,7 +198,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 .landing-feature span { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
 .landing-feature strong { font-size: 0.78rem; color: var(--text-primary); }
-.landing-feature div { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; }
+.landing-feature div { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
 
 /* Pricing */
 .landing-pricing { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
@@ -211,7 +211,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 .landing-price-card.featured { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 .landing-price-card h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
 .landing-price { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
-.landing-price-sub { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 16px; }
+.landing-price-sub { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 16px; }
 .landing-price-card ul {
   list-style: none; text-align: left; font-size: 0.75rem; color: var(--text-secondary);
 }

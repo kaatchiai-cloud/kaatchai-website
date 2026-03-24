@@ -44,7 +44,7 @@
   /* Typography scale */
   --text-2xs: 0.62rem;
   --text-xs: 0.68rem;
-  --text-sm: 0.72rem;
+  --text-sm: 0.75rem;
   --text-base: 0.78rem;
   --text-md: 0.85rem;
   --text-lg: 0.95rem;
@@ -199,7 +199,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 .landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
 .landing-step-card h3 { font-size: 0.85rem; color: var(--text-primary); margin-bottom: 6px; }
-.landing-step-card p { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+.landing-step-card p { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
 
 /* Features grid */
 .landing-features {
@@ -213,7 +213,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 .landing-feature span { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
 .landing-feature strong { font-size: 0.78rem; color: var(--text-primary); }
-.landing-feature div { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; }
+.landing-feature div { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
 
 /* Pricing */
 .landing-pricing { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
@@ -226,7 +226,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 .landing-price-card.featured { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 .landing-price-card h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
 .landing-price { font-size: 1.8rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
-.landing-price-sub { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 16px; }
+.landing-price-sub { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 16px; }
 .landing-price-card ul {
   list-style: none; text-align: left; font-size: 0.75rem; color: var(--text-secondary);
 }
@@ -1380,7 +1380,7 @@ input:focus, select:focus, textarea:focus {
     <div class="landing-hero">
       <p class="landing-hero-title">Turn Your Voice into Illustrated Videos</p>
       <p class="landing-hero-sub">Speak it, type it, or upload a podcast — Stori generates unique AI visuals for every scene and assembles a ready-to-post video. No stock footage. No design skills. Every image made for your story.</p>
-      <div class="flex flex-wrap flex-center gap-lg" class="mt-lg">
+      <div class="flex flex-wrap flex-center gap-lg mt-lg">
         <button id="btn-create-content" class="primary btn-lg">Create a Story</button>
         <button id="btn-new-project" class="btn-lg">Edit Content</button>
         <button id="btn-load-project-home" class="btn-lg">Open Project</button>
@@ -1391,7 +1391,7 @@ input:focus, select:focus, textarea:focus {
     <div id="project-gallery" style="display:none; margin-top:28px; width:100%; max-width:900px;">
       <div class="flex-between mb-md">
         <h3 class="text-base text-secondary">Recent Projects</h3>
-        <button id="btn-gallery-clear" class="danger btn-xs" class="hidden">Clear All</button>
+        <button id="btn-gallery-clear" class="danger btn-xs hidden">Clear All</button>
       </div>
       <div id="gallery-grid" class="gallery-grid"></div>
     </div>
@@ -1512,7 +1512,7 @@ input:focus, select:focus, textarea:focus {
             <input type="radio" name="active-tier" value="free" id="tier-radio-free" checked>
             <span class="tier-label">Free Tier</span>
           </label>
-          <div class="create-row" class="mt-sm">
+          <div class="create-row mt-sm">
             <input type="password" id="create-api-key-free" placeholder="Free tier API key">
             <button id="btn-save-key-free" class="primary btn-sm">Save</button>
             <span id="key-status-free" class="text-sm"></span>
@@ -1525,7 +1525,7 @@ input:focus, select:focus, textarea:focus {
             <input type="radio" name="active-tier" value="paid" id="tier-radio-paid">
             <span class="tier-label">Paid Tier</span>
           </label>
-          <div class="create-row" class="mt-sm">
+          <div class="create-row mt-sm">
             <input type="password" id="create-api-key-paid" placeholder="Paid tier API key">
             <button id="btn-save-key-paid" class="primary btn-sm">Save</button>
             <span id="key-status-paid" class="text-sm"></span>
@@ -1550,7 +1550,7 @@ input:focus, select:focus, textarea:focus {
 
       <!-- Audio Input -->
       <div id="create-voice-section">
-        <p class="text-sm text-muted" class="mb-md">Import an audio file (podcast, voiceover, recording)</p>
+        <p class="text-sm text-muted mb-md">Import an audio file (podcast, voiceover, recording)</p>
         <div class="create-row">
           <button id="btn-create-import-audio" class="btn-md">🎵 Choose Audio File</button>
           <span id="create-audio-name" class="text-sm text-muted"></span>
@@ -1559,7 +1559,7 @@ input:focus, select:focus, textarea:focus {
 
       <!-- Podcast Input -->
       <div id="create-video-section" class="hidden">
-        <p class="text-sm text-muted" class="mb-md">Import a podcast recording. Audio-only or video (audio extracted + video becomes PiP speaker overlay).</p>
+        <p class="text-sm text-muted mb-md">Import a podcast recording. Audio-only or video (audio extracted + video becomes PiP speaker overlay).</p>
         <div class="form-row">
           <button id="btn-create-podcast-audio" class="btn-md">🎵 Import Audio</button>
           <button id="btn-create-pip-import" class="btn-md">📹 Import Video (+ PiP)</button>
@@ -1623,7 +1623,7 @@ input:focus, select:focus, textarea:focus {
           <div class="form-row mb-md">
             <span class="text-sm font-semibold">🔇 Remove Silence</span>
           </div>
-          <div class="create-row" class="flex-wrap gap-md mb-md">
+          <div class="create-row flex-wrap gap-md mb-md">
             <label class="form-label">Threshold:
               <input type="range" id="create-sil-threshold" min="-60" max="-20" value="-40" style="width:100px;">
               <span id="create-sil-threshold-val" class="text-sm text-muted">-40 dB</span>
@@ -1638,7 +1638,7 @@ input:focus, select:focus, textarea:focus {
               </select>
             </label>
           </div>
-          <div class="create-row" class="gap-sm">
+          <div class="create-row gap-sm">
             <button id="btn-create-sil-detect" class="primary btn-xs">🔍 Detect</button>
             <button id="btn-create-sil-apply" class="danger btn-xs" disabled>✂ Remove</button>
             <button id="btn-create-sil-reset" class="btn-xs hidden">↩ Reset</button>
@@ -1652,12 +1652,12 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 3: Template & Output Size -->
     <div class="create-step">
       <h3><span class="step-num">3</span> Template & Output Size</h3>
-      <p class="text-sm text-muted" class="mb-md">
+      <p class="text-sm text-muted mb-md">
         Pick a template to auto-configure style and size, or choose Blank for full control.
       </p>
       <div id="template-categories" class="template-categories"></div>
       <div id="template-grid" class="template-grid"></div>
-      <div class="create-row" class="flex-wrap gap-md mt-md">
+      <div class="create-row flex-wrap gap-md mt-md">
         <label class="text-secondary">Size:
           <select id="create-image-size" >
             <option value="1280x720" selected>1280×720 — 16:9 (YouTube, LinkedIn Video)</option>
@@ -1687,10 +1687,10 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 5: Chapter Splitting (Podcast only) -->
     <div class="create-step" id="create-chapter-step" class="hidden">
       <h3><span class="step-num">5</span> Chapter Splitting</h3>
-      <p class="text-sm text-secondary" class="mb-md">
+      <p class="text-sm text-secondary mb-md">
         Split your podcast into chapters. Each chapter will get its own set of images in the storyboard.
       </p>
-      <div class="input-mode-toggle" class="mb-lg">
+      <div class="input-mode-toggle mb-lg">
         <button id="chapter-mode-ai" class="mode-btn active">🤖 AI Auto-Split</button>
         <button id="chapter-mode-manual" class="mode-btn">✏️ Manual</button>
       </div>
@@ -1699,7 +1699,7 @@ input:focus, select:focus, textarea:focus {
         <span id="chapter-ai-status" class="text-sm text-muted"></span>
       </div>
       <div id="chapter-manual-section" class="hidden">
-        <p class="text-sm text-muted" class="mb-md">Set chapter timestamps and titles below.</p>
+        <p class="text-sm text-muted mb-md">Set chapter timestamps and titles below.</p>
       </div>
       <div id="chapter-list" class="mt-lg"></div>
       <div id="chapter-controls" style="display:none; margin-top:10px;">
@@ -1707,17 +1707,17 @@ input:focus, select:focus, textarea:focus {
           <button id="btn-add-chapter" class="btn-sm">+ Add Chapter</button>
           <span id="chapter-summary" class="text-sm text-muted"></span>
         </div>
-        <button id="btn-chapter-proceed" class="primary" class="btn-md mt-md">Generate Storyboard from Chapters →</button>
+        <button id="btn-chapter-proceed" class="primary btn-md mt-md">Generate Storyboard from Chapters →</button>
       </div>
     </div>
 
     <!-- Step 6: Storyboard — Review & Edit Prompts -->
     <div class="create-step" id="create-storyboard-step" class="hidden">
       <h3><span class="step-num">6</span> Storyboard — Image Prompts</h3>
-      <p class="text-sm text-secondary" class="mb-md">
+      <p class="text-sm text-secondary mb-md">
         Review the AI-generated scene prompts below. Each prompt corresponds to a segment of your audio and will determine the image placed at that time on the photo timeline. Edit any prompt before generating images.
       </p>
-      <div class="style-section" class="editor-bar mb-lg">
+      <div class="style-section editor-bar mb-lg">
         <h4 class="text-base text-secondary mb-md">🎨 Visual Style (applied to all scenes)</h4>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <select id="create-style-preset" class="text-sm">
@@ -1766,7 +1766,7 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 7: Visual References (optional) -->
     <div class="create-step" id="create-references-step" class="hidden">
       <h3><span class="step-num">7</span> Visual References <span class="text-xs text-muted">(optional)</span></h3>
-      <p class="text-sm text-secondary" class="mb-md">
+      <p class="text-sm text-secondary mb-md">
         Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
       </p>
 
@@ -1803,7 +1803,7 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 8: Generate Images -->
     <div class="create-step" id="create-generate-step" class="hidden">
       <h3><span class="step-num">8</span> Generate Scene Images</h3>
-      <div class="create-row" class="flex-wrap gap-md">
+      <div class="create-row flex-wrap gap-md">
         <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
           <select id="create-image-category">
             <option value="fast" selected>⚡ Fast ($0.039/img)</option>
@@ -1811,9 +1811,9 @@ input:focus, select:focus, textarea:focus {
           </select>
         </label>
         <button id="btn-create-generate" class="primary btn-md">🖼 Generate All Images</button>
-        <button id="btn-create-pause" class="btn-xs" class="hidden">⏸ Pause</button>
-        <button id="btn-create-retry-failed" class="danger btn-xs" class="hidden">🔄 Retry Failed</button>
-        <button id="btn-download-all-images" class="btn-xs" class="hidden">📥 Download All Images</button>
+        <button id="btn-create-pause" class="btn-xs hidden">⏸ Pause</button>
+        <button id="btn-create-retry-failed" class="danger btn-xs hidden">🔄 Retry Failed</button>
+        <button id="btn-download-all-images" class="btn-xs hidden">📥 Download All Images</button>
       </div>
       <div class="create-progress" id="create-generate-progress">
         <div class="bar-bg"><div class="bar-fill" id="create-generate-bar"></div></div>
@@ -1825,14 +1825,14 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 7: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" class="hidden">
       <h3><span class="step-num">9</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
-      <p class="text-sm text-secondary" class="mb-md">
+      <p class="text-sm text-secondary mb-md">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
       <div id="language-primary" class="mb-lg"></div>
       <h4 class="text-sm text-secondary mb-md">Add languages:</h4>
       <div id="language-checkboxes" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-        <button id="btn-generate-languages" class="primary" class="btn-md" disabled>🌐 Generate Language Tracks</button>
+        <button id="btn-generate-languages" class="primary btn-md" disabled>🌐 Generate Language Tracks</button>
         <span id="language-status" class="text-sm text-muted"></span>
       </div>
       <div id="language-results" style="display:flex; flex-direction:column; gap:6px;"></div>
@@ -1841,11 +1841,11 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" class="hidden">
       <h3><span class="step-num">10</span> Review & Send to Editor</h3>
-      <p class="text-sm text-secondary" class="mb-md">
+      <p class="text-sm text-secondary mb-md">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
-        <button id="btn-create-send-editor" class="primary" class="btn-lg" disabled>🚀 Send to Editor</button>
+        <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
       </div>
     </div>
@@ -1863,7 +1863,7 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
     <!-- Audio Section -->
-    <div class="section-label" class="mt-0">
+    <div class="section-label mt-0">
       🎵 Audio Track
       <span class="badge" id="audio-status">No audio</span>
       <button id="btn-load" class="ml-auto btn-sm">🎵 Import Audio</button>
@@ -1906,8 +1906,8 @@ input:focus, select:focus, textarea:focus {
         </label>
       </div>
       <div class="silence-settings">
-        <button id="btn-sil-detect" class="primary" class="text-base">🔍 Detect Silent Regions</button>
-        <button id="btn-sil-apply" class="danger" class="text-base" disabled>✂ Remove Detected Silence</button>
+        <button id="btn-sil-detect" class="primary text-base">🔍 Detect Silent Regions</button>
+        <button id="btn-sil-apply" class="danger text-base" disabled>✂ Remove Detected Silence</button>
         <button id="btn-sil-close" class="btn-sm">Close</button>
       </div>
       <div id="silence-visual"></div>
@@ -1915,7 +1915,7 @@ input:focus, select:focus, textarea:focus {
     </div>
 
     <!-- Global Zoom Controls -->
-    <div class="zoom-controls" class="mb-md">
+    <div class="zoom-controls mb-md">
       <label>🔍 Zoom:
         <input type="range" id="zoom-level" min="1" max="20" step="0.5" value="1">
       </label>
@@ -2148,11 +2148,11 @@ input:focus, select:focus, textarea:focus {
           <label>Source: <span id="prop-video-dur" class="text-secondary">—</span></label>
         </div>
       </div>
-      <button id="prop-delete" class="danger" class="btn-sm">Remove</button>
+      <button id="prop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Video Timeline -->
-    <div class="section-label" class="mt-md">
+    <div class="section-label mt-md">
       Video Timeline
       <span class="badge" id="video-count">0 videos</span>
     </div>
@@ -2178,7 +2178,7 @@ input:focus, select:focus, textarea:focus {
     </div>
 
     <!-- Text Timeline -->
-    <div class="section-label" class="mt-md">
+    <div class="section-label mt-md">
       Text Timeline
       <span class="badge" id="text-count">0 texts</span>
       <button id="btn-delete-selected-texts" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
@@ -2243,11 +2243,11 @@ input:focus, select:focus, textarea:focus {
         </select>
       </label>
       <label>Anim dur: <input type="number" id="tprop-anim-dur" step="0.1" min="0.1" max="5" value="0.5">s</label>
-      <button id="tprop-delete" class="danger" class="btn-sm">Remove</button>
+      <button id="tprop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Subtitle Timeline -->
-    <div class="section-label" class="mt-md" id="subtitle-section-label">
+    <div class="section-label mt-md" id="subtitle-section-label">
       Subtitle Timeline
       <span class="badge" id="subtitle-count">0 subtitles</span>
       <button id="btn-sub-style" style="font-size:0.68rem; padding:3px 8px; margin-left:auto;">🎨 Style</button>
@@ -2277,7 +2277,7 @@ input:focus, select:focus, textarea:focus {
       </label>
       <label>Start: <input type="number" id="sprop-start" step="0.1" min="0">s</label>
       <label>Dur: <input type="number" id="sprop-duration" step="0.1" min="0.3">s</label>
-      <button id="sprop-delete" class="danger" class="btn-sm">Remove</button>
+      <button id="sprop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Inline Preview Panel (collapsible) -->
@@ -2334,8 +2334,8 @@ input:focus, select:focus, textarea:focus {
       </div>
       <div style="display:flex; gap:8px; margin-top:8px; justify-content:flex-end; align-items:center;">
         <button id="export-all-langs" class="primary" style="padding:4px 14px; font-size:0.78rem; display:none;">🌐 Export All Languages</button>
-        <button id="export-cancel" class="secondary" class="btn-sm">Cancel</button>
-        <button id="export-start" class="success" class="btn-sm">⬇ Export</button>
+        <button id="export-cancel" class="secondary btn-sm">Cancel</button>
+        <button id="export-start" class="success btn-sm">⬇ Export</button>
       </div>
     </div>
     <input type="file" id="project-input" accept="*/*">
@@ -7398,9 +7398,9 @@ projectInput.addEventListener('change', async () => {
     if (logoSaveLib) logoSaveLib.addEventListener('click', () => saveCurrentToNextSlot('logo'));
 
 
-    // ── 17-create-content.js ──
+    // ── 17a-create-api.js ──
 // ══════════════════════════════════════════
-//  CREATE CONTENT PIPELINE
+//  CREATE CONTENT — API, Keys, Templates
 // ══════════════════════════════════════════
 const createPage = $('create-page');
 const btnCreateContent = $('btn-create-content');
@@ -7652,6 +7652,213 @@ function initTemplateUI() {
   });
   renderTemplateGrid('all');
 }
+
+// ── API Key Management ──
+// Migrate old keys
+const _migKey = localStorage.getItem('stori_gemini_key') || localStorage.getItem('stori_api_key');
+if (_migKey && !localStorage.getItem('stori_key_free')) {
+  localStorage.setItem('stori_key_free', _migKey);
+  localStorage.removeItem('stori_gemini_key');
+  localStorage.removeItem('stori_api_key');
+  localStorage.removeItem('stori_gemini_key_free');
+  localStorage.removeItem('stori_gemini_key_paid');
+}
+
+let freeImageGenAvailable = false;
+let activeTier = 'free'; // 'free' | 'paid'
+
+function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
+function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
+function getCreateGeminiKey() { return activeTier === 'paid' ? getPaidKey() : getFreeKey(); }
+function getImageKey() { return activeTier === 'paid' ? getPaidKey() : (freeImageGenAvailable ? getFreeKey() : null); }
+function isPaidTier() { return activeTier === 'paid'; }
+
+function updateTierSelector() {
+  const radioFree = $('tier-radio-free');
+  const radioPaid = $('tier-radio-paid');
+  const cardFree = $('tier-card-free');
+  const cardPaid = $('tier-card-paid');
+  if (!radioFree || !radioPaid) return;
+
+  const hasFree = !!getFreeKey();
+  const hasPaid = !!getPaidKey();
+
+  // Auto-select: if only one key, select that tier. If both, default paid.
+  if (hasFree && hasPaid) {
+    if (!localStorage.getItem('stori_active_tier')) activeTier = 'paid';
+  } else if (hasFree) {
+    activeTier = 'free';
+  } else if (hasPaid) {
+    activeTier = 'paid';
+  }
+
+  radioFree.checked = activeTier === 'free';
+  radioPaid.checked = activeTier === 'paid';
+  if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
+  if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
+}
+
+// Radio button listeners
+document.querySelectorAll('input[name="active-tier"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    activeTier = radio.value;
+    localStorage.setItem('stori_active_tier', activeTier);
+    const cardFree = $('tier-card-free');
+    const cardPaid = $('tier-card-paid');
+    if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
+    if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
+    updateCreateButtons();
+  });
+});
+
+// Test if free key supports image generation
+async function validateFreeKeyImageGen(key) {
+  if (!key) return false;
+  keyImageStatus.textContent = '⏳ Checking image generation...';
+  keyImageStatus.style.color = 'var(--text-muted)';
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Generate a small blue circle' }] }] })
+      }
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      const hasImage = data.candidates?.[0]?.content?.parts?.some(p => p.inlineData);
+      if (hasImage) {
+        freeImageGenAvailable = true;
+        keyImageStatus.textContent = '✓ Image generation available on free tier';
+        keyImageStatus.style.color = '#10b981';
+        return true;
+      }
+    }
+    freeImageGenAvailable = false;
+    keyImageStatus.textContent = '⚠ Image generation not available — add paid key for images';
+    keyImageStatus.style.color = '#f59e0b';
+    return false;
+  } catch(e) {
+    freeImageGenAvailable = false;
+    keyImageStatus.textContent = '⚠ Could not verify image generation';
+    keyImageStatus.style.color = '#f59e0b';
+    return false;
+  }
+}
+
+function flashSave(btn, statusEl) {
+  statusEl.textContent = '✓ Saved';
+  statusEl.style.color = '#10b981';
+  btn.style.background = '#10b981';
+  btn.style.color = '#fff';
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; btn.textContent = 'Save'; }, 2000);
+}
+
+// Navigation
+btnCreateContent.addEventListener('click', () => {
+  dropZone.classList.add('hidden');
+  createPage.classList.add('visible');
+  const savedFree = localStorage.getItem('stori_key_free');
+  const savedPaid = localStorage.getItem('stori_key_paid');
+  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
+  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
+  // Restore active tier
+  const savedTier = localStorage.getItem('stori_active_tier');
+  if (savedTier) activeTier = savedTier;
+  updateTierSelector();
+  updateCreateButtons();
+  updateStepStates();
+  // Render template category buttons + grid
+  initTemplateUI();
+  applyPlanGating();
+});
+btnCreateBack.addEventListener('click', () => {
+  createPage.classList.remove('visible');
+  dropZone.classList.remove('hidden');
+  destroyCreateAudioEditor();
+});
+
+// Save free key + validate image gen
+btnSaveKeyFree.addEventListener('click', async () => {
+  const key = createApiKeyFree.value.trim();
+  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_free', key);
+  flashSave(btnSaveKeyFree, keyStatusFree);
+  updateTierSelector(); updateCreateButtons(); updateStepStates();
+  await validateFreeKeyImageGen(key);
+});
+
+// Save paid key
+btnSaveKeyPaid.addEventListener('click', () => {
+  const key = createApiKeyPaid.value.trim();
+  if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
+  localStorage.setItem('stori_key_paid', key);
+  flashSave(btnSaveKeyPaid, keyStatusPaid);
+  updateTierSelector(); updateCreateButtons(); updateStepStates();
+});
+
+// ── Model Selection (paid tier) ──
+function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
+function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
+function getImageModels() {
+  if (!isPaidTier()) return ['gemini-2.5-flash-image']; // Free tier
+  const cat = $('create-image-category')?.value || 'fast';
+  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
+  return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
+}
+function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
+function getSegmentDuration() {
+  return isPaidTier() ? { min: 5, max: 15 } : { min: 12, max: 24 };
+}
+
+// ── API Call Wrapper with model fallback ──
+async function callGeminiAPI(models, body) {
+  const modelList = Array.isArray(models) ? models : [models];
+  const key = getCreateGeminiKey();
+  if (!key) throw new Error('No API key configured. Enter a free or paid tier key in Step 1.');
+
+  for (const model of modelList) {
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (resp.ok) return await resp.json();
+      if (resp.status === 429 || resp.status === 403) continue;
+      const err = await resp.json().catch(() => ({}));
+      if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    } catch(e) {
+      if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+      throw e;
+    }
+  }
+  throw new Error('Rate limit reached on all models. Wait a minute and try again, or switch API tier.');
+}
+
+function updateCreateButtons() {
+  const hasKey = !!(getFreeKey() || getPaidKey());
+  const hasAudio = !!createAudioBuffer;
+  btnCreateTranscribe.disabled = !(hasKey && hasAudio);
+  // Update transcribe button label based on input mode
+  if (!createTranscript && btnCreateTranscribe.textContent.indexOf('✓') === -1 && btnCreateTranscribe.textContent.indexOf('Retry') === -1) {
+    btnCreateTranscribe.textContent = createInputMode === 'text' ? '📝 Generate Storyboard' : '🎤 Transcribe with Gemini';
+  }
+  btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
+  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating;
+  // Show image category only for paid tier
+  const catLabel = $('image-category-label');
+  if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
+  if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
+}
+
+
+    // ── 17b-create-references.js ──
+// ══════════════════════════════════════════
+//  CREATE CONTENT — Visual Cast References
+// ══════════════════════════════════════════
 
 // ── Visual References: Characters & Environments ──
 const charCardsEl = $('character-cards');
@@ -7964,6 +8171,12 @@ function getSceneRefImageParts(scene) {
   return parts;
 }
 
+
+    // ── 17c-create-pipeline.js ──
+// ══════════════════════════════════════════
+//  CREATE CONTENT — Pipeline & Generation
+// ══════════════════════════════════════════
+
 createStylePresetEl.addEventListener('change', () => {
   const val = createStylePresetEl.value;
   if (val === 'custom') {
@@ -8039,207 +8252,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') navigatePreview(-1);
   if (e.key === 'ArrowRight') navigatePreview(1);
 });
-
-// ── API Key Management ──
-// Migrate old keys
-const _migKey = localStorage.getItem('stori_gemini_key') || localStorage.getItem('stori_api_key');
-if (_migKey && !localStorage.getItem('stori_key_free')) {
-  localStorage.setItem('stori_key_free', _migKey);
-  localStorage.removeItem('stori_gemini_key');
-  localStorage.removeItem('stori_api_key');
-  localStorage.removeItem('stori_gemini_key_free');
-  localStorage.removeItem('stori_gemini_key_paid');
-}
-
-let freeImageGenAvailable = false;
-let activeTier = 'free'; // 'free' | 'paid'
-
-function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
-function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
-function getCreateGeminiKey() { return activeTier === 'paid' ? getPaidKey() : getFreeKey(); }
-function getImageKey() { return activeTier === 'paid' ? getPaidKey() : (freeImageGenAvailable ? getFreeKey() : null); }
-function isPaidTier() { return activeTier === 'paid'; }
-
-function updateTierSelector() {
-  const radioFree = $('tier-radio-free');
-  const radioPaid = $('tier-radio-paid');
-  const cardFree = $('tier-card-free');
-  const cardPaid = $('tier-card-paid');
-  if (!radioFree || !radioPaid) return;
-
-  const hasFree = !!getFreeKey();
-  const hasPaid = !!getPaidKey();
-
-  // Auto-select: if only one key, select that tier. If both, default paid.
-  if (hasFree && hasPaid) {
-    if (!localStorage.getItem('stori_active_tier')) activeTier = 'paid';
-  } else if (hasFree) {
-    activeTier = 'free';
-  } else if (hasPaid) {
-    activeTier = 'paid';
-  }
-
-  radioFree.checked = activeTier === 'free';
-  radioPaid.checked = activeTier === 'paid';
-  if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
-  if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
-}
-
-// Radio button listeners
-document.querySelectorAll('input[name="active-tier"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    activeTier = radio.value;
-    localStorage.setItem('stori_active_tier', activeTier);
-    const cardFree = $('tier-card-free');
-    const cardPaid = $('tier-card-paid');
-    if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
-    if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
-    updateCreateButtons();
-  });
-});
-
-// Test if free key supports image generation
-async function validateFreeKeyImageGen(key) {
-  if (!key) return false;
-  keyImageStatus.textContent = '⏳ Checking image generation...';
-  keyImageStatus.style.color = 'var(--text-muted)';
-  try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'Generate a small blue circle' }] }] })
-      }
-    );
-    if (resp.ok) {
-      const data = await resp.json();
-      const hasImage = data.candidates?.[0]?.content?.parts?.some(p => p.inlineData);
-      if (hasImage) {
-        freeImageGenAvailable = true;
-        keyImageStatus.textContent = '✓ Image generation available on free tier';
-        keyImageStatus.style.color = '#10b981';
-        return true;
-      }
-    }
-    freeImageGenAvailable = false;
-    keyImageStatus.textContent = '⚠ Image generation not available — add paid key for images';
-    keyImageStatus.style.color = '#f59e0b';
-    return false;
-  } catch(e) {
-    freeImageGenAvailable = false;
-    keyImageStatus.textContent = '⚠ Could not verify image generation';
-    keyImageStatus.style.color = '#f59e0b';
-    return false;
-  }
-}
-
-function flashSave(btn, statusEl) {
-  statusEl.textContent = '✓ Saved';
-  statusEl.style.color = '#10b981';
-  btn.style.background = '#10b981';
-  btn.style.color = '#fff';
-  btn.textContent = '✓ Saved';
-  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; btn.textContent = 'Save'; }, 2000);
-}
-
-// Navigation
-btnCreateContent.addEventListener('click', () => {
-  dropZone.classList.add('hidden');
-  createPage.classList.add('visible');
-  const savedFree = localStorage.getItem('stori_key_free');
-  const savedPaid = localStorage.getItem('stori_key_paid');
-  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
-  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
-  // Restore active tier
-  const savedTier = localStorage.getItem('stori_active_tier');
-  if (savedTier) activeTier = savedTier;
-  updateTierSelector();
-  updateCreateButtons();
-  updateStepStates();
-  // Render template category buttons + grid
-  initTemplateUI();
-  applyPlanGating();
-});
-btnCreateBack.addEventListener('click', () => {
-  createPage.classList.remove('visible');
-  dropZone.classList.remove('hidden');
-  destroyCreateAudioEditor();
-});
-
-// Save free key + validate image gen
-btnSaveKeyFree.addEventListener('click', async () => {
-  const key = createApiKeyFree.value.trim();
-  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_key_free', key);
-  flashSave(btnSaveKeyFree, keyStatusFree);
-  updateTierSelector(); updateCreateButtons(); updateStepStates();
-  await validateFreeKeyImageGen(key);
-});
-
-// Save paid key
-btnSaveKeyPaid.addEventListener('click', () => {
-  const key = createApiKeyPaid.value.trim();
-  if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_key_paid', key);
-  flashSave(btnSaveKeyPaid, keyStatusPaid);
-  updateTierSelector(); updateCreateButtons(); updateStepStates();
-});
-
-// ── Model Selection (paid tier) ──
-function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
-function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
-function getImageModels() {
-  if (!isPaidTier()) return ['gemini-2.5-flash-image']; // Free tier
-  const cat = $('create-image-category')?.value || 'fast';
-  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
-  return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
-}
-function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
-function getSegmentDuration() {
-  return isPaidTier() ? { min: 5, max: 15 } : { min: 12, max: 24 };
-}
-
-// ── API Call Wrapper with model fallback ──
-async function callGeminiAPI(models, body) {
-  const modelList = Array.isArray(models) ? models : [models];
-  const key = getCreateGeminiKey();
-  if (!key) throw new Error('No API key configured. Enter a free or paid tier key in Step 1.');
-
-  for (const model of modelList) {
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-      );
-      if (resp.ok) return await resp.json();
-      if (resp.status === 429 || resp.status === 403) continue;
-      const err = await resp.json().catch(() => ({}));
-      if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
-      throw new Error(err.error?.message || `API error ${resp.status}`);
-    } catch(e) {
-      if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
-      throw e;
-    }
-  }
-  throw new Error('Rate limit reached on all models. Wait a minute and try again, or switch API tier.');
-}
-
-function updateCreateButtons() {
-  const hasKey = !!(getFreeKey() || getPaidKey());
-  const hasAudio = !!createAudioBuffer;
-  btnCreateTranscribe.disabled = !(hasKey && hasAudio);
-  // Update transcribe button label based on input mode
-  if (!createTranscript && btnCreateTranscribe.textContent.indexOf('✓') === -1 && btnCreateTranscribe.textContent.indexOf('Retry') === -1) {
-    btnCreateTranscribe.textContent = createInputMode === 'text' ? '📝 Generate Storyboard' : '🎤 Transcribe with Gemini';
-  }
-  btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
-  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating;
-  // Show image category only for paid tier
-  const catLabel = $('image-category-label');
-  if (catLabel) catLabel.style.display = isPaidTier() ? '' : 'none';
-  if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
-}
 
 // Audio Import
 const createSilenceSection = $('create-silence-section');
@@ -10588,6 +10600,13 @@ btnCreateRetryFailed.addEventListener('click', async () => {
   if (remaining.length === 0) return;
   await runImageGeneration(remaining);
 });
+
+
+
+    // ── 17d-create-languages.js ──
+// ══════════════════════════════════════════
+//  CREATE CONTENT — Languages & Send to Editor
+// ══════════════════════════════════════════
 
 // ── Multi-Language Voiceover ──
 const SUPPORTED_LANGUAGES = [
