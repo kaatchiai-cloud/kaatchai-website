@@ -401,13 +401,50 @@
       <div id="create-storyboard-grid" class="storyboard-grid"></div>
       <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
         <button id="btn-create-regenerate-prompts" style="font-size:0.75rem; padding:5px 14px;">🔄 Regenerate All Prompts</button>
-        <span style="font-size:0.7rem; color:var(--text-muted);">Happy with prompts? Proceed to Step 6 →</span>
+        <span style="font-size:0.7rem; color:var(--text-muted);">Happy with prompts? Proceed to next step →</span>
       </div>
     </div>
 
-    <!-- Step 6: Generate Images -->
+    <!-- Step 7: Visual References (optional) -->
+    <div class="create-step" id="create-references-step" style="display:none;">
+      <h3><span class="step-num">7</span> Visual References <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
+      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+        Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
+      </p>
+
+      <!-- Characters -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <strong style="font-size:0.78rem; color:var(--text-primary);">Characters</strong>
+          <span id="char-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
+          <button id="btn-add-character" style="font-size:0.7rem; padding:3px 10px;">+ Add Character</button>
+          <input type="file" id="char-img-input" accept="image/*" hidden>
+        </div>
+        <div id="character-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Environments -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <strong style="font-size:0.78rem; color:var(--text-primary);">Environments</strong>
+          <span id="env-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
+          <button id="btn-add-environment" style="font-size:0.7rem; padding:3px 10px;">+ Add Environment</button>
+          <input type="file" id="env-img-input" accept="image/*" hidden>
+        </div>
+        <div id="environment-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Per-scene assignment -->
+      <div id="scene-ref-assignments" style="display:none;">
+        <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:8px;">Scene Assignments</strong>
+        <p style="font-size:0.68rem; color:var(--text-muted); margin-bottom:8px;">Tick characters per scene (1st tick = main, 2nd = supporting). Select one environment. AI will intelligently include only relevant characters based on the scene text.</p>
+        <div id="scene-assignment-list"></div>
+      </div>
+    </div>
+
+    <!-- Step 8: Generate Images -->
     <div class="create-step" id="create-generate-step" style="display:none;">
-      <h3><span class="step-num">7</span> Generate Scene Images</h3>
+      <h3><span class="step-num">8</span> Generate Scene Images</h3>
       <div class="create-row" style="flex-wrap:wrap; gap:10px;">
         <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
           <select id="create-image-category">
@@ -429,7 +466,7 @@
 
     <!-- Step 7: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
-      <h3><span class="step-num">8</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
+      <h3><span class="step-num">9</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
@@ -445,7 +482,7 @@
 
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" style="display:none;">
-      <h3><span class="step-num">9</span> Review & Send to Editor</h3>
+      <h3><span class="step-num">10</span> Review & Send to Editor</h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>

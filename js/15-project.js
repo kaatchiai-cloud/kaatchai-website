@@ -633,10 +633,12 @@ async function saveProjectToFile(audioBuf, statusFn) {
       logo: logoImgSrc ? { imgSrc: logoImgSrc, position: logoPosition, size: logoSize, opacity: logoOpacity } : undefined,
       createState: createScenes ? {
         transcript: createTranscript,
-        scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
+        scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
         selectedTemplate: selectedTemplate || '',
+        characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
+        environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -924,6 +926,23 @@ projectInput.addEventListener('change', async () => {
       // Restore template
       if (project.createState.selectedTemplate) {
         selectedTemplate = project.createState.selectedTemplate;
+      }
+      // Restore characters and environments
+      if (project.createState.characters) {
+        storyCharacters = project.createState.characters.map(c => {
+          const img = c.imgDataUrl ? new Image() : null;
+          if (img) img.src = c.imgDataUrl;
+          return { ...c, imgEl: img };
+        });
+        nextCharId = Math.max(1, ...storyCharacters.map(c => c.id)) + 1;
+      }
+      if (project.createState.environments) {
+        storyEnvironments = project.createState.environments.map(e => {
+          const img = e.imgDataUrl ? new Image() : null;
+          if (img) img.src = e.imgDataUrl;
+          return { ...e, imgEl: img };
+        });
+        nextEnvId = Math.max(1, ...storyEnvironments.map(e => e.id)) + 1;
       }
     } else {
       cameFromCreate = false;

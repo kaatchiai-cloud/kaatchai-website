@@ -13,6 +13,7 @@ btnNewProject.addEventListener('click', (e) => {
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
+  storyCharacters = []; storyEnvironments = []; nextCharId = 1; nextEnvId = 1;
   bgVideoMode = 'images-only';
   frameImgEl = null; frameImgSrc = ''; framePadding = { top: 40, bottom: 40, left: 40, right: 40 }; frameOpacity = 1;
   logoImgEl = null; logoImgSrc = ''; logoPosition = 'top-right'; logoSize = 10; logoOpacity = 0.8;

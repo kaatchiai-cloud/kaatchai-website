@@ -649,6 +649,59 @@ input[type="file"] { display: none; }
   border: 1px solid var(--border);
 }
 
+/* Reference cards (characters/environments) */
+.ref-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.ref-card {
+  width: 180px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px; position: relative;
+}
+.ref-card img {
+  width: 100%; height: 100px; object-fit: cover;
+  border-radius: 6px; margin-bottom: 6px;
+}
+.ref-card .ref-card-placeholder {
+  width: 100%; height: 100px; border-radius: 6px; margin-bottom: 6px;
+  background: var(--bg-input); border: 1px dashed var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; color: var(--text-muted); cursor: pointer;
+}
+.ref-card input[type="text"], .ref-card textarea {
+  width: 100%; font-size: 0.7rem; padding: 4px 6px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text-primary); margin-bottom: 4px;
+}
+.ref-card textarea { resize: vertical; min-height: 40px; font-family: inherit; }
+.ref-card .ref-card-remove {
+  position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,0.85);
+  border: none; border-radius: 50%; color: #fff; width: 18px; height: 18px;
+  font-size: 0.6rem; cursor: pointer; display: flex; align-items: center;
+  justify-content: center;
+}
+/* Scene assignment rows */
+.scene-assign-row {
+  display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 6px; font-size: 0.7rem;
+}
+.scene-assign-row .scene-assign-text {
+  flex: 1; color: var(--text-secondary); font-size: 0.68rem;
+  max-height: 2.4em; overflow: hidden;
+}
+.scene-assign-row .scene-assign-chars { display: flex; gap: 6px; flex-wrap: wrap; }
+.scene-assign-row .char-tick {
+  display: flex; align-items: center; gap: 3px; font-size: 0.65rem;
+  color: var(--text-muted); cursor: pointer;
+}
+.scene-assign-row .char-tick input { accent-color: var(--accent); }
+.scene-assign-row .char-tick.ticked-0 { color: var(--cyan); font-weight: 600; }
+.scene-assign-row .char-tick.ticked-1 { color: var(--accent); }
+.scene-assign-row .char-tick.ticked-2 { color: var(--amber); }
+.scene-assign-row select {
+  font-size: 0.65rem; padding: 2px 4px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary);
+}
+
 /* Library slots (logo/frame presets) */
 .library-slot {
   width: 32px; height: 32px; border: 1px solid var(--border);
@@ -1592,13 +1645,50 @@ input:focus, select:focus, textarea:focus {
       <div id="create-storyboard-grid" class="storyboard-grid"></div>
       <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
         <button id="btn-create-regenerate-prompts" style="font-size:0.75rem; padding:5px 14px;">🔄 Regenerate All Prompts</button>
-        <span style="font-size:0.7rem; color:var(--text-muted);">Happy with prompts? Proceed to Step 6 →</span>
+        <span style="font-size:0.7rem; color:var(--text-muted);">Happy with prompts? Proceed to next step →</span>
       </div>
     </div>
 
-    <!-- Step 6: Generate Images -->
+    <!-- Step 7: Visual References (optional) -->
+    <div class="create-step" id="create-references-step" style="display:none;">
+      <h3><span class="step-num">7</span> Visual References <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
+      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+        Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
+      </p>
+
+      <!-- Characters -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <strong style="font-size:0.78rem; color:var(--text-primary);">Characters</strong>
+          <span id="char-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
+          <button id="btn-add-character" style="font-size:0.7rem; padding:3px 10px;">+ Add Character</button>
+          <input type="file" id="char-img-input" accept="image/*" hidden>
+        </div>
+        <div id="character-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Environments -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <strong style="font-size:0.78rem; color:var(--text-primary);">Environments</strong>
+          <span id="env-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
+          <button id="btn-add-environment" style="font-size:0.7rem; padding:3px 10px;">+ Add Environment</button>
+          <input type="file" id="env-img-input" accept="image/*" hidden>
+        </div>
+        <div id="environment-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Per-scene assignment -->
+      <div id="scene-ref-assignments" style="display:none;">
+        <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:8px;">Scene Assignments</strong>
+        <p style="font-size:0.68rem; color:var(--text-muted); margin-bottom:8px;">Tick characters per scene (1st tick = main, 2nd = supporting). Select one environment. AI will intelligently include only relevant characters based on the scene text.</p>
+        <div id="scene-assignment-list"></div>
+      </div>
+    </div>
+
+    <!-- Step 8: Generate Images -->
     <div class="create-step" id="create-generate-step" style="display:none;">
-      <h3><span class="step-num">7</span> Generate Scene Images</h3>
+      <h3><span class="step-num">8</span> Generate Scene Images</h3>
       <div class="create-row" style="flex-wrap:wrap; gap:10px;">
         <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
           <select id="create-image-category">
@@ -1620,7 +1710,7 @@ input:focus, select:focus, textarea:focus {
 
     <!-- Step 7: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
-      <h3><span class="step-num">8</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
+      <h3><span class="step-num">9</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
@@ -1636,7 +1726,7 @@ input:focus, select:focus, textarea:focus {
 
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" style="display:none;">
-      <h3><span class="step-num">9</span> Review & Send to Editor</h3>
+      <h3><span class="step-num">10</span> Review & Send to Editor</h3>
       <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
@@ -2230,6 +2320,12 @@ let bgVideoMode = 'images-only'; // images-only | video-only | video-images | vi
 let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds
 let pipTransPos = 'bot-right';   // bot-right | bot-left | top-right | top-left
+
+// Story references (characters + environments)
+let storyCharacters = [];   // max 3: [{id, name, description, imgDataUrl, imgEl}]
+let storyEnvironments = []; // max 3: [{id, name, description, imgDataUrl, imgEl}]
+let nextCharId = 1;
+let nextEnvId = 1;
 
 // Frame overlay
 let frameImgEl = null;           // <img> element for frame
@@ -6389,10 +6485,12 @@ async function saveProjectToFile(audioBuf, statusFn) {
       logo: logoImgSrc ? { imgSrc: logoImgSrc, position: logoPosition, size: logoSize, opacity: logoOpacity } : undefined,
       createState: createScenes ? {
         transcript: createTranscript,
-        scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
+        scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
         selectedTemplate: selectedTemplate || '',
+        characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
+        environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -6680,6 +6778,23 @@ projectInput.addEventListener('change', async () => {
       // Restore template
       if (project.createState.selectedTemplate) {
         selectedTemplate = project.createState.selectedTemplate;
+      }
+      // Restore characters and environments
+      if (project.createState.characters) {
+        storyCharacters = project.createState.characters.map(c => {
+          const img = c.imgDataUrl ? new Image() : null;
+          if (img) img.src = c.imgDataUrl;
+          return { ...c, imgEl: img };
+        });
+        nextCharId = Math.max(1, ...storyCharacters.map(c => c.id)) + 1;
+      }
+      if (project.createState.environments) {
+        storyEnvironments = project.createState.environments.map(e => {
+          const img = e.imgDataUrl ? new Image() : null;
+          if (img) img.src = e.imgDataUrl;
+          return { ...e, imgEl: img };
+        });
+        nextEnvId = Math.max(1, ...storyEnvironments.map(e => e.id)) + 1;
       }
     } else {
       cameFromCreate = false;
@@ -7422,6 +7537,317 @@ function initTemplateUI() {
     btn.addEventListener('click', () => setTemplateCategoryFilter(btn.dataset.cat));
   });
   renderTemplateGrid('all');
+}
+
+// ── Visual References: Characters & Environments ──
+const charCardsEl = $('character-cards');
+const envCardsEl = $('environment-cards');
+const charImgInput = $('char-img-input');
+const envImgInput = $('env-img-input');
+const btnAddChar = $('btn-add-character');
+const btnAddEnv = $('btn-add-environment');
+let pendingRefType = null; // 'char' or 'env'
+let pendingRefCardId = null;
+
+function getMaxRefs() { return isPro() ? 3 : 1; }
+
+function renderCharacterCards() {
+  if (!charCardsEl) return;
+  const max = getMaxRefs();
+  const countLabel = $('char-count-label');
+  if (countLabel) countLabel.textContent = `${storyCharacters.length}/${max}`;
+  if (btnAddChar) btnAddChar.style.display = storyCharacters.length >= max ? 'none' : '';
+
+  charCardsEl.innerHTML = storyCharacters.map(ch => `
+    <div class="ref-card" data-char-id="${ch.id}">
+      <button class="ref-card-remove" data-remove-char="${ch.id}">×</button>
+      ${ch.imgDataUrl
+        ? `<img src="${ch.imgDataUrl}" alt="${ch.name}">`
+        : `<div class="ref-card-placeholder" data-upload-char="${ch.id}">Click to upload illustration</div>`}
+      <input type="text" class="char-name" value="${ch.name || ''}" placeholder="Name (e.g. Priya)">
+      <textarea class="char-desc" placeholder="Description (e.g. 8yr girl, brown hair, red dress)">${ch.description || ''}</textarea>
+      ${!ch.imgDataUrl ? `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">📷 Upload Image</button>` : `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">🔄 Change Image</button>`}
+      ${ch.imgDataUrl && !ch.description ? `<button class="char-describe-btn" data-describe-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%; margin-top:2px;">🤖 Auto-Describe</button>` : ''}
+    </div>
+  `).join('');
+
+  // Wire events
+  charCardsEl.querySelectorAll('.ref-card-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      storyCharacters = storyCharacters.filter(c => c.id !== parseInt(btn.dataset.removeChar));
+      renderCharacterCards(); renderSceneAssignments(); markDirty();
+    });
+  });
+  charCardsEl.querySelectorAll('[data-upload-char]').forEach(el => {
+    el.addEventListener('click', () => {
+      pendingRefType = 'char';
+      pendingRefCardId = parseInt(el.dataset.uploadChar);
+      charImgInput.click();
+    });
+  });
+  charCardsEl.querySelectorAll('.char-name').forEach((input, i) => {
+    input.addEventListener('change', () => { storyCharacters[i].name = input.value; renderSceneAssignments(); markDirty(); });
+  });
+  charCardsEl.querySelectorAll('.char-desc').forEach((ta, i) => {
+    ta.addEventListener('change', () => { storyCharacters[i].description = ta.value; markDirty(); });
+  });
+  charCardsEl.querySelectorAll('.char-describe-btn').forEach(btn => {
+    btn.addEventListener('click', () => autoDescribeRef('char', parseInt(btn.dataset.describeChar)));
+  });
+}
+
+function renderEnvironmentCards() {
+  if (!envCardsEl) return;
+  const max = getMaxRefs();
+  const countLabel = $('env-count-label');
+  if (countLabel) countLabel.textContent = `${storyEnvironments.length}/${max}`;
+  if (btnAddEnv) btnAddEnv.style.display = storyEnvironments.length >= max ? 'none' : '';
+
+  envCardsEl.innerHTML = storyEnvironments.map(env => `
+    <div class="ref-card" data-env-id="${env.id}">
+      <button class="ref-card-remove" data-remove-env="${env.id}">×</button>
+      ${env.imgDataUrl
+        ? `<img src="${env.imgDataUrl}" alt="${env.name}">`
+        : `<div class="ref-card-placeholder" data-upload-env="${env.id}">Click to upload image</div>`}
+      <input type="text" class="env-name" value="${env.name || ''}" placeholder="Name (e.g. Forest)">
+      <textarea class="env-desc" placeholder="Description (e.g. dense tropical forest, misty)">${env.description || ''}</textarea>
+      ${!env.imgDataUrl ? `<button class="env-upload-btn" data-upload-env="${env.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">📷 Upload Image</button>` : `<button class="env-upload-btn" data-upload-env="${env.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">🔄 Change Image</button>`}
+      ${env.imgDataUrl && !env.description ? `<button class="env-describe-btn" data-describe-env="${env.id}" style="font-size:0.65rem; padding:2px 8px; width:100%; margin-top:2px;">🤖 Auto-Describe</button>` : ''}
+    </div>
+  `).join('');
+
+  envCardsEl.querySelectorAll('.ref-card-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      storyEnvironments = storyEnvironments.filter(e => e.id !== parseInt(btn.dataset.removeEnv));
+      renderEnvironmentCards(); renderSceneAssignments(); markDirty();
+    });
+  });
+  envCardsEl.querySelectorAll('[data-upload-env]').forEach(el => {
+    el.addEventListener('click', () => {
+      pendingRefType = 'env';
+      pendingRefCardId = parseInt(el.dataset.uploadEnv);
+      envImgInput.click();
+    });
+  });
+  envCardsEl.querySelectorAll('.env-name').forEach((input, i) => {
+    input.addEventListener('change', () => { storyEnvironments[i].name = input.value; renderSceneAssignments(); markDirty(); });
+  });
+  envCardsEl.querySelectorAll('.env-desc').forEach((ta, i) => {
+    ta.addEventListener('change', () => { storyEnvironments[i].description = ta.value; markDirty(); });
+  });
+  envCardsEl.querySelectorAll('.env-describe-btn').forEach(btn => {
+    btn.addEventListener('click', () => autoDescribeRef('env', parseInt(btn.dataset.describeEnv)));
+  });
+}
+
+// Auto-describe image using Gemini Vision
+async function autoDescribeRef(type, id) {
+  const key = getCreateGeminiKey();
+  if (!key) return;
+  const item = type === 'char'
+    ? storyCharacters.find(c => c.id === id)
+    : storyEnvironments.find(e => e.id === id);
+  if (!item || !item.imgDataUrl) return;
+
+  const match = item.imgDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) return;
+
+  const prompt = type === 'char'
+    ? 'Describe this character/person in detail for an AI image generator: age, gender, hair style and color, clothing, distinguishing features, expression. Be specific and concise in 2-3 sentences. Output only the description.'
+    : 'Describe this environment/location in detail for an AI image generator: setting type, lighting, atmosphere, key elements, colors, time of day. Be specific and concise in 2-3 sentences. Output only the description.';
+
+  try {
+    const body = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: match[1], data: match[2] } },
+        { text: prompt }
+      ]}]
+    };
+    const data = await callGeminiAPI(getTranscriptionModels(), body);
+    const desc = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (desc) {
+      item.description = desc;
+      if (type === 'char') renderCharacterCards();
+      else renderEnvironmentCards();
+      markDirty();
+    }
+  } catch(e) {
+    console.warn('Auto-describe failed:', e.message);
+  }
+}
+
+// Handle image upload for character/environment
+function handleRefImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      if (pendingRefType === 'char') {
+        const ch = storyCharacters.find(c => c.id === pendingRefCardId);
+        if (ch) { ch.imgDataUrl = e.target.result; ch.imgEl = img; }
+        renderCharacterCards();
+      } else {
+        const env = storyEnvironments.find(en => en.id === pendingRefCardId);
+        if (env) { env.imgDataUrl = e.target.result; env.imgEl = img; }
+        renderEnvironmentCards();
+      }
+      renderSceneAssignments();
+      markDirty();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+if (charImgInput) charImgInput.addEventListener('change', () => handleRefImageUpload(charImgInput));
+if (envImgInput) envImgInput.addEventListener('change', () => handleRefImageUpload(envImgInput));
+
+if (btnAddChar) btnAddChar.addEventListener('click', () => {
+  if (storyCharacters.length >= getMaxRefs()) {
+    if (isFree()) showUpgradePrompt('Free plan allows 1 character reference. Upgrade to Pro for up to 3.');
+    return;
+  }
+  storyCharacters.push({ id: nextCharId++, name: '', description: '', imgDataUrl: null, imgEl: null });
+  renderCharacterCards(); renderSceneAssignments(); markDirty();
+});
+
+if (btnAddEnv) btnAddEnv.addEventListener('click', () => {
+  if (storyEnvironments.length >= getMaxRefs()) {
+    if (isFree()) showUpgradePrompt('Free plan allows 1 environment reference. Upgrade to Pro for up to 3.');
+    return;
+  }
+  storyEnvironments.push({ id: nextEnvId++, name: '', description: '', imgDataUrl: null, imgEl: null });
+  renderEnvironmentCards(); renderSceneAssignments(); markDirty();
+});
+
+// Per-scene reference assignments
+function renderSceneAssignments() {
+  const container = $('scene-assignment-list');
+  const wrapper = $('scene-ref-assignments');
+  if (!container || !wrapper) return;
+
+  if (!createScenes || createScenes.length === 0 || (storyCharacters.length === 0 && storyEnvironments.length === 0)) {
+    wrapper.style.display = 'none';
+    return;
+  }
+  wrapper.style.display = '';
+
+  container.innerHTML = createScenes.map((scene, idx) => {
+    // Initialize scene refs if not set
+    if (!scene.refCharacters) scene.refCharacters = [];
+    if (scene.refEnvironment === undefined) scene.refEnvironment = -1;
+
+    const charTicks = storyCharacters.map(ch => {
+      const tickOrder = scene.refCharacters.indexOf(ch.id);
+      const checked = tickOrder >= 0;
+      const tickClass = checked ? `ticked-${Math.min(tickOrder, 2)}` : '';
+      const roleLabel = tickOrder === 0 ? ' (main)' : tickOrder === 1 ? ' (aux1)' : tickOrder === 2 ? ' (aux2)' : '';
+      return `<label class="char-tick ${tickClass}">
+        <input type="checkbox" data-scene="${idx}" data-char="${ch.id}" ${checked ? 'checked' : ''}>
+        ${ch.name || 'Unnamed'}${roleLabel}
+      </label>`;
+    }).join('');
+
+    const envOptions = `<option value="-1">None</option>` +
+      storyEnvironments.map(env =>
+        `<option value="${env.id}" ${scene.refEnvironment === env.id ? 'selected' : ''}>${env.name || 'Unnamed'}</option>`
+      ).join('');
+
+    return `<div class="scene-assign-row">
+      <span style="font-weight:600; color:var(--accent); min-width:20px;">${idx + 1}</span>
+      <span class="scene-assign-text">${scene.text || scene.prompt}</span>
+      <div class="scene-assign-chars">${charTicks}</div>
+      <select data-scene-env="${idx}">${envOptions}</select>
+    </div>`;
+  }).join('');
+
+  // Wire character tick handlers
+  container.querySelectorAll('input[data-char]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const sceneIdx = parseInt(cb.dataset.scene);
+      const charId = parseInt(cb.dataset.char);
+      const scene = createScenes[sceneIdx];
+      if (!scene.refCharacters) scene.refCharacters = [];
+      if (cb.checked) {
+        if (!scene.refCharacters.includes(charId)) scene.refCharacters.push(charId);
+      } else {
+        scene.refCharacters = scene.refCharacters.filter(id => id !== charId);
+      }
+      renderSceneAssignments();
+      markDirty();
+    });
+  });
+
+  // Wire environment dropdown handlers
+  container.querySelectorAll('select[data-scene-env]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const sceneIdx = parseInt(sel.dataset.sceneEnv);
+      createScenes[sceneIdx].refEnvironment = parseInt(sel.value);
+      markDirty();
+    });
+  });
+}
+
+// Build prompt with references for image generation
+function buildScenePromptWithRefs(scene, basePrompt) {
+  let prompt = '';
+  if (createStylePrompt) prompt += `Style: ${createStylePrompt}. `;
+
+  // Environment
+  if (scene.refEnvironment >= 0) {
+    const env = storyEnvironments.find(e => e.id === scene.refEnvironment);
+    if (env && env.description) prompt += `Setting: ${env.description}. `;
+  }
+
+  // Characters in tick order
+  if (scene.refCharacters && scene.refCharacters.length > 0) {
+    const charDescs = scene.refCharacters.map((charId, i) => {
+      const ch = storyCharacters.find(c => c.id === charId);
+      if (!ch) return '';
+      const role = i === 0 ? 'Main character' : `Supporting character ${i}`;
+      return `${role}: ${ch.name || 'unnamed'} — ${ch.description || 'no description'}`;
+    }).filter(Boolean);
+    if (charDescs.length > 0) {
+      prompt += `Characters available in this scene: ${charDescs.join('. ')}. `;
+      prompt += `Based on the scene description, include only the characters that are relevant and naturally present. `;
+    }
+  }
+
+  prompt += `Scene: ${basePrompt}`;
+  return prompt;
+}
+
+// Get reference images for API call (inline data parts)
+function getSceneRefImageParts(scene) {
+  const parts = [];
+  // Character reference images
+  if (scene.refCharacters) {
+    for (const charId of scene.refCharacters) {
+      const ch = storyCharacters.find(c => c.id === charId);
+      if (ch && ch.imgDataUrl) {
+        const match = ch.imgDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+          parts.push({ text: `Reference image for character: ${ch.name || 'unnamed'}` });
+        }
+      }
+    }
+  }
+  // Environment reference image
+  if (scene.refEnvironment >= 0) {
+    const env = storyEnvironments.find(e => e.id === scene.refEnvironment);
+    if (env && env.imgDataUrl) {
+      const match = env.imgDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (match) {
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+        parts.push({ text: `Reference image for environment: ${env.name || 'unnamed'}` });
+      }
+    }
+  }
+  return parts;
 }
 
 createStylePresetEl.addEventListener('change', () => {
@@ -8533,31 +8959,40 @@ function updateStepStates() {
   }
   // steps[5] = Step 6: Storyboard
   if (steps[5]) {
-    steps[5].classList.toggle('step-done', hasImages);
-    steps[5].classList.toggle('step-active', hasScenes && !hasImages);
+    steps[5].classList.toggle('step-done', hasScenes);
+    steps[5].classList.toggle('step-active', hasTranscript && !hasScenes);
   }
-  // steps[6] = Step 7: Generate Images
-  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
+  // steps[6] = Step 7: Visual References (optional, shown after scenes exist)
   if (steps[6]) {
-    steps[6].classList.toggle('step-done', allImagesDone);
-    steps[6].classList.toggle('step-active', hasScenes && !allImagesDone);
-  }
-  // steps[7] = Step 8: Multi-Language (Pro only, unlocked after images)
-  if (steps[7]) {
-    if (hasImages && isPro()) {
-      steps[7].style.display = '';
-      renderPrimaryAudioCard();
-      steps[7].classList.toggle('step-active', true);
+    if (hasScenes) {
+      steps[6].style.display = '';
+      renderSceneAssignments();
     } else {
-      steps[7].style.display = 'none';
+      steps[6].style.display = 'none';
     }
   }
-  // steps[8] = Step 9: Send to Editor
+  // steps[7] = Step 8: Generate Images
+  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
+  if (steps[7]) {
+    steps[7].classList.toggle('step-done', allImagesDone);
+    steps[7].classList.toggle('step-active', hasScenes && !allImagesDone);
+  }
+  // steps[8] = Step 9: Multi-Language (Pro only, unlocked after images)
   if (steps[8]) {
-    if (hasImages) {
+    if (hasImages && isPro()) {
       steps[8].style.display = '';
+      renderPrimaryAudioCard();
+      steps[8].classList.toggle('step-active', true);
+    } else {
+      steps[8].style.display = 'none';
     }
-    steps[8].classList.toggle('step-active', hasImages);
+  }
+  // steps[9] = Step 10: Send to Editor
+  if (steps[9]) {
+    if (hasImages) {
+      steps[9].style.display = '';
+    }
+    steps[9].classList.toggle('step-active', hasImages);
   }
 }
 
@@ -8575,6 +9010,8 @@ function autoSaveCreateState() {
       stylePrompt: createStylePrompt,
       stylePreset: createStylePreset,
       selectedTemplate: selectedTemplate,
+      characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
+      environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
@@ -9702,20 +10139,26 @@ const GEMINI_IMAGE_MODELS = [
 ];
 let geminiImageModel = null; // cached after first success
 
-async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl } = {}, modelOverride) {
+async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl, refParts } = {}, modelOverride) {
   const sizeHint = width && height ? ` The image should be ${width}x${height} pixels, ${width > height ? 'landscape' : width < height ? 'portrait' : 'square'} orientation.` : '';
-  const cleanPrompt = prompt.trim().slice(0, 800);
+  const cleanPrompt = prompt.trim().slice(0, 1200);
 
   // Build content parts
   const parts = [];
+  // Add story reference images (characters + environments) first
+  if (refParts && refParts.length > 0) {
+    parts.push(...refParts);
+  }
   if (refImageDataUrl) {
     const match = refImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
     if (match) {
       parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-      parts.push({ text: `Generate a new image where the person looks exactly like the person in the reference image above — same face, features, hair, skin tone, and appearance. Use the same visual style, color palette, and mood. Scene description: ${cleanPrompt}${sizeHint}` });
+      parts.push({ text: `Generate a new image maintaining visual consistency with the reference images above. Match the characters' appearance, environment style, and mood. Scene description: ${cleanPrompt}${sizeHint}` });
     } else {
       parts.push({ text: `Generate an image: ${cleanPrompt}${sizeHint}` });
     }
+  } else if (refParts && refParts.length > 0) {
+    parts.push({ text: `Generate an image maintaining visual consistency with the reference images above. Match the characters' appearance and environment closely. Scene: ${cleanPrompt}${sizeHint}` });
   } else {
     parts.push({ text: `Generate an image: ${cleanPrompt}${sizeHint}` });
   }
@@ -9810,11 +10253,11 @@ async function generateSceneImage(idx) {
   try {
     if (!key) throw new Error('API key required');
     let imgDataUrl;
-    const opts = { width, height, refImageDataUrl: scene.refImageDataUrl };
-    let effectivePrompt = scene.prompt;
-    if (createStylePrompt) {
-      effectivePrompt = `Style: ${createStylePrompt}. Scene: ${effectivePrompt}`;
-    }
+    // Build prompt with character/environment references if available
+    const hasRefs = (scene.refCharacters && scene.refCharacters.length > 0) || (scene.refEnvironment >= 0);
+    let effectivePrompt = hasRefs
+      ? buildScenePromptWithRefs(scene, scene.prompt)
+      : (createStylePrompt ? `Style: ${createStylePrompt}. Scene: ${scene.prompt}` : scene.prompt);
     // Text mode instruction
     const textMode = $('create-image-text-mode')?.value || 'no-text';
     if (textMode === 'no-text') {
@@ -9822,6 +10265,9 @@ async function generateSceneImage(idx) {
     } else if (textMode === 'english-only') {
       effectivePrompt += ' STRICT: If any text appears in the image, it MUST be in English only. Do NOT use Tamil, Hindi, Devanagari, or any non-Latin script. English text only.';
     }
+    // Collect reference image parts for API call
+    const refParts = hasRefs ? getSceneRefImageParts(scene) : [];
+    const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
     // Try image models in fallback order
     const models = getImageModels();
     let lastError = null;
@@ -10804,6 +11250,7 @@ btnNewProject.addEventListener('click', (e) => {
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
+  storyCharacters = []; storyEnvironments = []; nextCharId = 1; nextEnvId = 1;
   bgVideoMode = 'images-only';
   frameImgEl = null; frameImgSrc = ''; framePadding = { top: 40, bottom: 40, left: 40, right: 40 }; frameOpacity = 1;
   logoImgEl = null; logoImgSrc = ''; logoPosition = 'top-right'; logoSize = 10; logoOpacity = 0.8;

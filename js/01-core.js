@@ -55,6 +55,12 @@ let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds
 let pipTransPos = 'bot-right';   // bot-right | bot-left | top-right | top-left
 
+// Story references (characters + environments)
+let storyCharacters = [];   // max 3: [{id, name, description, imgDataUrl, imgEl}]
+let storyEnvironments = []; // max 3: [{id, name, description, imgDataUrl, imgEl}]
+let nextCharId = 1;
+let nextEnvId = 1;
+
 // Frame overlay
 let frameImgEl = null;           // <img> element for frame
 let frameImgSrc = '';            // data URL
