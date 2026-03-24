@@ -579,7 +579,17 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Collect all words for subtitle rendering
     reelWords = [];
     for (const seg of segments) {
-      if (seg.words) reelWords.push(...seg.words);
+      if (seg.words && seg.words.length > 0) {
+        reelWords.push(...seg.words);
+      } else if (seg.text) {
+        // Fallback: generate proportional word timings from segment text
+        const words = seg.text.trim().split(/\s+/);
+        const segDur = (seg.endTime || 0) - (seg.startTime || 0);
+        const wordDur = segDur / words.length;
+        words.forEach((w, i) => {
+          reelWords.push({ word: w, start: seg.startTime + i * wordDur, end: seg.startTime + (i + 1) * wordDur });
+        });
+      }
     }
 
     const isVideoMode = reelInputMode === 'video' && reelVideoEl;
@@ -845,9 +855,11 @@ function renderReelFrame(time) {
     }
   }
 
-  // Render word-level subtitle
-  if (reelSubtitleStyle !== 'none' && reelWords.length > 0) {
-    renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, reelSubtitleStyle);
+  // Render word-level subtitle — sync style from dropdown
+  const subStyleEl = $('reel-subtitle-style');
+  const currentSubStyle = subStyleEl ? subStyleEl.value : reelSubtitleStyle;
+  if (currentSubStyle !== 'none' && reelWords.length > 0) {
+    renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, currentSubStyle);
   }
 }
 
@@ -1399,6 +1411,9 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
   reelPage.classList.remove('visible');
   editorEl.classList.add('visible');
   reelMode = false;
+  // Show back-to-reel button
+  const btnBackToReel = $('btn-back-to-reel');
+  if (btnBackToReel) btnBackToReel.classList.remove('hidden');
   updateAudioControls();
   applyEditorPlanGating();
   loadEditorLibrary();
@@ -1539,3 +1554,15 @@ async function loadReelProject(project) {
 
   setStatus('Reel project loaded');
 }
+
+// ── Back to Reel from Editor ──
+const btnBackToReel = $('btn-back-to-reel');
+if (btnBackToReel) btnBackToReel.addEventListener('click', () => {
+  editorEl.classList.remove('visible');
+  reelPage.classList.add('visible');
+  reelMode = true;
+  btnBackToReel.classList.add('hidden');
+  // Hide reel tabs in editor
+  const tabsEl = $('editor-reel-tabs');
+  if (tabsEl) tabsEl.classList.add('hidden');
+});
