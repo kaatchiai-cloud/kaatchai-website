@@ -1521,7 +1521,7 @@ input:focus, select:focus, textarea:focus {
 }
 .reel-settings { justify-content: center; }
 .reel-lang-row { display: flex; gap: 10px; justify-content: center; }
-.reel-dropdown-section { flex: 1; position: relative; }
+.reel-dropdown-section { position: relative; }
 .reel-dropdown-btn {
   text-align: left; padding: 5px 8px;
   background: var(--bg-input); border: 1px solid var(--border);
@@ -1561,6 +1561,25 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 .reel-summary::-webkit-details-marker { display: none; }
 .reel-details-body { padding: 0 14px 12px; }
 .reel-editor-vertical { display: flex; flex-direction: column; align-items: center; }
+.reel-all-previews {
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; width: 100%;
+}
+.reel-all-previews:empty { display: none; }
+.reel-all-previews:not(:empty) + #reel-single-preview { display: none; }
+.reel-preview-card {
+  width: 160px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; text-align: center;
+}
+.reel-preview-card video {
+  width: 100%; aspect-ratio: var(--reel-aspect, 9/16); object-fit: cover; display: block;
+}
+.reel-preview-card .reel-preview-label {
+  font-size: var(--text-2xs); padding: 3px 6px; color: var(--text-secondary);
+}
+.reel-preview-card .reel-preview-controls {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 4px; background: var(--bg-input);
+}
 .reel-canvas-wrap {
   width: 220px; border-radius: var(--radius);
   overflow: hidden; border: 1px solid var(--border); background: #000;
@@ -2335,15 +2354,20 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
     <div class="reel-step hidden" id="reel-step-editor">
       <h3><span class="step-num">4</span> Preview & Edit</h3>
       <div class="reel-editor-vertical">
-        <div class="reel-canvas-wrap">
-          <canvas id="reel-canvas" width="1080" height="1920"></canvas>
-        </div>
-        <div class="reel-playback form-row mt-md">
-          <button id="btn-reel-play" class="btn-sm">▶ Play</button>
-          <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
-          <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
-          <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
-          <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+        <!-- All reel previews rendered here -->
+        <div id="reel-all-previews" class="reel-all-previews"></div>
+        <!-- Single reel preview (fallback for non-multi) -->
+        <div id="reel-single-preview">
+          <div class="reel-canvas-wrap">
+            <canvas id="reel-canvas" width="1080" height="1920"></canvas>
+          </div>
+          <div class="reel-playback form-row mt-sm">
+            <button id="btn-reel-play" class="btn-sm">▶ Play</button>
+            <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
+            <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
+            <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
+            <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+          </div>
         </div>
         <div class="reel-scenes mt-md" id="reel-scene-list"></div>
         <div class="reel-settings mt-md">
@@ -12630,20 +12654,20 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       allReelResults.push({ audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end });
     }
 
-    // Show results — use first reel for preview
+    // Show results — all segments
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
     setStatus(`${allReelResults.length} Reels generated`);
 
-    // Store all results, show first in preview
     window._reelMultiResults = allReelResults;
+    // Use first for main preview
     const first = allReelResults[0];
     reelAudioBuffer = first.audioBuffer;
     reelScenes = first.scenes;
     reelWords = first.words;
 
     reelStepEditor.classList.remove('hidden');
-    renderReelScenes();
+    renderAllReelPreviews();
     renderReelFrame(0);
     btnReelGenerate.disabled = false;
     return;
@@ -12884,6 +12908,57 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 });
 
 // ── Mini Editor ──
+function renderAllReelPreviews() {
+  const container = $('reel-all-previews');
+  if (!container || !window._reelMultiResults) return;
+  const results = window._reelMultiResults;
+  container.innerHTML = results.map((r, i) => `
+    <div class="reel-preview-card">
+      <video class="reel-multi-vid" data-ri="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata"></video>
+      <div class="reel-preview-label">Reel ${i + 1} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
+      <div class="reel-preview-controls">
+        <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
+        <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
+        <span class="text-2xs text-muted reel-mp-time" id="reel-mp-time-${i}">0:00</span>
+      </div>
+    </div>
+  `).join('');
+  // Seek each to start
+  container.querySelectorAll('.reel-multi-vid').forEach(v => {
+    const idx = parseInt(v.dataset.ri);
+    v.currentTime = results[idx].videoStart;
+  });
+  // Play/stop handlers
+  container.querySelectorAll('.reel-mp-play').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      const r = results[idx];
+      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
+      if (!vid) return;
+      // Stop all others
+      container.querySelectorAll('.reel-multi-vid').forEach(v => { v.pause(); v.muted = true; });
+      vid.currentTime = r.videoStart;
+      vid.muted = false;
+      vid.play();
+      const timeEl = $(`reel-mp-time-${idx}`);
+      const iv = setInterval(() => {
+        if (vid.paused || vid.currentTime >= r.videoEnd) { vid.pause(); vid.muted = true; clearInterval(iv); return; }
+        if (timeEl) timeEl.textContent = fmtShort(vid.currentTime - r.videoStart);
+      }, 100);
+    });
+  });
+  container.querySelectorAll('.reel-mp-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      const r = results[idx];
+      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
+      if (vid) { vid.pause(); vid.muted = true; vid.currentTime = r.videoStart; }
+      const timeEl = $(`reel-mp-time-${idx}`);
+      if (timeEl) timeEl.textContent = '0:00';
+    });
+  });
+}
+
 function renderReelScenes() {
   if (!reelSceneList || !reelScenes) return;
   // Hide style/transition for video mode in mini editor

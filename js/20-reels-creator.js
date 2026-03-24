@@ -482,20 +482,20 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       allReelResults.push({ audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end });
     }
 
-    // Show results — use first reel for preview
+    // Show results — all segments
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
     setStatus(`${allReelResults.length} Reels generated`);
 
-    // Store all results, show first in preview
     window._reelMultiResults = allReelResults;
+    // Use first for main preview
     const first = allReelResults[0];
     reelAudioBuffer = first.audioBuffer;
     reelScenes = first.scenes;
     reelWords = first.words;
 
     reelStepEditor.classList.remove('hidden');
-    renderReelScenes();
+    renderAllReelPreviews();
     renderReelFrame(0);
     btnReelGenerate.disabled = false;
     return;
@@ -736,6 +736,57 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 });
 
 // ── Mini Editor ──
+function renderAllReelPreviews() {
+  const container = $('reel-all-previews');
+  if (!container || !window._reelMultiResults) return;
+  const results = window._reelMultiResults;
+  container.innerHTML = results.map((r, i) => `
+    <div class="reel-preview-card">
+      <video class="reel-multi-vid" data-ri="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata"></video>
+      <div class="reel-preview-label">Reel ${i + 1} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
+      <div class="reel-preview-controls">
+        <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
+        <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
+        <span class="text-2xs text-muted reel-mp-time" id="reel-mp-time-${i}">0:00</span>
+      </div>
+    </div>
+  `).join('');
+  // Seek each to start
+  container.querySelectorAll('.reel-multi-vid').forEach(v => {
+    const idx = parseInt(v.dataset.ri);
+    v.currentTime = results[idx].videoStart;
+  });
+  // Play/stop handlers
+  container.querySelectorAll('.reel-mp-play').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      const r = results[idx];
+      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
+      if (!vid) return;
+      // Stop all others
+      container.querySelectorAll('.reel-multi-vid').forEach(v => { v.pause(); v.muted = true; });
+      vid.currentTime = r.videoStart;
+      vid.muted = false;
+      vid.play();
+      const timeEl = $(`reel-mp-time-${idx}`);
+      const iv = setInterval(() => {
+        if (vid.paused || vid.currentTime >= r.videoEnd) { vid.pause(); vid.muted = true; clearInterval(iv); return; }
+        if (timeEl) timeEl.textContent = fmtShort(vid.currentTime - r.videoStart);
+      }, 100);
+    });
+  });
+  container.querySelectorAll('.reel-mp-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      const r = results[idx];
+      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
+      if (vid) { vid.pause(); vid.muted = true; vid.currentTime = r.videoStart; }
+      const timeEl = $(`reel-mp-time-${idx}`);
+      if (timeEl) timeEl.textContent = '0:00';
+    });
+  });
+}
+
 function renderReelScenes() {
   if (!reelSceneList || !reelScenes) return;
   // Hide style/transition for video mode in mini editor

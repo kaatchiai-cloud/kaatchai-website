@@ -1502,7 +1502,7 @@ input:focus, select:focus, textarea:focus {
 }
 .reel-settings { justify-content: center; }
 .reel-lang-row { display: flex; gap: 10px; justify-content: center; }
-.reel-dropdown-section { flex: 1; position: relative; }
+.reel-dropdown-section { position: relative; }
 .reel-dropdown-btn {
   text-align: left; padding: 5px 8px;
   background: var(--bg-input); border: 1px solid var(--border);
@@ -1542,6 +1542,25 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 .reel-summary::-webkit-details-marker { display: none; }
 .reel-details-body { padding: 0 14px 12px; }
 .reel-editor-vertical { display: flex; flex-direction: column; align-items: center; }
+.reel-all-previews {
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; width: 100%;
+}
+.reel-all-previews:empty { display: none; }
+.reel-all-previews:not(:empty) + #reel-single-preview { display: none; }
+.reel-preview-card {
+  width: 160px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; text-align: center;
+}
+.reel-preview-card video {
+  width: 100%; aspect-ratio: var(--reel-aspect, 9/16); object-fit: cover; display: block;
+}
+.reel-preview-card .reel-preview-label {
+  font-size: var(--text-2xs); padding: 3px 6px; color: var(--text-secondary);
+}
+.reel-preview-card .reel-preview-controls {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 4px; background: var(--bg-input);
+}
 .reel-canvas-wrap {
   width: 220px; border-radius: var(--radius);
   overflow: hidden; border: 1px solid var(--border); background: #000;
