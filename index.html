@@ -608,7 +608,7 @@
             <label class="form-label">Start: <input type="number" id="reel-seg-start" step="0.1" min="0" value="0" style="width:65px;">s</label>
             <label class="form-label">End: <input type="number" id="reel-seg-end" step="0.1" min="0" value="60" style="width:65px;">s</label>
             <span id="reel-segment-info" class="text-xs text-muted">Duration: 60.0s</span>
-            <button id="btn-reel-use-segment" class="btn-xs primary">✓ Use Segment</button>
+            <button id="btn-reel-add-segment" class="btn-xs primary">+ Add Segment</button>
           </div>
         </div>
       </div>
@@ -617,6 +617,7 @@
     <!-- Reel Step 3: Presets (shown after input is ready) -->
     <div class="reel-step hidden" id="reel-step-presets">
       <h3><span class="step-num">3</span> Presets</h3>
+      <div id="reel-preset-segments" class="mb-md"></div>
       <div id="reel-edit-mode-row" class="form-row mb-md hidden">
         <span class="text-sm text-secondary">Edit mode:</span>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
@@ -651,7 +652,8 @@
           </select>
         </label>
         <div class="reel-dropdown-section">
-          <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitles <span id="sub-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+          <label class="form-label">Subtitles:
+          <button id="btn-toggle-sub-langs" class="reel-dropdown-btn"><span id="sub-lang-count">none</span> ▾</button></label>
           <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
             <div id="reel-subtitle-languages" class="reel-checkbox-grid">
               <label><input type="checkbox" value="en"> English</label>
@@ -665,7 +667,8 @@
           </div>
         </div>
         <div class="reel-dropdown-section">
-          <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+          <label class="form-label">Audio:
+          <button id="btn-toggle-audio-langs" class="reel-dropdown-btn"><span id="audio-lang-count">none</span> ▾</button></label>
           <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
             <div id="reel-audio-languages" class="reel-checkbox-grid">
               <label><input type="checkbox" value="ta"> Tamil</label>
@@ -680,7 +683,6 @@
         </div>
       </div>
       <div id="reel-audio-gen-row" class="form-row mt-sm hidden">
-        <button id="btn-reel-gen-audio-langs" class="btn-xs primary">🌐 Generate Audio Tracks</button>
         <span id="reel-audio-lang-status" class="text-xs text-muted"></span>
         <span id="reel-audio-lang-list" class="text-xs"></span>
       </div>

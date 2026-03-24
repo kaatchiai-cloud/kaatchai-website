@@ -66,6 +66,8 @@ let reelPlaying = false;
 let reelAnimId = null;
 let reelStartTime = 0;
 let reelBgmBuffer = null;
+let reelSegments = []; // [{start, end, thumbDataUrl}] — each becomes a separate reel
+let reelOriginalAudioBuffer = null; // preserve full audio for multi-segment extraction
 
 // ── Reel API Keys (free for subtitles, paid for image gen) ──
 const reelApiKeyFreeEl = $('reel-api-key-free');
@@ -211,6 +213,8 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     // Extract audio for waveform
     const arrayBuf = await file.arrayBuffer();
     reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    reelOriginalAudioBuffer = reelAudioBuffer;
+    reelSegments = [];
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
@@ -307,31 +311,114 @@ if (btnReelVidStop) btnReelVidStop.addEventListener('click', () => {
   if (reelPreviewVideo) { reelPreviewVideo.pause(); reelPreviewVideo.currentTime = 0; }
   if (reelWavesurfer) reelWavesurfer.stop();
 });
-// Update time display
-if (reelPreviewVideo) reelPreviewVideo.addEventListener('timeupdate', () => {
-  if (reelVidTime) reelVidTime.textContent = fmtShort(reelPreviewVideo.currentTime);
-});
+// Update time display — use interval since timeupdate is unreliable on muted video
+setInterval(() => {
+  if (reelPreviewVideo && reelVidTime && !reelPreviewVideo.paused) {
+    reelVidTime.textContent = fmtShort(reelPreviewVideo.currentTime);
+  }
+}, 200);
 
-if (btnReelUseSegment) btnReelUseSegment.addEventListener('click', async () => {
-  if (!reelRegion || !reelAudioBuffer) return;
-  // Stop video playback
-  if (reelPreviewVideo) { reelPreviewVideo.pause(); }
-  if (reelWavesurfer) reelWavesurfer.pause();
-  // Extract the selected segment
+const btnReelAddSegment = $('btn-reel-add-segment');
+if (btnReelAddSegment) btnReelAddSegment.addEventListener('click', () => {
+  if (!reelRegion || !reelVideoEl) return;
   const start = reelRegion.start;
   const end = reelRegion.end;
-  reelAudioBuffer = extractRegion(reelAudioBuffer, start, end);
-  reelSegmentInfo.textContent = `Segment extracted: ${fmtShort(end - start)}`;
-  btnReelUseSegment.textContent = '✓ Segment Ready';
-  btnReelUseSegment.disabled = true;
-  showReelPresets();
-  // Preview: play the extracted segment once
-  if (reelPreviewVideo) {
-    reelPreviewVideo.currentTime = start;
-    reelPreviewVideo.play();
-    setTimeout(() => { reelPreviewVideo.pause(); }, (end - start) * 1000);
-  }
+  if (end - start < 1) return;
+
+  // Stop playback
+  if (reelPreviewVideo) reelPreviewVideo.pause();
+  if (reelWavesurfer) reelWavesurfer.pause();
+
+  // Generate thumbnail from segment start
+  reelPreviewVideo.currentTime = start;
+  setTimeout(() => {
+    const tc = document.createElement('canvas');
+    tc.width = 100; tc.height = 56;
+    try { tc.getContext('2d').drawImage(reelPreviewVideo, 0, 0, 100, 56); } catch(e) {}
+    const thumbDataUrl = tc.toDataURL('image/jpeg', 0.6);
+
+    reelSegments.push({ start, end, thumbDataUrl });
+    renderReelPresetSegments();
+    showReelPresets();
+  }, 300);
 });
+
+let segPreviewPlaying = null; // index of currently playing segment
+
+function renderReelPresetSegments() {
+  const container = $('reel-preset-segments');
+  if (!container) return;
+  if (reelSegments.length === 0) { container.innerHTML = ''; return; }
+  container.innerHTML = `<div class="reel-segments-list">${reelSegments.map((seg, i) => `
+    <div class="reel-seg-card" data-seg="${i}">
+      <img src="${seg.thumbDataUrl}" style="width:100%; height:56px; object-fit:cover;">
+      <div class="reel-seg-info">
+        <span class="text-2xs">${fmtShort(seg.start)} — ${fmtShort(seg.end)} (${(seg.end - seg.start).toFixed(0)}s)</span>
+      </div>
+      <div class="reel-seg-controls">
+        <button class="btn-xs seg-play" data-si="${i}">▶</button>
+        <button class="btn-xs seg-pause hidden" data-si="${i}">⏸</button>
+        <button class="btn-xs seg-stop" data-si="${i}">⏹</button>
+        <span class="seg-time text-2xs text-muted" id="seg-time-${i}">0:00</span>
+      </div>
+      <button class="reel-seg-remove" data-seg-del="${i}">✕</button>
+    </div>
+  `).join('')}</div>`;
+
+  // Play handlers
+  container.querySelectorAll('.seg-play').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.si);
+      const seg = reelSegments[idx];
+      if (!reelPreviewVideo || !seg) return;
+      stopSegPreview();
+      segPreviewPlaying = idx;
+      reelPreviewVideo.currentTime = seg.start;
+      reelPreviewVideo.muted = false;
+      reelPreviewVideo.play();
+      btn.classList.add('hidden');
+      container.querySelector(`.seg-pause[data-si="${idx}"]`).classList.remove('hidden');
+      // Update time + auto-stop at end
+      const timeEl = $(`seg-time-${idx}`);
+      const interval = setInterval(() => {
+        if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
+        const elapsed = reelPreviewVideo.currentTime - seg.start;
+        if (timeEl) timeEl.textContent = fmtShort(Math.max(0, elapsed));
+        if (reelPreviewVideo.currentTime >= seg.end) {
+          stopSegPreview();
+          clearInterval(interval);
+        }
+      }, 100);
+    });
+  });
+  container.querySelectorAll('.seg-pause').forEach(btn => {
+    btn.addEventListener('click', () => stopSegPreview());
+  });
+  container.querySelectorAll('.seg-stop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stopSegPreview();
+      const idx = parseInt(btn.dataset.si);
+      const timeEl = $(`seg-time-${idx}`);
+      if (timeEl) timeEl.textContent = '0:00';
+    });
+  });
+  // Remove handlers
+  container.querySelectorAll('.reel-seg-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stopSegPreview();
+      reelSegments.splice(parseInt(btn.dataset.segDel), 1);
+      renderReelPresetSegments();
+    });
+  });
+}
+
+function stopSegPreview() {
+  if (reelPreviewVideo) { reelPreviewVideo.pause(); reelPreviewVideo.muted = true; }
+  segPreviewPlaying = null;
+  // Reset play/pause buttons
+  document.querySelectorAll('.seg-play').forEach(b => b.classList.remove('hidden'));
+  document.querySelectorAll('.seg-pause').forEach(b => b.classList.add('hidden'));
+}
 
 // ── Preset handlers ──
 if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; });
@@ -343,6 +430,65 @@ if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { 
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   const key = getReelApiKey();
   if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
+
+  // Video mode with multiple segments — process each as separate reel
+  if (reelInputMode === 'video' && reelSegments.length > 0 && reelVideoEl) {
+    btnReelGenerate.disabled = true;
+    reelProgressEl.classList.remove('hidden');
+    const allReelResults = [];
+    for (let si = 0; si < reelSegments.length; si++) {
+      const seg = reelSegments[si];
+      reelProgressLabel.textContent = `Processing Reel ${si + 1} of ${reelSegments.length}...`;
+      reelProgressBar.style.width = `${(si / reelSegments.length * 100).toFixed(0)}%`;
+      setStatus(`Processing Reel ${si + 1}/${reelSegments.length}...`, true);
+
+      // Extract audio for this segment from original full buffer
+      const segAudio = extractRegion(reelOriginalAudioBuffer || reelAudioBuffer, seg.start, seg.end);
+      const platform = REEL_PLATFORMS[reelPlatform];
+      const transPreset = REEL_TRANSITIONS[reelTransition] || REEL_TRANSITIONS['whip-pan'];
+
+      // Transcribe segment
+      const wavBlob = audioBufferToWavBlob(segAudio);
+      const b64Audio = await blobToBase64(wavBlob);
+      const segDur = Math.max(3, Math.min(10, segAudio.duration / 6));
+      const transcribeBody = {
+        contents: [{ parts: [
+          { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
+          { text: `Transcribe this audio with word-level timestamps. Return JSON array: [{"startTime": 0.0, "endTime": 5.0, "text": "...", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. Segments of ${segDur.toFixed(0)}-${(segDur*2).toFixed(0)} seconds. Full duration: ${segAudio.duration.toFixed(1)}s.` }
+        ]}]
+      };
+      const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
+      trackCost('transcription', 1);
+      const segments = parseGeminiJson(transcribeData.candidates?.[0]?.content?.parts?.[0]?.text);
+
+      const words = [];
+      for (const s of segments) { if (s.words) words.push(...s.words); }
+
+      const scenes = reelEditMode === 'subtitles'
+        ? [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }]
+        : segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
+
+      allReelResults.push({ audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end });
+    }
+
+    // Show results — use first reel for preview
+    reelProgressBar.style.width = '100%';
+    reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
+    setStatus(`${allReelResults.length} Reels generated`);
+
+    // Store all results, show first in preview
+    window._reelMultiResults = allReelResults;
+    const first = allReelResults[0];
+    reelAudioBuffer = first.audioBuffer;
+    reelScenes = first.scenes;
+    reelWords = first.words;
+
+    reelStepEditor.classList.remove('hidden');
+    renderReelScenes();
+    renderReelFrame(0);
+    btnReelGenerate.disabled = false;
+    return;
+  }
 
   // Get audio — from text input if text mode
   if (reelInputMode === 'text') {
@@ -505,7 +651,65 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }
     }
 
-    // Step 3: Show mini editor
+    // Auto-generate subtitle translations + audio languages if selected
+    const selectedSubLangs = [...document.querySelectorAll('#reel-subtitle-languages input:checked')].map(cb => cb.value);
+    const selectedAudioLangs = [...document.querySelectorAll('#reel-audio-languages input:checked')].map(cb => cb.value);
+    const allLangs = [...new Set([...selectedSubLangs, ...selectedAudioLangs])];
+    const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+    const originalText = reelWords.map(w => w.word).join(' ');
+
+    if (allLangs.length > 0 && originalText) {
+      for (const lang of allLangs) {
+        reelProgressLabel.textContent = `Translating to ${langNames[lang] || lang}...`;
+        setStatus(`Translating to ${langNames[lang]}...`, true);
+        try {
+          const transBody = { contents: [{ parts: [{ text: `Translate to ${langNames[lang]}. Return ONLY the translated text:\n\n${originalText}` }] }] };
+          const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
+          trackCost('textGeneration', 1);
+          const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (translated) {
+            // Map translated words to original timings
+            const transWords = translated.split(/\s+/);
+            const totalDur = reelWords.length > 0 ? reelWords[reelWords.length - 1].end - reelWords[0].start : 0;
+            const wordDur = totalDur / transWords.length;
+            const st = reelWords.length > 0 ? reelWords[0].start : 0;
+            reelTranslatedWords[lang] = transWords.map((w, i) => ({ word: w, start: st + i * wordDur, end: st + (i + 1) * wordDur }));
+
+            // Generate TTS if audio language selected
+            if (selectedAudioLangs.includes(lang)) {
+              reelProgressLabel.textContent = `Generating ${langNames[lang]} audio...`;
+              try {
+                const ttsModels = getTTSModels();
+                const ttsResp = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+                  { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: translated }] }],
+                      generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+                    })
+                  }
+                );
+                if (ttsResp.ok) {
+                  const ttsData = await ttsResp.json();
+                  const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+                  if (part?.inlineData?.data) {
+                    trackCost('ttsPerLang', 1);
+                    const b64 = part.inlineData.data;
+                    const binary = atob(b64);
+                    const buf = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+                    const audioBuffer = await audioCtx.decodeAudioData(buf.buffer);
+                    reelAudioTracks.push({ langCode: lang, lang: langNames[lang], audioBuffer, translatedText: translated });
+                  }
+                }
+              } catch(e) { /* TTS failed for this lang, continue */ }
+            }
+          }
+        } catch(e) { /* translation failed, continue */ }
+      }
+      updateReelSubtitleLangDropdown();
+    }
+
+    // Show mini editor
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = 'Done!';
     setStatus('Reel generated!');
