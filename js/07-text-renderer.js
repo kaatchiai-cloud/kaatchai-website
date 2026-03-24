@@ -234,9 +234,11 @@
       const outline = typeof reelSubOutline !== 'undefined' ? reelSubOutline : '#000000';
       const backdrop = typeof reelSubBackdrop !== 'undefined' ? reelSubBackdrop : 'dark';
       const accentColor = 'var(--accent)' === 'var(--accent)' ? '#a078ff' : '#a078ff'; // resolved
-      const fontSize = Math.round(cw * 0.045);
+      const sizeFactor = typeof reelSubSize !== 'undefined' ? reelSubSize / 100 : 0.04;
+      const fontSize = Math.round(cw * sizeFactor);
       const font = `700 ${fontSize}px Poppins, sans-serif`;
-      const y = ch * 0.82;
+      const pos = typeof reelSubPosition !== 'undefined' ? reelSubPosition : 'bottom';
+      const y = pos === 'top' ? ch * 0.12 : pos === 'center' ? ch * 0.52 : ch * 0.85;
       const maxWidth = cw * 0.9;
 
       function drawBackdrop(x, bY, w, h) {

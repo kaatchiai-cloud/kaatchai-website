@@ -502,7 +502,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       allReelResults.push({
         audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end,
         lang: 'original', langLabel: 'Original',
-        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop },
+        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
       });
     } catch(segErr) {
       reelProgressLabel.textContent = `Reel ${si + 1} failed: ${friendlyApiError(segErr.message)}`;
@@ -573,6 +573,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     renderReelScenes();
     renderReelFrame(0);
     reelProgressEl.classList.add('hidden');
+    setStatus(`${allReelResults.length} Reel(s) ready`);
     btnReelGenerate.disabled = false;
     return;
   }
@@ -768,7 +769,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 
     if (allLangs.length > 0 && reelWords && reelWords.length > 0) {
       // Clone original reels before adding variants
-      const originalReels = [...(window._reelMultiResults || [{ audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, lang: 'original', langLabel: 'Original', settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop } }])];
+      const originalReels = [...(window._reelMultiResults || [{ audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, lang: 'original', langLabel: 'Original', settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition } }])];
 
       for (const lang of allLangs) {
         reelProgressLabel.textContent = `Translating to ${langNames[lang] || lang}...`;
@@ -937,7 +938,7 @@ function saveActiveReelSettings() {
   results[activeReelPreview].settings = {
     subtitleStyle: reelSubtitleStyle, transition: reelTransition,
     viewport: reelViewport, viewportX: reelViewportX,
-    subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop,
+    subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition,
   };
 }
 
@@ -958,6 +959,8 @@ function selectReelPreview(idx) {
     reelSubColor = r.settings.subColor || '#ffffff';
     reelSubOutline = r.settings.subOutline || '#000000';
     reelSubBackdrop = r.settings.subBackdrop || 'dark';
+    reelSubSize = r.settings.subSize || 4;
+    reelSubPosition = r.settings.subPosition || 'bottom';
     // Sync UI controls
     const subStyleEl = $('reel-subtitle-style');
     if (subStyleEl) subStyleEl.value = reelSubtitleStyle;
@@ -971,6 +974,12 @@ function selectReelPreview(idx) {
     if (soEl) soEl.value = reelSubOutline;
     const sbEl = $('reel-sub-backdrop-preset');
     if (sbEl) sbEl.value = reelSubBackdrop;
+    const ssEl = $('reel-sub-size');
+    if (ssEl) ssEl.value = reelSubSize;
+    const slEl = $('reel-sub-size-label');
+    if (slEl) slEl.textContent = reelSubSize;
+    const spEl = $('reel-sub-position');
+    if (spEl) spEl.value = reelSubPosition;
   }
   renderReelScenes();
   renderReelFrame(0);
@@ -1279,6 +1288,21 @@ const reelSubBackdropPreset = $('reel-sub-backdrop-preset');
 if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; saveActiveReelSettings(); });
 if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; saveActiveReelSettings(); });
 if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; saveActiveReelSettings(); });
+
+const reelSubSizeEl = $('reel-sub-size');
+const reelSubSizeLabel = $('reel-sub-size-label');
+const reelSubPositionEl = $('reel-sub-position');
+if (reelSubSizeEl) reelSubSizeEl.addEventListener('input', () => {
+  reelSubSize = parseFloat(reelSubSizeEl.value);
+  if (reelSubSizeLabel) reelSubSizeLabel.textContent = reelSubSize;
+  saveActiveReelSettings();
+  renderReelFrame(0);
+});
+if (reelSubPositionEl) reelSubPositionEl.addEventListener('change', () => {
+  reelSubPosition = reelSubPositionEl.value;
+  saveActiveReelSettings();
+  renderReelFrame(0);
+});
 
 // ── Viewport Controls ──
 const reelViewportEl = $('reel-viewport');
