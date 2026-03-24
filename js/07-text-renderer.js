@@ -234,22 +234,23 @@
       const outline = typeof reelSubOutline !== 'undefined' ? reelSubOutline : '#000000';
       const backdrop = typeof reelSubBackdrop !== 'undefined' ? reelSubBackdrop : 'dark';
       const accentColor = 'var(--accent)' === 'var(--accent)' ? '#a078ff' : '#a078ff'; // resolved
-      const fontSize = Math.round(cw * 0.06);
+      const fontSize = Math.round(cw * 0.045);
       const font = `700 ${fontSize}px Poppins, sans-serif`;
-      const y = ch * 0.78;
-      const maxWidth = cw * 0.85;
+      const y = ch * 0.82;
+      const maxWidth = cw * 0.9;
 
       function drawBackdrop(x, bY, w, h) {
-        if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(x, bY, w, h); }
-        else if (backdrop === 'blur') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(x, bY, w, h); }
-        // 'none' = no backdrop
+        const bw = Math.min(w, maxWidth + 32);
+        const bx = Math.max(0, cw/2 - bw/2);
+        if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx, bY, bw, h); }
+        else if (backdrop === 'blur') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(bx, bY, bw, h); }
       }
       function drawTextWithOutline(text, tx, ty) {
         if (outline && outline !== 'transparent') {
           ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-          ctx.strokeText(text, tx, ty);
+          ctx.strokeText(text, tx, ty, maxWidth);
         }
-        ctx.fillText(text, tx, ty);
+        ctx.fillText(text, tx, ty, maxWidth);
       }
 
       if (style === 'word-by-word') {
