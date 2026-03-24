@@ -314,6 +314,9 @@ if (reelPreviewVideo) reelPreviewVideo.addEventListener('timeupdate', () => {
 
 if (btnReelUseSegment) btnReelUseSegment.addEventListener('click', async () => {
   if (!reelRegion || !reelAudioBuffer) return;
+  // Stop video playback
+  if (reelPreviewVideo) { reelPreviewVideo.pause(); }
+  if (reelWavesurfer) reelWavesurfer.pause();
   // Extract the selected segment
   const start = reelRegion.start;
   const end = reelRegion.end;
@@ -321,6 +324,13 @@ if (btnReelUseSegment) btnReelUseSegment.addEventListener('click', async () => {
   reelSegmentInfo.textContent = `Segment extracted: ${fmtShort(end - start)}`;
   btnReelUseSegment.textContent = '✓ Segment Ready';
   btnReelUseSegment.disabled = true;
+  showReelPresets();
+  // Preview: play the extracted segment once
+  if (reelPreviewVideo) {
+    reelPreviewVideo.currentTime = start;
+    reelPreviewVideo.play();
+    setTimeout(() => { reelPreviewVideo.pause(); }, (end - start) * 1000);
+  }
 });
 
 // ── Preset handlers ──
@@ -704,27 +714,40 @@ const reelAudioLangPanel = $('reel-audio-lang-panel');
 const subLangCount = $('sub-lang-count');
 const audioLangCount = $('audio-lang-count');
 
-if (btnToggleSubLangs) btnToggleSubLangs.addEventListener('click', () => {
+if (btnToggleSubLangs) btnToggleSubLangs.addEventListener('click', (e) => {
+  e.stopPropagation();
   reelSubLangPanel.classList.toggle('hidden');
+  if (reelAudioLangPanel) reelAudioLangPanel.classList.add('hidden');
 });
-if (btnToggleAudioLangs) btnToggleAudioLangs.addEventListener('click', () => {
+if (btnToggleAudioLangs) btnToggleAudioLangs.addEventListener('click', (e) => {
+  e.stopPropagation();
   reelAudioLangPanel.classList.toggle('hidden');
+  if (reelSubLangPanel) reelSubLangPanel.classList.add('hidden');
 });
+// Close dropdowns on outside click
+document.addEventListener('click', () => {
+  if (reelSubLangPanel) reelSubLangPanel.classList.add('hidden');
+  if (reelAudioLangPanel) reelAudioLangPanel.classList.add('hidden');
+});
+if (reelSubLangPanel) reelSubLangPanel.addEventListener('click', (e) => e.stopPropagation());
+if (reelAudioLangPanel) reelAudioLangPanel.addEventListener('click', (e) => e.stopPropagation());
 
 function updateLangCounts() {
   const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
   // Subtitle count
-  const subChecked = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked:not(:disabled)');
+  const subChecked = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked');
   if (subLangCount) {
     const names = [...subChecked].map(cb => langNames[cb.value] || cb.value);
-    subLangCount.textContent = names.length > 0 ? `(Original + ${names.join(', ')})` : '(Original)';
+    subLangCount.textContent = names.length > 0 ? `(${names.join(', ')})` : '(none)';
   }
-  // Audio count
+  // Audio count + show/hide generate button
   const audioChecked = document.querySelectorAll('#reel-audio-languages input[type="checkbox"]:checked');
   if (audioLangCount) {
     const names = [...audioChecked].map(cb => langNames[cb.value] || cb.value);
     audioLangCount.textContent = names.length > 0 ? `(${names.join(', ')})` : '(none)';
   }
+  const audioGenRow = $('reel-audio-gen-row');
+  if (audioGenRow) audioGenRow.classList.toggle('hidden', audioChecked.length === 0);
 }
 
 // Update counts on checkbox change

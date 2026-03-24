@@ -1457,9 +1457,8 @@ input:focus, select:focus, textarea:focus {
   padding: 16px 18px; margin-bottom: 12px;
 }
 .reel-step h3 { font-size: var(--text-md); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-.reel-presets-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px; max-width: 600px; margin: 0 auto;
+.reel-presets-row {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: flex-start;
 }
 .reel-step { text-align: center; }
 .reel-step h3 { justify-content: center; }
@@ -1468,7 +1467,7 @@ input:focus, select:focus, textarea:focus {
 .reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
 .reel-step select { cursor: pointer; }
 .reel-settings { justify-content: center; }
-.reel-lang-row { display: flex; gap: 10px; justify-content: center; max-width: 500px; margin: 0 auto; }
+.reel-lang-row { display: flex; gap: 10px; justify-content: center; }
 .reel-dropdown-section { flex: 1; position: relative; }
 .reel-dropdown-btn {
   width: 100%; text-align: left; padding: 6px 10px;

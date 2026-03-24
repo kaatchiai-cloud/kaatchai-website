@@ -622,7 +622,7 @@
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="auto-cut"> Auto-cut + Subtitles</label>
       </div>
-      <div class="reel-presets-grid">
+      <div class="reel-presets-row">
         <label class="form-label">Platform:
           <select id="reel-platform">
             <option value="instagram">Instagram Reel</option>
@@ -650,47 +650,41 @@
             <option value="flash">Flash</option>
           </select>
         </label>
-      </div>
-
-      <!-- Language dropdowns in one row -->
-      <div class="reel-lang-row mt-md">
-      <div class="reel-dropdown-section">
-        <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitles <span id="sub-lang-count" class="text-xs text-muted">(Original)</span> ▾</button>
-        <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
-          <div id="reel-subtitle-languages" class="reel-checkbox-grid">
-            <label><input type="checkbox" value="original" checked disabled> Original</label>
-            <label><input type="checkbox" value="en"> English</label>
-            <label><input type="checkbox" value="ta"> Tamil</label>
-            <label><input type="checkbox" value="hi"> Hindi</label>
-            <label><input type="checkbox" value="te"> Telugu</label>
-            <label><input type="checkbox" value="ml"> Malayalam</label>
-            <label><input type="checkbox" value="es"> Spanish</label>
-            <label><input type="checkbox" value="fr"> French</label>
+        <div class="reel-dropdown-section">
+          <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitles <span id="sub-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+          <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
+            <div id="reel-subtitle-languages" class="reel-checkbox-grid">
+              <label><input type="checkbox" value="en"> English</label>
+              <label><input type="checkbox" value="ta"> Tamil</label>
+              <label><input type="checkbox" value="hi"> Hindi</label>
+              <label><input type="checkbox" value="te"> Telugu</label>
+              <label><input type="checkbox" value="ml"> Malayalam</label>
+              <label><input type="checkbox" value="es"> Spanish</label>
+              <label><input type="checkbox" value="fr"> French</label>
+            </div>
+          </div>
+        </div>
+        <div class="reel-dropdown-section">
+          <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+          <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
+            <div id="reel-audio-languages" class="reel-checkbox-grid">
+              <label><input type="checkbox" value="ta"> Tamil</label>
+              <label><input type="checkbox" value="hi"> Hindi</label>
+              <label><input type="checkbox" value="te"> Telugu</label>
+              <label><input type="checkbox" value="ml"> Malayalam</label>
+              <label><input type="checkbox" value="en"> English</label>
+              <label><input type="checkbox" value="es"> Spanish</label>
+              <label><input type="checkbox" value="fr"> French</label>
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="reel-dropdown-section">
-        <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
-        <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
-          <p class="text-xs text-muted mb-sm">AI voiceover in other languages. Free tier (rate limited).</p>
-          <div id="reel-audio-languages" class="reel-checkbox-grid mb-sm">
-            <label><input type="checkbox" value="ta"> Tamil</label>
-            <label><input type="checkbox" value="hi"> Hindi</label>
-            <label><input type="checkbox" value="te"> Telugu</label>
-            <label><input type="checkbox" value="ml"> Malayalam</label>
-            <label><input type="checkbox" value="en"> English</label>
-            <label><input type="checkbox" value="es"> Spanish</label>
-            <label><input type="checkbox" value="fr"> French</label>
-          </div>
-          <div class="form-row">
-            <button id="btn-reel-gen-audio-langs" class="btn-xs primary">🌐 Generate</button>
-            <span id="reel-audio-lang-status" class="text-xs text-muted"></span>
-          </div>
-          <div id="reel-audio-lang-list" class="mt-sm"></div>
-        </div>
+      <div id="reel-audio-gen-row" class="form-row mt-sm hidden">
+        <button id="btn-reel-gen-audio-langs" class="btn-xs primary">🌐 Generate Audio Tracks</button>
+        <span id="reel-audio-lang-status" class="text-xs text-muted"></span>
+        <span id="reel-audio-lang-list" class="text-xs"></span>
       </div>
-      </div><!-- close reel-lang-row -->
+
 
       <div class="form-row mt-md">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
