@@ -12457,12 +12457,10 @@ if (btnReelVidStop) btnReelVidStop.addEventListener('click', () => {
   if (reelPreviewVideo) { reelPreviewVideo.pause(); reelPreviewVideo.currentTime = 0; }
   if (reelWavesurfer) reelWavesurfer.stop();
 });
-// Update time display — use interval since timeupdate is unreliable on muted video
-setInterval(() => {
-  if (reelPreviewVideo && reelVidTime && !reelPreviewVideo.paused) {
-    reelVidTime.textContent = fmtShort(reelPreviewVideo.currentTime);
-  }
-}, 200);
+// Update time display — use timeupdate event, not interval
+if (reelPreviewVideo) reelPreviewVideo.addEventListener('timeupdate', () => {
+  if (reelVidTime) reelVidTime.textContent = fmtShort(reelPreviewVideo.currentTime);
+});
 
 const btnReelAddSegment = $('btn-reel-add-segment');
 if (btnReelAddSegment) btnReelAddSegment.addEventListener('click', () => {
