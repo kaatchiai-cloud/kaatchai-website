@@ -435,7 +435,7 @@ if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatfo
 updateReelAspectRatio();
 if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
 if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
-if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; });
+if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; saveActiveReelSettings(); });
 
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
@@ -480,7 +480,11 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         ? [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }]
         : segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
 
-      allReelResults.push({ audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end });
+      allReelResults.push({
+        audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end,
+        lang: 'original', langLabel: 'Original',
+        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop },
+      });
     } catch(segErr) {
       reelProgressLabel.textContent = `Reel ${si + 1} failed: ${friendlyApiError(segErr.message)}`;
     }
@@ -678,31 +682,41 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }
     }
 
-    // Auto-generate subtitle translations + audio languages if selected
+    // Auto-generate language variants — each language × each segment = separate reel
     const selectedSubLangs = [...document.querySelectorAll('#reel-subtitle-languages input:checked')].map(cb => cb.value);
     const selectedAudioLangs = [...document.querySelectorAll('#reel-audio-languages input:checked')].map(cb => cb.value);
     const allLangs = [...new Set([...selectedSubLangs, ...selectedAudioLangs])];
     const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
-    const originalText = reelWords.map(w => w.word).join(' ');
 
-    if (allLangs.length > 0 && originalText) {
+    if (allLangs.length > 0) {
+      // Clone original reels before adding variants
+      const originalReels = [...(window._reelMultiResults || [{ audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, lang: 'original', langLabel: 'Original', settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop } }])];
+
       for (const lang of allLangs) {
         reelProgressLabel.textContent = `Translating to ${langNames[lang] || lang}...`;
         setStatus(`Translating to ${langNames[lang]}...`, true);
-        try {
-          const transBody = { contents: [{ parts: [{ text: `Translate to ${langNames[lang]}. Return ONLY the translated text:\n\n${originalText}` }] }] };
-          const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
-          trackCost('textGeneration', 1);
-          const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (translated) {
+
+        // Translate each original reel's words separately
+        for (const origReel of originalReels) {
+          const origText = origReel.words.map(w => w.word).join(' ');
+          if (!origText) continue;
+
+          try {
+            const transBody = { contents: [{ parts: [{ text: `Translate to ${langNames[lang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
+            trackCost('textGeneration', 1);
+            const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (!translated) continue;
+
             // Map translated words to original timings
             const transWords = translated.split(/\s+/);
-            const totalDur = reelWords.length > 0 ? reelWords[reelWords.length - 1].end - reelWords[0].start : 0;
+            const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
             const wordDur = totalDur / transWords.length;
-            const st = reelWords.length > 0 ? reelWords[0].start : 0;
-            reelTranslatedWords[lang] = transWords.map((w, i) => ({ word: w, start: st + i * wordDur, end: st + (i + 1) * wordDur }));
+            const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+            const langWords = transWords.map((w, i) => ({ word: w, start: st + i * wordDur, end: st + (i + 1) * wordDur }));
 
-            // Generate TTS if audio language selected
+            // Audio track for this language
+            let langAudioBuffer = origReel.audioBuffer;
             if (selectedAudioLangs.includes(lang)) {
               reelProgressLabel.textContent = `Generating ${langNames[lang]} audio...`;
               try {
@@ -723,21 +737,30 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
                     const b64 = part.inlineData.data;
                     const binary = atob(b64);
                     const buf = new Uint8Array(binary.length);
-                    for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
-                    const audioBuffer = await audioCtx.decodeAudioData(buf.buffer);
-                    reelAudioTracks.push({ langCode: lang, lang: langNames[lang], audioBuffer, translatedText: translated });
+                    for (let j = 0; j < binary.length; j++) buf[j] = binary.charCodeAt(j);
+                    langAudioBuffer = await audioCtx.decodeAudioData(buf.buffer);
                   }
                 }
               } catch(e) {
                 reelProgressLabel.textContent = `${langNames[lang]} audio failed: ${friendlyApiError(e.message)}`;
               }
             }
+
+            // Add as new reel variant
+            if (!window._reelMultiResults) window._reelMultiResults = [];
+            window._reelMultiResults.push({
+              audioBuffer: langAudioBuffer,
+              scenes: origReel.scenes,
+              words: langWords,
+              videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
+              lang, langLabel: langNames[lang],
+              settings: { ...origReel.settings },
+            });
+          } catch(e) {
+            reelProgressLabel.textContent = `${langNames[lang]} failed: ${friendlyApiError(e.message)}`;
           }
-        } catch(e) {
-          reelProgressLabel.textContent = `${langNames[lang]} translation failed: ${friendlyApiError(e.message)}`;
         }
       }
-      updateReelSubtitleLangDropdown();
     }
 
     // Show mini editor
@@ -767,7 +790,7 @@ function renderAllReelPreviews() {
     <div class="reel-preview-card ${i === activeReelPreview ? 'selected' : ''}" data-ri="${i}">
       <button class="reel-seg-remove" data-reel-del="${i}">✕</button>
       <video class="reel-multi-vid" data-ri="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata"></video>
-      <div class="reel-preview-label">Reel ${i + 1} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
+      <div class="reel-preview-label">Reel ${i + 1}${r.langLabel && r.langLabel !== 'Original' ? ' · ' + r.langLabel : ''} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
       <div class="reel-preview-controls">
         <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
         <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
@@ -829,6 +852,16 @@ function renderAllReelPreviews() {
   });
 }
 
+function saveActiveReelSettings() {
+  const results = window._reelMultiResults;
+  if (!results || !results[activeReelPreview]) return;
+  results[activeReelPreview].settings = {
+    subtitleStyle: reelSubtitleStyle, transition: reelTransition,
+    viewport: reelViewport, viewportX: reelViewportX,
+    subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop,
+  };
+}
+
 function selectReelPreview(idx) {
   const results = window._reelMultiResults;
   if (!results || !results[idx]) return;
@@ -837,6 +870,29 @@ function selectReelPreview(idx) {
   reelAudioBuffer = r.audioBuffer;
   reelScenes = r.scenes;
   reelWords = r.words;
+  // Load per-reel settings
+  if (r.settings) {
+    reelSubtitleStyle = r.settings.subtitleStyle || 'highlight';
+    reelTransition = r.settings.transition || 'whip-pan';
+    reelViewport = r.settings.viewport || 'fill-center';
+    reelViewportX = r.settings.viewportX || 50;
+    reelSubColor = r.settings.subColor || '#ffffff';
+    reelSubOutline = r.settings.subOutline || '#000000';
+    reelSubBackdrop = r.settings.subBackdrop || 'dark';
+    // Sync UI controls
+    const subStyleEl = $('reel-subtitle-style');
+    if (subStyleEl) subStyleEl.value = reelSubtitleStyle;
+    const viewEl = $('reel-viewport');
+    if (viewEl) viewEl.value = reelViewport;
+    const vpxEl = $('reel-viewport-x');
+    if (vpxEl) vpxEl.value = reelViewportX;
+    const scEl = $('reel-sub-color-preset');
+    if (scEl) scEl.value = reelSubColor;
+    const soEl = $('reel-sub-outline-preset');
+    if (soEl) soEl.value = reelSubOutline;
+    const sbEl = $('reel-sub-backdrop-preset');
+    if (sbEl) sbEl.value = reelSubBackdrop;
+  }
   renderReelScenes();
   renderReelFrame(0);
   if (reelTimeEl && reelAudioBuffer) reelTimeEl.textContent = `0:00 / ${fmtShort(reelAudioBuffer.duration)}`;
@@ -847,7 +903,8 @@ function selectReelPreview(idx) {
     const card = container.querySelector(`[data-ri="${idx}"]`);
     if (card) card.classList.add('selected');
   }
-  setStatus(`Editing Reel ${idx + 1}`);
+  const langInfo = r.langLabel && r.langLabel !== 'Original' ? ` (${r.langLabel})` : '';
+  setStatus(`Editing Reel ${idx + 1}${langInfo}`);
 }
 
 function renderReelScenes() {
@@ -1033,9 +1090,9 @@ if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () =
 const reelSubColorPreset = $('reel-sub-color-preset');
 const reelSubOutlinePreset = $('reel-sub-outline-preset');
 const reelSubBackdropPreset = $('reel-sub-backdrop-preset');
-if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; });
-if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; });
-if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; });
+if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; saveActiveReelSettings(); });
+if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; saveActiveReelSettings(); });
+if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; saveActiveReelSettings(); });
 
 // ── Viewport Controls ──
 const reelViewportEl = $('reel-viewport');
@@ -1045,11 +1102,12 @@ const reelViewportCustomLabel = $('reel-viewport-custom-label');
 if (reelViewportEl) reelViewportEl.addEventListener('change', () => {
   reelViewport = reelViewportEl.value;
   if (reelViewportCustomLabel) reelViewportCustomLabel.classList.toggle('hidden', reelViewport !== 'custom');
-  // Re-render preview
+  saveActiveReelSettings();
   if (reelScenes && reelAudioBuffer) renderReelFrame(0);
 });
 if (reelViewportXEl) reelViewportXEl.addEventListener('input', () => {
   reelViewportX = parseInt(reelViewportXEl.value);
+  saveActiveReelSettings();
   if (reelScenes && reelAudioBuffer) renderReelFrame(0);
 });
 
