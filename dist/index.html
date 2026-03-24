@@ -7103,7 +7103,10 @@ if (btnGalleryClear) {
 }
 
 // Initialize gallery on load
-openGalleryDb().then(() => renderProjectGallery()).catch(e => console.warn('Gallery init error:', e));
+// Defer gallery load to avoid blocking first paint
+requestAnimationFrame(() => {
+  openGalleryDb().then(() => renderProjectGallery()).catch(e => console.warn('Gallery init error:', e));
+});
 
 function blobToBase64(blob) {
   return new Promise((resolve) => {
@@ -13919,7 +13922,8 @@ if (pipTransPosEl) {
 }
 
 // Check for autosave recovery on app load
-checkAutosaveRecovery();
+// Defer autosave check to avoid blocking first paint
+setTimeout(checkAutosaveRecovery, 500);
 
 // Temporary plan selector
 const planSelector = $('plan-selector');

@@ -265,7 +265,10 @@ if (btnGalleryClear) {
 }
 
 // Initialize gallery on load
-openGalleryDb().then(() => renderProjectGallery()).catch(e => console.warn('Gallery init error:', e));
+// Defer gallery load to avoid blocking first paint
+requestAnimationFrame(() => {
+  openGalleryDb().then(() => renderProjectGallery()).catch(e => console.warn('Gallery init error:', e));
+});
 
 function blobToBase64(blob) {
   return new Promise((resolve) => {

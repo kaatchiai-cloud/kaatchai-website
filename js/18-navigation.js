@@ -105,7 +105,8 @@ if (pipTransPosEl) {
 }
 
 // Check for autosave recovery on app load
-checkAutosaveRecovery();
+// Defer autosave check to avoid blocking first paint
+setTimeout(checkAutosaveRecovery, 500);
 
 // Temporary plan selector
 const planSelector = $('plan-selector');
