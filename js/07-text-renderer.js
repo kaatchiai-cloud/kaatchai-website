@@ -253,13 +253,16 @@
       }
 
       if (style === 'word-by-word') {
-        const word = words.find(w => elapsed >= w.start && elapsed < w.end);
-        if (word) {
+        // Show current word + next 1-2 words, big and bold
+        const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        if (idx >= 0) {
+          const chunk = words.slice(idx, idx + 2);
+          const text = chunk.map(w => w.word).join(' ');
           ctx.font = font; ctx.textAlign = 'center';
-          const m = ctx.measureText(word.word);
-          drawBackdrop(cw/2 - m.width/2 - 12, y - fontSize - 4, m.width + 24, fontSize + 16);
+          const m = ctx.measureText(text);
+          drawBackdrop(cw/2 - m.width/2 - 14, y - fontSize - 4, m.width + 28, fontSize + 16);
           ctx.fillStyle = color;
-          drawTextWithOutline(word.word, cw / 2, y);
+          drawTextWithOutline(text, cw / 2, y);
         }
       } else if (style === 'highlight') {
         const segWords = getSegmentWords(words, elapsed);
@@ -292,13 +295,27 @@
           drawTextWithOutline(text, cw/2, y);
         }
       } else if (style === 'bold-center') {
-        const group = getCurrentWordGroup(words, elapsed, 3);
-        if (group) {
-          ctx.font = font; ctx.textAlign = 'center';
-          const metrics = ctx.measureText(group);
-          drawBackdrop(cw/2 - metrics.width/2 - 16, y - fontSize - 6, metrics.width + 32, fontSize + 20);
-          ctx.fillStyle = color;
-          drawTextWithOutline(group, cw/2, y);
+        // 3 words at a time, current word highlighted
+        const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        if (idx >= 0) {
+          const groupStart = Math.floor(idx / 3) * 3;
+          const group = words.slice(groupStart, groupStart + 3);
+          if (group.length > 0) {
+            ctx.font = font; ctx.textAlign = 'center';
+            const groupText = group.map(w => w.word).join(' ');
+            const metrics = ctx.measureText(groupText);
+            drawBackdrop(cw/2 - metrics.width/2 - 16, y - fontSize - 6, metrics.width + 32, fontSize + 20);
+            // Draw each word, highlight current
+            let xPos = cw/2 - metrics.width/2;
+            ctx.textAlign = 'left';
+            for (const w of group) {
+              const isCurrent = elapsed >= w.start && elapsed < w.end;
+              ctx.fillStyle = isCurrent ? accentColor : color;
+              const wText = w.word + (w !== group[group.length - 1] ? ' ' : '');
+              drawTextWithOutline(wText, xPos, y);
+              xPos += ctx.measureText(wText).width;
+            }
+          }
         }
       }
       ctx.restore();

@@ -1355,6 +1355,18 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
   // Set image size
   if (createImageSize) createImageSize.value = `${platform.width}x${platform.height}`;
 
+  // Setup reel tabs if multi-reel
+  const multiResults = window._reelMultiResults;
+  if (multiResults && multiResults.length > 1) {
+    window._editorReels = multiResults.map((r, i) => ({
+      index: i, label: `Reel ${i + 1}`,
+      audioBuffer: r.audioBuffer, scenes: r.scenes, words: r.words,
+      videoStart: r.videoStart, videoEnd: r.videoEnd,
+    }));
+    window._editorReelActive = 0;
+    renderEditorReelTabs();
+  }
+
   reelPage.classList.remove('visible');
   editorEl.classList.add('visible');
   reelMode = false;
@@ -1367,6 +1379,87 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
   const items = photoItems.length + videoTimelineItems.length;
   setStatus(`Reel transferred to editor: ${items} items, ${subtitleItems.length} subtitles`);
 });
+
+function renderEditorReelTabs() {
+  const tabsEl = $('editor-reel-tabs');
+  if (!tabsEl || !window._editorReels) return;
+  const reels = window._editorReels;
+  tabsEl.classList.remove('hidden');
+  tabsEl.innerHTML = reels.map((r, i) => `
+    <button class="editor-reel-tab ${i === window._editorReelActive ? 'active' : ''}" data-reel-tab="${i}">
+      ${r.label} (${fmtShort(r.videoEnd - r.videoStart)})
+    </button>
+  `).join('') + `<div class="reel-tab-actions"><button id="btn-export-all-reels" class="btn-xs primary">Export All Reels</button></div>`;
+
+  tabsEl.querySelectorAll('.editor-reel-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.dataset.reelTab);
+      loadEditorReel(idx);
+    });
+  });
+  const exportAllBtn = $('btn-export-all-reels');
+  if (exportAllBtn) exportAllBtn.addEventListener('click', () => {
+    setStatus('Export All Reels — export each reel individually using the Export button.');
+  });
+}
+
+function loadEditorReel(idx) {
+  const reels = window._editorReels;
+  if (!reels || !reels[idx]) return;
+  window._editorReelActive = idx;
+  const r = reels[idx];
+  const platform = REEL_PLATFORMS[reelPlatform];
+
+  // Load this reel's data into editor
+  currentBuffer = r.audioBuffer;
+  photoItems = [];
+  videoTimelineItems = [];
+  subtitleItems = [];
+
+  for (const scene of r.scenes) {
+    if (scene.isVideo && reelVideoEl) {
+      const tc = document.createElement('canvas'); tc.width = 160; tc.height = 90;
+      try { tc.getContext('2d').drawImage(reelVideoEl, 0, 0, 160, 90); } catch(e) {}
+      const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
+      const thumbImg = new Image(); thumbImg.src = thumbUrl;
+      videoTimelineItems.push({
+        id: nextVideoTimelineId++, videoEl: reelVideoEl, videoSrc: reelVideoSrc,
+        videoDuration: reelVideoEl.duration,
+        inPoint: scene.startTime + (r.videoStart || 0), outPoint: scene.endTime + (r.videoStart || 0),
+        startTime: scene.startTime, duration: scene.duration,
+        imgSrc: thumbUrl, imgEl: thumbImg,
+      });
+    } else if (scene.imgDataUrl) {
+      const img = new Image(); img.src = scene.imgDataUrl;
+      photoItems.push({
+        id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
+        startTime: scene.startTime, duration: scene.duration,
+        transition: scene.transition || 'fade', transDur: scene.transDur || 0.3, motion: scene.motion || 'none',
+      });
+    }
+  }
+
+  // Subtitles from words
+  if (r.words && r.words.length > 0) {
+    for (let i = 0; i < r.words.length; i += 5) {
+      const group = r.words.slice(i, i + 5);
+      if (group.length === 0) continue;
+      subtitleItems.push({
+        id: nextSubtitleId++, text: group.map(w => w.word).join(' '),
+        startTime: group[0].start, duration: group[group.length - 1].end - group[0].start,
+        font: "'Poppins', sans-serif", fontSize: 32, color: reelSubColor || '#fff',
+        strokeColor: reelSubOutline || '#000', strokeWidth: 2,
+        bgColor: '#000', bgAlpha: 0.5, bold: true, position: 'bottom', animation: 'none', animDur: 0,
+      });
+    }
+  }
+
+  updateAudioControls();
+  if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
+  drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
+  renderEditorReelTabs();
+  setStatus(`Editing ${r.label}`);
+}
 
 // ── Load .storireel project ──
 async function loadReelProject(project) {

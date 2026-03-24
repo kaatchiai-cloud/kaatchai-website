@@ -1599,6 +1599,26 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   .reel-presets-grid { grid-template-columns: 1fr; }
 }
 
+/* Editor reel tabs */
+.editor-reel-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  padding: 8px 12px; margin-bottom: 10px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.editor-reel-tabs.hidden { display: none; }
+.editor-reel-tab {
+  padding: 6px 14px; font-size: var(--text-xs); border-radius: 16px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-secondary); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.editor-reel-tab:hover { border-color: var(--border-hover); }
+.editor-reel-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.editor-reel-tabs .reel-tab-actions {
+  margin-left: auto; display: flex; gap: 6px;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
