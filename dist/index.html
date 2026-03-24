@@ -2188,8 +2188,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       </div>
     </div>
 
-    <!-- Reel Step 2: Presets -->
-    <div class="reel-step" id="reel-step-presets">
+    <!-- Reel Step 3: Presets (shown after input is ready) -->
+    <div class="reel-step hidden" id="reel-step-presets">
       <h3><span class="step-num">3</span> Presets</h3>
       <div id="reel-edit-mode-row" class="form-row mb-md hidden">
         <span class="text-sm text-secondary">Edit mode:</span>
@@ -12255,6 +12255,15 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
 if (reelModeText) reelModeText.addEventListener('click', () => setReelInputMode('text'));
+
+function showReelPresets() {
+  if (reelStepPresets) reelStepPresets.classList.remove('hidden');
+}
+
+// Show presets when text is entered
+if (reelTextInput) reelTextInput.addEventListener('input', () => {
+  if (reelTextInput.value.trim().length > 10) showReelPresets();
+});
 if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
 
 // ── Audio Import ──
@@ -12268,6 +12277,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
     const arrayBuf = await file.arrayBuffer();
     reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
     reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
+    showReelPresets();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
@@ -12298,6 +12308,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
+    showReelPresets();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();

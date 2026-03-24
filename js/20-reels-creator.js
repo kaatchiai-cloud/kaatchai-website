@@ -161,6 +161,15 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
 if (reelModeText) reelModeText.addEventListener('click', () => setReelInputMode('text'));
+
+function showReelPresets() {
+  if (reelStepPresets) reelStepPresets.classList.remove('hidden');
+}
+
+// Show presets when text is entered
+if (reelTextInput) reelTextInput.addEventListener('input', () => {
+  if (reelTextInput.value.trim().length > 10) showReelPresets();
+});
 if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
 
 // ── Audio Import ──
@@ -174,6 +183,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
     const arrayBuf = await file.arrayBuffer();
     reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
     reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
+    showReelPresets();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
@@ -204,6 +214,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
+    showReelPresets();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
