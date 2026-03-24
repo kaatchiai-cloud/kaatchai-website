@@ -13255,33 +13255,55 @@ function renderReelFrame(time) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, platform.width, platform.height);
 
+  const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+  // Use a small offset to ensure time=0 matches first word/scene
+  const t = Math.max(0.01, time);
+
   // Find scene at time
-  const scene = reelScenes.find(s => time >= s.startTime && time < s.endTime);
+  const scene = reelScenes.find(s => t >= s.startTime && t < s.endTime);
   if (scene) {
     if (scene.isVideo && reelVideoEl) {
-      // Video mode: seek to actual video position (segment start + local time)
-      const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+      // Video mode: seek to actual video position
       const vidOffset = activeResult ? activeResult.videoStart : 0;
-      reelVideoEl.currentTime = vidOffset + time;
-      // Read current viewport from per-reel settings
-      const vp = activeResult?.settings?.viewport || reelViewport;
-      const vpx = activeResult?.settings?.viewportX || reelViewportX;
-      try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
-        // Fallback to cover fit
-        try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+      const seekTime = vidOffset + t;
+      // Seek and draw after seek completes
+      if (Math.abs(reelVideoEl.currentTime - seekTime) > 0.05) {
+        reelVideoEl.currentTime = seekTime;
+        reelVideoEl.onseeked = () => {
+          reelVideoEl.onseeked = null;
+          drawReelVideoFrame(ctx, platform, activeResult);
+          drawReelSubtitles(ctx, platform, t);
+        };
+      } else {
+        drawReelVideoFrame(ctx, platform, activeResult);
+        drawReelSubtitles(ctx, platform, t);
       }
+      return; // async path — subtitles drawn after seek
     } else if (scene.imgDataUrl) {
-      // Image mode: draw generated image
       const img = new Image();
       img.src = scene.imgDataUrl;
       try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
     }
   }
 
-  // Render word-level subtitle — sync style from dropdown
+  // Subtitles (sync path for non-video)
+  drawReelSubtitles(ctx, platform, t);
+}
+
+function drawReelVideoFrame(ctx, platform, activeResult) {
+  const vp = activeResult?.settings?.viewport || reelViewport;
+  const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
+  try {
+    drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx);
+  } catch(e) {
+    try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+  }
+}
+
+function drawReelSubtitles(ctx, platform, time) {
   const subStyleEl = $('reel-subtitle-style');
   const currentSubStyle = subStyleEl ? subStyleEl.value : reelSubtitleStyle;
-  if (currentSubStyle !== 'none' && reelWords.length > 0) {
+  if (currentSubStyle !== 'none' && reelWords && reelWords.length > 0) {
     renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, currentSubStyle);
   }
 }
@@ -13301,11 +13323,42 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
   reelStartTime = audioCtx.currentTime;
   reelAudioSource.onended = () => { reelPlaying = false; reelAudioSource = null; };
 
+  // For video mode: start video playback in sync
+  const isVid = reelScenes && reelScenes.some(s => s.isVideo);
+  const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+  if (isVid && reelVideoEl) {
+    const vidOffset = activeResult ? activeResult.videoStart : 0;
+    reelVideoEl.currentTime = vidOffset;
+    reelVideoEl.muted = true;
+    reelVideoEl.play();
+  }
+
+  const platform = REEL_PLATFORMS[reelPlatform];
+
   function animate() {
     if (!reelPlaying) return;
     const elapsed = audioCtx.currentTime - reelStartTime;
     if (elapsed >= reelAudioBuffer.duration) { stopReelPreview(); return; }
-    renderReelFrame(elapsed);
+
+    // Draw frame
+    const ctx = reelCanvas.getContext('2d');
+    reelCanvas.width = platform.width;
+    reelCanvas.height = platform.height;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, platform.width, platform.height);
+
+    if (isVid && reelVideoEl) {
+      // Video is already playing — just draw current frame with viewport
+      drawReelVideoFrame(ctx, platform, activeResult);
+    } else {
+      const scene = reelScenes.find(s => elapsed >= s.startTime && elapsed < s.endTime);
+      if (scene && scene.imgDataUrl) {
+        const img = new Image(); img.src = scene.imgDataUrl;
+        try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
+      }
+    }
+    drawReelSubtitles(ctx, platform, elapsed);
+
     if (reelScrub) reelScrub.value = (elapsed / reelAudioBuffer.duration * 1000).toFixed(0);
     if (reelTimeEl) reelTimeEl.textContent = `${fmtShort(elapsed)} / ${fmtShort(reelAudioBuffer.duration)}`;
     reelAnimId = requestAnimationFrame(animate);
@@ -13328,6 +13381,8 @@ function stopReelPreview() {
   reelPlaying = false;
   if (reelAnimId) cancelAnimationFrame(reelAnimId);
   if (reelAudioSource) { try { reelAudioSource.stop(); } catch(e) {} reelAudioSource = null; }
+  // Stop video playback
+  if (reelVideoEl) { reelVideoEl.pause(); reelVideoEl.muted = true; }
 }
 
 if (reelScrub) reelScrub.addEventListener('input', () => {
