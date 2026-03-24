@@ -1468,6 +1468,31 @@ input:focus, select:focus, textarea:focus {
 .reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
 .reel-step select { cursor: pointer; }
 .reel-settings { justify-content: center; }
+.reel-dropdown-section { max-width: 600px; margin-left: auto; margin-right: auto; }
+.reel-dropdown-btn {
+  width: 100%; text-align: left; padding: 8px 14px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.reel-dropdown-btn:hover { border-color: var(--border-hover); }
+.reel-dropdown-panel {
+  padding: 10px 14px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.reel-dropdown-panel.hidden { display: none; }
+.reel-checkbox-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  text-align: left;
+}
+.reel-checkbox-grid label {
+  font-size: var(--text-xs); color: var(--text-secondary);
+  display: flex; align-items: center; gap: 4px; cursor: pointer;
+}
+.reel-checkbox-grid input { accent-color: var(--accent); }
+@media (max-width: 480px) { .reel-checkbox-grid { grid-template-columns: repeat(2, 1fr); } }
 .reel-details {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden; text-align: left;

@@ -696,6 +696,42 @@ if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { ree
 if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; });
 if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; });
 
+// Toggle dropdown panels
+const btnToggleSubLangs = $('btn-toggle-sub-langs');
+const reelSubLangPanel = $('reel-sub-lang-panel');
+const btnToggleAudioLangs = $('btn-toggle-audio-langs');
+const reelAudioLangPanel = $('reel-audio-lang-panel');
+const subLangCount = $('sub-lang-count');
+const audioLangCount = $('audio-lang-count');
+
+if (btnToggleSubLangs) btnToggleSubLangs.addEventListener('click', () => {
+  reelSubLangPanel.classList.toggle('hidden');
+});
+if (btnToggleAudioLangs) btnToggleAudioLangs.addEventListener('click', () => {
+  reelAudioLangPanel.classList.toggle('hidden');
+});
+
+function updateLangCounts() {
+  const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+  // Subtitle count
+  const subChecked = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked:not(:disabled)');
+  if (subLangCount) {
+    const names = [...subChecked].map(cb => langNames[cb.value] || cb.value);
+    subLangCount.textContent = names.length > 0 ? `(Original + ${names.join(', ')})` : '(Original)';
+  }
+  // Audio count
+  const audioChecked = document.querySelectorAll('#reel-audio-languages input[type="checkbox"]:checked');
+  if (audioLangCount) {
+    const names = [...audioChecked].map(cb => langNames[cb.value] || cb.value);
+    audioLangCount.textContent = names.length > 0 ? `(${names.join(', ')})` : '(none)';
+  }
+}
+
+// Update counts on checkbox change
+document.querySelectorAll('#reel-subtitle-languages input, #reel-audio-languages input').forEach(cb => {
+  cb.addEventListener('change', updateLangCounts);
+});
+
 // Populate mini editor subtitle language dropdown from selected languages
 function updateReelSubtitleLangDropdown() {
   const langSelect = $('reel-subtitle-lang');
@@ -711,7 +747,7 @@ function updateReelSubtitleLangDropdown() {
 }
 // Update on checkbox change
 document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]').forEach(cb => {
-  cb.addEventListener('change', updateReelSubtitleLangDropdown);
+  cb.addEventListener('change', () => { updateReelSubtitleLangDropdown(); updateLangCounts(); });
 });
 
 // ── Audio Language Generation ──
