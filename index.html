@@ -531,8 +531,12 @@
       <button id="btn-add-photos" style="font-size:0.75rem; padding:4px 10px;">📷 Add Photos</button>
       <button id="btn-add-bgm" style="font-size:0.75rem; padding:4px 10px;">🎵 Add BGM</button>
       <button id="btn-add-pip" style="font-size:0.75rem; padding:4px 10px;">🎭 Add PiP</button>
+      <button id="btn-add-frame" style="font-size:0.75rem; padding:4px 10px;">🖼️ Frame</button>
+      <button id="btn-add-logo" style="font-size:0.75rem; padding:4px 10px;">⭐ Logo</button>
       <input type="file" id="video-input" accept="video/*" multiple hidden>
       <input type="file" id="video-clip-input" accept="video/*" multiple hidden>
+      <input type="file" id="frame-input" accept="image/*" hidden>
+      <input type="file" id="logo-input" accept="image/*" hidden>
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
 
@@ -592,6 +596,50 @@
             <option value="top-left">Top Left</option>
           </select>
         </span>
+      </div>
+    </div>
+
+    <!-- Frame Section -->
+    <div id="frame-section" style="display:none;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
+        <span style="font-size:0.72rem; color:var(--text-secondary);">🖼️ Frame</span>
+        <img id="frame-thumb" src="" alt="" style="width:36px; height:24px; object-fit:cover; border-radius:3px; border:1px solid var(--border); display:none;">
+        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <div id="frame-slot-0" class="library-slot" data-type="frame" data-slot="0"></div>
+        <div id="frame-slot-1" class="library-slot" data-type="frame" data-slot="1"></div>
+        <div id="frame-slot-2" class="library-slot" data-type="frame" data-slot="2"></div>
+        <button id="frame-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
+        <span style="font-size:0.68rem; color:var(--text-muted);">Padding:</span>
+        <label style="font-size:0.68rem; color:var(--text-muted);">T<input type="number" id="frame-pad-top" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">B<input type="number" id="frame-pad-bottom" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">L<input type="number" id="frame-pad-left" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">R<input type="number" id="frame-pad-right" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="frame-opacity" min="0" max="100" value="100" style="width:60px; vertical-align:middle;"><span id="frame-opacity-label" style="font-size:0.65rem;">100%</span></label>
+        <button id="frame-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
+      </div>
+    </div>
+
+    <!-- Logo Section -->
+    <div id="logo-section" style="display:none;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
+        <span style="font-size:0.72rem; color:var(--text-secondary);">⭐ Logo</span>
+        <img id="logo-thumb" src="" alt="" style="width:28px; height:28px; object-fit:contain; border-radius:3px; display:none;">
+        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <div id="logo-slot-0" class="library-slot" data-type="logo" data-slot="0"></div>
+        <div id="logo-slot-1" class="library-slot" data-type="logo" data-slot="1"></div>
+        <div id="logo-slot-2" class="library-slot" data-type="logo" data-slot="2"></div>
+        <button id="logo-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Position:
+          <select id="logo-position" style="font-size:0.68rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+            <option value="top-left">Top Left</option>
+            <option value="top-right" selected>Top Right</option>
+            <option value="bot-left">Bottom Left</option>
+            <option value="bot-right">Bottom Right</option>
+          </select>
+        </label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Size<input type="range" id="logo-size" min="3" max="25" value="10" style="width:60px; vertical-align:middle;"><span id="logo-size-label" style="font-size:0.65rem;">10%</span></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="logo-opacity" min="10" max="100" value="80" style="width:60px; vertical-align:middle;"><span id="logo-opacity-label" style="font-size:0.65rem;">80%</span></label>
+        <button id="logo-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
       </div>
     </div>
 

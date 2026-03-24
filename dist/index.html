@@ -649,6 +649,17 @@ input[type="file"] { display: none; }
   border: 1px solid var(--border);
 }
 
+/* Library slots (logo/frame presets) */
+.library-slot {
+  width: 32px; height: 32px; border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-input); transition: border-color 0.15s;
+}
+.library-slot:hover { border-color: var(--accent); }
+.library-slot.active { border-color: var(--cyan); box-shadow: 0 0 6px rgba(6,182,212,0.4); }
+.library-slot img { pointer-events: none; }
+
 /* ── Video Timeline ── */
 #video-drop-zone {
   width: 100%; min-height: 70px; border: 1px solid var(--border);
@@ -1711,8 +1722,12 @@ input:focus, select:focus, textarea:focus {
       <button id="btn-add-photos" style="font-size:0.75rem; padding:4px 10px;">📷 Add Photos</button>
       <button id="btn-add-bgm" style="font-size:0.75rem; padding:4px 10px;">🎵 Add BGM</button>
       <button id="btn-add-pip" style="font-size:0.75rem; padding:4px 10px;">🎭 Add PiP</button>
+      <button id="btn-add-frame" style="font-size:0.75rem; padding:4px 10px;">🖼️ Frame</button>
+      <button id="btn-add-logo" style="font-size:0.75rem; padding:4px 10px;">⭐ Logo</button>
       <input type="file" id="video-input" accept="video/*" multiple hidden>
       <input type="file" id="video-clip-input" accept="video/*" multiple hidden>
+      <input type="file" id="frame-input" accept="image/*" hidden>
+      <input type="file" id="logo-input" accept="image/*" hidden>
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
 
@@ -1772,6 +1787,50 @@ input:focus, select:focus, textarea:focus {
             <option value="top-left">Top Left</option>
           </select>
         </span>
+      </div>
+    </div>
+
+    <!-- Frame Section -->
+    <div id="frame-section" style="display:none;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
+        <span style="font-size:0.72rem; color:var(--text-secondary);">🖼️ Frame</span>
+        <img id="frame-thumb" src="" alt="" style="width:36px; height:24px; object-fit:cover; border-radius:3px; border:1px solid var(--border); display:none;">
+        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <div id="frame-slot-0" class="library-slot" data-type="frame" data-slot="0"></div>
+        <div id="frame-slot-1" class="library-slot" data-type="frame" data-slot="1"></div>
+        <div id="frame-slot-2" class="library-slot" data-type="frame" data-slot="2"></div>
+        <button id="frame-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
+        <span style="font-size:0.68rem; color:var(--text-muted);">Padding:</span>
+        <label style="font-size:0.68rem; color:var(--text-muted);">T<input type="number" id="frame-pad-top" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">B<input type="number" id="frame-pad-bottom" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">L<input type="number" id="frame-pad-left" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">R<input type="number" id="frame-pad-right" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="frame-opacity" min="0" max="100" value="100" style="width:60px; vertical-align:middle;"><span id="frame-opacity-label" style="font-size:0.65rem;">100%</span></label>
+        <button id="frame-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
+      </div>
+    </div>
+
+    <!-- Logo Section -->
+    <div id="logo-section" style="display:none;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
+        <span style="font-size:0.72rem; color:var(--text-secondary);">⭐ Logo</span>
+        <img id="logo-thumb" src="" alt="" style="width:28px; height:28px; object-fit:contain; border-radius:3px; display:none;">
+        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <div id="logo-slot-0" class="library-slot" data-type="logo" data-slot="0"></div>
+        <div id="logo-slot-1" class="library-slot" data-type="logo" data-slot="1"></div>
+        <div id="logo-slot-2" class="library-slot" data-type="logo" data-slot="2"></div>
+        <button id="logo-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Position:
+          <select id="logo-position" style="font-size:0.68rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+            <option value="top-left">Top Left</option>
+            <option value="top-right" selected>Top Right</option>
+            <option value="bot-left">Bottom Left</option>
+            <option value="bot-right">Bottom Right</option>
+          </select>
+        </label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Size<input type="range" id="logo-size" min="3" max="25" value="10" style="width:60px; vertical-align:middle;"><span id="logo-size-label" style="font-size:0.65rem;">10%</span></label>
+        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="logo-opacity" min="10" max="100" value="80" style="width:60px; vertical-align:middle;"><span id="logo-opacity-label" style="font-size:0.65rem;">80%</span></label>
+        <button id="logo-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
       </div>
     </div>
 
@@ -2161,6 +2220,19 @@ let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds
 let pipTransPos = 'bot-right';   // bot-right | bot-left | top-right | top-left
 
+// Frame overlay
+let frameImgEl = null;           // <img> element for frame
+let frameImgSrc = '';            // data URL
+let framePadding = { top: 40, bottom: 40, left: 40, right: 40 };
+let frameOpacity = 1;
+
+// Logo overlay
+let logoImgEl = null;
+let logoImgSrc = '';
+let logoPosition = 'top-right'; // top-left | top-right | bot-left | bot-right
+let logoSize = 10;              // percentage of canvas width
+let logoOpacity = 0.8;
+
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
 let nextSubtitleId = 1;
@@ -2226,6 +2298,11 @@ function showUpgradePrompt(msg) {
 function hideUpgradePrompt() {
   const modal = $('upgrade-modal');
   if (modal) modal.classList.remove('visible');
+}
+
+// Load library slots when editor opens
+function loadEditorLibrary() {
+  if (typeof renderLibrarySlots === 'function') renderLibrarySlots();
 }
 
 // Apply editor plan gating (called when editor opens)
@@ -3715,6 +3792,45 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     // ══════════════════════════════════════════
     //  TRANSITION RENDERER (used by preview & export)
     // ══════════════════════════════════════════
+
+    // Frame: draw frame image full canvas, return inner rect for content
+    function applyFrame(ctx, cw, ch) {
+      if (!frameImgEl) return { x: 0, y: 0, w: cw, h: ch, applied: false };
+      const p = framePadding;
+      // Draw frame image full canvas
+      ctx.save();
+      ctx.globalAlpha = frameOpacity;
+      ctx.drawImage(frameImgEl, 0, 0, cw, ch);
+      ctx.restore();
+      // Return inner rect
+      return {
+        x: p.left, y: p.top,
+        w: cw - p.left - p.right,
+        h: ch - p.top - p.bottom,
+        applied: true,
+      };
+    }
+
+    // Logo: draw logo image in corner on top of everything
+    function renderLogo(ctx, cw, ch) {
+      if (!logoImgEl) return;
+      const w = Math.round(cw * logoSize / 100);
+      const aspect = logoImgEl.naturalHeight / (logoImgEl.naturalWidth || 1);
+      const h = Math.round(w * aspect);
+      const pad = Math.max(8, cw * 0.015);
+      let x, y;
+      switch (logoPosition) {
+        case 'top-left':  x = pad; y = pad; break;
+        case 'top-right': x = cw - w - pad; y = pad; break;
+        case 'bot-left':  x = pad; y = ch - h - pad; break;
+        default:          x = cw - w - pad; y = ch - h - pad; break;
+      }
+      ctx.save();
+      ctx.globalAlpha = logoOpacity;
+      ctx.drawImage(logoImgEl, x, y, w, h);
+      ctx.restore();
+    }
+
     function drawCoverFit(ctx, img, cw, ch) {
       const isVideo = img instanceof HTMLVideoElement;
       const iw = isVideo ? img.videoWidth : img.naturalWidth;
@@ -4701,12 +4817,23 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const sorted = [...photoItems].sort((a, b) => a.startTime - b.startTime);
       const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
       const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
-      const bgMode = renderBgVideoBefore(ctx, width, height, t, sorted);
-      if (bgMode !== 'skip-images') renderTimelineFrame(ctx, width, height, t, sorted);
-      renderBgVideoAfter(ctx, width, height, t, sorted, bgMode);
-      renderPiP(ctx, width, height, t);
-      renderTextOverlays(ctx, width, height, t, sortedTexts);
-      renderTextOverlays(ctx, width, height, t, sortedSubs);
+      // Frame: draw frame first, then content inside inner rect
+      const fr = applyFrame(ctx, width, height);
+      if (fr.applied) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(fr.x, fr.y, fr.w, fr.h); ctx.clip();
+        ctx.translate(fr.x, fr.y);
+      }
+      const cw = fr.applied ? fr.w : width;
+      const ch = fr.applied ? fr.h : height;
+      const bgMode = renderBgVideoBefore(ctx, cw, ch, t, sorted);
+      if (bgMode !== 'skip-images') renderTimelineFrame(ctx, cw, ch, t, sorted);
+      renderBgVideoAfter(ctx, cw, ch, t, sorted, bgMode);
+      renderPiP(ctx, cw, ch, t);
+      renderTextOverlays(ctx, cw, ch, t, sortedTexts);
+      renderTextOverlays(ctx, cw, ch, t, sortedSubs);
+      if (fr.applied) ctx.restore();
+      renderLogo(ctx, width, height);
       ctx.restore();
     }
 
@@ -4842,20 +4969,30 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         const scale = Math.min(480 / width, 1);
         previewCtx.save();
         previewCtx.scale(scale, scale);
-        const bgM1 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM1);
-        renderPiP(previewCtx, previewCW, previewCH, elapsed);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
+        const fr1 = applyFrame(previewCtx, previewCW, previewCH);
+        if (fr1.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr1.x, fr1.y, fr1.w, fr1.h); previewCtx.clip(); previewCtx.translate(fr1.x, fr1.y); }
+        const cw1 = fr1.applied ? fr1.w : previewCW, ch1 = fr1.applied ? fr1.h : previewCH;
+        const bgM1 = renderBgVideoBefore(previewCtx, cw1, ch1, elapsed, previewSorted);
+        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, cw1, ch1, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, cw1, ch1, elapsed, previewSorted, bgM1);
+        renderPiP(previewCtx, cw1, ch1, elapsed);
+        renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedTexts);
+        renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
+        if (fr1.applied) previewCtx.restore();
+        renderLogo(previewCtx, previewCW, previewCH);
         previewCtx.restore();
       } else {
-        const bgM2 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM2);
-        renderPiP(previewCtx, previewCW, previewCH, elapsed);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
+        const fr2 = applyFrame(previewCtx, previewCW, previewCH);
+        if (fr2.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr2.x, fr2.y, fr2.w, fr2.h); previewCtx.clip(); previewCtx.translate(fr2.x, fr2.y); }
+        const cw2 = fr2.applied ? fr2.w : previewCW, ch2 = fr2.applied ? fr2.h : previewCH;
+        const bgM2 = renderBgVideoBefore(previewCtx, cw2, ch2, elapsed, previewSorted);
+        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, cw2, ch2, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, cw2, ch2, elapsed, previewSorted, bgM2);
+        renderPiP(previewCtx, cw2, ch2, elapsed);
+        renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedTexts);
+        renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
+        if (fr2.applied) previewCtx.restore();
+        renderLogo(previewCtx, previewCW, previewCH);
       }
     }
 
@@ -5147,12 +5284,17 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
             else etaStr = ` · ~${Math.ceil(remaining)}s left`;
           }
           exportLabel.textContent = `Recording... ${(progress * 100).toFixed(0)}%${etaStr}`;
-          const bgM = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
-          if (bgM !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
-          renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgM);
-          renderPiP(ctx, exportW, exportH, elapsed);
-          renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
-          renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
+          const fr = applyFrame(ctx, exportW, exportH);
+          if (fr.applied) { ctx.save(); ctx.beginPath(); ctx.rect(fr.x, fr.y, fr.w, fr.h); ctx.clip(); ctx.translate(fr.x, fr.y); }
+          const ew = fr.applied ? fr.w : exportW, eh = fr.applied ? fr.h : exportH;
+          const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
+          if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
+          renderBgVideoAfter(ctx, ew, eh, elapsed, sorted, bgM);
+          renderPiP(ctx, ew, eh, elapsed);
+          renderTextOverlays(ctx, ew, eh, elapsed, sortedTexts);
+          renderTextOverlays(ctx, ew, eh, elapsed, sortedSubs);
+          if (fr.applied) ctx.restore();
+          renderLogo(ctx, exportW, exportH);
           // Watermark for free tier
           if (isFree()) {
             ctx.save();
@@ -5262,11 +5404,16 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
               const progress = Math.min(elapsed / track.buffer.duration, 1);
               exportBar.style.width = (progress * 100).toFixed(1) + '%';
               exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})... ${(progress * 100).toFixed(0)}%`;
-              const bgML = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
-              if (bgML !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
-              renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgML);
-              renderPiP(ctx, exportW, exportH, elapsed);
-              renderTextOverlays(ctx, exportW, exportH, elapsed, trackSortedTexts);
+              const frL = applyFrame(ctx, exportW, exportH);
+              if (frL.applied) { ctx.save(); ctx.beginPath(); ctx.rect(frL.x, frL.y, frL.w, frL.h); ctx.clip(); ctx.translate(frL.x, frL.y); }
+              const ewL = frL.applied ? frL.w : exportW, ehL = frL.applied ? frL.h : exportH;
+              const bgML = renderBgVideoBefore(ctx, ewL, ehL, elapsed, sorted);
+              if (bgML !== 'skip-images') renderTimelineFrame(ctx, ewL, ehL, elapsed, sorted);
+              renderBgVideoAfter(ctx, ewL, ehL, elapsed, sorted, bgML);
+              renderPiP(ctx, ewL, ehL, elapsed);
+              renderTextOverlays(ctx, ewL, ehL, elapsed, trackSortedTexts);
+              if (frL.applied) ctx.restore();
+              renderLogo(ctx, exportW, exportH);
               if (elapsed >= track.buffer.duration) {
                 stopped = true;
                 timerWorker.postMessage('stop');
@@ -5899,12 +6046,13 @@ let autosaveDb = null;
 
 function openAutosaveDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(AUTOSAVE_DB_NAME, 1);
+    const req = indexedDB.open(AUTOSAVE_DB_NAME, 2);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
     };
     req.onsuccess = () => { autosaveDb = req.result; resolve(autosaveDb); };
     req.onerror = () => reject(req.error);
@@ -6078,6 +6226,91 @@ async function clearAutosave() {
 // Start autosave interval
 setInterval(autosaveToIDB, 30000);
 
+// ── Logo & Frame Library (3 slots each, persisted in IndexedDB) ──
+async function saveToLibrary(type, slot, imgSrc) {
+  // type: 'logo' or 'frame', slot: 0-2
+  if (slot < 0 || slot > 2) return;
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readwrite');
+    tx.objectStore('library').put({ id: `${type}-${slot}`, imgSrc });
+  } catch(e) { console.warn('Library save failed:', e.message); }
+}
+
+async function removeFromLibrary(type, slot) {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readwrite');
+    tx.objectStore('library').delete(`${type}-${slot}`);
+  } catch(e) { console.warn('Library remove failed:', e.message); }
+}
+
+async function loadLibrary() {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readonly');
+    const store = tx.objectStore('library');
+    const items = [];
+    return new Promise((resolve) => {
+      const req = store.openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) { items.push(cursor.value); cursor.continue(); }
+        else resolve(items);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch(e) { return []; }
+}
+
+function renderLibrarySlots() {
+  loadLibrary().then(items => {
+    // Render logo slots
+    for (let i = 0; i < 3; i++) {
+      const item = items.find(it => it.id === `logo-${i}`);
+      const slotEl = $(`logo-slot-${i}`);
+      if (!slotEl) continue;
+      if (item && item.imgSrc) {
+        slotEl.innerHTML = `<img src="${item.imgSrc}" alt="Logo ${i+1}" style="width:100%;height:100%;object-fit:contain;">`;
+        slotEl.dataset.src = item.imgSrc;
+        slotEl.title = 'Click to apply, right-click to remove';
+      } else {
+        slotEl.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">Empty</span>';
+        slotEl.dataset.src = '';
+        slotEl.title = 'Empty slot';
+      }
+    }
+    // Render frame slots
+    for (let i = 0; i < 3; i++) {
+      const item = items.find(it => it.id === `frame-${i}`);
+      const slotEl = $(`frame-slot-${i}`);
+      if (!slotEl) continue;
+      if (item && item.imgSrc) {
+        slotEl.innerHTML = `<img src="${item.imgSrc}" alt="Frame ${i+1}" style="width:100%;height:100%;object-fit:cover;">`;
+        slotEl.dataset.src = item.imgSrc;
+        slotEl.title = 'Click to apply, right-click to remove';
+      } else {
+        slotEl.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">Empty</span>';
+        slotEl.dataset.src = '';
+        slotEl.title = 'Empty slot';
+      }
+    }
+  });
+}
+
+async function saveCurrentToNextSlot(type) {
+  const src = type === 'logo' ? logoImgSrc : frameImgSrc;
+  if (!src) return;
+  const items = await loadLibrary();
+  const existing = [0, 1, 2].map(i => items.find(it => it.id === `${type}-${i}`));
+  // Find first empty slot, or overwrite oldest (slot 0)
+  let slot = existing.findIndex(it => !it || !it.imgSrc);
+  if (slot === -1) slot = 0;
+  await saveToLibrary(type, slot, src);
+  renderLibrarySlots();
+  setStatus(`${type === 'logo' ? 'Logo' : 'Frame'} saved to library slot ${slot + 1}`);
+}
+
 async function saveProjectToFile(audioBuf, statusFn) {
   if (!audioBuf) { statusFn('Nothing to save'); return; }
   statusFn('Saving project...');
@@ -6141,6 +6374,8 @@ async function saveProjectToFile(audioBuf, statusFn) {
       pipTransType: pipTransType || 'shrink',
       pipTransDur: pipTransDur || 0.5,
       pipTransPos: pipTransPos || 'bot-right',
+      frame: frameImgSrc ? { imgSrc: frameImgSrc, padding: framePadding, opacity: frameOpacity } : undefined,
+      logo: logoImgSrc ? { imgSrc: logoImgSrc, position: logoPosition, size: logoSize, opacity: logoOpacity } : undefined,
       createState: createScenes ? {
         transcript: createTranscript,
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
@@ -6384,6 +6619,36 @@ projectInput.addEventListener('change', async () => {
     if (project.pipTransType) { pipTransType = project.pipTransType; const el = $('pip-trans-type'); if (el) el.value = pipTransType; }
     if (project.pipTransDur) { pipTransDur = project.pipTransDur; const el = $('pip-trans-dur'); if (el) el.value = pipTransDur; }
     if (project.pipTransPos) { pipTransPos = project.pipTransPos; const el = $('pip-trans-pos'); if (el) el.value = pipTransPos; }
+    // Restore frame
+    if (project.frame && project.frame.imgSrc) {
+      const fImg = new Image();
+      fImg.onload = () => {
+        frameImgEl = fImg; frameImgSrc = project.frame.imgSrc;
+        framePadding = project.frame.padding || { top: 40, bottom: 40, left: 40, right: 40 };
+        frameOpacity = project.frame.opacity ?? 1;
+        const sec = $('frame-section'); if (sec) sec.style.display = '';
+        const thumb = $('frame-thumb'); if (thumb) { thumb.src = frameImgSrc; thumb.style.display = ''; }
+        ['top','bottom','left','right'].forEach(s => { const el = $(`frame-pad-${s}`); if (el) el.value = framePadding[s]; });
+        const opEl = $('frame-opacity'); if (opEl) opEl.value = Math.round(frameOpacity * 100);
+      };
+      fImg.src = project.frame.imgSrc;
+    }
+    // Restore logo
+    if (project.logo && project.logo.imgSrc) {
+      const lImg = new Image();
+      lImg.onload = () => {
+        logoImgEl = lImg; logoImgSrc = project.logo.imgSrc;
+        logoPosition = project.logo.position || 'top-right';
+        logoSize = project.logo.size || 10;
+        logoOpacity = project.logo.opacity ?? 0.8;
+        const sec = $('logo-section'); if (sec) sec.style.display = '';
+        const thumb = $('logo-thumb'); if (thumb) { thumb.src = logoImgSrc; thumb.style.display = ''; }
+        const posEl = $('logo-position'); if (posEl) posEl.value = logoPosition;
+        const sizeEl = $('logo-size'); if (sizeEl) sizeEl.value = logoSize;
+        const opEl = $('logo-opacity'); if (opEl) opEl.value = Math.round(logoOpacity * 100);
+      };
+      lImg.src = project.logo.imgSrc;
+    }
 
     // Restore create wizard state if saved
     if (project.createState) {
@@ -6747,6 +7012,150 @@ projectInput.addEventListener('change', async () => {
     $('pip-shadow-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) pip.shadow = $('pip-shadow-input').checked; });
     $('pip-in-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.inPoint = Math.max(0, parseFloat($('pip-in-input').value) || 0); renderPipList(); } });
     $('pip-out-input').addEventListener('change', () => { const pip = getSelectedPip(); if (pip) { pip.outPoint = Math.max(0, parseFloat($('pip-out-input').value) || 0); renderPipList(); } });
+
+    // ── Frame ──
+    const frameInput = $('frame-input');
+    const btnAddFrame = $('btn-add-frame');
+    const frameSec = $('frame-section');
+
+    btnAddFrame.addEventListener('click', () => frameInput.click());
+    frameInput.addEventListener('change', () => {
+      const file = frameInput.files[0];
+      if (!file) return;
+      frameInput.value = '';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          frameImgEl = img;
+          frameImgSrc = e.target.result;
+          if (frameSec) frameSec.style.display = '';
+          const thumb = $('frame-thumb');
+          if (thumb) { thumb.src = frameImgSrc; thumb.style.display = ''; }
+          setStatus('Frame added'); markDirty();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const frameRemove = $('frame-remove');
+    if (frameRemove) frameRemove.addEventListener('click', () => {
+      frameImgEl = null; frameImgSrc = '';
+      if (frameSec) frameSec.style.display = 'none';
+      setStatus('Frame removed'); markDirty();
+    });
+
+    ['top', 'bottom', 'left', 'right'].forEach(side => {
+      const el = $(`frame-pad-${side}`);
+      if (el) el.addEventListener('change', () => {
+        framePadding[side] = Math.max(0, parseInt(el.value) || 0);
+        markDirty();
+      });
+    });
+
+    const frameOpacityEl = $('frame-opacity');
+    const frameOpacityLabel = $('frame-opacity-label');
+    if (frameOpacityEl) frameOpacityEl.addEventListener('input', () => {
+      frameOpacity = frameOpacityEl.value / 100;
+      if (frameOpacityLabel) frameOpacityLabel.textContent = frameOpacityEl.value + '%';
+      markDirty();
+    });
+
+    // ── Logo ──
+    const logoInput = $('logo-input');
+    const btnAddLogo = $('btn-add-logo');
+    const logoSec = $('logo-section');
+
+    btnAddLogo.addEventListener('click', () => logoInput.click());
+    logoInput.addEventListener('change', () => {
+      const file = logoInput.files[0];
+      if (!file) return;
+      logoInput.value = '';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          logoImgEl = img;
+          logoImgSrc = e.target.result;
+          if (logoSec) logoSec.style.display = '';
+          const thumb = $('logo-thumb');
+          if (thumb) { thumb.src = logoImgSrc; thumb.style.display = ''; }
+          setStatus('Logo added'); markDirty();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const logoRemove = $('logo-remove');
+    if (logoRemove) logoRemove.addEventListener('click', () => {
+      logoImgEl = null; logoImgSrc = '';
+      if (logoSec) logoSec.style.display = 'none';
+      setStatus('Logo removed'); markDirty();
+    });
+
+    const logoPositionEl = $('logo-position');
+    if (logoPositionEl) logoPositionEl.addEventListener('change', () => { logoPosition = logoPositionEl.value; markDirty(); });
+
+    const logoSizeEl = $('logo-size');
+    const logoSizeLabel = $('logo-size-label');
+    if (logoSizeEl) logoSizeEl.addEventListener('input', () => {
+      logoSize = parseInt(logoSizeEl.value);
+      if (logoSizeLabel) logoSizeLabel.textContent = logoSize + '%';
+      markDirty();
+    });
+
+    const logoOpacityEl = $('logo-opacity');
+    const logoOpacityLabel = $('logo-opacity-label');
+    if (logoOpacityEl) logoOpacityEl.addEventListener('input', () => {
+      logoOpacity = logoOpacityEl.value / 100;
+      if (logoOpacityLabel) logoOpacityLabel.textContent = logoOpacityEl.value + '%';
+      markDirty();
+    });
+
+    // ── Library slot handlers ──
+    // Click slot to apply, right-click to remove from library
+    document.querySelectorAll('.library-slot').forEach(slot => {
+      slot.addEventListener('click', () => {
+        const src = slot.dataset.src;
+        if (!src) return;
+        const type = slot.dataset.type;
+        const img = new Image();
+        img.onload = () => {
+          if (type === 'logo') {
+            logoImgEl = img; logoImgSrc = src;
+            if (logoSec) logoSec.style.display = '';
+            const thumb = $('logo-thumb'); if (thumb) { thumb.src = src; thumb.style.display = ''; }
+            setStatus('Logo applied from library');
+          } else {
+            frameImgEl = img; frameImgSrc = src;
+            if (frameSec) frameSec.style.display = '';
+            const thumb = $('frame-thumb'); if (thumb) { thumb.src = src; thumb.style.display = ''; }
+            setStatus('Frame applied from library');
+          }
+          markDirty();
+        };
+        img.src = src;
+      });
+
+      slot.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const type = slot.dataset.type;
+        const slotIdx = parseInt(slot.dataset.slot);
+        if (!slot.dataset.src) return;
+        removeFromLibrary(type, slotIdx);
+        slot.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">Empty</span>';
+        slot.dataset.src = '';
+        setStatus(`${type === 'logo' ? 'Logo' : 'Frame'} removed from library slot ${slotIdx + 1}`);
+      });
+    });
+
+    // Save to library buttons
+    const frameSaveLib = $('frame-save-lib');
+    if (frameSaveLib) frameSaveLib.addEventListener('click', () => saveCurrentToNextSlot('frame'));
+    const logoSaveLib = $('logo-save-lib');
+    if (logoSaveLib) logoSaveLib.addEventListener('click', () => saveCurrentToNextSlot('logo'));
 
 
     // ── 17-create-content.js ──
@@ -10165,6 +10574,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   const subInfo = subtitleItems.length > 0 ? `, ${subtitleItems.length} subtitles` : '';
   setStatus(`Content created: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos${subInfo}${langInfo}. Edit and export!`);
   applyEditorPlanGating();
+  loadEditorLibrary();
   // Autosave audio and images
   if (currentBuffer) autosaveAudio('main', currentBuffer);
   if (createScenes) createScenes.forEach((s, i) => { if (s.imgDataUrl) autosaveImage(i, s.imgDataUrl); });
@@ -10384,6 +10794,10 @@ btnNewProject.addEventListener('click', (e) => {
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
   bgVideoMode = 'images-only';
+  frameImgEl = null; frameImgSrc = ''; framePadding = { top: 40, bottom: 40, left: 40, right: 40 }; frameOpacity = 1;
+  logoImgEl = null; logoImgSrc = ''; logoPosition = 'top-right'; logoSize = 10; logoOpacity = 0.8;
+  const frameSec = $('frame-section'); if (frameSec) frameSec.style.display = 'none';
+  const logoSec2 = $('logo-section'); if (logoSec2) logoSec2.style.display = 'none';
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   const bgVidSec = $('bg-video-section');
@@ -10407,6 +10821,7 @@ btnNewProject.addEventListener('click', (e) => {
   editorEl.classList.add('visible');
   updateAudioControls();
   applyEditorPlanGating();
+  loadEditorLibrary();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
   setStatus('New project created. Import audio, add photos or text to begin.');
 });

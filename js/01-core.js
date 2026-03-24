@@ -55,6 +55,19 @@ let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds
 let pipTransPos = 'bot-right';   // bot-right | bot-left | top-right | top-left
 
+// Frame overlay
+let frameImgEl = null;           // <img> element for frame
+let frameImgSrc = '';            // data URL
+let framePadding = { top: 40, bottom: 40, left: 40, right: 40 };
+let frameOpacity = 1;
+
+// Logo overlay
+let logoImgEl = null;
+let logoImgSrc = '';
+let logoPosition = 'top-right'; // top-left | top-right | bot-left | bot-right
+let logoSize = 10;              // percentage of canvas width
+let logoOpacity = 0.8;
+
 // Subtitle items (separate from user text items)
 let subtitleItems = [];
 let nextSubtitleId = 1;
@@ -120,6 +133,11 @@ function showUpgradePrompt(msg) {
 function hideUpgradePrompt() {
   const modal = $('upgrade-modal');
   if (modal) modal.classList.remove('visible');
+}
+
+// Load library slots when editor opens
+function loadEditorLibrary() {
+  if (typeof renderLibrarySlots === 'function') renderLibrarySlots();
 }
 
 // Apply editor plan gating (called when editor opens)

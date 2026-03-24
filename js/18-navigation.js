@@ -14,6 +14,10 @@ btnNewProject.addEventListener('click', (e) => {
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
   videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
   bgVideoMode = 'images-only';
+  frameImgEl = null; frameImgSrc = ''; framePadding = { top: 40, bottom: 40, left: 40, right: 40 }; frameOpacity = 1;
+  logoImgEl = null; logoImgSrc = ''; logoPosition = 'top-right'; logoSize = 10; logoOpacity = 0.8;
+  const frameSec = $('frame-section'); if (frameSec) frameSec.style.display = 'none';
+  const logoSec2 = $('logo-section'); if (logoSec2) logoSec2.style.display = 'none';
   const bgmSec = $('bgm-section');
   if (bgmSec) bgmSec.style.display = 'none';
   const bgVidSec = $('bg-video-section');
@@ -37,6 +41,7 @@ btnNewProject.addEventListener('click', (e) => {
   editorEl.classList.add('visible');
   updateAudioControls();
   applyEditorPlanGating();
+  loadEditorLibrary();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
   setStatus('New project created. Import audio, add photos or text to begin.');
 });

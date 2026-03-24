@@ -156,12 +156,17 @@
             else etaStr = ` · ~${Math.ceil(remaining)}s left`;
           }
           exportLabel.textContent = `Recording... ${(progress * 100).toFixed(0)}%${etaStr}`;
-          const bgM = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
-          if (bgM !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
-          renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgM);
-          renderPiP(ctx, exportW, exportH, elapsed);
-          renderTextOverlays(ctx, exportW, exportH, elapsed, sortedTexts);
-          renderTextOverlays(ctx, exportW, exportH, elapsed, sortedSubs);
+          const fr = applyFrame(ctx, exportW, exportH);
+          if (fr.applied) { ctx.save(); ctx.beginPath(); ctx.rect(fr.x, fr.y, fr.w, fr.h); ctx.clip(); ctx.translate(fr.x, fr.y); }
+          const ew = fr.applied ? fr.w : exportW, eh = fr.applied ? fr.h : exportH;
+          const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
+          if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
+          renderBgVideoAfter(ctx, ew, eh, elapsed, sorted, bgM);
+          renderPiP(ctx, ew, eh, elapsed);
+          renderTextOverlays(ctx, ew, eh, elapsed, sortedTexts);
+          renderTextOverlays(ctx, ew, eh, elapsed, sortedSubs);
+          if (fr.applied) ctx.restore();
+          renderLogo(ctx, exportW, exportH);
           // Watermark for free tier
           if (isFree()) {
             ctx.save();
@@ -271,11 +276,16 @@
               const progress = Math.min(elapsed / track.buffer.duration, 1);
               exportBar.style.width = (progress * 100).toFixed(1) + '%';
               exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})... ${(progress * 100).toFixed(0)}%`;
-              const bgML = renderBgVideoBefore(ctx, exportW, exportH, elapsed, sorted);
-              if (bgML !== 'skip-images') renderTimelineFrame(ctx, exportW, exportH, elapsed, sorted);
-              renderBgVideoAfter(ctx, exportW, exportH, elapsed, sorted, bgML);
-              renderPiP(ctx, exportW, exportH, elapsed);
-              renderTextOverlays(ctx, exportW, exportH, elapsed, trackSortedTexts);
+              const frL = applyFrame(ctx, exportW, exportH);
+              if (frL.applied) { ctx.save(); ctx.beginPath(); ctx.rect(frL.x, frL.y, frL.w, frL.h); ctx.clip(); ctx.translate(frL.x, frL.y); }
+              const ewL = frL.applied ? frL.w : exportW, ehL = frL.applied ? frL.h : exportH;
+              const bgML = renderBgVideoBefore(ctx, ewL, ehL, elapsed, sorted);
+              if (bgML !== 'skip-images') renderTimelineFrame(ctx, ewL, ehL, elapsed, sorted);
+              renderBgVideoAfter(ctx, ewL, ehL, elapsed, sorted, bgML);
+              renderPiP(ctx, ewL, ehL, elapsed);
+              renderTextOverlays(ctx, ewL, ehL, elapsed, trackSortedTexts);
+              if (frL.applied) ctx.restore();
+              renderLogo(ctx, exportW, exportH);
               if (elapsed >= track.buffer.duration) {
                 stopped = true;
                 timerWorker.postMessage('stop');

@@ -3413,6 +3413,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   const subInfo = subtitleItems.length > 0 ? `, ${subtitleItems.length} subtitles` : '';
   setStatus(`Content created: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos${subInfo}${langInfo}. Edit and export!`);
   applyEditorPlanGating();
+  loadEditorLibrary();
   // Autosave audio and images
   if (currentBuffer) autosaveAudio('main', currentBuffer);
   if (createScenes) createScenes.forEach((s, i) => { if (s.imgDataUrl) autosaveImage(i, s.imgDataUrl); });

@@ -301,12 +301,13 @@ let autosaveDb = null;
 
 function openAutosaveDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(AUTOSAVE_DB_NAME, 1);
+    const req = indexedDB.open(AUTOSAVE_DB_NAME, 2);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
     };
     req.onsuccess = () => { autosaveDb = req.result; resolve(autosaveDb); };
     req.onerror = () => reject(req.error);
@@ -480,6 +481,91 @@ async function clearAutosave() {
 // Start autosave interval
 setInterval(autosaveToIDB, 30000);
 
+// ── Logo & Frame Library (3 slots each, persisted in IndexedDB) ──
+async function saveToLibrary(type, slot, imgSrc) {
+  // type: 'logo' or 'frame', slot: 0-2
+  if (slot < 0 || slot > 2) return;
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readwrite');
+    tx.objectStore('library').put({ id: `${type}-${slot}`, imgSrc });
+  } catch(e) { console.warn('Library save failed:', e.message); }
+}
+
+async function removeFromLibrary(type, slot) {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readwrite');
+    tx.objectStore('library').delete(`${type}-${slot}`);
+  } catch(e) { console.warn('Library remove failed:', e.message); }
+}
+
+async function loadLibrary() {
+  try {
+    const db = autosaveDb || await openAutosaveDb();
+    const tx = db.transaction('library', 'readonly');
+    const store = tx.objectStore('library');
+    const items = [];
+    return new Promise((resolve) => {
+      const req = store.openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) { items.push(cursor.value); cursor.continue(); }
+        else resolve(items);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch(e) { return []; }
+}
+
+function renderLibrarySlots() {
+  loadLibrary().then(items => {
+    // Render logo slots
+    for (let i = 0; i < 3; i++) {
+      const item = items.find(it => it.id === `logo-${i}`);
+      const slotEl = $(`logo-slot-${i}`);
+      if (!slotEl) continue;
+      if (item && item.imgSrc) {
+        slotEl.innerHTML = `<img src="${item.imgSrc}" alt="Logo ${i+1}" style="width:100%;height:100%;object-fit:contain;">`;
+        slotEl.dataset.src = item.imgSrc;
+        slotEl.title = 'Click to apply, right-click to remove';
+      } else {
+        slotEl.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">Empty</span>';
+        slotEl.dataset.src = '';
+        slotEl.title = 'Empty slot';
+      }
+    }
+    // Render frame slots
+    for (let i = 0; i < 3; i++) {
+      const item = items.find(it => it.id === `frame-${i}`);
+      const slotEl = $(`frame-slot-${i}`);
+      if (!slotEl) continue;
+      if (item && item.imgSrc) {
+        slotEl.innerHTML = `<img src="${item.imgSrc}" alt="Frame ${i+1}" style="width:100%;height:100%;object-fit:cover;">`;
+        slotEl.dataset.src = item.imgSrc;
+        slotEl.title = 'Click to apply, right-click to remove';
+      } else {
+        slotEl.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">Empty</span>';
+        slotEl.dataset.src = '';
+        slotEl.title = 'Empty slot';
+      }
+    }
+  });
+}
+
+async function saveCurrentToNextSlot(type) {
+  const src = type === 'logo' ? logoImgSrc : frameImgSrc;
+  if (!src) return;
+  const items = await loadLibrary();
+  const existing = [0, 1, 2].map(i => items.find(it => it.id === `${type}-${i}`));
+  // Find first empty slot, or overwrite oldest (slot 0)
+  let slot = existing.findIndex(it => !it || !it.imgSrc);
+  if (slot === -1) slot = 0;
+  await saveToLibrary(type, slot, src);
+  renderLibrarySlots();
+  setStatus(`${type === 'logo' ? 'Logo' : 'Frame'} saved to library slot ${slot + 1}`);
+}
+
 async function saveProjectToFile(audioBuf, statusFn) {
   if (!audioBuf) { statusFn('Nothing to save'); return; }
   statusFn('Saving project...');
@@ -543,6 +629,8 @@ async function saveProjectToFile(audioBuf, statusFn) {
       pipTransType: pipTransType || 'shrink',
       pipTransDur: pipTransDur || 0.5,
       pipTransPos: pipTransPos || 'bot-right',
+      frame: frameImgSrc ? { imgSrc: frameImgSrc, padding: framePadding, opacity: frameOpacity } : undefined,
+      logo: logoImgSrc ? { imgSrc: logoImgSrc, position: logoPosition, size: logoSize, opacity: logoOpacity } : undefined,
       createState: createScenes ? {
         transcript: createTranscript,
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
@@ -786,6 +874,36 @@ projectInput.addEventListener('change', async () => {
     if (project.pipTransType) { pipTransType = project.pipTransType; const el = $('pip-trans-type'); if (el) el.value = pipTransType; }
     if (project.pipTransDur) { pipTransDur = project.pipTransDur; const el = $('pip-trans-dur'); if (el) el.value = pipTransDur; }
     if (project.pipTransPos) { pipTransPos = project.pipTransPos; const el = $('pip-trans-pos'); if (el) el.value = pipTransPos; }
+    // Restore frame
+    if (project.frame && project.frame.imgSrc) {
+      const fImg = new Image();
+      fImg.onload = () => {
+        frameImgEl = fImg; frameImgSrc = project.frame.imgSrc;
+        framePadding = project.frame.padding || { top: 40, bottom: 40, left: 40, right: 40 };
+        frameOpacity = project.frame.opacity ?? 1;
+        const sec = $('frame-section'); if (sec) sec.style.display = '';
+        const thumb = $('frame-thumb'); if (thumb) { thumb.src = frameImgSrc; thumb.style.display = ''; }
+        ['top','bottom','left','right'].forEach(s => { const el = $(`frame-pad-${s}`); if (el) el.value = framePadding[s]; });
+        const opEl = $('frame-opacity'); if (opEl) opEl.value = Math.round(frameOpacity * 100);
+      };
+      fImg.src = project.frame.imgSrc;
+    }
+    // Restore logo
+    if (project.logo && project.logo.imgSrc) {
+      const lImg = new Image();
+      lImg.onload = () => {
+        logoImgEl = lImg; logoImgSrc = project.logo.imgSrc;
+        logoPosition = project.logo.position || 'top-right';
+        logoSize = project.logo.size || 10;
+        logoOpacity = project.logo.opacity ?? 0.8;
+        const sec = $('logo-section'); if (sec) sec.style.display = '';
+        const thumb = $('logo-thumb'); if (thumb) { thumb.src = logoImgSrc; thumb.style.display = ''; }
+        const posEl = $('logo-position'); if (posEl) posEl.value = logoPosition;
+        const sizeEl = $('logo-size'); if (sizeEl) sizeEl.value = logoSize;
+        const opEl = $('logo-opacity'); if (opEl) opEl.value = Math.round(logoOpacity * 100);
+      };
+      lImg.src = project.logo.imgSrc;
+    }
 
     // Restore create wizard state if saved
     if (project.createState) {

@@ -634,6 +634,17 @@ input[type="file"] { display: none; }
   border: 1px solid var(--border);
 }
 
+/* Library slots (logo/frame presets) */
+.library-slot {
+  width: 32px; height: 32px; border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-input); transition: border-color 0.15s;
+}
+.library-slot:hover { border-color: var(--accent); }
+.library-slot.active { border-color: var(--cyan); box-shadow: 0 0 6px rgba(6,182,212,0.4); }
+.library-slot img { pointer-events: none; }
+
 /* ── Video Timeline ── */
 #video-drop-zone {
   width: 100%; min-height: 70px; border: 1px solid var(--border);

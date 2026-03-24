@@ -41,12 +41,23 @@
       const sorted = [...photoItems].sort((a, b) => a.startTime - b.startTime);
       const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
       const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
-      const bgMode = renderBgVideoBefore(ctx, width, height, t, sorted);
-      if (bgMode !== 'skip-images') renderTimelineFrame(ctx, width, height, t, sorted);
-      renderBgVideoAfter(ctx, width, height, t, sorted, bgMode);
-      renderPiP(ctx, width, height, t);
-      renderTextOverlays(ctx, width, height, t, sortedTexts);
-      renderTextOverlays(ctx, width, height, t, sortedSubs);
+      // Frame: draw frame first, then content inside inner rect
+      const fr = applyFrame(ctx, width, height);
+      if (fr.applied) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(fr.x, fr.y, fr.w, fr.h); ctx.clip();
+        ctx.translate(fr.x, fr.y);
+      }
+      const cw = fr.applied ? fr.w : width;
+      const ch = fr.applied ? fr.h : height;
+      const bgMode = renderBgVideoBefore(ctx, cw, ch, t, sorted);
+      if (bgMode !== 'skip-images') renderTimelineFrame(ctx, cw, ch, t, sorted);
+      renderBgVideoAfter(ctx, cw, ch, t, sorted, bgMode);
+      renderPiP(ctx, cw, ch, t);
+      renderTextOverlays(ctx, cw, ch, t, sortedTexts);
+      renderTextOverlays(ctx, cw, ch, t, sortedSubs);
+      if (fr.applied) ctx.restore();
+      renderLogo(ctx, width, height);
       ctx.restore();
     }
 
@@ -182,20 +193,30 @@
         const scale = Math.min(480 / width, 1);
         previewCtx.save();
         previewCtx.scale(scale, scale);
-        const bgM1 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM1);
-        renderPiP(previewCtx, previewCW, previewCH, elapsed);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
+        const fr1 = applyFrame(previewCtx, previewCW, previewCH);
+        if (fr1.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr1.x, fr1.y, fr1.w, fr1.h); previewCtx.clip(); previewCtx.translate(fr1.x, fr1.y); }
+        const cw1 = fr1.applied ? fr1.w : previewCW, ch1 = fr1.applied ? fr1.h : previewCH;
+        const bgM1 = renderBgVideoBefore(previewCtx, cw1, ch1, elapsed, previewSorted);
+        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, cw1, ch1, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, cw1, ch1, elapsed, previewSorted, bgM1);
+        renderPiP(previewCtx, cw1, ch1, elapsed);
+        renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedTexts);
+        renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
+        if (fr1.applied) previewCtx.restore();
+        renderLogo(previewCtx, previewCW, previewCH);
         previewCtx.restore();
       } else {
-        const bgM2 = renderBgVideoBefore(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, previewCW, previewCH, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, previewCW, previewCH, elapsed, previewSorted, bgM2);
-        renderPiP(previewCtx, previewCW, previewCH, elapsed);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, previewCW, previewCH, elapsed, previewSortedSubs);
+        const fr2 = applyFrame(previewCtx, previewCW, previewCH);
+        if (fr2.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr2.x, fr2.y, fr2.w, fr2.h); previewCtx.clip(); previewCtx.translate(fr2.x, fr2.y); }
+        const cw2 = fr2.applied ? fr2.w : previewCW, ch2 = fr2.applied ? fr2.h : previewCH;
+        const bgM2 = renderBgVideoBefore(previewCtx, cw2, ch2, elapsed, previewSorted);
+        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, cw2, ch2, elapsed, previewSorted);
+        renderBgVideoAfter(previewCtx, cw2, ch2, elapsed, previewSorted, bgM2);
+        renderPiP(previewCtx, cw2, ch2, elapsed);
+        renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedTexts);
+        renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
+        if (fr2.applied) previewCtx.restore();
+        renderLogo(previewCtx, previewCW, previewCH);
       }
     }
 

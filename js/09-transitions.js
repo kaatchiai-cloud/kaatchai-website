@@ -1,6 +1,45 @@
     // ══════════════════════════════════════════
     //  TRANSITION RENDERER (used by preview & export)
     // ══════════════════════════════════════════
+
+    // Frame: draw frame image full canvas, return inner rect for content
+    function applyFrame(ctx, cw, ch) {
+      if (!frameImgEl) return { x: 0, y: 0, w: cw, h: ch, applied: false };
+      const p = framePadding;
+      // Draw frame image full canvas
+      ctx.save();
+      ctx.globalAlpha = frameOpacity;
+      ctx.drawImage(frameImgEl, 0, 0, cw, ch);
+      ctx.restore();
+      // Return inner rect
+      return {
+        x: p.left, y: p.top,
+        w: cw - p.left - p.right,
+        h: ch - p.top - p.bottom,
+        applied: true,
+      };
+    }
+
+    // Logo: draw logo image in corner on top of everything
+    function renderLogo(ctx, cw, ch) {
+      if (!logoImgEl) return;
+      const w = Math.round(cw * logoSize / 100);
+      const aspect = logoImgEl.naturalHeight / (logoImgEl.naturalWidth || 1);
+      const h = Math.round(w * aspect);
+      const pad = Math.max(8, cw * 0.015);
+      let x, y;
+      switch (logoPosition) {
+        case 'top-left':  x = pad; y = pad; break;
+        case 'top-right': x = cw - w - pad; y = pad; break;
+        case 'bot-left':  x = pad; y = ch - h - pad; break;
+        default:          x = cw - w - pad; y = ch - h - pad; break;
+      }
+      ctx.save();
+      ctx.globalAlpha = logoOpacity;
+      ctx.drawImage(logoImgEl, x, y, w, h);
+      ctx.restore();
+    }
+
     function drawCoverFit(ctx, img, cw, ch) {
       const isVideo = img instanceof HTMLVideoElement;
       const iw = isVideo ? img.videoWidth : img.naturalWidth;
