@@ -84,6 +84,8 @@ let reelWords = []; // word-level timestamps [{word, start, end}, ...]
 let reelSubColor = '#ffffff';
 let reelSubOutline = '#000000';
 let reelSubBackdrop = 'dark'; // dark | blur | none
+let reelViewport = 'fill-center'; // fit | fill-center | left-third | center-third | right-third | custom
+let reelViewportX = 50; // 0-100, custom pan position (50 = center)
 
 const REEL_PLATFORMS = {
   'instagram': { width: 1080, height: 1920, maxDur: 90, label: 'Instagram Reel' },

@@ -824,9 +824,9 @@ function renderReelFrame(time) {
   const scene = reelScenes.find(s => time >= s.startTime && time < s.endTime);
   if (scene) {
     if (scene.isVideo && reelVideoEl) {
-      // Video mode: draw video frame
+      // Video mode: draw with viewport crop
       reelVideoEl.currentTime = time;
-      try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+      try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
     } else if (scene.imgDataUrl) {
       // Image mode: draw generated image
       const img = new Image();
@@ -971,6 +971,22 @@ const reelSubBackdropPreset = $('reel-sub-backdrop-preset');
 if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; });
 if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; });
 if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; });
+
+// ── Viewport Controls ──
+const reelViewportEl = $('reel-viewport');
+const reelViewportXEl = $('reel-viewport-x');
+const reelViewportCustomLabel = $('reel-viewport-custom-label');
+
+if (reelViewportEl) reelViewportEl.addEventListener('change', () => {
+  reelViewport = reelViewportEl.value;
+  if (reelViewportCustomLabel) reelViewportCustomLabel.classList.toggle('hidden', reelViewport !== 'custom');
+  // Re-render preview
+  if (reelScenes && reelAudioBuffer) renderReelFrame(0);
+});
+if (reelViewportXEl) reelViewportXEl.addEventListener('input', () => {
+  reelViewportX = parseInt(reelViewportXEl.value);
+  if (reelScenes && reelAudioBuffer) renderReelFrame(0);
+});
 
 // Toggle dropdown panels
 const btnToggleSubLangs = $('btn-toggle-sub-langs');
@@ -1247,7 +1263,7 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       if (scene) {
         if (scene.isVideo && reelVideoEl) {
           reelVideoEl.currentTime = elapsed;
-          try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+          try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
         } else {
           const idx = reelScenes.indexOf(scene);
           const img = sceneImages[idx];

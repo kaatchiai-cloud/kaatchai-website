@@ -744,6 +744,19 @@
               <option value="none">None</option>
             </select>
           </label>
+          <label class="form-label">Viewport:
+            <select id="reel-viewport">
+              <option value="fill-center" selected>Fill (center crop)</option>
+              <option value="fit">Fit (letterbox)</option>
+              <option value="left-third">Left third</option>
+              <option value="center-third">Center third</option>
+              <option value="right-third">Right third</option>
+              <option value="custom">Custom pan</option>
+            </select>
+          </label>
+          <label class="form-label reel-viewport-custom hidden" id="reel-viewport-custom-label">Pan:
+            <input type="range" id="reel-viewport-x" min="0" max="100" value="50" style="width:80px;">
+          </label>
           <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
           <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
         </div>

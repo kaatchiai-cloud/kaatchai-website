@@ -2416,6 +2416,19 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
               <option value="none">None</option>
             </select>
           </label>
+          <label class="form-label">Viewport:
+            <select id="reel-viewport">
+              <option value="fill-center" selected>Fill (center crop)</option>
+              <option value="fit">Fit (letterbox)</option>
+              <option value="left-third">Left third</option>
+              <option value="center-third">Center third</option>
+              <option value="right-third">Right third</option>
+              <option value="custom">Custom pan</option>
+            </select>
+          </label>
+          <label class="form-label reel-viewport-custom hidden" id="reel-viewport-custom-label">Pan:
+            <input type="range" id="reel-viewport-x" min="0" max="100" value="50" style="width:80px;">
+          </label>
           <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
           <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
         </div>
@@ -3044,6 +3057,8 @@ let reelWords = []; // word-level timestamps [{word, start, end}, ...]
 let reelSubColor = '#ffffff';
 let reelSubOutline = '#000000';
 let reelSubBackdrop = 'dark'; // dark | blur | none
+let reelViewport = 'fill-center'; // fit | fill-center | left-third | center-third | right-third | custom
+let reelViewportX = 50; // 0-100, custom pan position (50 = center)
 
 const REEL_PLATFORMS = {
   'instagram': { width: 1080, height: 1920, maxDur: 90, label: 'Instagram Reel' },
@@ -4738,6 +4753,57 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       if (ir > cr) { dh = ch; dw = ch * ir; dx = (cw - dw) / 2; dy = 0; }
       else { dw = cw; dh = cw / ir; dx = 0; dy = (ch - dh) / 2; }
       ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    // Draw video/image with viewport crop for Reels
+    function drawViewportCrop(ctx, img, cw, ch, viewport, panX) {
+      const isVideo = img instanceof HTMLVideoElement;
+      const iw = isVideo ? img.videoWidth : img.naturalWidth;
+      const ih = isVideo ? img.videoHeight : img.naturalHeight;
+      if (!iw || !ih) return;
+
+      if (viewport === 'fit') {
+        // Fit: show entire source, letterbox
+        const ir = iw / ih, cr = cw / ch;
+        let dw, dh, dx, dy;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, cw, ch);
+        if (ir > cr) { dw = cw; dh = cw / ir; dx = 0; dy = (ch - dh) / 2; }
+        else { dh = ch; dw = ch * ir; dx = (cw - dw) / 2; dy = 0; }
+        ctx.drawImage(img, dx, dy, dw, dh);
+        return;
+      }
+
+      // For crop modes: calculate source rectangle
+      const targetRatio = cw / ch; // 9/16 = 0.5625 for portrait reels
+      const sourceRatio = iw / ih;
+      let sx, sy, sw, sh;
+
+      if (viewport === 'left-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = 0; sy = 0;
+      } else if (viewport === 'center-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = (iw - sw) / 2; sy = 0;
+      } else if (viewport === 'right-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = iw - sw; sy = 0;
+      } else if (viewport === 'custom') {
+        sw = ih * targetRatio; sh = ih;
+        const maxSx = iw - sw;
+        sx = maxSx * (panX / 100); sy = 0;
+      } else {
+        // fill-center (default)
+        sw = ih * targetRatio; sh = ih;
+        sx = (iw - sw) / 2; sy = 0;
+      }
+
+      // Clamp
+      sw = Math.min(sw, iw); sh = Math.min(sh, ih);
+      sx = Math.max(0, Math.min(sx, iw - sw));
+      sy = Math.max(0, Math.min(sy, ih - sh));
+
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
     }
 
     // Easing functions for cinematic motion
@@ -13035,9 +13101,9 @@ function renderReelFrame(time) {
   const scene = reelScenes.find(s => time >= s.startTime && time < s.endTime);
   if (scene) {
     if (scene.isVideo && reelVideoEl) {
-      // Video mode: draw video frame
+      // Video mode: draw with viewport crop
       reelVideoEl.currentTime = time;
-      try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+      try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
     } else if (scene.imgDataUrl) {
       // Image mode: draw generated image
       const img = new Image();
@@ -13182,6 +13248,22 @@ const reelSubBackdropPreset = $('reel-sub-backdrop-preset');
 if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; });
 if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; });
 if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; });
+
+// ── Viewport Controls ──
+const reelViewportEl = $('reel-viewport');
+const reelViewportXEl = $('reel-viewport-x');
+const reelViewportCustomLabel = $('reel-viewport-custom-label');
+
+if (reelViewportEl) reelViewportEl.addEventListener('change', () => {
+  reelViewport = reelViewportEl.value;
+  if (reelViewportCustomLabel) reelViewportCustomLabel.classList.toggle('hidden', reelViewport !== 'custom');
+  // Re-render preview
+  if (reelScenes && reelAudioBuffer) renderReelFrame(0);
+});
+if (reelViewportXEl) reelViewportXEl.addEventListener('input', () => {
+  reelViewportX = parseInt(reelViewportXEl.value);
+  if (reelScenes && reelAudioBuffer) renderReelFrame(0);
+});
 
 // Toggle dropdown panels
 const btnToggleSubLangs = $('btn-toggle-sub-langs');
@@ -13458,7 +13540,7 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       if (scene) {
         if (scene.isVideo && reelVideoEl) {
           reelVideoEl.currentTime = elapsed;
-          try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e) {}
+          try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
         } else {
           const idx = reelScenes.indexOf(scene);
           const img = sceneImages[idx];

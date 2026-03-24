@@ -52,6 +52,57 @@
       ctx.drawImage(img, dx, dy, dw, dh);
     }
 
+    // Draw video/image with viewport crop for Reels
+    function drawViewportCrop(ctx, img, cw, ch, viewport, panX) {
+      const isVideo = img instanceof HTMLVideoElement;
+      const iw = isVideo ? img.videoWidth : img.naturalWidth;
+      const ih = isVideo ? img.videoHeight : img.naturalHeight;
+      if (!iw || !ih) return;
+
+      if (viewport === 'fit') {
+        // Fit: show entire source, letterbox
+        const ir = iw / ih, cr = cw / ch;
+        let dw, dh, dx, dy;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, cw, ch);
+        if (ir > cr) { dw = cw; dh = cw / ir; dx = 0; dy = (ch - dh) / 2; }
+        else { dh = ch; dw = ch * ir; dx = (cw - dw) / 2; dy = 0; }
+        ctx.drawImage(img, dx, dy, dw, dh);
+        return;
+      }
+
+      // For crop modes: calculate source rectangle
+      const targetRatio = cw / ch; // 9/16 = 0.5625 for portrait reels
+      const sourceRatio = iw / ih;
+      let sx, sy, sw, sh;
+
+      if (viewport === 'left-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = 0; sy = 0;
+      } else if (viewport === 'center-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = (iw - sw) / 2; sy = 0;
+      } else if (viewport === 'right-third') {
+        sw = ih * targetRatio; sh = ih;
+        sx = iw - sw; sy = 0;
+      } else if (viewport === 'custom') {
+        sw = ih * targetRatio; sh = ih;
+        const maxSx = iw - sw;
+        sx = maxSx * (panX / 100); sy = 0;
+      } else {
+        // fill-center (default)
+        sw = ih * targetRatio; sh = ih;
+        sx = (iw - sw) / 2; sy = 0;
+      }
+
+      // Clamp
+      sw = Math.min(sw, iw); sh = Math.min(sh, ih);
+      sx = Math.max(0, Math.min(sx, iw - sw));
+      sy = Math.max(0, Math.min(sy, ih - sh));
+
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    }
+
     // Easing functions for cinematic motion
     function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
     function easeOutQuart(t) { return 1 - Math.pow(1-t, 4); }
