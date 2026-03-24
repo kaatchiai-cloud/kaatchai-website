@@ -12776,7 +12776,16 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const segments = parseGeminiJson(transcribeData.candidates?.[0]?.content?.parts?.[0]?.text);
 
       const words = [];
-      for (const s of segments) { if (s.words) words.push(...s.words); }
+      for (const s of segments) {
+        if (s.words && s.words.length > 0) {
+          words.push(...s.words);
+        } else if (s.text) {
+          const wds = s.text.trim().split(/\s+/);
+          const sDur = (s.endTime || 0) - (s.startTime || 0);
+          const wDur = sDur / wds.length;
+          wds.forEach((w, wi) => { words.push({ word: w, start: s.startTime + wi * wDur, end: s.startTime + (wi + 1) * wDur }); });
+        }
+      }
 
       const scenes = reelEditMode === 'subtitles'
         ? [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }]
@@ -12795,6 +12804,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Show results — all segments
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
+    reelProgressEl.classList.add('hidden');
     setStatus(`${allReelResults.length} Reels generated`);
 
     window._reelMultiResults = allReelResults;
@@ -13068,6 +13078,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Show mini editor
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = 'Done!';
+    reelProgressEl.classList.add('hidden');
     setStatus('Reel generated!');
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
@@ -13211,12 +13222,14 @@ function selectReelPreview(idx) {
 
 function renderReelScenes() {
   if (!reelSceneList || !reelScenes) return;
-  // Hide style/transition for video mode in mini editor
   const isVid = reelScenes.some(s => s.isVideo);
+  // Hide style/transition for video mode
   const editStyleLabel = reelEditStyle ? reelEditStyle.closest('label') : null;
   const editTransLabel = reelEditTransition ? reelEditTransition.closest('label') : null;
   if (editStyleLabel) editStyleLabel.style.display = isVid ? 'none' : '';
   if (editTransLabel) editTransLabel.style.display = (isVid && reelEditMode === 'subtitles') ? 'none' : '';
+  // Hide scene list for video mode (no image thumbnails to show)
+  if (isVid) { reelSceneList.innerHTML = ''; return; }
   reelSceneList.innerHTML = reelScenes.map((s, i) => `
     <div class="reel-scene-thumb ${i === 0 ? 'active' : ''}" data-reel-scene="${i}">
       ${s.imgDataUrl ? `<img src="${s.imgDataUrl}" alt="Scene ${i+1}">` : '<div style="width:100%;height:100%;background:var(--bg-input);"></div>'}
@@ -13246,9 +13259,17 @@ function renderReelFrame(time) {
   const scene = reelScenes.find(s => time >= s.startTime && time < s.endTime);
   if (scene) {
     if (scene.isVideo && reelVideoEl) {
-      // Video mode: draw with viewport crop
-      reelVideoEl.currentTime = time;
-      try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
+      // Video mode: seek to actual video position (segment start + local time)
+      const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+      const vidOffset = activeResult ? activeResult.videoStart : 0;
+      reelVideoEl.currentTime = vidOffset + time;
+      // Read current viewport from per-reel settings
+      const vp = activeResult?.settings?.viewport || reelViewport;
+      const vpx = activeResult?.settings?.viewportX || reelViewportX;
+      try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
+        // Fallback to cover fit
+        try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+      }
     } else if (scene.imgDataUrl) {
       // Image mode: draw generated image
       const img = new Image();
