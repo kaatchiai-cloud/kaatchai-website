@@ -516,6 +516,14 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     setStatus(`${allReelResults.length} Reels generated`);
 
     window._reelMultiResults = allReelResults;
+
+    if (allReelResults.length === 0) {
+      reelProgressLabel.textContent = 'No reels generated. Check API key and try again.';
+      setStatus('Generation failed — no reels produced');
+      btnReelGenerate.disabled = false;
+      return;
+    }
+
     // Use first for main preview
     const first = allReelResults[0];
     reelAudioBuffer = first.audioBuffer;
@@ -718,7 +726,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const allLangs = [...new Set([...selectedSubLangs, ...selectedAudioLangs])];
     const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
 
-    if (allLangs.length > 0) {
+    if (allLangs.length > 0 && reelWords && reelWords.length > 0) {
       // Clone original reels before adding variants
       const originalReels = [...(window._reelMultiResults || [{ audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, lang: 'original', langLabel: 'Original', settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop } }])];
 
