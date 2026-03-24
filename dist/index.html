@@ -2220,6 +2220,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
     <div class="reel-header">
       <button id="btn-reel-back" class="btn-sm">← Back</button>
       <h2>🎬 Create Reel/Short</h2>
+      <button id="btn-reel-save-top" class="btn-sm" style="position:absolute; right:0;">💾 Save</button>
     </div>
 
     <!-- Reel API Key -->
@@ -13429,6 +13430,9 @@ function renderReelAudioLangList() {
 
 // ── Save Reel Project ──
 const btnReelSaveProject = $('btn-reel-save-project');
+const btnReelSaveTop = $('btn-reel-save-top');
+if (btnReelSaveTop) btnReelSaveTop.addEventListener('click', () => { if (btnReelSaveProject) btnReelSaveProject.click(); });
+
 if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () => {
   if (!reelAudioBuffer) { setStatus('Nothing to save'); return; }
   setStatus('Saving reel project...', true);

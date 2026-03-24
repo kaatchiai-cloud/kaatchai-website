@@ -1152,6 +1152,9 @@ function renderReelAudioLangList() {
 
 // ── Save Reel Project ──
 const btnReelSaveProject = $('btn-reel-save-project');
+const btnReelSaveTop = $('btn-reel-save-top');
+if (btnReelSaveTop) btnReelSaveTop.addEventListener('click', () => { if (btnReelSaveProject) btnReelSaveProject.click(); });
+
 if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () => {
   if (!reelAudioBuffer) { setStatus('Nothing to save'); return; }
   setStatus('Saving reel project...', true);
