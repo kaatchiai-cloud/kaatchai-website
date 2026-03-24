@@ -274,7 +274,8 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   0%, 100% { border-color: rgba(160,120,255,0.08); box-shadow: 0 4px 30px rgba(0,0,0,0.3); }
   50% { border-color: rgba(160,120,255,0.2); box-shadow: 0 4px 40px rgba(160,120,255,0.1); }
 }
-#drop-zone { animation: hero-glow 4s ease-in-out infinite; }
+#drop-zone:not(.hidden) { animation: hero-glow 4s ease-in-out infinite; }
+#drop-zone.hidden { animation: none; }
 #drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); animation: none; }
 #drop-zone.hidden { display: none; }
 #drop-zone > p { font-size: 1rem; color: var(--text-secondary); }
@@ -326,7 +327,8 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   background: var(--accent); color: #fff; font-size: 0.68rem;
   font-weight: 700; display: flex; align-items: center; justify-content: center;
 }
-.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+.landing-step-icon { font-size: 1.8rem; margin-bottom: 8px; }
+#drop-zone:not(.hidden) .landing-step-icon { animation: float 3s ease-in-out infinite; }
 .landing-step-card:nth-child(2) .landing-step-icon { animation-delay: 0.5s; }
 .landing-step-card:nth-child(3) .landing-step-icon { animation-delay: 1s; }
 @keyframes float {
@@ -817,12 +819,12 @@ input[type="file"] { display: none; }
   position: absolute; bottom: 0; left: 0; right: 0; text-align: center;
   font-size: 0.58rem; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.7);
   padding: 2px 4px; pointer-events: none; white-space: nowrap; overflow: hidden;
-  backdrop-filter: blur(4px); font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 .photo-block .transition-icon {
   position: absolute; top: 3px; left: 3px; font-size: 0.55rem; color: rgba(255,255,255,0.7);
   background: rgba(0,0,0,0.6); padding: 2px 5px; border-radius: 4px;
-  pointer-events: none; backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 .photo-block .delete-btn {
   position: absolute; top: 3px; right: 10px; width: 18px; height: 18px;
