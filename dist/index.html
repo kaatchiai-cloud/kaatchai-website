@@ -5756,12 +5756,22 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx, bY, bw, h); }
         else if (backdrop === 'blur') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(bx, bY, bw, h); }
       }
+      // Truncate text to fit within maxWidth
+      function fitText(text, font) {
+        ctx.font = font;
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        // Remove words from end until it fits
+        const words = text.split(' ');
+        while (words.length > 1 && ctx.measureText(words.join(' ')).width > maxWidth) words.pop();
+        return words.join(' ');
+      }
       function drawTextWithOutline(text, tx, ty) {
+        const fitted = fitText(text, ctx.font);
         if (outline && outline !== 'transparent') {
           ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-          ctx.strokeText(text, tx, ty, maxWidth);
+          ctx.strokeText(fitted, tx, ty);
         }
-        ctx.fillText(text, tx, ty, maxWidth);
+        ctx.fillText(fitted, tx, ty);
       }
 
       if (style === 'word-by-word') {
@@ -5797,7 +5807,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       } else if (style === 'karaoke') {
         const visible = words.filter(w => elapsed >= w.start);
         if (visible.length > 0) {
-          const recent = visible.slice(-6);
+          const recent = visible.slice(-4);
           const text = recent.map(w => w.word).join(' ');
           ctx.font = `600 ${Math.round(fontSize * 0.8)}px Poppins, sans-serif`;
           ctx.textAlign = 'center';
@@ -5835,21 +5845,20 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
 
     // Helper: get words belonging to the same sentence/segment at current time
     function getSegmentWords(words, elapsed) {
-      // Find the word at current time, then grab surrounding words (up to ~8 words)
+      // Find current word, grab 2 before + 2 after (5 words max)
       const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
       if (idx < 0) {
-        // Between words — find closest
         const closest = words.reduce((best, w, i) => {
           const dist = Math.abs(w.start - elapsed);
           return dist < best.dist ? { dist, idx: i } : best;
         }, { dist: Infinity, idx: -1 });
         if (closest.idx < 0) return [];
-        const start = Math.max(0, closest.idx - 3);
-        const end = Math.min(words.length, closest.idx + 5);
+        const start = Math.max(0, closest.idx - 2);
+        const end = Math.min(words.length, closest.idx + 3);
         return words.slice(start, end);
       }
-      const start = Math.max(0, idx - 3);
-      const end = Math.min(words.length, idx + 5);
+      const start = Math.max(0, idx - 2);
+      const end = Math.min(words.length, idx + 3);
       return words.slice(start, end);
     }
 
