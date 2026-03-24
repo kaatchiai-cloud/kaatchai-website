@@ -619,7 +619,7 @@ if (reelScrub) reelScrub.addEventListener('input', () => {
 // ── Edit dropdowns sync ──
 const reelEditStyle = $('reel-edit-style');
 const reelEditTransition = $('reel-edit-transition');
-const reelEditSubtitle = $('reel-edit-subtitle');
+const reelEditSubtitle = $('reel-subtitle-style');
 
 if (reelEditStyle) reelEditStyle.addEventListener('change', () => {
   if (reelStyleEl) reelStyleEl.value = reelEditStyle.value;
