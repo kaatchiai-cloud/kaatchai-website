@@ -70,8 +70,105 @@ body {
   overscroll-behavior: none;
   background-image: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 60%);
 }
+/* ── Global Loading Indicators ── */
+/* Top progress bar */
+#global-progress {
+  position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+  z-index: 99999; display: none;
+}
+#global-progress.visible { display: block; }
+#global-progress .bar {
+  height: 100%; background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+@keyframes progress-indeterminate {
+  0% { width: 0%; margin-left: 0%; }
+  50% { width: 40%; margin-left: 30%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+/* Status spinner (inline with status text) */
+.status-spinner {
+  display: none; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+.status-spinner.visible { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Fullscreen center spinner (homepage overlay) */
+#page-loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(12,12,20,0.85); backdrop-filter: blur(4px);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+}
+#page-loader.visible { display: flex; }
+#page-loader .loader-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+#page-loader .loader-text {
+  font-size: var(--text-sm); color: var(--text-muted);
+}
+
+/* Top bar */
+.top-bar {
+  width: 100%; max-width: 1080px;
+  text-align: center; position: relative;
+  margin-bottom: 16px;
+}
+.top-bar-left { }
+.top-bar-left h1 { margin-bottom: 2px; }
+.top-bar-left .subtitle { margin-bottom: 0; }
+.top-bar-right { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+
 h1 { font-size: 1.5rem; margin-bottom: 2px; color: var(--text-primary); font-weight: 700; letter-spacing: 1px; }
 .subtitle { font-size: var(--text-base); color: var(--text-muted); margin-bottom: 20px; font-weight: 300; letter-spacing: 0.5px; }
+
+/* User section */
+.user-avatar-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 6px; cursor: pointer;
+}
+.user-avatar-btn:hover { border-color: var(--border-hover); }
+#user-avatar { font-size: 1.1rem; }
+
+.user-dropdown {
+  position: absolute; top: 100%; right: 0; margin-top: 6px;
+  width: 260px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1000;
+  overflow: hidden;
+}
+.user-dropdown.hidden { display: none; }
+.user-dropdown-header {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.user-dropdown-body {
+  padding: 8px 14px;
+}
+.user-info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid var(--border);
+}
+.user-info-row:last-child { border-bottom: none; }
+.user-dropdown-footer {
+  padding: 8px 14px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.plan-badge {
+  font-size: var(--text-2xs); font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.plan-badge.plan-free { background: var(--bg-input); color: var(--text-muted); }
+.plan-badge.plan-pro { background: var(--accent); color: #fff; }
+
+@media (max-width: 480px) {
+  .top-bar-right { position: static; transform: none; margin-top: 8px; }
+}
 
 /* ── Component Classes ── */
 /* Buttons */
@@ -158,6 +255,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   cursor: default; transition: all 0.3s; margin-bottom: 20px;
   box-shadow: 0 4px 30px rgba(0,0,0,0.3);
 }
+#drop-zone button { cursor: pointer; }
 #drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
 #drop-zone.hidden { display: none; }
 #drop-zone > p { font-size: 1rem; color: var(--text-secondary); }
@@ -1376,8 +1474,52 @@ input:focus, select:focus, textarea:focus {
   </style>
 </head>
 <body>
-  <h1>Stori</h1>
-  <p class="subtitle">AI Visual Story Creator</p>
+  <div id="global-progress"><div class="bar"></div></div>
+  <div id="page-loader"><div class="loader-spinner"></div><div class="loader-text">Loading...</div></div>
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1>Stori</h1>
+      <p class="subtitle">AI Visual Story Creator</p>
+    </div>
+    <div id="user-section" class="top-bar-right">
+      <div id="user-signed-out">
+        <button id="btn-sign-in" class="btn-sm primary">Sign In</button>
+      </div>
+      <div id="user-signed-in" class="hidden">
+        <button id="btn-user-menu" class="btn-xs user-avatar-btn">
+          <span id="user-avatar">👤</span>
+          <span id="user-name" class="text-sm">User</span>
+        </button>
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <div class="user-dropdown-header">
+            <span id="user-email" class="text-xs text-muted">user@email.com</span>
+            <div class="flex items-center gap-sm mt-xs">
+              <span id="user-plan-badge" class="plan-badge plan-free">Free</span>
+              <span id="user-plan-detail" class="text-xs text-muted"></span>
+            </div>
+          </div>
+          <div class="user-dropdown-body">
+            <div class="user-info-row">
+              <span class="text-xs text-muted">API Key (Free)</span>
+              <span id="user-key-free-status" class="text-xs">Not set</span>
+            </div>
+            <div class="user-info-row">
+              <span class="text-xs text-muted">API Key (Paid)</span>
+              <span id="user-key-paid-status" class="text-xs">Not set</span>
+            </div>
+            <div class="user-info-row">
+              <span class="text-xs text-muted">Projects saved</span>
+              <span id="user-project-count" class="text-xs">0</span>
+            </div>
+          </div>
+          <div class="user-dropdown-footer">
+            <button id="btn-manage-sub" class="btn-xs w-full">Manage Subscription</button>
+            <button id="btn-sign-out" class="btn-xs w-full danger">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="drop-zone">
     <!-- Hero -->
@@ -2348,7 +2490,7 @@ input:focus, select:focus, textarea:focus {
       <div class="bar-bg"><div class="bar-fill" id="export-bar" style="width:0%"></div></div>
       <div class="label" id="export-label">Exporting...</div>
     </div>
-    <div id="status"></div>
+    <div id="status"><span id="status-spinner" class="status-spinner"></span><span id="status-text"></span></div>
   </div>
 
   <div id="preview-overlay">
@@ -2548,7 +2690,27 @@ function applyEditorPlanGating() {
 // ── Helpers ──
 function fmt(s) { return `${Math.floor(s/60)}:${(s%60).toFixed(3).padStart(6,'0')}`; }
 function fmtShort(s) { return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`; }
-function setStatus(m) { statusEl.textContent = m; }
+function setStatus(m, loading) {
+  const spinner = $('status-spinner');
+  const textEl = $('status-text');
+  if (textEl) textEl.textContent = m;
+  else statusEl.textContent = m;
+  if (spinner) spinner.classList.toggle('visible', !!loading);
+  // Top progress bar
+  const prog = $('global-progress');
+  if (prog) prog.classList.toggle('visible', !!loading);
+}
+function showPageLoader(msg) {
+  const loader = $('page-loader');
+  if (!loader) return;
+  const textEl = loader.querySelector('.loader-text');
+  if (textEl) textEl.textContent = msg || 'Loading...';
+  loader.classList.add('visible');
+}
+function hidePageLoader() {
+  const loader = $('page-loader');
+  if (loader) loader.classList.remove('visible');
+}
 function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 // getSelectedImageSize() is defined in 17-create-content.js (needs createImageSize ref)
 
@@ -5732,7 +5894,8 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     async function loadAudioBuffer(file) { return audioCtx.decodeAudioData(await file.arrayBuffer()); }
 
     async function loadFileIntoEditor(file) {
-      setStatus('Decoding audio...');
+      showPageLoader('Decoding audio...');
+      setStatus('Decoding audio...', true);
       try {
         currentBuffer = await loadAudioBuffer(file);
         undoStack = []; btnUndo.disabled = true;
@@ -5742,6 +5905,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         drawRuler(); renderPhotos(); renderTexts();
         setStatus(`Loaded: ${file.name} (${fmt(currentBuffer.duration)}, ${currentBuffer.numberOfChannels}ch, ${currentBuffer.sampleRate}Hz)`);
       } catch (e) { setStatus('Error: Could not decode audio. ' + e.message); }
+      hidePageLoader();
     }
     async function refreshWaveform() {
       initWaveSurfer();
@@ -6700,7 +6864,8 @@ projectInput.addEventListener('change', async () => {
   if (!file) return;
   projectInput.value = '';
 
-  setStatus('Loading project...');
+  showPageLoader('Loading project...');
+  setStatus('Loading project...', true);
   try {
     const text = await file.text();
     const project = JSON.parse(text);
@@ -7057,6 +7222,7 @@ projectInput.addEventListener('change', async () => {
     setStatus('Could not open project. The file may be corrupted or from an incompatible version.');
     console.error(e);
   }
+  hidePageLoader();
 });
 
 
@@ -11488,9 +11654,84 @@ if (planSelector) {
   planSelector.addEventListener('change', () => {
     currentPlan = planSelector.value;
     localStorage.setItem('stori_plan', currentPlan);
+    updateUserSection();
     setStatus(`Switched to ${currentPlan === 'pro' ? 'Pro' : 'Free'} plan`);
   });
 }
+
+// ── User Section (placeholder until Firebase Auth) ──
+const btnUserMenu = $('btn-user-menu');
+const userDropdown = $('user-dropdown');
+const btnSignIn = $('btn-sign-in');
+const btnSignOut = $('btn-sign-out');
+const btnManageSub = $('btn-manage-sub');
+
+// Toggle dropdown
+if (btnUserMenu) btnUserMenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+  userDropdown.classList.toggle('hidden');
+});
+// Close dropdown on outside click
+document.addEventListener('click', () => {
+  if (userDropdown) userDropdown.classList.add('hidden');
+});
+if (userDropdown) userDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+// Placeholder sign in/out (simulated, replaced by Firebase later)
+if (btnSignIn) btnSignIn.addEventListener('click', () => {
+  // Simulate sign in
+  localStorage.setItem('stori_user', JSON.stringify({ name: 'User', email: 'user@email.com' }));
+  updateUserSection();
+});
+if (btnSignOut) btnSignOut.addEventListener('click', () => {
+  localStorage.removeItem('stori_user');
+  updateUserSection();
+});
+if (btnManageSub) btnManageSub.addEventListener('click', () => {
+  setStatus('Subscription management coming soon.');
+});
+
+function updateUserSection() {
+  const userData = JSON.parse(localStorage.getItem('stori_user') || 'null');
+  const signedOut = $('user-signed-out');
+  const signedIn = $('user-signed-in');
+  if (!signedOut || !signedIn) return;
+
+  if (userData) {
+    signedOut.classList.add('hidden');
+    signedIn.classList.remove('hidden');
+    const nameEl = $('user-name');
+    const emailEl = $('user-email');
+    if (nameEl) nameEl.textContent = userData.name || 'User';
+    if (emailEl) emailEl.textContent = userData.email || '';
+    // Plan badge
+    const badge = $('user-plan-badge');
+    const detail = $('user-plan-detail');
+    if (badge) {
+      badge.textContent = isPro() ? 'Pro' : 'Free';
+      badge.className = `plan-badge ${isPro() ? 'plan-pro' : 'plan-free'}`;
+    }
+    if (detail) detail.textContent = isPro() ? '$10/mo' : '';
+    // API key status
+    const freeStatus = $('user-key-free-status');
+    const paidStatus = $('user-key-paid-status');
+    if (freeStatus) freeStatus.textContent = localStorage.getItem('stori_key_free') ? '✓ Set' : 'Not set';
+    if (paidStatus) paidStatus.textContent = localStorage.getItem('stori_key_paid') ? '✓ Set' : 'Not set';
+    // Project count
+    if (typeof getGalleryProjects === 'function') {
+      getGalleryProjects().then(projects => {
+        const countEl = $('user-project-count');
+        if (countEl) countEl.textContent = projects.length;
+      });
+    }
+  } else {
+    signedOut.classList.remove('hidden');
+    signedIn.classList.add('hidden');
+  }
+}
+
+// Init user section on load
+updateUserSection();
 
   </script>
   <script src="https://unpkg.com/@niccoborg/capacitor-core@latest/dist/capacitor.js" nomodule></script>

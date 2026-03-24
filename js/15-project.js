@@ -730,7 +730,8 @@ projectInput.addEventListener('change', async () => {
   if (!file) return;
   projectInput.value = '';
 
-  setStatus('Loading project...');
+  showPageLoader('Loading project...');
+  setStatus('Loading project...', true);
   try {
     const text = await file.text();
     const project = JSON.parse(text);
@@ -1087,4 +1088,5 @@ projectInput.addEventListener('change', async () => {
     setStatus('Could not open project. The file may be corrupted or from an incompatible version.');
     console.error(e);
   }
+  hidePageLoader();
 });

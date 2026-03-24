@@ -164,7 +164,27 @@ function applyEditorPlanGating() {
 // ── Helpers ──
 function fmt(s) { return `${Math.floor(s/60)}:${(s%60).toFixed(3).padStart(6,'0')}`; }
 function fmtShort(s) { return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`; }
-function setStatus(m) { statusEl.textContent = m; }
+function setStatus(m, loading) {
+  const spinner = $('status-spinner');
+  const textEl = $('status-text');
+  if (textEl) textEl.textContent = m;
+  else statusEl.textContent = m;
+  if (spinner) spinner.classList.toggle('visible', !!loading);
+  // Top progress bar
+  const prog = $('global-progress');
+  if (prog) prog.classList.toggle('visible', !!loading);
+}
+function showPageLoader(msg) {
+  const loader = $('page-loader');
+  if (!loader) return;
+  const textEl = loader.querySelector('.loader-text');
+  if (textEl) textEl.textContent = msg || 'Loading...';
+  loader.classList.add('visible');
+}
+function hidePageLoader() {
+  const loader = $('page-loader');
+  if (loader) loader.classList.remove('visible');
+}
 function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 // getSelectedImageSize() is defined in 17-create-content.js (needs createImageSize ref)
 

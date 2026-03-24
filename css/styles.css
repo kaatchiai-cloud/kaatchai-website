@@ -51,8 +51,105 @@ body {
   overscroll-behavior: none;
   background-image: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.06) 0%, transparent 60%);
 }
+/* ── Global Loading Indicators ── */
+/* Top progress bar */
+#global-progress {
+  position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+  z-index: 99999; display: none;
+}
+#global-progress.visible { display: block; }
+#global-progress .bar {
+  height: 100%; background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+@keyframes progress-indeterminate {
+  0% { width: 0%; margin-left: 0%; }
+  50% { width: 40%; margin-left: 30%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+/* Status spinner (inline with status text) */
+.status-spinner {
+  display: none; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+.status-spinner.visible { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Fullscreen center spinner (homepage overlay) */
+#page-loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(12,12,20,0.85); backdrop-filter: blur(4px);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+}
+#page-loader.visible { display: flex; }
+#page-loader .loader-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+#page-loader .loader-text {
+  font-size: var(--text-sm); color: var(--text-muted);
+}
+
+/* Top bar */
+.top-bar {
+  width: 100%; max-width: 1080px;
+  text-align: center; position: relative;
+  margin-bottom: 16px;
+}
+.top-bar-left { }
+.top-bar-left h1 { margin-bottom: 2px; }
+.top-bar-left .subtitle { margin-bottom: 0; }
+.top-bar-right { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+
 h1 { font-size: 1.5rem; margin-bottom: 2px; color: var(--text-primary); font-weight: 700; letter-spacing: 1px; }
 .subtitle { font-size: var(--text-base); color: var(--text-muted); margin-bottom: 20px; font-weight: 300; letter-spacing: 0.5px; }
+
+/* User section */
+.user-avatar-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 6px; cursor: pointer;
+}
+.user-avatar-btn:hover { border-color: var(--border-hover); }
+#user-avatar { font-size: 1.1rem; }
+
+.user-dropdown {
+  position: absolute; top: 100%; right: 0; margin-top: 6px;
+  width: 260px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1000;
+  overflow: hidden;
+}
+.user-dropdown.hidden { display: none; }
+.user-dropdown-header {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.user-dropdown-body {
+  padding: 8px 14px;
+}
+.user-info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid var(--border);
+}
+.user-info-row:last-child { border-bottom: none; }
+.user-dropdown-footer {
+  padding: 8px 14px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.plan-badge {
+  font-size: var(--text-2xs); font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.plan-badge.plan-free { background: var(--bg-input); color: var(--text-muted); }
+.plan-badge.plan-pro { background: var(--accent); color: #fff; }
+
+@media (max-width: 480px) {
+  .top-bar-right { position: static; transform: none; margin-top: 8px; }
+}
 
 /* ── Component Classes ── */
 /* Buttons */
@@ -139,6 +236,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   cursor: default; transition: all 0.3s; margin-bottom: 20px;
   box-shadow: 0 4px 30px rgba(0,0,0,0.3);
 }
+#drop-zone button { cursor: pointer; }
 #drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
 #drop-zone.hidden { display: none; }
 #drop-zone > p { font-size: 1rem; color: var(--text-secondary); }

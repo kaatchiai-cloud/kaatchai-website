@@ -29,7 +29,8 @@
     async function loadAudioBuffer(file) { return audioCtx.decodeAudioData(await file.arrayBuffer()); }
 
     async function loadFileIntoEditor(file) {
-      setStatus('Decoding audio...');
+      showPageLoader('Decoding audio...');
+      setStatus('Decoding audio...', true);
       try {
         currentBuffer = await loadAudioBuffer(file);
         undoStack = []; btnUndo.disabled = true;
@@ -39,6 +40,7 @@
         drawRuler(); renderPhotos(); renderTexts();
         setStatus(`Loaded: ${file.name} (${fmt(currentBuffer.duration)}, ${currentBuffer.numberOfChannels}ch, ${currentBuffer.sampleRate}Hz)`);
       } catch (e) { setStatus('Error: Could not decode audio. ' + e.message); }
+      hidePageLoader();
     }
     async function refreshWaveform() {
       initWaveSurfer();

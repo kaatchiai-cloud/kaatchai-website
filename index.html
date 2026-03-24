@@ -15,8 +15,52 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>Stori</h1>
-  <p class="subtitle">AI Visual Story Creator</p>
+  <div id="global-progress"><div class="bar"></div></div>
+  <div id="page-loader"><div class="loader-spinner"></div><div class="loader-text">Loading...</div></div>
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1>Stori</h1>
+      <p class="subtitle">AI Visual Story Creator</p>
+    </div>
+    <div id="user-section" class="top-bar-right">
+      <div id="user-signed-out">
+        <button id="btn-sign-in" class="btn-sm primary">Sign In</button>
+      </div>
+      <div id="user-signed-in" class="hidden">
+        <button id="btn-user-menu" class="btn-xs user-avatar-btn">
+          <span id="user-avatar">👤</span>
+          <span id="user-name" class="text-sm">User</span>
+        </button>
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <div class="user-dropdown-header">
+            <span id="user-email" class="text-xs text-muted">user@email.com</span>
+            <div class="flex items-center gap-sm mt-xs">
+              <span id="user-plan-badge" class="plan-badge plan-free">Free</span>
+              <span id="user-plan-detail" class="text-xs text-muted"></span>
+            </div>
+          </div>
+          <div class="user-dropdown-body">
+            <div class="user-info-row">
+              <span class="text-xs text-muted">API Key (Free)</span>
+              <span id="user-key-free-status" class="text-xs">Not set</span>
+            </div>
+            <div class="user-info-row">
+              <span class="text-xs text-muted">API Key (Paid)</span>
+              <span id="user-key-paid-status" class="text-xs">Not set</span>
+            </div>
+            <div class="user-info-row">
+              <span class="text-xs text-muted">Projects saved</span>
+              <span id="user-project-count" class="text-xs">0</span>
+            </div>
+          </div>
+          <div class="user-dropdown-footer">
+            <button id="btn-manage-sub" class="btn-xs w-full">Manage Subscription</button>
+            <button id="btn-sign-out" class="btn-xs w-full danger">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="drop-zone">
     <!-- Hero -->
@@ -987,7 +1031,7 @@
       <div class="bar-bg"><div class="bar-fill" id="export-bar" style="width:0%"></div></div>
       <div class="label" id="export-label">Exporting...</div>
     </div>
-    <div id="status"></div>
+    <div id="status"><span id="status-spinner" class="status-spinner"></span><span id="status-text"></span></div>
   </div>
 
   <div id="preview-overlay">

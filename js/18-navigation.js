@@ -114,6 +114,81 @@ if (planSelector) {
   planSelector.addEventListener('change', () => {
     currentPlan = planSelector.value;
     localStorage.setItem('stori_plan', currentPlan);
+    updateUserSection();
     setStatus(`Switched to ${currentPlan === 'pro' ? 'Pro' : 'Free'} plan`);
   });
 }
+
+// ── User Section (placeholder until Firebase Auth) ──
+const btnUserMenu = $('btn-user-menu');
+const userDropdown = $('user-dropdown');
+const btnSignIn = $('btn-sign-in');
+const btnSignOut = $('btn-sign-out');
+const btnManageSub = $('btn-manage-sub');
+
+// Toggle dropdown
+if (btnUserMenu) btnUserMenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+  userDropdown.classList.toggle('hidden');
+});
+// Close dropdown on outside click
+document.addEventListener('click', () => {
+  if (userDropdown) userDropdown.classList.add('hidden');
+});
+if (userDropdown) userDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+// Placeholder sign in/out (simulated, replaced by Firebase later)
+if (btnSignIn) btnSignIn.addEventListener('click', () => {
+  // Simulate sign in
+  localStorage.setItem('stori_user', JSON.stringify({ name: 'User', email: 'user@email.com' }));
+  updateUserSection();
+});
+if (btnSignOut) btnSignOut.addEventListener('click', () => {
+  localStorage.removeItem('stori_user');
+  updateUserSection();
+});
+if (btnManageSub) btnManageSub.addEventListener('click', () => {
+  setStatus('Subscription management coming soon.');
+});
+
+function updateUserSection() {
+  const userData = JSON.parse(localStorage.getItem('stori_user') || 'null');
+  const signedOut = $('user-signed-out');
+  const signedIn = $('user-signed-in');
+  if (!signedOut || !signedIn) return;
+
+  if (userData) {
+    signedOut.classList.add('hidden');
+    signedIn.classList.remove('hidden');
+    const nameEl = $('user-name');
+    const emailEl = $('user-email');
+    if (nameEl) nameEl.textContent = userData.name || 'User';
+    if (emailEl) emailEl.textContent = userData.email || '';
+    // Plan badge
+    const badge = $('user-plan-badge');
+    const detail = $('user-plan-detail');
+    if (badge) {
+      badge.textContent = isPro() ? 'Pro' : 'Free';
+      badge.className = `plan-badge ${isPro() ? 'plan-pro' : 'plan-free'}`;
+    }
+    if (detail) detail.textContent = isPro() ? '$10/mo' : '';
+    // API key status
+    const freeStatus = $('user-key-free-status');
+    const paidStatus = $('user-key-paid-status');
+    if (freeStatus) freeStatus.textContent = localStorage.getItem('stori_key_free') ? '✓ Set' : 'Not set';
+    if (paidStatus) paidStatus.textContent = localStorage.getItem('stori_key_paid') ? '✓ Set' : 'Not set';
+    // Project count
+    if (typeof getGalleryProjects === 'function') {
+      getGalleryProjects().then(projects => {
+        const countEl = $('user-project-count');
+        if (countEl) countEl.textContent = projects.length;
+      });
+    }
+  } else {
+    signedOut.classList.remove('hidden');
+    signedIn.classList.add('hidden');
+  }
+}
+
+// Init user section on load
+updateUserSection();
