@@ -453,6 +453,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressBar.style.width = `${(si / reelSegments.length * 100).toFixed(0)}%`;
       setStatus(`Processing Reel ${si + 1}/${reelSegments.length}...`, true);
 
+    try {
       // Extract audio for this segment from original full buffer
       const segAudio = extractRegion(reelOriginalAudioBuffer || reelAudioBuffer, seg.start, seg.end);
       const platform = REEL_PLATFORMS[reelPlatform];
@@ -480,6 +481,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         : segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
 
       allReelResults.push({ audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end });
+    } catch(segErr) {
+      reelProgressLabel.textContent = `Reel ${si + 1} failed: ${friendlyApiError(segErr.message)}`;
+    }
     }
 
     // Show results — all segments
@@ -626,6 +630,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }
 
       const models = getImageModels();
+      let lastImgError = null;
       for (let i = 0; i < reelScenes.length; i++) {
         const scene = reelScenes[i];
         reelProgressLabel.textContent = `Generating image ${i + 1} of ${reelScenes.length}...`;
@@ -644,7 +649,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
               imgDataUrl = await generateImageGeminiFlash(effectivePrompt, imageKey, { width: platform.width, height: platform.height }, model);
             }
             break;
-          } catch(e) { continue; }
+          } catch(e) { lastImgError = e.message; continue; }
         }
         if (imgDataUrl) {
           scene.imgDataUrl = imgDataUrl;
@@ -652,6 +657,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           trackCost('imageGenFast', 1);
         } else {
           scene.status = 'error';
+          reelProgressLabel.textContent = `Image ${i + 1} failed: ${friendlyApiError(lastImgError || 'All models exhausted')}`;
         }
 
         // Free tier wait
@@ -712,10 +718,14 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
                     reelAudioTracks.push({ langCode: lang, lang: langNames[lang], audioBuffer, translatedText: translated });
                   }
                 }
-              } catch(e) { /* TTS failed for this lang, continue */ }
+              } catch(e) {
+                reelProgressLabel.textContent = `${langNames[lang]} audio failed: ${friendlyApiError(e.message)}`;
+              }
             }
           }
-        } catch(e) { /* translation failed, continue */ }
+        } catch(e) {
+          reelProgressLabel.textContent = `${langNames[lang]} translation failed: ${friendlyApiError(e.message)}`;
+        }
       }
       updateReelSubtitleLangDropdown();
     }
@@ -729,7 +739,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     renderReelFrame(0);
 
   } catch(e) {
-    reelProgressLabel.textContent = 'Error: ' + (e.message || 'Generation failed');
+    reelProgressLabel.textContent = 'Error: ' + friendlyApiError(e.message || 'Generation failed');
     setStatus('Reel generation failed');
   }
   btnReelGenerate.disabled = false;
@@ -1294,7 +1304,7 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     setStatus(`Reel exported (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
   } catch(e) {
-    setStatus('Export failed: ' + e.message);
+    setStatus('Export failed. Try a different browser or shorter duration.');
   }
   btnReelExport.disabled = false;
 });
