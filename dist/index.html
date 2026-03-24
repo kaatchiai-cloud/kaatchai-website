@@ -1487,31 +1487,32 @@ input:focus, select:focus, textarea:focus {
 .reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
 .reel-step select { cursor: pointer; }
 .reel-settings { justify-content: center; }
-.reel-dropdown-section { max-width: 600px; margin-left: auto; margin-right: auto; }
+.reel-lang-row { display: flex; gap: 10px; justify-content: center; max-width: 500px; margin: 0 auto; }
+.reel-dropdown-section { flex: 1; position: relative; }
 .reel-dropdown-btn {
-  width: 100%; text-align: left; padding: 8px 14px;
+  width: 100%; text-align: left; padding: 6px 10px;
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius-sm); color: var(--text-primary);
-  font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+  font-size: var(--text-xs); cursor: pointer;
   display: flex; align-items: center; justify-content: space-between;
 }
 .reel-dropdown-btn:hover { border-color: var(--border-hover); }
 .reel-dropdown-panel {
-  padding: 10px 14px; background: var(--bg-elevated);
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+  padding: 8px 10px; background: var(--bg-card);
   border: 1px solid var(--border); border-top: none;
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 .reel-dropdown-panel.hidden { display: none; }
 .reel-checkbox-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-  text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
 }
 .reel-checkbox-grid label {
   font-size: var(--text-xs); color: var(--text-secondary);
   display: flex; align-items: center; gap: 4px; cursor: pointer;
 }
 .reel-checkbox-grid input { accent-color: var(--accent); }
-@media (max-width: 480px) { .reel-checkbox-grid { grid-template-columns: repeat(2, 1fr); } }
 .reel-details {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden; text-align: left;
@@ -2251,9 +2252,10 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
         </label>
       </div>
 
-      <!-- Subtitle Languages (dropdown + checkboxes) -->
-      <div class="reel-dropdown-section mt-md">
-        <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitle Languages <span id="sub-lang-count" class="text-xs text-muted">(Original)</span> ▾</button>
+      <!-- Language dropdowns in one row -->
+      <div class="reel-lang-row mt-md">
+      <div class="reel-dropdown-section">
+        <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitles <span id="sub-lang-count" class="text-xs text-muted">(Original)</span> ▾</button>
         <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
           <div id="reel-subtitle-languages" class="reel-checkbox-grid">
             <label><input type="checkbox" value="original" checked disabled> Original</label>
@@ -2268,9 +2270,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
         </div>
       </div>
 
-      <!-- Audio Languages (dropdown + checkboxes) -->
-      <div class="reel-dropdown-section mt-sm">
-        <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio Languages <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+      <div class="reel-dropdown-section">
+        <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
         <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
           <p class="text-xs text-muted mb-sm">AI voiceover in other languages. Free tier (rate limited).</p>
           <div id="reel-audio-languages" class="reel-checkbox-grid mb-sm">
@@ -2289,6 +2290,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
           <div id="reel-audio-lang-list" class="mt-sm"></div>
         </div>
       </div>
+      </div><!-- close reel-lang-row -->
 
       <div class="form-row mt-md">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>

@@ -652,9 +652,10 @@
         </label>
       </div>
 
-      <!-- Subtitle Languages (dropdown + checkboxes) -->
-      <div class="reel-dropdown-section mt-md">
-        <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitle Languages <span id="sub-lang-count" class="text-xs text-muted">(Original)</span> ▾</button>
+      <!-- Language dropdowns in one row -->
+      <div class="reel-lang-row mt-md">
+      <div class="reel-dropdown-section">
+        <button id="btn-toggle-sub-langs" class="reel-dropdown-btn">Subtitles <span id="sub-lang-count" class="text-xs text-muted">(Original)</span> ▾</button>
         <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
           <div id="reel-subtitle-languages" class="reel-checkbox-grid">
             <label><input type="checkbox" value="original" checked disabled> Original</label>
@@ -669,9 +670,8 @@
         </div>
       </div>
 
-      <!-- Audio Languages (dropdown + checkboxes) -->
-      <div class="reel-dropdown-section mt-sm">
-        <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio Languages <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
+      <div class="reel-dropdown-section">
+        <button id="btn-toggle-audio-langs" class="reel-dropdown-btn">Audio <span id="audio-lang-count" class="text-xs text-muted">(none)</span> ▾</button>
         <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
           <p class="text-xs text-muted mb-sm">AI voiceover in other languages. Free tier (rate limited).</p>
           <div id="reel-audio-languages" class="reel-checkbox-grid mb-sm">
@@ -690,6 +690,7 @@
           <div id="reel-audio-lang-list" class="mt-sm"></div>
         </div>
       </div>
+      </div><!-- close reel-lang-row -->
 
       <div class="form-row mt-md">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
