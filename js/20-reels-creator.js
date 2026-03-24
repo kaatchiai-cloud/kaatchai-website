@@ -756,12 +756,16 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 });
 
 // ── Mini Editor ──
+let activeReelPreview = 0;
+
 function renderAllReelPreviews() {
   const container = $('reel-all-previews');
   if (!container || !window._reelMultiResults) return;
   const results = window._reelMultiResults;
+  if (results.length === 0) { container.innerHTML = ''; return; }
   container.innerHTML = results.map((r, i) => `
-    <div class="reel-preview-card">
+    <div class="reel-preview-card ${i === activeReelPreview ? 'selected' : ''}" data-ri="${i}">
+      <button class="reel-seg-remove" data-reel-del="${i}">✕</button>
       <video class="reel-multi-vid" data-ri="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata"></video>
       <div class="reel-preview-label">Reel ${i + 1} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
       <div class="reel-preview-controls">
@@ -776,6 +780,25 @@ function renderAllReelPreviews() {
     const idx = parseInt(v.dataset.ri);
     v.currentTime = results[idx].videoStart;
   });
+  // Select card → load that reel for editing
+  container.querySelectorAll('.reel-preview-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.reel-seg-remove') || e.target.closest('.reel-mp-play') || e.target.closest('.reel-mp-stop')) return;
+      const idx = parseInt(card.dataset.ri);
+      selectReelPreview(idx);
+    });
+  });
+  // Delete reel
+  container.querySelectorAll('.reel-seg-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.reelDel);
+      results.splice(idx, 1);
+      if (activeReelPreview >= results.length) activeReelPreview = Math.max(0, results.length - 1);
+      if (results.length > 0) selectReelPreview(activeReelPreview);
+      renderAllReelPreviews();
+    });
+  });
   // Play/stop handlers
   container.querySelectorAll('.reel-mp-play').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -783,7 +806,6 @@ function renderAllReelPreviews() {
       const r = results[idx];
       const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
       if (!vid) return;
-      // Stop all others
       container.querySelectorAll('.reel-multi-vid').forEach(v => { v.pause(); v.muted = true; });
       vid.currentTime = r.videoStart;
       vid.muted = false;
@@ -805,6 +827,27 @@ function renderAllReelPreviews() {
       if (timeEl) timeEl.textContent = '0:00';
     });
   });
+}
+
+function selectReelPreview(idx) {
+  const results = window._reelMultiResults;
+  if (!results || !results[idx]) return;
+  activeReelPreview = idx;
+  const r = results[idx];
+  reelAudioBuffer = r.audioBuffer;
+  reelScenes = r.scenes;
+  reelWords = r.words;
+  renderReelScenes();
+  renderReelFrame(0);
+  if (reelTimeEl && reelAudioBuffer) reelTimeEl.textContent = `0:00 / ${fmtShort(reelAudioBuffer.duration)}`;
+  // Update selected state in UI
+  const container = $('reel-all-previews');
+  if (container) {
+    container.querySelectorAll('.reel-preview-card').forEach(c => c.classList.remove('selected'));
+    const card = container.querySelector(`[data-ri="${idx}"]`);
+    if (card) card.classList.add('selected');
+  }
+  setStatus(`Editing Reel ${idx + 1}`);
 }
 
 function renderReelScenes() {
@@ -1200,17 +1243,19 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
         isVideo: s.isVideo, transition: s.transition,
       })) : [],
       words: reelWords,
+      multiResults: window._reelMultiResults ? window._reelMultiResults.map(r => ({
+        videoStart: r.videoStart, videoEnd: r.videoEnd,
+      })) : null,
     };
     const json = JSON.stringify(project);
-    const blob = new Blob([json], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `stori-reel-${Date.now()}.storireel`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-    setStatus(`Reel project saved (${(json.length / 1024).toFixed(0)} KB)`);
+    // Save to gallery
+    const name = `Reel ${new Date().toLocaleString()}`;
+    try {
+      await saveProjectToGallery(json, name);
+    } catch(e) { /* gallery save failed, continue to file save */ }
+    setStatus(`Reel saved to gallery`);
   } catch(e) {
-    setStatus('Save failed: ' + e.message);
+    setStatus('Save failed. ' + friendlyApiError(e.message));
   }
 });
 
@@ -1429,11 +1474,18 @@ function renderEditorReelTabs() {
   if (!tabsEl || !window._editorReels) return;
   const reels = window._editorReels;
   tabsEl.classList.remove('hidden');
-  tabsEl.innerHTML = reels.map((r, i) => `
-    <button class="editor-reel-tab ${i === window._editorReelActive ? 'active' : ''}" data-reel-tab="${i}">
-      ${r.label} (${fmtShort(r.videoEnd - r.videoStart)})
-    </button>
-  `).join('') + `<div class="reel-tab-actions"><button id="btn-export-all-reels" class="btn-xs primary">Export All Reels</button></div>`;
+  // Generate thumbnails for each reel
+  tabsEl.innerHTML = reels.map((r, i) => {
+    let thumbHtml = '';
+    if (reelVideoSrc) {
+      thumbHtml = `<video src="${reelVideoSrc}" style="width:48px; height:28px; object-fit:cover; border-radius:3px; pointer-events:none;" muted data-seek="${r.videoStart}"></video>`;
+    }
+    return `<button class="editor-reel-tab ${i === window._editorReelActive ? 'active' : ''}" data-reel-tab="${i}">
+      ${thumbHtml} ${r.label} (${fmtShort(r.videoEnd - r.videoStart)})
+    </button>`;
+  }).join('') + `<div class="reel-tab-actions"><button id="btn-export-all-reels" class="btn-xs primary">Export All Reels</button></div>`;
+  // Seek thumbnails
+  tabsEl.querySelectorAll('video[data-seek]').forEach(v => { v.currentTime = parseFloat(v.dataset.seek); });
 
   tabsEl.querySelectorAll('.editor-reel-tab').forEach(tab => {
     tab.addEventListener('click', () => {
