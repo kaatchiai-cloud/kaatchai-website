@@ -13256,8 +13256,14 @@ function renderReelFrame(time) {
   ctx.fillRect(0, 0, platform.width, platform.height);
 
   const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
-  // Use a small offset to ensure time=0 matches first word/scene
   const t = Math.max(0.01, time);
+
+  // Debug: log state on first render
+  if (time === 0 || time === 0.01) {
+    console.log('[ReelFrame] scenes:', reelScenes?.length, 'words:', reelWords?.length,
+      'videoEl:', !!reelVideoEl, 'videoW:', reelVideoEl?.videoWidth, 'videoH:', reelVideoEl?.videoHeight,
+      'viewport:', reelViewport, 'subStyle:', reelSubtitleStyle);
+  }
 
   // Find scene at time
   const scene = reelScenes.find(s => t >= s.startTime && t < s.endTime);
@@ -13417,10 +13423,30 @@ if (reelEditSubtitle) reelEditSubtitle.addEventListener('change', () => {
 let reelTranslatedWords = {};  // cache: langCode → [{word, start, end}]
 const reelSubtitleLangEl = $('reel-subtitle-lang');
 
-if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () => {
+if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', () => {
   const lang = reelSubtitleLangEl.value;
   if (lang === 'original') {
-    // Reset to original words
+    // Reset to original words from active reel
+    const activeR = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+    reelWords = activeR ? [...activeR.words] : [];
+    renderReelFrame(0);
+    return;
+  }
+  // Check if this language already exists as a separate reel variant
+  if (window._reelMultiResults) {
+    const langReel = window._reelMultiResults.find(r => r.lang === lang);
+    if (langReel) { reelWords = [...langReel.words]; renderReelFrame(0); return; }
+  }
+  // Fallback: use cached translation
+  if (reelTranslatedWords[lang]) { reelWords = reelTranslatedWords[lang]; renderReelFrame(0); return; }
+  // No translation available
+  setStatus(`No ${lang} translation available. Select it in Step 3 before generating.`);
+});
+
+/* Old handler disabled — translations now done during generation
+if (false && reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () => {
+  const lang = reelSubtitleLangEl.value;
+  if (lang === 'original') {
     reelWords = [];
     if (reelScenes) reelScenes.forEach(s => { if (s.words) reelWords.push(...s.words); });
     return;
@@ -13463,6 +13489,7 @@ if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () =
     setStatus('Translation failed: ' + e.message);
   }
 });
+*/
 
 // ── Subtitle Styling Controls (from presets section) ──
 const reelSubColorPreset = $('reel-sub-color-preset');
@@ -13753,6 +13780,16 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
     ], { type: 'text/javascript' })));
 
+    // For video mode: play video in sync with export
+    const isVid = reelScenes && reelScenes.some(s => s.isVideo);
+    const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
+    if (isVid && reelVideoEl) {
+      const vidOffset = activeResult ? activeResult.videoStart : 0;
+      reelVideoEl.currentTime = vidOffset;
+      reelVideoEl.muted = true;
+      reelVideoEl.play();
+    }
+
     recorder.start(100); audioSource.start();
     const t0 = performance.now();
     let stopped = false;
@@ -13761,23 +13798,30 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       if (stopped) return;
       const elapsed = (performance.now() - t0) / 1000;
       if (elapsed >= reelAudioBuffer.duration) {
-        stopped = true; timerWorker.postMessage('stop'); timerWorker.terminate(); recorder.stop(); return;
+        stopped = true; timerWorker.postMessage('stop'); timerWorker.terminate(); recorder.stop();
+        if (reelVideoEl) { reelVideoEl.pause(); reelVideoEl.muted = true; }
+        return;
       }
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, platform.width, platform.height);
       const scene = reelScenes.find((s, i) => elapsed >= s.startTime && elapsed < s.endTime);
       if (scene) {
-        if (scene.isVideo && reelVideoEl) {
-          reelVideoEl.currentTime = elapsed;
-          try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, reelViewport, reelViewportX); } catch(e) {}
+        if (isVid && reelVideoEl) {
+          // Video is playing in sync — just draw current frame with viewport
+          const vp = activeResult?.settings?.viewport || reelViewport;
+          const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
+          try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
+            try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+          }
         } else {
           const idx = reelScenes.indexOf(scene);
           const img = sceneImages[idx];
           if (img) { try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {} }
         }
       }
-      if (reelSubtitleStyle !== 'none' && reelWords.length > 0) {
-        renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, reelSubtitleStyle);
+      const subStyle = activeResult?.settings?.subtitleStyle || reelSubtitleStyle;
+      if (subStyle !== 'none' && reelWords.length > 0) {
+        renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
       }
       if (isFree()) {
         ctx.save(); ctx.globalAlpha = 0.5;
