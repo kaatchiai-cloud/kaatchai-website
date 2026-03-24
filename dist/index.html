@@ -12781,11 +12781,21 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           words.push(...s.words);
         } else if (s.text) {
           const wds = s.text.trim().split(/\s+/);
-          const sDur = (s.endTime || 0) - (s.startTime || 0);
-          const wDur = sDur / wds.length;
-          wds.forEach((w, wi) => { words.push({ word: w, start: s.startTime + wi * wDur, end: s.startTime + (wi + 1) * wDur }); });
+          const sStart = s.startTime || 0;
+          const sEnd = s.endTime || segAudio.duration;
+          const sDur = Math.max(0.1, sEnd - sStart);
+          const wDur = sDur / Math.max(1, wds.length);
+          wds.forEach((w, wi) => { words.push({ word: w, start: sStart + wi * wDur, end: sStart + (wi + 1) * wDur }); });
         }
       }
+      // Final fallback: if still no words, create from all segment texts
+      if (words.length === 0 && segments.length > 0) {
+        const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
+        const totalDur = segAudio.duration;
+        const wDur = totalDur / Math.max(1, allText.length);
+        allText.forEach((w, i) => { words.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+      }
+      console.log(`[ReelGen] Segment ${si+1}: ${segments.length} segments, ${words.length} words generated`);
 
       const scenes = reelEditMode === 'subtitles'
         ? [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }]
@@ -12899,14 +12909,24 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         reelWords.push(...seg.words);
       } else if (seg.text) {
         // Fallback: generate proportional word timings from segment text
-        const words = seg.text.trim().split(/\s+/);
-        const segDur = (seg.endTime || 0) - (seg.startTime || 0);
-        const wordDur = segDur / words.length;
-        words.forEach((w, i) => {
-          reelWords.push({ word: w, start: seg.startTime + i * wordDur, end: seg.startTime + (i + 1) * wordDur });
+        const wds = seg.text.trim().split(/\s+/);
+        const sStart = seg.startTime || 0;
+        const sEnd = seg.endTime || reelAudioBuffer.duration;
+        const sDur = Math.max(0.1, sEnd - sStart);
+        const wDur = sDur / Math.max(1, wds.length);
+        wds.forEach((w, i) => {
+          reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
         });
       }
     }
+    // Final fallback: if still no words, create from all segment texts
+    if (reelWords.length === 0 && segments.length > 0) {
+      const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
+      const totalDur = reelAudioBuffer.duration;
+      const wDur = totalDur / Math.max(1, allText.length);
+      allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+    }
+    console.log(`[ReelGen] Single: ${segments.length} segments, ${reelWords.length} words`);
 
     const isVideoMode = reelInputMode === 'video' && reelVideoEl;
 
@@ -13269,31 +13289,35 @@ function renderReelFrame(time) {
   const scene = reelScenes.find(s => t >= s.startTime && t < s.endTime);
   if (scene) {
     if (scene.isVideo && reelVideoEl) {
-      // Video mode: seek to actual video position
+      // Video mode: seek and draw
       const vidOffset = activeResult ? activeResult.videoStart : 0;
       const seekTime = vidOffset + t;
-      // Seek and draw after seek completes
-      if (Math.abs(reelVideoEl.currentTime - seekTime) > 0.05) {
-        reelVideoEl.currentTime = seekTime;
-        reelVideoEl.onseeked = () => {
-          reelVideoEl.onseeked = null;
-          drawReelVideoFrame(ctx, platform, activeResult);
-          drawReelSubtitles(ctx, platform, t);
-        };
-      } else {
-        drawReelVideoFrame(ctx, platform, activeResult);
+      reelVideoEl.currentTime = seekTime;
+      // Draw immediately — if frame not ready, try again after seek
+      const drawIt = () => {
+        const vp = activeResult?.settings?.viewport || reelViewport;
+        const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, platform.width, platform.height);
+        try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
+          try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+        }
         drawReelSubtitles(ctx, platform, t);
-      }
-      return; // async path — subtitles drawn after seek
+      };
+      drawIt();
+      // Also draw again after seek completes for accuracy
+      reelVideoEl.onseeked = () => { reelVideoEl.onseeked = null; drawIt(); };
     } else if (scene.imgDataUrl) {
       const img = new Image();
       img.src = scene.imgDataUrl;
       try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
+      drawReelSubtitles(ctx, platform, t);
+    } else {
+      drawReelSubtitles(ctx, platform, t);
     }
+  } else {
+    drawReelSubtitles(ctx, platform, t);
   }
-
-  // Subtitles (sync path for non-video)
-  drawReelSubtitles(ctx, platform, t);
 }
 
 function drawReelVideoFrame(ctx, platform, activeResult) {
