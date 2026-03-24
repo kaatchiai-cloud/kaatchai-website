@@ -707,12 +707,16 @@
           <div class="reel-canvas-wrap">
             <canvas id="reel-canvas" width="1080" height="1920"></canvas>
           </div>
-          <div class="reel-playback form-row mt-sm">
-            <button id="btn-reel-play" class="btn-sm">▶ Play</button>
-            <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
-            <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
-            <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
-            <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+          <div class="reel-playback mt-sm" style="max-width:400px; margin:0 auto;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
+              <span id="reel-time" class="text-xs">0:00 / 0:00</span>
+            </div>
+            <div class="form-row">
+              <button id="btn-reel-play" class="btn-sm">▶ Play</button>
+              <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
+              <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
+            </div>
           </div>
         </div>
         <div class="reel-scenes mt-md" id="reel-scene-list"></div>

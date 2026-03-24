@@ -524,6 +524,45 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       return;
     }
 
+    // Generate language variants for multi-segment reels
+    const selectedSubLangsMS = [...document.querySelectorAll('#reel-subtitle-languages input:checked')].map(cb => cb.value);
+    const selectedAudioLangsMS = [...document.querySelectorAll('#reel-audio-languages input:checked')].map(cb => cb.value);
+    const allLangsMS = [...new Set([...selectedSubLangsMS, ...selectedAudioLangsMS])];
+    const langNamesMS = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+
+    if (allLangsMS.length > 0) {
+      const origReels = [...allReelResults];
+      for (const lang of allLangsMS) {
+        for (const origReel of origReels) {
+          if (!origReel.words || origReel.words.length === 0) continue;
+          reelProgressLabel.textContent = `Translating to ${langNamesMS[lang]}...`;
+          setStatus(`Translating to ${langNamesMS[lang]}...`, true);
+          try {
+            const origText = origReel.words.map(w => w.word).join(' ');
+            const transBody = { contents: [{ parts: [{ text: `Translate to ${langNamesMS[lang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
+            trackCost('textGeneration', 1);
+            const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (translated) {
+              const transWords = translated.split(/\s+/);
+              const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+              const wDur = totalDur / Math.max(1, transWords.length);
+              const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+              const langWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
+              allReelResults.push({
+                audioBuffer: origReel.audioBuffer, scenes: origReel.scenes,
+                words: langWords, videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
+                lang, langLabel: langNamesMS[lang],
+                settings: { ...origReel.settings },
+              });
+            }
+          } catch(e) { reelProgressLabel.textContent = `${langNamesMS[lang]} failed`; }
+        }
+      }
+    }
+
+    window._reelMultiResults = allReelResults;
+
     // Use first for main preview
     const first = allReelResults[0];
     reelAudioBuffer = first.audioBuffer;
@@ -531,8 +570,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     reelWords = first.words;
 
     reelStepEditor.classList.remove('hidden');
-    renderAllReelPreviews();
+    renderReelScenes();
     renderReelFrame(0);
+    reelProgressEl.classList.add('hidden');
     btnReelGenerate.disabled = false;
     return;
   }
@@ -1155,21 +1195,32 @@ const reelSubtitleLangEl = $('reel-subtitle-lang');
 
 if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', () => {
   const lang = reelSubtitleLangEl.value;
+  console.log('[LangSwitch] selected:', lang, 'results:', window._reelMultiResults?.map(r => r.lang), 'cache:', Object.keys(reelTranslatedWords));
   if (lang === 'original') {
-    // Reset to original words from active reel
     const activeR = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
     reelWords = activeR ? [...activeR.words] : [];
+    console.log('[LangSwitch] original words:', reelWords.length);
     renderReelFrame(0);
     return;
   }
-  // Check if this language already exists as a separate reel variant
+  // Check if this language exists as a reel variant
   if (window._reelMultiResults) {
     const langReel = window._reelMultiResults.find(r => r.lang === lang);
-    if (langReel) { reelWords = [...langReel.words]; renderReelFrame(0); return; }
+    if (langReel) {
+      reelWords = [...langReel.words];
+      console.log('[LangSwitch] variant found, words:', reelWords.length);
+      renderReelFrame(0);
+      return;
+    }
   }
-  // Fallback: use cached translation
-  if (reelTranslatedWords[lang]) { reelWords = reelTranslatedWords[lang]; renderReelFrame(0); return; }
-  // No translation available
+  // Fallback: cached
+  if (reelTranslatedWords[lang]) {
+    reelWords = [...reelTranslatedWords[lang]];
+    console.log('[LangSwitch] cache found, words:', reelWords.length);
+    renderReelFrame(0);
+    return;
+  }
+  console.log('[LangSwitch] NOT FOUND for', lang);
   setStatus(`No ${lang} translation available. Select it in Step 3 before generating.`);
 });
 
