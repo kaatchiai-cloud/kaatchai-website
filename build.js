@@ -21,7 +21,27 @@ if (fs.existsSync(cssPath)) {
   );
 }
 
-// 2. Inline JS: collect all <script src="js/..."> tags, replace with single <script> block
+// 2. Inline vendor scripts: replace <script src="vendor/..."> with inline <script>
+const vendorRegex = /\s*<script\s+src="vendor\/([^"]+)"><\/script>/g;
+const vendorFiles = [];
+let vm;
+const htmlForVendor = html;
+while ((vm = vendorRegex.exec(htmlForVendor)) !== null) {
+  vendorFiles.push(vm[1]);
+}
+if (vendorFiles.length > 0) {
+  const vendorJs = vendorFiles.map(f => {
+    return fs.readFileSync(path.join(ROOT, 'vendor', f), 'utf8');
+  }).join('\n');
+  let vReplaced = false;
+  html = html.replace(/\s*<script\s+src="vendor\/[^"]+"><\/script>/g, (m) => {
+    if (!vReplaced) { vReplaced = true; return `\n  <script>\n${vendorJs}\n  </script>`; }
+    return '';
+  });
+  console.log(`  Vendor inlined: ${vendorFiles.join(', ')}`);
+}
+
+// 3. Inline JS: collect all <script src="js/..."> tags, replace with single <script> block
 const jsTagRegex = /\s*<script\s+src="js\/([^"]+)"><\/script>/g;
 const jsFiles = [];
 let match;
