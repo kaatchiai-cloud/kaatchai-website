@@ -1468,6 +1468,20 @@ input:focus, select:focus, textarea:focus {
 .reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
 .reel-step select { cursor: pointer; }
 .reel-settings { justify-content: center; }
+.reel-details {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; text-align: left;
+  max-width: 600px; margin: 0 auto;
+}
+.reel-summary {
+  padding: 10px 14px; cursor: pointer; font-size: var(--text-sm);
+  font-weight: 600; color: var(--text-primary);
+  list-style: none; display: flex; align-items: center; gap: 6px;
+}
+.reel-summary::before { content: '▸'; transition: transform 0.2s; }
+details[open] > .reel-summary::before { transform: rotate(90deg); }
+.reel-summary::-webkit-details-marker { display: none; }
+.reel-details-body { padding: 0 14px 12px; }
 .reel-editor-vertical { display: flex; flex-direction: column; align-items: center; }
 .reel-canvas-wrap {
   width: 220px; border-radius: var(--radius);

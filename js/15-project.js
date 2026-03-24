@@ -736,6 +736,13 @@ projectInput.addEventListener('change', async () => {
     const text = await file.text();
     const project = JSON.parse(text);
 
+    // Route .storireel files to Reel section
+    if (project.type === 'reel' && typeof loadReelProject === 'function') {
+      hidePageLoader();
+      loadReelProject(project);
+      return;
+    }
+
     if (!project.version || !project.audio || !project.audio.data) {
       setStatus('Invalid project file'); return;
     }

@@ -244,11 +244,35 @@ function initReelWaveform() {
   });
 }
 
+const reelSegStart = $('reel-seg-start');
+const reelSegEnd = $('reel-seg-end');
+
 function updateReelSegmentInfo() {
   if (!reelRegion) return;
   const dur = (reelRegion.end - reelRegion.start).toFixed(1);
-  reelSegmentInfo.textContent = `Selected: ${fmtShort(reelRegion.start)} — ${fmtShort(reelRegion.end)} (${dur}s)`;
+  reelSegmentInfo.textContent = `Duration: ${dur}s`;
+  // Sync inputs with region
+  if (reelSegStart) reelSegStart.value = reelRegion.start.toFixed(1);
+  if (reelSegEnd) reelSegEnd.value = reelRegion.end.toFixed(1);
 }
+
+// Inputs update region
+if (reelSegStart) reelSegStart.addEventListener('change', () => {
+  if (!reelRegion) return;
+  const start = Math.max(0, parseFloat(reelSegStart.value) || 0);
+  if (start < reelRegion.end) {
+    reelRegion.setOptions({ start });
+    updateReelSegmentInfo();
+  }
+});
+if (reelSegEnd) reelSegEnd.addEventListener('change', () => {
+  if (!reelRegion || !reelAudioBuffer) return;
+  const end = Math.min(reelAudioBuffer.duration, parseFloat(reelSegEnd.value) || 0);
+  if (end > reelRegion.start) {
+    reelRegion.setOptions({ end });
+    updateReelSegmentInfo();
+  }
+});
 
 if (btnReelPlaySegment) btnReelPlaySegment.addEventListener('click', () => {
   if (reelRegion && reelWavesurfer) reelRegion.play();
@@ -653,13 +677,126 @@ if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () =
   }
 });
 
-// ── Subtitle Styling Controls ──
-const reelSubColorEl = $('reel-sub-color');
-const reelSubOutlineEl = $('reel-sub-outline');
-const reelSubBackdropEl = $('reel-sub-backdrop');
-if (reelSubColorEl) reelSubColorEl.addEventListener('input', () => { reelSubColor = reelSubColorEl.value; });
-if (reelSubOutlineEl) reelSubOutlineEl.addEventListener('input', () => { reelSubOutline = reelSubOutlineEl.value; });
-if (reelSubBackdropEl) reelSubBackdropEl.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropEl.value; });
+// ── Subtitle Styling Controls (from presets section) ──
+const reelSubColorPreset = $('reel-sub-color-preset');
+const reelSubOutlinePreset = $('reel-sub-outline-preset');
+const reelSubBackdropPreset = $('reel-sub-backdrop-preset');
+if (reelSubColorPreset) reelSubColorPreset.addEventListener('input', () => { reelSubColor = reelSubColorPreset.value; });
+if (reelSubOutlinePreset) reelSubOutlinePreset.addEventListener('input', () => { reelSubOutline = reelSubOutlinePreset.value; });
+if (reelSubBackdropPreset) reelSubBackdropPreset.addEventListener('change', () => { reelSubBackdrop = reelSubBackdropPreset.value; });
+
+// Populate mini editor subtitle language dropdown from selected languages
+function updateReelSubtitleLangDropdown() {
+  const langSelect = $('reel-subtitle-lang');
+  if (!langSelect) return;
+  const langNames = { original: 'Original', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+  langSelect.innerHTML = '<option value="original" selected>Original</option>';
+  const checkboxes = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked');
+  checkboxes.forEach(cb => {
+    if (cb.value !== 'original') {
+      langSelect.innerHTML += `<option value="${cb.value}">${langNames[cb.value] || cb.value}</option>`;
+    }
+  });
+}
+// Update on checkbox change
+document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', updateReelSubtitleLangDropdown);
+});
+
+// ── Audio Language Generation ──
+const btnReelGenAudioLangs = $('btn-reel-gen-audio-langs');
+const reelAudioLangStatus = $('reel-audio-lang-status');
+const reelAudioLangList = $('reel-audio-lang-list');
+let reelAudioTracks = []; // [{langCode, lang, audioBuffer}]
+
+if (btnReelGenAudioLangs) btnReelGenAudioLangs.addEventListener('click', async () => {
+  const key = getReelApiKey();
+  if (!key) { reelAudioLangStatus.textContent = 'API key needed'; return; }
+  if (!reelAudioBuffer || !reelWords || reelWords.length === 0) {
+    reelAudioLangStatus.textContent = 'Generate reel first (need transcript)';
+    return;
+  }
+
+  const selectedLangs = [];
+  document.querySelectorAll('#reel-audio-languages input[type="checkbox"]:checked').forEach(cb => {
+    selectedLangs.push(cb.value);
+  });
+  if (selectedLangs.length === 0) { reelAudioLangStatus.textContent = 'Select at least one language'; return; }
+
+  const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+  const originalText = reelWords.map(w => w.word).join(' ');
+
+  btnReelGenAudioLangs.disabled = true;
+  reelAudioTracks = [];
+
+  for (const langCode of selectedLangs) {
+    const langName = langNames[langCode] || langCode;
+    reelAudioLangStatus.textContent = `Translating to ${langName}...`;
+    setStatus(`Translating to ${langName}...`, true);
+
+    try {
+      // Translate
+      const transBody = {
+        contents: [{ parts: [{ text: `Translate the following text to ${langName}. Return ONLY the translated text:\n\n${originalText}` }] }]
+      };
+      const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
+      trackCost('textGeneration', 1);
+      const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (!translated) throw new Error('No translation returned');
+
+      // Generate TTS
+      reelAudioLangStatus.textContent = `Generating ${langName} audio...`;
+      setStatus(`Generating ${langName} TTS...`, true);
+
+      const ttsModels = getTTSModels();
+      const ttsResp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: translated }] }],
+            generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+          })
+        }
+      );
+      if (!ttsResp.ok) throw new Error('TTS failed');
+      const ttsData = await ttsResp.json();
+      const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+      if (!part?.inlineData?.data) throw new Error('No audio returned');
+      trackCost('ttsPerLang', 1);
+
+      const b64 = part.inlineData.data;
+      const binary = atob(b64);
+      const buf = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+      const audioBuffer = await audioCtx.decodeAudioData(buf.buffer);
+
+      reelAudioTracks.push({ langCode, lang: langName, audioBuffer, translatedText: translated });
+
+      // Show in list
+      renderReelAudioLangList();
+
+    } catch(e) {
+      reelAudioLangStatus.textContent = `${langName} failed: ${e.message}`;
+    }
+  }
+
+  btnReelGenAudioLangs.disabled = false;
+  reelAudioLangStatus.textContent = `${reelAudioTracks.length} language(s) generated`;
+  setStatus(`${reelAudioTracks.length} audio tracks generated`);
+
+  // Also update subtitle language dropdown
+  updateReelSubtitleLangDropdown();
+});
+
+function renderReelAudioLangList() {
+  if (!reelAudioLangList) return;
+  reelAudioLangList.innerHTML = reelAudioTracks.map(t => `
+    <div class="form-row mb-xs">
+      <span class="text-xs" style="color:var(--green);">✓</span>
+      <span class="text-xs">${t.lang}</span>
+      <span class="text-xs text-muted">(${fmtShort(t.audioBuffer.duration)})</span>
+    </div>
+  `).join('');
+}
 
 // ── Save Reel Project ──
 const btnReelSaveProject = $('btn-reel-save-project');
@@ -810,28 +947,137 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
 // ── Open in Full Editor ──
 if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
   if (!reelAudioBuffer || !reelScenes) return;
-  // Transfer to main editor
+  stopReelPreview();
   currentBuffer = reelAudioBuffer;
   photoItems = [];
+  videoTimelineItems = [];
   const platform = REEL_PLATFORMS[reelPlatform];
+
   for (const scene of reelScenes) {
-    if (!scene.imgDataUrl) continue;
-    const img = new Image(); img.src = scene.imgDataUrl;
-    photoItems.push({
-      id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
-      startTime: scene.startTime, duration: scene.duration,
-      transition: scene.transition, transDur: scene.transDur, motion: scene.motion,
-    });
+    if (scene.isVideo && reelVideoEl) {
+      // Video scene → video timeline
+      const tc = document.createElement('canvas'); tc.width = 160; tc.height = 90;
+      try { tc.getContext('2d').drawImage(reelVideoEl, 0, 0, 160, 90); } catch(e) {}
+      const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
+      const thumbImg = new Image(); thumbImg.src = thumbUrl;
+      videoTimelineItems.push({
+        id: nextVideoTimelineId++,
+        videoEl: reelVideoEl, videoSrc: reelVideoSrc,
+        videoDuration: reelVideoEl.duration,
+        inPoint: scene.startTime, outPoint: scene.endTime,
+        startTime: scene.startTime, duration: scene.duration,
+        imgSrc: thumbUrl, imgEl: thumbImg,
+      });
+    } else if (scene.imgDataUrl) {
+      // Image scene → photo timeline
+      const img = new Image(); img.src = scene.imgDataUrl;
+      photoItems.push({
+        id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
+        startTime: scene.startTime, duration: scene.duration,
+        transition: scene.transition || 'fade', transDur: scene.transDur || 0.3,
+        motion: scene.motion || 'none',
+      });
+    }
   }
+
+  // Transfer subtitles as subtitle items
+  if (reelWords && reelWords.length > 0) {
+    subtitleItems = [];
+    // Group words into subtitle segments (~5 words each)
+    for (let i = 0; i < reelWords.length; i += 5) {
+      const group = reelWords.slice(i, i + 5);
+      if (group.length === 0) continue;
+      subtitleItems.push({
+        id: nextSubtitleId++,
+        text: group.map(w => w.word).join(' '),
+        startTime: group[0].start,
+        duration: group[group.length - 1].end - group[0].start,
+        font: "'Poppins', sans-serif", fontSize: 32,
+        color: reelSubColor || '#ffffff',
+        strokeColor: reelSubOutline || '#000000', strokeWidth: 2,
+        bgColor: '#000000', bgAlpha: reelSubBackdrop === 'none' ? 0 : 0.5,
+        bold: true, position: 'bottom', animation: 'none', animDur: 0,
+      });
+    }
+  }
+
+  // Transfer BGM
   if (reelBgmBuffer) bgmBuffer = reelBgmBuffer;
+
+  // Transfer audio language tracks
+  if (reelAudioTracks && reelAudioTracks.length > 0) {
+    editorLanguageTracks = reelAudioTracks.map(t => ({
+      lang: t.lang, langCode: t.langCode,
+      audioBuffer: t.audioBuffer,
+      translatedText: t.translatedText,
+      subtitleLang: 'none',
+    }));
+    editorOriginalBuffer = currentBuffer;
+    editorOriginalSubtitles = subtitleItems.map(s => ({ ...s }));
+  }
+
   // Set image size
   if (createImageSize) createImageSize.value = `${platform.width}x${platform.height}`;
 
   reelPage.classList.remove('visible');
   editorEl.classList.add('visible');
+  reelMode = false;
   updateAudioControls();
   applyEditorPlanGating();
   loadEditorLibrary();
+  if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
-  setStatus(`Reel transferred to editor: ${photoItems.length} scenes`);
+  if (typeof setupEditorLanguageSelector === 'function' && editorLanguageTracks.length > 0) setupEditorLanguageSelector();
+  const items = photoItems.length + videoTimelineItems.length;
+  setStatus(`Reel transferred to editor: ${items} items, ${subtitleItems.length} subtitles`);
 });
+
+// ── Load .storireel project ──
+async function loadReelProject(project) {
+  // Navigate to reel page
+  dropZone.classList.add('hidden');
+  reelPage.classList.add('visible');
+  reelMode = true;
+
+  // Restore settings
+  reelPlatform = project.platform || 'instagram';
+  reelDuration = project.duration || 60;
+  reelSubtitleStyle = project.subtitleStyle || 'highlight';
+  reelTransition = project.transition || 'whip-pan';
+  reelSubColor = project.subColor || '#ffffff';
+  reelSubOutline = project.subOutline || '#000000';
+  reelSubBackdrop = project.subBackdrop || 'dark';
+
+  // Update UI
+  if (reelPlatformEl) reelPlatformEl.value = reelPlatform;
+  if (reelDurationEl) reelDurationEl.value = reelDuration;
+  if (reelSubtitleStyleEl) reelSubtitleStyleEl.value = reelSubtitleStyle;
+  if (reelTransitionEl) reelTransitionEl.value = reelTransition;
+  if (reelSubColorPreset) reelSubColorPreset.value = reelSubColor;
+  if (reelSubOutlinePreset) reelSubOutlinePreset.value = reelSubOutline;
+  if (reelSubBackdropPreset) reelSubBackdropPreset.value = reelSubBackdrop;
+
+  // Restore audio
+  if (project.audio && project.audio.data) {
+    try {
+      showPageLoader('Restoring audio...');
+      const arrayBuf = base64ToArrayBuffer(project.audio.data);
+      reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+      hidePageLoader();
+    } catch(e) { hidePageLoader(); setStatus('Could not restore audio'); }
+  }
+
+  // Restore scenes + words
+  reelWords = project.words || [];
+  reelScenes = project.scenes || [];
+
+  // Show mini editor if scenes exist
+  if (reelScenes.length > 0) {
+    reelStepEditor.classList.remove('hidden');
+    renderReelScenes();
+    renderReelFrame(0);
+    if (reelTimeEl && reelAudioBuffer) reelTimeEl.textContent = `0:00 / ${fmtShort(reelAudioBuffer.duration)}`;
+  }
+
+  setStatus('Reel project loaded');
+}

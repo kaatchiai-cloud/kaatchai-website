@@ -599,13 +599,15 @@
               <button id="btn-reel-vid-play" class="btn-xs">▶ Play</button>
               <button id="btn-reel-vid-pause" class="btn-xs">⏸ Pause</button>
               <button id="btn-reel-vid-stop" class="btn-xs">⏹ Stop</button>
+              <button id="btn-reel-play-segment" class="btn-xs">▶ Segment</button>
               <span id="reel-vid-time" class="text-xs text-muted">0:00</span>
             </div>
           </div>
           <div id="reel-waveform"></div>
           <div class="form-row mt-sm">
-            <span id="reel-segment-info" class="text-xs text-muted">Select a segment on the waveform</span>
-            <button id="btn-reel-play-segment" class="btn-xs">▶ Play Segment</button>
+            <label class="form-label">Start: <input type="number" id="reel-seg-start" step="0.1" min="0" value="0" style="width:65px;">s</label>
+            <label class="form-label">End: <input type="number" id="reel-seg-end" step="0.1" min="0" value="60" style="width:65px;">s</label>
+            <span id="reel-segment-info" class="text-xs text-muted">Duration: 60.0s</span>
             <button id="btn-reel-use-segment" class="btn-xs primary">✓ Use Segment</button>
           </div>
         </div>
@@ -648,16 +650,66 @@
             <option value="flash">Flash</option>
           </select>
         </label>
-        <label class="form-label">Subtitle:
-          <select id="reel-subtitle-style">
-            <option value="highlight" selected>Highlight</option>
-            <option value="word-by-word">Word by Word</option>
-            <option value="karaoke">Karaoke</option>
-            <option value="bold-center">Bold Center</option>
-            <option value="none">None</option>
-          </select>
-        </label>
       </div>
+
+      <!-- Expandable: Subtitles -->
+      <details class="reel-details mt-md" open>
+        <summary class="reel-summary">Subtitles</summary>
+        <div class="reel-details-body">
+          <div class="form-row mb-md">
+            <label class="form-label">Style:
+              <select id="reel-subtitle-style">
+                <option value="highlight" selected>Highlight</option>
+                <option value="word-by-word">Word by Word</option>
+                <option value="karaoke">Karaoke</option>
+                <option value="bold-center">Bold Center</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+            <label class="form-label">Color: <input type="color" id="reel-sub-color-preset" value="#ffffff"></label>
+            <label class="form-label">Outline: <input type="color" id="reel-sub-outline-preset" value="#000000"></label>
+            <label class="form-label">Backdrop:
+              <select id="reel-sub-backdrop-preset">
+                <option value="dark" selected>Dark</option>
+                <option value="blur">Blur</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+          </div>
+          <p class="text-xs text-muted mb-sm">Select subtitle languages (original is always included):</p>
+          <div id="reel-subtitle-languages" class="form-row">
+            <label class="form-label"><input type="checkbox" value="original" checked disabled> Original</label>
+            <label class="form-label"><input type="checkbox" value="en"> English</label>
+            <label class="form-label"><input type="checkbox" value="ta"> Tamil</label>
+            <label class="form-label"><input type="checkbox" value="hi"> Hindi</label>
+            <label class="form-label"><input type="checkbox" value="te"> Telugu</label>
+            <label class="form-label"><input type="checkbox" value="ml"> Malayalam</label>
+            <label class="form-label"><input type="checkbox" value="es"> Spanish</label>
+            <label class="form-label"><input type="checkbox" value="fr"> French</label>
+          </div>
+        </div>
+      </details>
+
+      <!-- Expandable: Audio Languages -->
+      <details class="reel-details mt-md">
+        <summary class="reel-summary">Audio Languages <span class="text-xs text-muted">(optional)</span></summary>
+        <div class="reel-details-body">
+          <p class="text-xs text-muted mb-sm">Generate voiceover in additional languages. Uses TTS — works on free tier (rate limited).</p>
+          <div id="reel-audio-languages" class="form-row mb-md">
+            <label class="form-label"><input type="checkbox" value="ta"> Tamil</label>
+            <label class="form-label"><input type="checkbox" value="hi"> Hindi</label>
+            <label class="form-label"><input type="checkbox" value="te"> Telugu</label>
+            <label class="form-label"><input type="checkbox" value="ml"> Malayalam</label>
+            <label class="form-label"><input type="checkbox" value="en"> English</label>
+            <label class="form-label"><input type="checkbox" value="es"> Spanish</label>
+            <label class="form-label"><input type="checkbox" value="fr"> French</label>
+          </div>
+          <button id="btn-reel-gen-audio-langs" class="btn-sm">🌐 Generate Audio Tracks</button>
+          <span id="reel-audio-lang-status" class="text-xs text-muted"></span>
+          <div id="reel-audio-lang-list" class="mt-sm"></div>
+        </div>
+      </details>
+
       <div class="form-row mt-md">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
         <span id="reel-generate-status" class="text-sm text-muted"></span>
@@ -686,26 +738,10 @@
         <div class="reel-settings mt-md">
           <label class="form-label">Style: <select id="reel-edit-style"></select></label>
           <label class="form-label">Transition: <select id="reel-edit-transition"></select></label>
-          <label class="form-label">Subtitle style: <select id="reel-edit-subtitle"></select></label>
-          <label class="form-label">Subtitle language:
+          <label class="form-label">Subtitle: <select id="reel-edit-subtitle"></select></label>
+          <label class="form-label">Sub language:
             <select id="reel-subtitle-lang">
               <option value="original" selected>Original</option>
-              <option value="en">English</option>
-              <option value="ta">Tamil</option>
-              <option value="hi">Hindi</option>
-              <option value="te">Telugu</option>
-              <option value="ml">Malayalam</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-            </select>
-          </label>
-          <label class="form-label">Sub color: <input type="color" id="reel-sub-color" value="#ffffff"></label>
-          <label class="form-label">Outline: <input type="color" id="reel-sub-outline" value="#000000"></label>
-          <label class="form-label">Backdrop:
-            <select id="reel-sub-backdrop">
-              <option value="dark" selected>Dark</option>
-              <option value="blur">Blur</option>
-              <option value="none">None</option>
             </select>
           </label>
           <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
