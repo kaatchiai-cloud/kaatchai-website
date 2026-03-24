@@ -1486,15 +1486,16 @@ input:focus, select:focus, textarea:focus {
 .reel-step textarea, .reel-step input[type="text"], .reel-step input[type="password"], .reel-step input[type="number"] { text-align: left; cursor: text; }
 .reel-step select { cursor: pointer; }
 .reel-segments-list {
-  display: flex; flex-direction: column; gap: 10px; align-items: center;
-  max-width: 400px; margin: 0 auto;
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
 }
 .reel-seg-card {
-  width: 100%; max-width: 400px; background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden; position: relative;
-  text-align: center; margin: 0 auto;
+  width: 150px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; position: relative;
+  text-align: center;
 }
-.reel-seg-card img, .reel-seg-card video { width: 100%; display: block; }
+.reel-seg-card img, .reel-seg-card video {
+  width: 100%; aspect-ratio: var(--reel-aspect, 9/16); object-fit: cover; display: block;
+}
 .reel-seg-card .reel-seg-info {
   padding: 4px 6px; color: var(--text-secondary);
 }
@@ -12574,7 +12575,12 @@ function stopSegPreview() {
 }
 
 // ── Preset handlers ──
-if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; });
+function updateReelAspectRatio() {
+  const p = REEL_PLATFORMS[reelPlatform];
+  if (p) document.documentElement.style.setProperty('--reel-aspect', `${p.width}/${p.height}`);
+}
+if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); });
+updateReelAspectRatio();
 if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
 if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
 if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; });

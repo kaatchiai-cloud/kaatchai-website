@@ -427,7 +427,12 @@ function stopSegPreview() {
 }
 
 // ── Preset handlers ──
-if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; });
+function updateReelAspectRatio() {
+  const p = REEL_PLATFORMS[reelPlatform];
+  if (p) document.documentElement.style.setProperty('--reel-aspect', `${p.width}/${p.height}`);
+}
+if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); });
+updateReelAspectRatio();
 if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
 if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
 if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; });
