@@ -67,13 +67,35 @@ insertInput.addEventListener('change', async () => { const f=insertInput.files[0
 btnUndo.addEventListener('click', async () => { if(!undoStack.length)return; currentBuffer=undoStack.pop(); if(!undoStack.length)btnUndo.disabled=true; setStatus(`Undo. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
 window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderVideoTimeline(); renderTexts(); renderSubtitles(); });
 
-// Background video mode dropdown
+// Background video mode dropdown + PiP transition controls
 const bgVideoModeEl = $('bg-video-mode');
+const pipTransControls = $('pip-trans-controls');
+const pipTransTypeEl = $('pip-trans-type');
+const pipTransDurEl = $('pip-trans-dur');
+const pipTransPosEl = $('pip-trans-pos');
+
+function updatePipTransControlsVisibility() {
+  if (pipTransControls) {
+    const showControls = bgVideoMode === 'video-pip-transition' || bgVideoMode === 'video-pip';
+    pipTransControls.style.display = showControls ? '' : 'none';
+  }
+}
+
 if (bgVideoModeEl) {
   bgVideoModeEl.addEventListener('change', () => {
     bgVideoMode = bgVideoModeEl.value;
+    updatePipTransControlsVisibility();
     markDirty();
   });
+}
+if (pipTransTypeEl) {
+  pipTransTypeEl.addEventListener('change', () => { pipTransType = pipTransTypeEl.value; markDirty(); });
+}
+if (pipTransDurEl) {
+  pipTransDurEl.addEventListener('change', () => { pipTransDur = parseFloat(pipTransDurEl.value) || 0.5; markDirty(); });
+}
+if (pipTransPosEl) {
+  pipTransPosEl.addEventListener('change', () => { pipTransPos = pipTransPosEl.value; markDirty(); });
 }
 
 // Check for autosave recovery on app load

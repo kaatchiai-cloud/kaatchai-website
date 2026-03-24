@@ -51,6 +51,9 @@ let videoTimelineItems = [];
 let nextVideoTimelineId = 1;
 let selectedVideoIds = new Set();
 let bgVideoMode = 'images-only'; // images-only | video-only | video-images | video-pip | video-pip-transition
+let pipTransType = 'shrink';     // shrink | slide | fade | zoom
+let pipTransDur = 0.5;           // seconds
+let pipTransPos = 'bot-right';   // bot-right | bot-left | top-right | top-left
 
 // Subtitle items (separate from user text items)
 let subtitleItems = [];

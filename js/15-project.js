@@ -540,6 +540,9 @@ async function saveProjectToFile(audioBuf, statusFn) {
       exportFps: $('export-fps') ? $('export-fps').value : '24',
       exportFormat: $('export-format') ? $('export-format').value : 'auto',
       bgVideoMode: bgVideoMode || 'images-only',
+      pipTransType: pipTransType || 'shrink',
+      pipTransDur: pipTransDur || 0.5,
+      pipTransPos: pipTransPos || 'bot-right',
       createState: createScenes ? {
         transcript: createTranscript,
         scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl })),
@@ -780,6 +783,9 @@ projectInput.addEventListener('change', async () => {
       const bgModeEl = $('bg-video-mode');
       if (bgModeEl) bgModeEl.value = bgVideoMode;
     }
+    if (project.pipTransType) { pipTransType = project.pipTransType; const el = $('pip-trans-type'); if (el) el.value = pipTransType; }
+    if (project.pipTransDur) { pipTransDur = project.pipTransDur; const el = $('pip-trans-dur'); if (el) el.value = pipTransDur; }
+    if (project.pipTransPos) { pipTransPos = project.pipTransPos; const el = $('pip-trans-pos'); if (el) el.value = pipTransPos; }
 
     // Restore create wizard state if saved
     if (project.createState) {

@@ -78,9 +78,61 @@
       });
     }
 
+    // Add video clip to the PHOTO timeline (as a media item alongside photos)
+    function addVideoToPhotoTimeline(files, dropX) {
+      const dur = aDur();
+      const fileArr = [...files].filter(f => f.type.startsWith('video/'));
+      if (fileArr.length === 0) return;
+      fileArr.forEach((file, idx) => {
+        const videoEl = document.createElement('video');
+        videoEl.muted = true; videoEl.preload = 'auto'; videoEl.playsInline = true;
+        videoEl.crossOrigin = 'anonymous';
+        const blobUrl = URL.createObjectURL(file);
+        videoEl.src = blobUrl;
+        videoEl.addEventListener('error', () => { setStatus('Could not load video clip.'); });
+        videoEl.addEventListener('loadeddata', async () => {
+          try {
+            videoEl.currentTime = 0.1;
+            await new Promise(r => { videoEl.addEventListener('seeked', r, { once: true }); setTimeout(r, 2000); });
+          } catch(e) {}
+          const thumbDataUrl = await extractVideoThumbnail(videoEl);
+          const thumbImg = new Image();
+          thumbImg.onload = () => {
+            const videoDuration = videoEl.duration;
+            let startTime = dropX !== undefined
+              ? pxToSec(dropX) + idx * Math.min(videoDuration, dur)
+              : photoItems.reduce((max, p) => Math.max(max, p.startTime + p.duration), 0);
+            startTime = Math.max(0, startTime);
+            const clipDur = Math.max(0.5, Math.min(videoDuration, dur - startTime));
+            photoItems.push({
+              id: nextPhotoId++, type: 'video',
+              imgSrc: thumbDataUrl, imgEl: thumbImg,
+              videoEl, videoSrc: blobUrl, videoDuration,
+              inPoint: 0, outPoint: videoDuration,
+              startTime, duration: clipDur,
+              transition: 'fade', transDur: 0.5, motion: 'none',
+            });
+            renderPhotos(); drawRuler(); markDirty();
+            setStatus(`Video clip added to photo timeline: ${file.name}`);
+          };
+          thumbImg.src = thumbDataUrl;
+        });
+      });
+    }
+
+    // "Add Video" button → video timeline (background track)
     btnAddVideos.addEventListener('click', () => videoInput.click());
     videoInput.addEventListener('change', () => { addVideoFiles(videoInput.files); videoInput.value = ''; });
 
+    // "Add Video Clip" button → photo timeline (alongside photos)
+    const btnAddVideoClip = $('btn-add-video-clip');
+    const videoClipInput = $('video-clip-input');
+    if (btnAddVideoClip && videoClipInput) {
+      btnAddVideoClip.addEventListener('click', () => videoClipInput.click());
+      videoClipInput.addEventListener('change', () => { addVideoToPhotoTimeline(videoClipInput.files); videoClipInput.value = ''; });
+    }
+
+    // Drag-drop on photo timeline: images → photo items, videos → photo timeline video clips
     photoDropZone.addEventListener('dragover', (e) => { e.preventDefault(); photoDropZone.classList.add('dragover'); });
     photoDropZone.addEventListener('dragleave', () => photoDropZone.classList.remove('dragover'));
     photoDropZone.addEventListener('drop', (e) => {
@@ -92,7 +144,7 @@
         const hasVideos = [...f].some(x => x.type.startsWith('video/'));
         const hasImages = [...f].some(x => x.type.startsWith('image/'));
         if (hasImages) addPhotoFiles(f, dropX);
-        if (hasVideos) addVideoFiles(f, dropX);
+        if (hasVideos) addVideoToPhotoTimeline(f, dropX);
       }
     });
 

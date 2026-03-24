@@ -204,21 +204,68 @@
     }
 
     // Draw video clip as PiP (uses shared PiP settings)
-    function drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale) {
+    // Get PiP target position based on pipTransPos setting
+    function getPipTargetPos(cw, ch, pW, pH, pad) {
+      const pos = pipTransPos || 'bot-right';
+      switch (pos) {
+        case 'top-left':  return { x: pad, y: pad };
+        case 'top-right': return { x: cw - pW - pad, y: pad };
+        case 'bot-left':  return { x: pad, y: ch - pH - pad };
+        default:          return { x: cw - pW - pad, y: ch - pH - pad };
+      }
+    }
+
+    function drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale, transType) {
       if (!clip || !clip.videoEl) return;
       seekVideoClip(clip, elapsed);
       const s = (scale !== undefined ? scale : 1);
-      const pW = Math.round(cw * pipSize / 100 * s + cw * (1 - s));
+      const pipPct = pipSize / 100;
+      const pW = Math.round(cw * pipPct);
       const pH = pipShape === 'circle' ? pW : Math.round(pW * (clip.videoEl.videoHeight / (clip.videoEl.videoWidth || 1) || 0.75));
       const pad = Math.max(pipBorder + 4, cw * 0.02);
-      const targetX = cw - pW - pad;
-      const targetY = ch - pH - pad;
-      const x = s >= 1 ? targetX : lerp(0, targetX, s);
-      const y = s >= 1 ? targetY : lerp(0, targetY, s);
-      const drawW = s >= 1 ? pW : lerp(cw, pW, s);
-      const drawH = s >= 1 ? pH : lerp(ch, pH, s);
+      const target = getPipTargetPos(cw, ch, pW, pH, pad);
+      const type = transType || pipTransType || 'shrink';
+
+      let x, y, drawW, drawH, alpha = 1;
+
+      if (s >= 1) {
+        // Fully PiP
+        x = target.x; y = target.y; drawW = pW; drawH = pH;
+      } else if (type === 'shrink') {
+        x = lerp(0, target.x, s);
+        y = lerp(0, target.y, s);
+        drawW = lerp(cw, pW, s);
+        drawH = lerp(ch, pH, s);
+      } else if (type === 'slide') {
+        // Slide from edge to corner
+        drawW = pW; drawH = pH;
+        const slideFrom = pipTransPos.includes('right') ? cw + pW : -pW;
+        x = lerp(slideFrom, target.x, easeInOutCubic(s));
+        y = target.y;
+      } else if (type === 'fade') {
+        // Fade: fullscreen fades out, PiP fades in
+        if (s < 0.5) {
+          // Fullscreen fading out
+          x = 0; y = 0; drawW = cw; drawH = ch;
+          alpha = 1 - s * 2;
+        } else {
+          // PiP fading in
+          x = target.x; y = target.y; drawW = pW; drawH = pH;
+          alpha = (s - 0.5) * 2;
+        }
+      } else if (type === 'zoom') {
+        // Zoom: scale from center of PiP target
+        const cx = target.x + pW / 2;
+        const cy = target.y + pH / 2;
+        const zoomScale = lerp(cw / pW, 1, easeInOutCubic(s));
+        drawW = pW * zoomScale; drawH = pH * zoomScale;
+        x = cx - drawW / 2; y = cy - drawH / 2;
+      } else {
+        x = target.x; y = target.y; drawW = pW; drawH = pH;
+      }
 
       ctx.save();
+      ctx.globalAlpha = alpha;
       if (pipShadow && s >= 0.5) {
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 12;
@@ -278,22 +325,22 @@
       const clip = getActiveVideoClip(elapsed);
       if (!clip) return;
       if (mode === 'pip-after') {
-        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, 1);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, 1, pipTransType);
       } else if (mode === 'pip-transition-after') {
         const activeImage = hasImageAtTime(elapsed, sortedItems);
         if (!activeImage) return;
-        const transDur = 0.5;
+        const dur = pipTransDur || 0.5;
         const timeSinceImageStart = elapsed - activeImage.startTime;
         const timeToImageEnd = (activeImage.startTime + activeImage.duration) - elapsed;
         let scale;
-        if (timeSinceImageStart < transDur) {
-          scale = easeInOutCubic(Math.min(1, timeSinceImageStart / transDur));
-        } else if (timeToImageEnd < transDur) {
-          scale = easeInOutCubic(Math.min(1, timeToImageEnd / transDur));
+        if (timeSinceImageStart < dur) {
+          scale = easeInOutCubic(Math.min(1, timeSinceImageStart / dur));
+        } else if (timeToImageEnd < dur) {
+          scale = easeInOutCubic(Math.min(1, timeToImageEnd / dur));
         } else {
           scale = 1;
         }
-        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale);
+        drawVideoClipPiP(ctx, cw, ch, elapsed, clip, scale, pipTransType);
       }
     }
 
