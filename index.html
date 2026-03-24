@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1 style="font-family:'Poppins',sans-serif; letter-spacing:3px; font-weight:700;">Stori</h1>
+  <h1>Stori</h1>
   <p class="subtitle">AI Visual Story Creator</p>
 
   <div id="drop-zone">
@@ -23,10 +23,10 @@
     <div class="landing-hero">
       <p class="landing-hero-title">Turn Your Voice into Illustrated Videos</p>
       <p class="landing-hero-sub">Speak it, type it, or upload a podcast — Stori generates unique AI visuals for every scene and assembles a ready-to-post video. No stock footage. No design skills. Every image made for your story.</p>
-      <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
-        <button id="btn-create-content" class="primary" style="padding:14px 40px; font-size:0.95rem; border-radius:10px; font-weight:600;">Create a Story</button>
-        <button id="btn-new-project" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Edit Content</button>
-        <button id="btn-load-project-home" style="padding:14px 40px; font-size:0.95rem; border-radius:10px;">Open Project</button>
+      <div class="flex flex-wrap flex-center gap-lg" style="margin-top:24px;">
+        <button id="btn-create-content" class="primary btn-lg">Create a Story</button>
+        <button id="btn-new-project" class="btn-lg">Edit Content</button>
+        <button id="btn-load-project-home" class="btn-lg">Open Project</button>
       </div>
     </div>
 
@@ -114,8 +114,8 @@
       </div>
       <!-- Temporary plan toggle for testing -->
       <div style="margin-top:16px;">
-        <label style="font-size:0.7rem; color:var(--text-muted);">Current plan:
-          <select id="plan-selector" style="font-size:0.7rem; padding:3px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+        <label class="text-sm text-muted">Current plan:
+          <select id="plan-selector" >
             <option value="free">Free</option>
             <option value="pro">Pro</option>
           </select>
@@ -140,7 +140,7 @@
   <!-- ═══ Create Content Page ═══ -->
   <div id="create-page">
     <div class="create-header">
-      <button id="btn-create-back" style="font-size:0.8rem; padding:6px 14px;">← Back</button>
+      <button id="btn-create-back" class="btn-md">← Back</button>
       <h2>✨ Create Content</h2>
       <button id="btn-create-save-early" style="margin-left:auto; font-size:0.75rem; padding:5px 14px; display:none;">💾 Save Project</button>
     </div>
@@ -156,8 +156,8 @@
           </label>
           <div class="create-row" style="margin-top:6px;">
             <input type="password" id="create-api-key-free" placeholder="Free tier API key">
-            <button id="btn-save-key-free" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-            <span id="key-status-free" style="font-size:0.72rem;"></span>
+            <button id="btn-save-key-free" class="primary" class="btn-sm">Save</button>
+            <span id="key-status-free" class="text-sm"></span>
           </div>
           <span id="key-image-status" style="font-size:0.68rem; margin-top:4px; display:block;"></span>
           <p style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">No credit card needed. Slower image generation (2/min).</p>
@@ -169,8 +169,8 @@
           </label>
           <div class="create-row" style="margin-top:6px;">
             <input type="password" id="create-api-key-paid" placeholder="Paid tier API key">
-            <button id="btn-save-key-paid" class="primary" style="font-size:0.75rem; padding:5px 14px;">Save</button>
-            <span id="key-status-paid" style="font-size:0.72rem;"></span>
+            <button id="btn-save-key-paid" class="primary" class="btn-sm">Save</button>
+            <span id="key-status-paid" class="text-sm"></span>
           </div>
           <p style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">Higher quality images + faster generation (~$0.04/image).</p>
         </div>
@@ -192,20 +192,20 @@
 
       <!-- Audio Input -->
       <div id="create-voice-section">
-        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import an audio file (podcast, voiceover, recording)</p>
+        <p class="text-sm text-muted" style="margin-bottom:8px;">Import an audio file (podcast, voiceover, recording)</p>
         <div class="create-row">
-          <button id="btn-create-import-audio" style="font-size:0.78rem; padding:6px 16px;">🎵 Choose Audio File</button>
+          <button id="btn-create-import-audio" class="btn-md">🎵 Choose Audio File</button>
           <span id="create-audio-name" style="font-size:0.75rem; color:var(--text-muted);"></span>
         </div>
       </div>
 
       <!-- Podcast Input -->
       <div id="create-video-section" style="display:none;">
-        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Import a podcast recording. Audio-only or video (audio extracted + video becomes PiP speaker overlay).</p>
+        <p class="text-sm text-muted" style="margin-bottom:8px;">Import a podcast recording. Audio-only or video (audio extracted + video becomes PiP speaker overlay).</p>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="btn-create-podcast-audio" style="font-size:0.78rem; padding:6px 16px;">🎵 Import Audio</button>
-          <button id="btn-create-pip-import" style="font-size:0.78rem; padding:6px 16px;">📹 Import Video (+ PiP)</button>
-          <span id="create-pip-name" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <button id="btn-create-podcast-audio" class="btn-md">🎵 Import Audio</button>
+          <button id="btn-create-pip-import" class="btn-md">📹 Import Video (+ PiP)</button>
+          <span id="create-pip-name" class="text-sm text-muted"></span>
           <button id="btn-create-pip-remove" style="font-size:0.7rem; padding:3px 8px; display:none;" class="danger">✕</button>
         </div>
         <input type="file" id="create-podcast-audio-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
@@ -232,8 +232,8 @@
           </label>
         </div>
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
-          <button id="btn-create-generate-tts" class="primary" style="font-size:0.78rem; padding:6px 16px;">🔊 Generate Audio</button>
-          <span id="create-tts-status" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <button id="btn-create-generate-tts" class="primary" class="btn-md">🔊 Generate Audio</button>
+          <span id="create-tts-status" class="text-sm text-muted"></span>
         </div>
       </div>
 
@@ -241,7 +241,7 @@
       <div id="create-audio-editor" style="display:none; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <span style="font-size:0.78rem; font-weight:600; color:var(--text-primary);">✂ Edit Audio</span>
-          <span id="create-edit-duration" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <span id="create-edit-duration" class="text-sm text-muted"></span>
         </div>
         <div id="create-waveform"></div>
         <div style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.7rem; color:var(--text-muted);">
@@ -250,14 +250,14 @@
           <span id="create-edit-total">0:00.000</span>
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
-          <button id="btn-create-play" class="primary" disabled style="font-size:0.72rem; padding:4px 12px;">&#9654; Play</button>
-          <button id="btn-create-play-sel" disabled style="font-size:0.72rem; padding:4px 12px;">&#9654; Selection</button>
-          <button id="btn-create-stop" disabled style="font-size:0.72rem; padding:4px 12px;">&#9632; Stop</button>
-          <button id="btn-create-trim" disabled style="font-size:0.72rem; padding:4px 12px;">✂ Keep Selection</button>
-          <button id="btn-create-del" class="danger" disabled style="font-size:0.72rem; padding:4px 12px;">🗑 Delete Selection</button>
-          <button id="btn-create-add-audio" style="font-size:0.72rem; padding:4px 12px;">+ Insert Audio</button>
+          <button id="btn-create-play" class="primary" disabled class="btn-xs">&#9654; Play</button>
+          <button id="btn-create-play-sel" disabled class="btn-xs">&#9654; Selection</button>
+          <button id="btn-create-stop" disabled class="btn-xs">&#9632; Stop</button>
+          <button id="btn-create-trim" disabled class="btn-xs">✂ Keep Selection</button>
+          <button id="btn-create-del" class="danger" disabled class="btn-xs">🗑 Delete Selection</button>
+          <button id="btn-create-add-audio" class="btn-xs">+ Insert Audio</button>
           <input type="file" id="create-insert-input" accept="audio/*" style="display:none;">
-          <button id="btn-create-edit-undo" disabled style="font-size:0.72rem; padding:4px 12px;">↩ Undo</button>
+          <button id="btn-create-edit-undo" disabled class="btn-xs">↩ Undo</button>
           <button id="btn-create-edit-reset" style="font-size:0.72rem; padding:4px 12px; display:none;">⟲ Reset</button>
         </div>
         <!-- Silence Removal (inside audio editor) -->
@@ -268,7 +268,7 @@
           <div class="create-row" style="flex-wrap:wrap; gap:10px; margin-bottom:8px;">
             <label style="color:var(--text-secondary); font-size:0.72rem;">Threshold:
               <input type="range" id="create-sil-threshold" min="-60" max="-20" value="-40" style="width:100px; vertical-align:middle;">
-              <span id="create-sil-threshold-val" style="font-size:0.7rem; color:var(--text-muted);">-40 dB</span>
+              <span id="create-sil-threshold-val" class="text-sm text-muted">-40 dB</span>
             </label>
             <label style="color:var(--text-secondary); font-size:0.72rem;">Min duration:
               <input type="number" id="create-sil-min-dur" value="0.5" min="0.1" max="10" step="0.1" style="width:55px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary); padding:2px 5px; font-size:0.72rem;">s
@@ -281,10 +281,10 @@
             </label>
           </div>
           <div class="create-row" style="gap:8px;">
-            <button id="btn-create-sil-detect" class="primary" style="font-size:0.72rem; padding:4px 12px;">🔍 Detect</button>
-            <button id="btn-create-sil-apply" class="danger" style="font-size:0.72rem; padding:4px 12px;" disabled>✂ Remove</button>
+            <button id="btn-create-sil-detect" class="primary" class="btn-xs">🔍 Detect</button>
+            <button id="btn-create-sil-apply" class="danger" class="btn-xs" disabled>✂ Remove</button>
             <button id="btn-create-sil-reset" style="font-size:0.72rem; padding:4px 12px; display:none;">↩ Reset</button>
-            <span id="create-sil-info" style="font-size:0.7rem; color:var(--text-muted);"></span>
+            <span id="create-sil-info" class="text-sm text-muted"></span>
           </div>
           <div id="create-sil-visual" style="position:relative; height:20px; background:rgba(0,0,0,0.3); border-radius:4px; margin-top:8px; overflow:hidden; display:none;"></div>
         </div>
@@ -294,14 +294,14 @@
     <!-- Step 3: Template & Output Size -->
     <div class="create-step">
       <h3><span class="step-num">3</span> Template & Output Size</h3>
-      <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">
+      <p class="text-sm text-muted" style="margin-bottom:8px;">
         Pick a template to auto-configure style and size, or choose Blank for full control.
       </p>
       <div id="template-categories" class="template-categories"></div>
       <div id="template-grid" class="template-grid"></div>
       <div class="create-row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
         <label style="color:var(--text-secondary);">Size:
-          <select id="create-image-size" style="background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 7px; font-size:0.78rem;">
+          <select id="create-image-size" >
             <option value="1280x720" selected>1280×720 — 16:9 (YouTube, LinkedIn Video)</option>
             <option value="1080x1080">1080×1080 — 1:1 (Instagram Post, Facebook)</option>
             <option value="1080x1920">1080×1920 — 9:16 (Reels, TikTok, Shorts)</option>
@@ -317,7 +317,7 @@
     <div class="create-step">
       <h3><span class="step-num">4</span> Transcribe Audio</h3>
       <div class="create-row">
-        <button id="btn-create-transcribe" class="primary" style="font-size:0.78rem; padding:6px 16px;" disabled>🎤 Transcribe with Gemini</button>
+        <button id="btn-create-transcribe" class="primary" class="btn-md" disabled>🎤 Transcribe with Gemini</button>
       </div>
       <div class="create-progress" id="create-transcribe-progress">
         <div class="bar-bg"><div class="bar-fill" id="create-transcribe-bar"></div></div>
@@ -329,7 +329,7 @@
     <!-- Step 5: Chapter Splitting (Podcast only) -->
     <div class="create-step" id="create-chapter-step" style="display:none;">
       <h3><span class="step-num">5</span> Chapter Splitting</h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+      <p class="text-sm text-secondary" style="margin-bottom:10px;">
         Split your podcast into chapters. Each chapter will get its own set of images in the storyboard.
       </p>
       <div class="input-mode-toggle" style="margin-bottom:14px;">
@@ -337,17 +337,17 @@
         <button id="chapter-mode-manual" class="mode-btn">✏️ Manual</button>
       </div>
       <div id="chapter-ai-section">
-        <button id="btn-chapter-ai-split" class="primary" style="font-size:0.78rem; padding:6px 16px;">🤖 Detect Chapters from Transcript</button>
+        <button id="btn-chapter-ai-split" class="primary" class="btn-md">🤖 Detect Chapters from Transcript</button>
         <span id="chapter-ai-status" style="font-size:0.72rem; color:var(--text-muted); margin-left:8px;"></span>
       </div>
       <div id="chapter-manual-section" style="display:none;">
-        <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:8px;">Set chapter timestamps and titles below.</p>
+        <p class="text-sm text-muted" style="margin-bottom:8px;">Set chapter timestamps and titles below.</p>
       </div>
       <div id="chapter-list" style="margin-top:14px;"></div>
       <div id="chapter-controls" style="display:none; margin-top:10px;">
         <div style="display:flex; gap:10px; align-items:center;">
-          <button id="btn-add-chapter" style="font-size:0.75rem; padding:5px 14px;">+ Add Chapter</button>
-          <span id="chapter-summary" style="font-size:0.72rem; color:var(--text-muted);"></span>
+          <button id="btn-add-chapter" class="btn-sm">+ Add Chapter</button>
+          <span id="chapter-summary" class="text-sm text-muted"></span>
         </div>
         <button id="btn-chapter-proceed" class="primary" style="margin-top:10px; font-size:0.78rem; padding:8px 20px;">Generate Storyboard from Chapters →</button>
       </div>
@@ -356,13 +356,13 @@
     <!-- Step 6: Storyboard — Review & Edit Prompts -->
     <div class="create-step" id="create-storyboard-step" style="display:none;">
       <h3><span class="step-num">6</span> Storyboard — Image Prompts</h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+      <p class="text-sm text-secondary" style="margin-bottom:10px;">
         Review the AI-generated scene prompts below. Each prompt corresponds to a segment of your audio and will determine the image placed at that time on the photo timeline. Edit any prompt before generating images.
       </p>
       <div class="style-section" style="margin-bottom:14px; padding:10px 14px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius);">
         <h4 style="font-size:0.78rem; margin-bottom:8px; color:var(--text-secondary);">🎨 Visual Style (applied to all scenes)</h4>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <select id="create-style-preset" style="font-size:0.75rem; padding:5px 10px;">
+          <select id="create-style-preset" class="text-sm">
             <option value="">No preset</option>
             <option value="watercolor">Watercolor</option>
             <option value="cinematic">Cinematic Photography</option>
@@ -389,26 +389,26 @@
           <input type="text" id="create-style-prompt" placeholder="Custom style description..." style="flex:1; min-width:200px; font-size:0.75rem; padding:5px 10px;" disabled>
         </div>
         <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
-          <label style="font-size:0.75rem; color:var(--text-secondary);">Text in images:
-            <select id="create-image-text-mode" style="font-size:0.75rem; padding:5px 10px;">
+          <label class="text-sm text-secondary">Text in images:
+            <select id="create-image-text-mode" class="text-sm">
               <option value="no-text" selected>No text in images</option>
               <option value="english-only">English text only</option>
             </select>
           </label>
-          <span style="font-size:0.65rem; color:var(--text-muted);">Tamil/Indian scripts don't render well in AI images</span>
+          <span class="text-xs text-muted">Tamil/Indian scripts don't render well in AI images</span>
         </div>
       </div>
       <div id="create-storyboard-grid" class="storyboard-grid"></div>
       <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
-        <button id="btn-create-regenerate-prompts" style="font-size:0.75rem; padding:5px 14px;">🔄 Regenerate All Prompts</button>
-        <span style="font-size:0.7rem; color:var(--text-muted);">Happy with prompts? Proceed to next step →</span>
+        <button id="btn-create-regenerate-prompts" class="btn-sm">🔄 Regenerate All Prompts</button>
+        <span class="text-sm text-muted">Happy with prompts? Proceed to next step →</span>
       </div>
     </div>
 
     <!-- Step 7: Visual References (optional) -->
     <div class="create-step" id="create-references-step" style="display:none;">
-      <h3><span class="step-num">7</span> Visual References <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+      <h3><span class="step-num">7</span> Visual References <span class="text-xs text-muted">(optional)</span></h3>
+      <p class="text-sm text-secondary" style="margin-bottom:10px;">
         Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
       </p>
 
@@ -416,8 +416,8 @@
       <div style="margin-bottom:14px;">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <strong style="font-size:0.78rem; color:var(--text-primary);">Characters</strong>
-          <span id="char-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
-          <button id="btn-add-character" style="font-size:0.7rem; padding:3px 10px;">+ Add Character</button>
+          <span id="char-count-label" class="text-xs text-muted">0/3</span>
+          <button id="btn-add-character" class="btn-xs">+ Add Character</button>
           <input type="file" id="char-img-input" accept="image/*" hidden>
         </div>
         <div id="character-cards" class="ref-cards"></div>
@@ -427,8 +427,8 @@
       <div style="margin-bottom:14px;">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <strong style="font-size:0.78rem; color:var(--text-primary);">Environments</strong>
-          <span id="env-count-label" style="font-size:0.65rem; color:var(--text-muted);">0/3</span>
-          <button id="btn-add-environment" style="font-size:0.7rem; padding:3px 10px;">+ Add Environment</button>
+          <span id="env-count-label" class="text-xs text-muted">0/3</span>
+          <button id="btn-add-environment" class="btn-xs">+ Add Environment</button>
           <input type="file" id="env-img-input" accept="image/*" hidden>
         </div>
         <div id="environment-cards" class="ref-cards"></div>
@@ -452,10 +452,10 @@
             <option value="quality">🎨 Quality ($0.04-$0.08/img)</option>
           </select>
         </label>
-        <button id="btn-create-generate" class="primary" style="font-size:0.78rem; padding:6px 16px;">🖼 Generate All Images</button>
-        <button id="btn-create-pause" style="font-size:0.72rem; padding:5px 12px; display:none;">⏸ Pause</button>
-        <button id="btn-create-retry-failed" class="danger" style="font-size:0.72rem; padding:5px 12px; display:none;">🔄 Retry Failed</button>
-        <button id="btn-download-all-images" style="font-size:0.72rem; padding:5px 12px; display:none;">📥 Download All Images</button>
+        <button id="btn-create-generate" class="primary" class="btn-md">🖼 Generate All Images</button>
+        <button id="btn-create-pause" class="btn-xs" style="display:none;">⏸ Pause</button>
+        <button id="btn-create-retry-failed" class="danger" class="btn-xs" style="display:none;">🔄 Retry Failed</button>
+        <button id="btn-download-all-images" class="btn-xs" style="display:none;">📥 Download All Images</button>
       </div>
       <div class="create-progress" id="create-generate-progress">
         <div class="bar-bg"><div class="bar-fill" id="create-generate-bar"></div></div>
@@ -466,8 +466,8 @@
 
     <!-- Step 7: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
-      <h3><span class="step-num">9</span> Multi-Language Voiceover <span style="font-size:0.65rem; color:var(--text-muted);">(optional)</span></h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+      <h3><span class="step-num">9</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
+      <p class="text-sm text-secondary" style="margin-bottom:10px;">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
       <div id="language-primary" style="margin-bottom:14px;"></div>
@@ -475,7 +475,7 @@
       <div id="language-checkboxes" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
         <button id="btn-generate-languages" class="primary" style="padding:8px 20px; font-size:0.8rem; border-radius:8px;" disabled>🌐 Generate Language Tracks</button>
-        <span id="language-status" style="font-size:0.72rem; color:var(--text-muted);"></span>
+        <span id="language-status" class="text-sm text-muted"></span>
       </div>
       <div id="language-results" style="display:flex; flex-direction:column; gap:6px;"></div>
     </div>
@@ -483,7 +483,7 @@
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" style="display:none;">
       <h3><span class="step-num">10</span> Review & Send to Editor</h3>
-      <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:10px;">
+      <p class="text-sm text-secondary" style="margin-bottom:10px;">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
@@ -495,7 +495,7 @@
 
   <div id="editor">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-      <button id="btn-editor-home" style="font-size:0.8rem; padding:6px 14px;">← Home</button>
+      <button id="btn-editor-home" class="btn-md">← Home</button>
       <button id="btn-back-to-create" style="font-size:0.8rem; padding:6px 14px; display:none;">← Back to Create</button>
       <div id="editor-lang-selector" style="display:none; margin-left:auto;">
         <label style="font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
@@ -562,25 +562,25 @@
         <input type="range" id="zoom-level" min="1" max="20" step="0.5" value="1">
       </label>
       <span class="zoom-info" id="zoom-info">Full timeline</span>
-      <button id="zoom-scroll-left" style="font-size:0.68rem; padding:3px 8px;">◀</button>
+      <button id="zoom-scroll-left" class="btn-xs">◀</button>
       <label>Scroll:
         <input type="range" id="zoom-scroll" min="0" max="1" step="0.001" value="0" style="width:200px;">
       </label>
-      <button id="zoom-scroll-right" style="font-size:0.68rem; padding:3px 8px;">▶</button>
+      <button id="zoom-scroll-right" class="btn-xs">▶</button>
       <button id="zoom-reset">Reset</button>
     </div>
 
     <div class="section-label">
       Media Timeline
       <span class="badge" id="photo-count">0 items</span>
-      <button id="btn-delete-selected-photos" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
-      <button id="btn-add-videos" style="font-size:0.75rem; padding:4px 10px;">🎬 Add Video</button>
-      <button id="btn-add-video-clip" style="font-size:0.75rem; padding:4px 10px;">🎞️ Add Video Clip</button>
-      <button id="btn-add-photos" style="font-size:0.75rem; padding:4px 10px;">📷 Add Photos</button>
-      <button id="btn-add-bgm" style="font-size:0.75rem; padding:4px 10px;">🎵 Add BGM</button>
-      <button id="btn-add-pip" style="font-size:0.75rem; padding:4px 10px;">🎭 Add PiP</button>
-      <button id="btn-add-frame" style="font-size:0.75rem; padding:4px 10px;">🖼️ Frame</button>
-      <button id="btn-add-logo" style="font-size:0.75rem; padding:4px 10px;">⭐ Logo</button>
+      <button id="btn-delete-selected-photos" class="danger btn-xs" style="margin-left:auto; display:none;">🗑 Delete Selected</button>
+      <button id="btn-add-videos" class="btn-sm">🎬 Add Video</button>
+      <button id="btn-add-video-clip" class="btn-sm">🎞️ Add Video Clip</button>
+      <button id="btn-add-photos" class="btn-sm">📷 Add Photos</button>
+      <button id="btn-add-bgm" class="btn-sm">🎵 Add BGM</button>
+      <button id="btn-add-pip" class="btn-sm">🎭 Add PiP</button>
+      <button id="btn-add-frame" class="btn-sm">🖼️ Frame</button>
+      <button id="btn-add-logo" class="btn-sm">⭐ Logo</button>
       <input type="file" id="video-input" accept="video/*" multiple hidden>
       <input type="file" id="video-clip-input" accept="video/*" multiple hidden>
       <input type="file" id="frame-input" accept="image/*" hidden>
@@ -612,9 +612,9 @@
     <input type="file" id="pip-input" accept="video/*" hidden>
 
     <div id="bg-video-section" style="display:none;">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
-        <span style="font-size:0.72rem; color:var(--text-secondary);">🎬 Video Mode:</span>
-        <select id="bg-video-mode" style="font-size:0.72rem; padding:3px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+      <div class="editor-bar">
+        <span class="text-sm text-secondary">🎬 Video Mode:</span>
+        <select id="bg-video-mode" >
           <option value="images-only">Images Only</option>
           <option value="video-only">Video Only</option>
           <option value="video-images">Video + Images</option>
@@ -623,21 +623,21 @@
         </select>
         <span id="pip-trans-controls" style="display:none; font-size:0.72rem; color:var(--text-secondary);">
           Style:
-          <select id="pip-trans-type" style="font-size:0.7rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+          <select id="pip-trans-type" >
             <option value="shrink">Shrink</option>
             <option value="slide">Slide</option>
             <option value="fade">Fade</option>
             <option value="zoom">Zoom</option>
           </select>
           Duration:
-          <select id="pip-trans-dur" style="font-size:0.7rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+          <select id="pip-trans-dur" >
             <option value="0.3">0.3s</option>
             <option value="0.5" selected>0.5s</option>
             <option value="0.8">0.8s</option>
             <option value="1.0">1.0s</option>
           </select>
           PiP corner:
-          <select id="pip-trans-pos" style="font-size:0.7rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+          <select id="pip-trans-pos" >
             <option value="bot-right">Bottom Right</option>
             <option value="bot-left">Bottom Left</option>
             <option value="top-right">Top Right</option>
@@ -649,35 +649,35 @@
 
     <!-- Frame Section -->
     <div id="frame-section" style="display:none;">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
-        <span style="font-size:0.72rem; color:var(--text-secondary);">🖼️ Frame</span>
+      <div class="editor-bar">
+        <span class="text-sm text-secondary">🖼️ Frame</span>
         <img id="frame-thumb" src="" alt="" style="width:36px; height:24px; object-fit:cover; border-radius:3px; border:1px solid var(--border); display:none;">
-        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <span class="text-xs text-muted">Library:</span>
         <div id="frame-slot-0" class="library-slot" data-type="frame" data-slot="0"></div>
         <div id="frame-slot-1" class="library-slot" data-type="frame" data-slot="1"></div>
         <div id="frame-slot-2" class="library-slot" data-type="frame" data-slot="2"></div>
-        <button id="frame-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
-        <span style="font-size:0.68rem; color:var(--text-muted);">Padding:</span>
-        <label style="font-size:0.68rem; color:var(--text-muted);">T<input type="number" id="frame-pad-top" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">B<input type="number" id="frame-pad-bottom" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">L<input type="number" id="frame-pad-left" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">R<input type="number" id="frame-pad-right" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="frame-opacity" min="0" max="100" value="100" style="width:60px; vertical-align:middle;"><span id="frame-opacity-label" style="font-size:0.65rem;">100%</span></label>
+        <button id="frame-save-lib" class="btn-xs">💾 Save</button>
+        <span class="text-xs text-muted">Padding:</span>
+        <label class="text-xs text-muted">T<input type="number" id="frame-pad-top" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label class="text-xs text-muted">B<input type="number" id="frame-pad-bottom" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label class="text-xs text-muted">L<input type="number" id="frame-pad-left" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label class="text-xs text-muted">R<input type="number" id="frame-pad-right" value="40" min="0" max="200" style="width:40px; font-size:0.68rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);"></label>
+        <label class="text-xs text-muted">Opacity<input type="range" id="frame-opacity" min="0" max="100" value="100" style="width:60px; vertical-align:middle;"><span id="frame-opacity-label" style="font-size:0.65rem;">100%</span></label>
         <button id="frame-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
       </div>
     </div>
 
     <!-- Logo Section -->
     <div id="logo-section" style="display:none;">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px;">
-        <span style="font-size:0.72rem; color:var(--text-secondary);">⭐ Logo</span>
+      <div class="editor-bar">
+        <span class="text-sm text-secondary">⭐ Logo</span>
         <img id="logo-thumb" src="" alt="" style="width:28px; height:28px; object-fit:contain; border-radius:3px; display:none;">
-        <span style="font-size:0.65rem; color:var(--text-muted);">Library:</span>
+        <span class="text-xs text-muted">Library:</span>
         <div id="logo-slot-0" class="library-slot" data-type="logo" data-slot="0"></div>
         <div id="logo-slot-1" class="library-slot" data-type="logo" data-slot="1"></div>
         <div id="logo-slot-2" class="library-slot" data-type="logo" data-slot="2"></div>
-        <button id="logo-save-lib" style="font-size:0.6rem; padding:2px 6px;">💾 Save</button>
-        <label style="font-size:0.68rem; color:var(--text-muted);">Position:
+        <button id="logo-save-lib" class="btn-xs">💾 Save</button>
+        <label class="text-xs text-muted">Position:
           <select id="logo-position" style="font-size:0.68rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
             <option value="top-left">Top Left</option>
             <option value="top-right" selected>Top Right</option>
@@ -685,8 +685,8 @@
             <option value="bot-right">Bottom Right</option>
           </select>
         </label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">Size<input type="range" id="logo-size" min="3" max="25" value="10" style="width:60px; vertical-align:middle;"><span id="logo-size-label" style="font-size:0.65rem;">10%</span></label>
-        <label style="font-size:0.68rem; color:var(--text-muted);">Opacity<input type="range" id="logo-opacity" min="10" max="100" value="80" style="width:60px; vertical-align:middle;"><span id="logo-opacity-label" style="font-size:0.65rem;">80%</span></label>
+        <label class="text-xs text-muted">Size<input type="range" id="logo-size" min="3" max="25" value="10" style="width:60px; vertical-align:middle;"><span id="logo-size-label" style="font-size:0.65rem;">10%</span></label>
+        <label class="text-xs text-muted">Opacity<input type="range" id="logo-opacity" min="10" max="100" value="80" style="width:60px; vertical-align:middle;"><span id="logo-opacity-label" style="font-size:0.65rem;">80%</span></label>
         <button id="logo-remove" style="font-size:0.65rem; padding:2px 8px; color:var(--red);">✕</button>
       </div>
     </div>
@@ -810,7 +810,7 @@
       <label>Duration: <input type="number" id="vprop-duration" step="0.1" min="0.5">s</label>
       <label>End: <span id="vprop-end">—</span></label>
       <div style="border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
-        <span style="font-size:0.68rem; color:var(--text-muted);">Video Trim</span>
+        <span class="text-xs text-muted">Video Trim</span>
         <div style="display:flex; gap:10px; align-items:center; margin-top:4px; flex-wrap:wrap;">
           <label>In: <input type="number" id="vprop-in-point" step="0.1" min="0">s</label>
           <label>Out: <input type="number" id="vprop-out-point" step="0.1" min="0">s</label>
