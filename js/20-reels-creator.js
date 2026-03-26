@@ -68,6 +68,14 @@ let reelStartTime = 0;
 let reelBgmBuffer = null;
 let reelSegments = []; // [{start, end, thumbDataUrl}] — each becomes a separate reel
 let reelOriginalAudioBuffer = null; // preserve full audio for multi-segment extraction
+let reelPendingScenes = null; // scenes awaiting image generation (audio/text mode)
+let reelGenImagesPaused = false;
+let reelGenImagesRunning = false;
+
+// Variation rows: each row = one reel variant (audio lang + subtitle lang)
+let reelVariationRows = [{ platform: 'instagram', duration: 60, audio: 'original', subtitle: 'original' }];
+let reelPerSegmentVariations = {}; // segIndex → rows array, null = use global
+const REEL_LANG_OPTIONS = { original: 'Original', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
 
 // ── Reel API Keys (free for subtitles, paid for image gen) ──
 const reelApiKeyFreeEl = $('reel-api-key-free');
@@ -83,7 +91,7 @@ function getReelFreeKey() {
 function getReelPaidKey() {
   return localStorage.getItem('stori_key_paid') || (reelApiKeyPaidEl ? reelApiKeyPaidEl.value.trim() : '');
 }
-function getReelApiKey() { return getReelFreeKey() || getReelPaidKey(); }
+function getReelApiKey() { return getReelPaidKey(); }
 function getReelImageKey() { return getReelPaidKey() || getReelFreeKey(); }
 
 if (btnReelSaveKeyFree) btnReelSaveKeyFree.addEventListener('click', () => {
@@ -105,8 +113,7 @@ let reelEditMode = 'subtitles'; // subtitles | auto-cut
 
 // ── Navigation ──
 if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
-  dropZone.classList.add('hidden');
-  reelPage.classList.add('visible');
+  navigateTo('reel');
   reelMode = true;
   // Load saved keys
   const savedFree = localStorage.getItem('stori_key_free');
@@ -130,8 +137,7 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
 });
 
 if (btnReelBack) btnReelBack.addEventListener('click', () => {
-  reelPage.classList.remove('visible');
-  dropZone.classList.remove('hidden');
+  navigateTo('home');
   reelMode = false;
   stopReelPreview();
 });
@@ -174,7 +180,106 @@ if (reelTextInput) reelTextInput.addEventListener('input', () => {
 });
 if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
 
-// ── Audio Import ──
+// ── Audio Import + Editor ──
+const reelAudioEditor = $('reel-audio-editor');
+const reelAudioWaveformEl = $('reel-audio-waveform');
+let reelAudioWavesurfer = null;
+let reelAudioRegion = null;
+function initReelAudioWaveform() {
+  if (reelAudioWavesurfer) reelAudioWavesurfer.destroy();
+  reelAudioWavesurfer = WaveSurfer.create({
+    container: '#reel-audio-waveform',
+    waveColor: 'rgba(160,120,255,0.4)',
+    progressColor: 'rgba(160,120,255,0.7)',
+    height: 60,
+    barWidth: 2,
+    barGap: 1,
+    cursorColor: '#fff',
+  });
+  const regionsPlugin = reelAudioWavesurfer.registerPlugin(WaveSurfer.Regions.create());
+  const blob = audioBufferToWavBlob(reelAudioBuffer);
+  const url = URL.createObjectURL(blob);
+  reelAudioWavesurfer.load(url);
+  reelAudioWavesurfer.on('ready', () => {
+    URL.revokeObjectURL(url);
+    const dur = reelAudioBuffer.duration;
+    const regionDur = Math.min(reelDuration, dur);
+    reelAudioRegion = regionsPlugin.addRegion({
+      start: 0, end: regionDur,
+      color: 'rgba(160,120,255,0.2)',
+      drag: true, resize: true,
+    });
+    updateReelAudioInfo();
+    regionsPlugin.on('region-updated', updateReelAudioInfo);
+  });
+  reelAudioWavesurfer.on('timeupdate', (time) => {
+    const el = $('reel-aud-time');
+    if (el) el.textContent = fmtShort(time);
+  });
+}
+
+function updateReelAudioInfo() {
+  if (!reelAudioRegion) return;
+  const dur = (reelAudioRegion.end - reelAudioRegion.start).toFixed(1);
+  const infoEl = $('reel-audio-info');
+  if (infoEl) infoEl.textContent = `Duration: ${dur}s`;
+  const startEl = $('reel-aud-start');
+  const endEl = $('reel-aud-end');
+  if (startEl) startEl.value = reelAudioRegion.start.toFixed(1);
+  if (endEl) endEl.value = reelAudioRegion.end.toFixed(1);
+}
+
+// Audio editor playback controls
+const btnAudPlay = $('btn-reel-aud-play');
+const btnAudPause = $('btn-reel-aud-pause');
+const btnAudStop = $('btn-reel-aud-stop');
+const btnAudPlaySeg = $('btn-reel-aud-play-segment');
+
+if (btnAudPlay) btnAudPlay.addEventListener('click', () => { if (reelAudioWavesurfer) reelAudioWavesurfer.play(); });
+if (btnAudPause) btnAudPause.addEventListener('click', () => { if (reelAudioWavesurfer) reelAudioWavesurfer.pause(); });
+if (btnAudStop) btnAudStop.addEventListener('click', () => { if (reelAudioWavesurfer) { reelAudioWavesurfer.pause(); reelAudioWavesurfer.seekTo(0); } });
+if (btnAudPlaySeg) btnAudPlaySeg.addEventListener('click', () => {
+  if (reelAudioWavesurfer && reelAudioRegion) {
+    reelAudioWavesurfer.pause();
+    reelAudioWavesurfer.seekTo(reelAudioRegion.start / reelAudioBuffer.duration);
+    reelAudioWavesurfer.play();
+  }
+});
+
+// Audio start/end inputs update region
+const reelAudStart = $('reel-aud-start');
+const reelAudEnd = $('reel-aud-end');
+if (reelAudStart) reelAudStart.addEventListener('change', () => {
+  if (!reelAudioRegion) return;
+  const start = Math.max(0, parseFloat(reelAudStart.value) || 0);
+  if (start < reelAudioRegion.end) {
+    reelAudioRegion.setOptions({ start });
+    updateReelAudioInfo();
+  }
+});
+if (reelAudEnd) reelAudEnd.addEventListener('change', () => {
+  if (!reelAudioRegion) return;
+  const end = Math.min(reelAudioBuffer.duration, parseFloat(reelAudEnd.value) || 60);
+  if (end > reelAudioRegion.start) {
+    reelAudioRegion.setOptions({ end });
+    updateReelAudioInfo();
+  }
+});
+
+// Add Audio Segment
+const btnAddAudioSeg = $('btn-reel-add-audio-segment');
+if (btnAddAudioSeg) btnAddAudioSeg.addEventListener('click', () => {
+  if (!reelAudioRegion || !reelAudioBuffer) return;
+  const start = reelAudioRegion.start;
+  const end = reelAudioRegion.end;
+  if (end - start < 1) return;
+  if (reelAudioWavesurfer) reelAudioWavesurfer.pause();
+  reelSegments.push({ start, end, thumbDataUrl: null });
+  reelOriginalAudioBuffer = reelAudioBuffer;
+  renderReelPresetSegments();
+  showReelPresets();
+});
+
 if (btnReelImportAudio) btnReelImportAudio.addEventListener('click', () => reelAudioInput.click());
 if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
   const file = reelAudioInput.files[0];
@@ -183,9 +288,12 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
   try {
     showPageLoader('Decoding audio...');
     const arrayBuf = await file.arrayBuffer();
-    reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    reelAudioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+    reelOriginalAudioBuffer = reelAudioBuffer;
     reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
-    showReelPresets();
+    reelSegments = [];
+    if (reelAudioEditor) reelAudioEditor.classList.remove('hidden');
+    initReelAudioWaveform();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
@@ -212,13 +320,12 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     reelVideoEl = reelPreviewVideo;
     // Extract audio for waveform
     const arrayBuf = await file.arrayBuffer();
-    reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    reelAudioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
     reelOriginalAudioBuffer = reelAudioBuffer;
     reelSegments = [];
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
-    showReelPresets();
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
@@ -347,9 +454,13 @@ function renderReelPresetSegments() {
   const container = $('reel-preset-segments');
   if (!container) return;
   if (reelSegments.length === 0) { container.innerHTML = ''; return; }
+  const isVideo = reelInputMode === 'video' && reelVideoSrc;
   container.innerHTML = `<div class="reel-segments-list">${reelSegments.map((seg, i) => `
     <div class="reel-seg-card" data-seg="${i}">
-      <video class="seg-video" data-si="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata" style="width:100%; display:block;"></video>
+      ${isVideo
+        ? `<video class="seg-video" data-si="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata" style="width:100%; display:block;"></video>`
+        : `<div class="seg-audio-icon" style="width:100%; height:56px; display:flex; align-items:center; justify-content:center; background:var(--bg-secondary); border-radius:4px;">🎵</div>`
+      }
       <div class="reel-seg-info">
         <span class="text-2xs">${fmtShort(seg.start)} — ${fmtShort(seg.end)} (${(seg.end - seg.start).toFixed(0)}s)</span>
       </div>
@@ -369,30 +480,46 @@ function renderReelPresetSegments() {
     vid.currentTime = reelSegments[idx].start;
   });
 
-  // Play handlers — each segment uses its own <video> element
+  // Play handlers
   container.querySelectorAll('.seg-play').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.si);
       const seg = reelSegments[idx];
-      const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
-      if (!vid || !seg) return;
+      if (!seg) return;
       stopSegPreview();
       segPreviewPlaying = idx;
-      vid.currentTime = seg.start;
-      vid.muted = false;
-      vid.play();
       btn.classList.add('hidden');
-      container.querySelector(`.seg-pause[data-si="${idx}"]`).classList.remove('hidden');
+      container.querySelector(`.seg-pause[data-si="${idx}"]`)?.classList.remove('hidden');
       const timeEl = $(`seg-time-${idx}`);
-      const interval = setInterval(() => {
-        if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
-        const elapsed = vid.currentTime - seg.start;
-        if (timeEl) timeEl.textContent = fmtShort(Math.max(0, elapsed));
-        if (vid.currentTime >= seg.end || vid.paused) {
-          stopSegPreview();
-          clearInterval(interval);
-        }
-      }, 100);
+      if (isVideo) {
+        const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
+        if (!vid) return;
+        vid.currentTime = seg.start;
+        vid.muted = false;
+        vid.play();
+        const interval = setInterval(() => {
+          if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
+          const elapsed = vid.currentTime - seg.start;
+          if (timeEl) timeEl.textContent = fmtShort(Math.max(0, elapsed));
+          if (vid.currentTime >= seg.end || vid.paused) { stopSegPreview(); clearInterval(interval); }
+        }, 100);
+      } else {
+        // Audio mode: play using Web Audio
+        const ctx = ensureAudioCtx();
+        const source = ctx.createBufferSource();
+        source.buffer = reelAudioBuffer;
+        source.connect(ctx.destination);
+        source.start(0, seg.start, seg.end - seg.start);
+        window._segAudioSource = source;
+        const startedAt = ctx.currentTime;
+        const interval = setInterval(() => {
+          if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
+          const elapsed = ctx.currentTime - startedAt;
+          if (timeEl) timeEl.textContent = fmtShort(Math.max(0, elapsed));
+          if (elapsed >= seg.end - seg.start) { stopSegPreview(); clearInterval(interval); }
+        }, 100);
+        source.onended = () => { if (segPreviewPlaying === idx) stopSegPreview(); };
+      }
     });
   });
   container.querySelectorAll('.seg-pause').forEach(btn => {
@@ -401,10 +528,12 @@ function renderReelPresetSegments() {
   container.querySelectorAll('.seg-stop').forEach(btn => {
     btn.addEventListener('click', () => {
       stopSegPreview();
-      const idx = parseInt(btn.dataset.si);
-      const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
-      if (vid) { vid.currentTime = reelSegments[idx].start; vid.muted = true; }
-      const timeEl = $(`seg-time-${idx}`);
+      if (isVideo) {
+        const idx = parseInt(btn.dataset.si);
+        const vid = container.querySelector(`.seg-video[data-si="${idx}"]`);
+        if (vid) { vid.currentTime = reelSegments[idx].start; vid.muted = true; }
+      }
+      const timeEl = $(`seg-time-${parseInt(btn.dataset.si)}`);
       if (timeEl) timeEl.textContent = '0:00';
     });
   });
@@ -421,6 +550,8 @@ function renderReelPresetSegments() {
 function stopSegPreview() {
   // Pause all segment videos
   document.querySelectorAll('.seg-video').forEach(v => { v.pause(); v.muted = true; });
+  // Stop audio source if playing
+  if (window._segAudioSource) { try { window._segAudioSource.stop(); } catch(e) {} window._segAudioSource = null; }
   segPreviewPlaying = null;
   document.querySelectorAll('.seg-play').forEach(b => b.classList.remove('hidden'));
   document.querySelectorAll('.seg-pause').forEach(b => b.classList.add('hidden'));
@@ -437,13 +568,53 @@ if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDurati
 if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
 if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; saveActiveReelSettings(); });
 
+// Clamp transcribed segments to [minN, maxN] by merging (too many) or splitting (too few)
+function clampSegments(segs, minN, maxN) {
+  // Merge: if too many, merge shortest adjacent pairs until within maxN
+  while (segs.length > maxN) {
+    let minDur = Infinity, minIdx = 0;
+    for (let i = 0; i < segs.length - 1; i++) {
+      const dur = (segs[i].endTime - segs[i].startTime) + (segs[i+1].endTime - segs[i+1].startTime);
+      if (dur < minDur) { minDur = dur; minIdx = i; }
+    }
+    const a = segs[minIdx], b = segs[minIdx + 1];
+    segs.splice(minIdx, 2, {
+      startTime: a.startTime, endTime: b.endTime,
+      text: (a.text + ' ' + b.text).trim(),
+      sceneDescription: a.sceneDescription || a.text,
+      words: [...(a.words || []), ...(b.words || [])],
+    });
+  }
+  // Split: if too few, split the longest segment at its midpoint
+  while (segs.length < minN) {
+    let maxDur = 0, maxIdx = 0;
+    for (let i = 0; i < segs.length; i++) {
+      const dur = segs[i].endTime - segs[i].startTime;
+      if (dur > maxDur) { maxDur = dur; maxIdx = i; }
+    }
+    const s = segs[maxIdx];
+    const mid = (s.startTime + s.endTime) / 2;
+    const wordsA = (s.words || []).filter(w => w.start < mid);
+    const wordsB = (s.words || []).filter(w => w.start >= mid);
+    const textA = wordsA.length ? wordsA.map(w => w.word).join(' ') : s.text.slice(0, Math.floor(s.text.length / 2));
+    const textB = wordsB.length ? wordsB.map(w => w.word).join(' ') : s.text.slice(Math.floor(s.text.length / 2));
+    segs.splice(maxIdx, 1,
+      { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: wordsA },
+      { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: wordsB }
+    );
+  }
+  return segs;
+}
+
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
+  console.log('[ReelGen] Generate clicked, inputMode:', reelInputMode);
   const key = getReelApiKey();
+  console.log('[ReelGen] API key:', key ? 'present' : 'MISSING');
   if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
 
-  // Video mode with multiple segments — process each as separate reel
-  if (reelInputMode === 'video' && reelSegments.length > 0 && reelVideoEl) {
+  // Multi-segment mode (video or audio) — process each as separate reel
+  if (reelSegments.length > 0 && (reelInputMode === 'video' ? reelVideoEl : reelAudioBuffer)) {
     btnReelGenerate.disabled = true;
     reelProgressEl.classList.remove('hidden');
     const allReelResults = [];
@@ -462,16 +633,16 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       // Transcribe segment
       const wavBlob = audioBufferToWavBlob(segAudio);
       const b64Audio = await blobToBase64(wavBlob);
-      const segDur = Math.max(3, Math.min(10, segAudio.duration / 6));
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Transcribe this audio with word-level timestamps. Return JSON array: [{"startTime": 0.0, "endTime": 5.0, "text": "...", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. Segments of ${segDur.toFixed(0)}-${(segDur*2).toFixed(0)} seconds. Full duration: ${segAudio.duration.toFixed(1)}s.` }
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — a vivid visual description of what could be shown as an image for that segment. Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
         ]}]
       };
-      const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
+      const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody, key);
       trackCost('transcription', 1);
-      const segments = parseGeminiJson(transcribeData.candidates?.[0]?.content?.parts?.[0]?.text);
+      let segments = parseGeminiJson(transcribeData.candidates?.[0]?.content?.parts?.[0]?.text);
+      segments = clampSegments(segments, 6, 9);
 
       const words = [];
       for (const s of segments) {
@@ -495,13 +666,27 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }
       console.log(`[ReelGen] Segment ${si+1}: ${segments.length} segments, ${words.length} words generated`);
 
-      const scenes = reelEditMode === 'subtitles'
-        ? [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }]
-        : segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
+      const isVidInput = reelInputMode === 'video' && reelVideoEl;
+      let scenes;
+      if (isVidInput && reelEditMode === 'subtitles') {
+        scenes = [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }];
+      } else if (isVidInput) {
+        scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
+      } else {
+        // Audio/text mode: scenes need image generation
+        const totalDur = segAudio.duration;
+        scenes = segments.map((s, si2) => {
+          const st = typeof s.startTime === 'number' ? s.startTime : (si2 / segments.length) * totalDur;
+          const en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: si };
+        });
+      }
 
       allReelResults.push({
         audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end,
-        lang: 'original', langLabel: 'Original',
+        lang: 'original', langLabel: 'Original', segmentIndex: si,
+        audioLang: 'original', subtitleLang: 'original',
+        audioLangLabel: 'Original', subtitleLangLabel: 'Original',
         settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
       });
     } catch(segErr) {
@@ -511,11 +696,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 
     // Show results — all segments
     reelProgressBar.style.width = '100%';
-    reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
     reelProgressEl.classList.add('hidden');
-    setStatus(`${allReelResults.length} Reels generated`);
-
-    window._reelMultiResults = allReelResults;
 
     if (allReelResults.length === 0) {
       reelProgressLabel.textContent = 'No reels generated. Check API key and try again.';
@@ -524,56 +705,184 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       return;
     }
 
-    // Generate language variants for multi-segment reels
-    const selectedSubLangsMS = [...document.querySelectorAll('#reel-subtitle-languages input:checked')].map(cb => cb.value);
-    const selectedAudioLangsMS = [...document.querySelectorAll('#reel-audio-languages input:checked')].map(cb => cb.value);
-    const allLangsMS = [...new Set([...selectedSubLangsMS, ...selectedAudioLangsMS])];
-    const langNamesMS = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+    // Audio/text mode with segments: show scene cards for image generation
+    const hasImageScenes = allReelResults.some(r => r.scenes.some(s => s.status === 'pending'));
+    if (hasImageScenes) {
+      // Collect all pending scenes across segments, store allReelResults for later
+      reelPendingScenes = [];
+      for (const r of allReelResults) {
+        for (const s of r.scenes) reelPendingScenes.push(s);
+      }
+      // Store original audio/words for building variations later
+      window._reelMultiSegResults = allReelResults;
+      reelAudioBuffer = allReelResults[0].audioBuffer;
+      reelWords = allReelResults[0].words;
+      reelScenes = allReelResults[0].scenes;
 
-    if (allLangsMS.length > 0) {
-      const origReels = [...allReelResults];
-      for (const lang of allLangsMS) {
-        for (const origReel of origReels) {
-          if (!origReel.words || origReel.words.length === 0) continue;
-          reelProgressLabel.textContent = `Translating to ${langNamesMS[lang]}...`;
-          setStatus(`Translating to ${langNamesMS[lang]}...`, true);
-          try {
-            const origText = origReel.words.map(w => w.word).join(' ');
-            const transBody = { contents: [{ parts: [{ text: `Translate to ${langNamesMS[lang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
-            const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
-            trackCost('textGeneration', 1);
-            const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (translated) {
-              const transWords = translated.split(/\s+/);
-              const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
-              const wDur = totalDur / Math.max(1, transWords.length);
-              const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
-              const langWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
-              allReelResults.push({
-                audioBuffer: origReel.audioBuffer, scenes: origReel.scenes,
-                words: langWords, videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
-                lang, langLabel: langNamesMS[lang],
-                settings: { ...origReel.settings },
-              });
-            }
-          } catch(e) { reelProgressLabel.textContent = `${langNamesMS[lang]} failed`; }
+      reelGenerateStatus.textContent = `${reelPendingScenes.length} scenes ready`;
+      setStatus(`${reelPendingScenes.length} scenes ready — edit prompts and generate images`);
+      if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+      renderReelSceneGrid(reelPendingScenes);
+      const btnCont = $('btn-reel-scenes-continue');
+      if (btnCont) btnCont.style.display = 'none';
+      btnReelGenerate.disabled = false;
+      return;
+    }
+
+    reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
+    setStatus(`${allReelResults.length} Reels generated`);
+    window._reelMultiResults = allReelResults;
+
+    // Generate variation rows for each segment
+    // allReelResults currently has one original reel per segment
+    // Now expand: for each original reel, generate additional variations from reelVariationRows
+    const origReels = [...allReelResults];
+    const finalResults = [];
+    const translationCache = {}; // langCode → translated text (per segment, cleared each loop)
+    const ttsCache = {}; // langCode → audioBuffer
+
+    console.log('[ReelGen] Variation rows:', JSON.stringify(reelVariationRows));
+    for (const origReel of origReels) {
+      const segVariations = reelPerSegmentVariations[origReel.segmentIndex] || reelVariationRows;
+      console.log('[ReelGen] Seg', origReel.segmentIndex, 'variations:', JSON.stringify(segVariations));
+      for (const v of segVariations) {
+        const isOrigAudio = v.audio === 'original';
+        const isOrigSub = v.subtitle === 'original';
+        const origText = origReel.words?.map(w => w.word).join(' ') || '';
+
+        // Subtitle words
+        let subWords = origReel.words;
+        if (!isOrigSub && origText) {
+          const cacheKey = `sub_${v.subtitle}_${origReel.segmentIndex}`;
+          if (!translationCache[cacheKey]) {
+            reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`;
+            setStatus(`Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`, true);
+            try {
+              const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+              const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+              trackCost('textGeneration', 1);
+              translationCache[cacheKey] = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            } catch(e) { reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.subtitle]} subtitle failed`; }
+          }
+          if (translationCache[cacheKey]) {
+            const transWords = translationCache[cacheKey].split(/\s+/);
+            const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+            const wDur = totalDur / Math.max(1, transWords.length);
+            const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+            subWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
+          }
         }
+
+        // Audio buffer
+        let audioBuffer = origReel.audioBuffer;
+        console.log(`[ReelGen] Audio: isOrig=${isOrigAudio}, lang=${v.audio}, hasText=${!!origText}`);
+        if (!isOrigAudio && origText) {
+          const cacheKey = `tts_${v.audio}_${origReel.segmentIndex}`;
+          if (!ttsCache[cacheKey]) {
+            // First translate text for TTS
+            const ttsCacheKey = `sub_${v.audio}_${origReel.segmentIndex}`;
+            let ttsText = translationCache[ttsCacheKey];
+            if (!ttsText) {
+              reelProgressLabel.textContent = `Translating audio to ${REEL_LANG_OPTIONS[v.audio]}...`;
+              console.log(`[ReelGen] Translating for TTS: ${v.audio}`);
+              try {
+                const targetDur = origReel.audioBuffer.duration;
+                const transBody = { contents: [{ parts: [{ text: `Translate the following to ${REEL_LANG_OPTIONS[v.audio]}. The original audio is ${Math.round(targetDur)} seconds long. Keep the translation concise enough to be spoken in approximately the same duration. Do NOT add extra explanations or expand the content. Return ONLY the translated text:\n\n${origText}` }] }] };
+                const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+                trackCost('textGeneration', 1);
+                ttsText = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                translationCache[ttsCacheKey] = ttsText;
+                console.log(`[ReelGen] Translation done, length: ${ttsText?.length}`);
+              } catch(e) { console.error(`[ReelGen] Translation failed:`, e); reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} translation failed`; }
+            }
+            if (ttsText) {
+              reelProgressLabel.textContent = `Generating ${REEL_LANG_OPTIONS[v.audio]} audio...`;
+              setStatus(`Generating ${REEL_LANG_OPTIONS[v.audio]} TTS...`, true);
+              console.log(`[ReelGen] Calling TTS for: ${v.audio}`);
+              try {
+                const ttsModels = getTTSModels();
+                const ttsResp = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+                  { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }],
+                      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+                    })
+                  }
+                );
+                console.log(`[ReelGen] TTS response: ${ttsResp.status}`);
+                if (ttsResp.ok) {
+                  const ttsData = await ttsResp.json();
+                  const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+                  if (part?.inlineData?.data) {
+                    const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
+                    ttsCache[cacheKey] = decoded.audioBuffer;
+                    trackCost('ttsPerLang', 1);
+                    console.log(`[ReelGen] TTS audio decoded, duration: ${ttsCache[cacheKey].duration}s`);
+                  } else {
+                    console.error(`[ReelGen] TTS response structure:`, JSON.stringify(ttsData).substring(0, 1000));
+                  }
+                } else {
+                  const errText = await ttsResp.text();
+                  console.error(`[ReelGen] TTS failed ${ttsResp.status}:`, errText);
+                }
+              } catch(e) { console.error(`[ReelGen] TTS error:`, e); reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} TTS failed`; }
+            }
+          }
+          if (ttsCache[cacheKey]) {
+            audioBuffer = ttsCache[cacheKey];
+            // Stretch/compress TTS audio to match original duration
+            const targetDur = origReel.audioBuffer.duration;
+            if (Math.abs(audioBuffer.duration - targetDur) > 0.5) {
+              console.log(`[ReelGen] Matching TTS duration ${audioBuffer.duration.toFixed(1)}s → ${targetDur.toFixed(1)}s`);
+              const rate = audioBuffer.duration / targetDur;
+              const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+              const src = offlineCtx.createBufferSource();
+              src.buffer = audioBuffer;
+              src.playbackRate.value = rate;
+              src.connect(offlineCtx.destination);
+              src.start();
+              audioBuffer = await offlineCtx.startRendering();
+              ttsCache[cacheKey] = audioBuffer;
+            }
+          }
+          console.log(`[ReelGen] Final audio: ${audioBuffer === origReel.audioBuffer ? 'ORIGINAL (fallback)' : 'TRANSLATED'}`);
+        }
+
+        finalResults.push({
+          audioBuffer, scenes: origReel.scenes, words: subWords,
+          videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
+          audioLang: v.audio, subtitleLang: v.subtitle,
+          audioLangLabel: REEL_LANG_OPTIONS[v.audio],
+          subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
+          lang: v.subtitle, langLabel: REEL_LANG_OPTIONS[v.subtitle],
+          segmentIndex: origReel.segmentIndex,
+          settings: { ...origReel.settings },
+        });
       }
     }
 
-    window._reelMultiResults = allReelResults;
+    window._reelMultiResults = finalResults;
 
     // Use first for main preview
-    const first = allReelResults[0];
+    if (finalResults.length === 0) {
+      reelProgressLabel.textContent = 'No reels generated.';
+      setStatus('Generation failed');
+      btnReelGenerate.disabled = false;
+      return;
+    }
+    const first = finalResults[0];
     reelAudioBuffer = first.audioBuffer;
     reelScenes = first.scenes;
     reelWords = first.words;
+    activeReelPreview = 0;
 
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
     renderReelFrame(0);
+    renderAllReelPreviews();
     reelProgressEl.classList.add('hidden');
-    setStatus(`${allReelResults.length} Reel(s) ready`);
+    reelGenerateStatus.textContent = `${finalResults.length} Reel(s) ready`;
+    setStatus(`${finalResults.length} Reel(s) ready`);
     btnReelGenerate.disabled = false;
     return;
   }
@@ -590,7 +899,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text }] }],
-            generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+            generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
           })
         }
       );
@@ -603,7 +912,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const buf = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
       const audioArrayBuf = buf.buffer;
-      reelAudioBuffer = await audioCtx.decodeAudioData(audioArrayBuf);
+      reelAudioBuffer = await ensureAudioCtx().decodeAudioData(audioArrayBuf);
       trackCost('tts', 1);
     } catch(e) {
       reelGenerateStatus.textContent = 'TTS error: ' + e.message;
@@ -637,17 +946,17 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
     const b64Audio = await blobToBase64(wavBlob);
 
-    const segDur = Math.max(3, Math.min(10, reelAudioBuffer.duration / 6));
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Transcribe this audio into segments of ${segDur.toFixed(0)}-${(segDur*2).toFixed(0)} seconds each. Return JSON array: [{"startTime": 0.0, "endTime": 5.0, "text": "...", "sceneDescription": "vivid visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. Include word-level timestamps for subtitle rendering. Ensure segments cover the full audio duration of ${reelAudioBuffer.duration.toFixed(1)} seconds.` }
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — a vivid visual description of what could be shown as an image for that segment. Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
       ]}]
     };
-    const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
+    const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody, key);
     trackCost('transcription', 1);
     const transcribeText = transcribeData.candidates?.[0]?.content?.parts?.[0]?.text;
-    const segments = parseGeminiJson(transcribeText);
+    let segments = parseGeminiJson(transcribeText);
+    segments = clampSegments(segments, 6, 9);
 
     // Collect all words for subtitle rendering
     reelWords = [];
@@ -699,160 +1008,162 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }));
     } else {
       // Audio/Text mode: need image generation
-      reelScenes = segments.map(s => ({
-        prompt: s.sceneDescription || s.text,
-        startTime: s.startTime, endTime: s.endTime,
-        duration: s.endTime - s.startTime,
-        text: s.text, words: s.words || [],
-        imgDataUrl: null, status: 'pending',
-        transition: transPreset.transition,
-        transDur: transPreset.transDur,
-        motion: transPreset.motion,
-      }));
+      const totalDur = reelAudioBuffer.duration;
+      reelScenes = segments.map((s, si) => {
+        const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
+        const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
+        return {
+          prompt: s.sceneDescription || s.text,
+          startTime: st, endTime: en,
+          duration: en - st,
+          text: s.text, words: s.words || [],
+          imgDataUrl: null, status: 'pending',
+          transition: transPreset.transition,
+          transDur: transPreset.transDur,
+          motion: transPreset.motion,
+        };
+      });
 
-      // Step 2: Generate images (only for audio/text mode)
-      reelProgressLabel.textContent = 'Generating images...';
-      reelProgressBar.style.width = '30%';
-
-      const imageKey = getReelImageKey();
-      if (!imageKey) {
-        reelProgressLabel.textContent = 'Paid API key needed for image generation. Add one in Step 1.';
-        setStatus('Image generation requires an API key');
-        btnReelGenerate.disabled = false;
-        return;
-      }
-
-      const models = getImageModels();
-      let lastImgError = null;
-      for (let i = 0; i < reelScenes.length; i++) {
-        const scene = reelScenes[i];
-        reelProgressLabel.textContent = `Generating image ${i + 1} of ${reelScenes.length}...`;
-        reelProgressBar.style.width = `${30 + (i / reelScenes.length) * 60}%`;
-        setStatus(`Generating image ${i + 1}/${reelScenes.length}...`, true);
-
-        let effectivePrompt = stylePrompt ? `Style: ${stylePrompt}. Scene: ${scene.prompt}` : scene.prompt;
-        effectivePrompt += ' STRICT: Do NOT include any text in the image. Vertical 9:16 portrait composition.';
-
-        let imgDataUrl = null;
-        for (const model of models) {
-          try {
-            if (model.startsWith('imagen-')) {
-              imgDataUrl = await generateImageImagen(effectivePrompt, imageKey, { width: platform.width, height: platform.height }, model);
-            } else {
-              imgDataUrl = await generateImageGeminiFlash(effectivePrompt, imageKey, { width: platform.width, height: platform.height }, model);
-            }
-            break;
-          } catch(e) { lastImgError = e.message; continue; }
-        }
-        if (imgDataUrl) {
-          scene.imgDataUrl = imgDataUrl;
-          scene.status = 'done';
-          trackCost('imageGenFast', 1);
-        } else {
-          scene.status = 'error';
-          reelProgressLabel.textContent = `Image ${i + 1} failed: ${friendlyApiError(lastImgError || 'All models exhausted')}`;
-        }
-
-        // Free tier wait
-        if (!isPaidTier() && i < reelScenes.length - 1) {
-          reelProgressLabel.textContent = `Waiting for rate limit...`;
-          await new Promise(r => setTimeout(r, 30000));
-        }
-      }
+      // Show scene cards for user to edit prompts and generate images
+      reelPendingScenes = reelScenes;
+      reelProgressBar.style.width = '100%';
+      reelProgressLabel.textContent = `${reelScenes.length} scenes ready. Edit prompts and generate images.`;
+      reelProgressEl.classList.add('hidden');
+      reelGenerateStatus.textContent = `${reelScenes.length} scenes ready`;
+      setStatus(`${reelScenes.length} scenes ready — edit prompts and generate images`);
+      if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+      renderReelSceneGrid(reelPendingScenes);
+      // Reset continue button
+      const btnCont = $('btn-reel-scenes-continue');
+      if (btnCont) btnCont.style.display = 'none';
+      btnReelGenerate.disabled = false;
+      return;
     }
 
-    // Auto-generate language variants — each language × each segment = separate reel
-    const selectedSubLangs = [...document.querySelectorAll('#reel-subtitle-languages input:checked')].map(cb => cb.value);
-    const selectedAudioLangs = [...document.querySelectorAll('#reel-audio-languages input:checked')].map(cb => cb.value);
-    const allLangs = [...new Set([...selectedSubLangs, ...selectedAudioLangs])];
-    const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+    // Generate variation rows
+    const origReel = { audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, segmentIndex: 0, settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition } };
+    const singleResults = [];
+    const translationCache = {};
+    const ttsCache = {};
+    const origText = reelWords?.map(w => w.word).join(' ') || '';
 
-    if (allLangs.length > 0 && reelWords && reelWords.length > 0) {
-      // Clone original reels before adding variants
-      const originalReels = [...(window._reelMultiResults || [{ audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, lang: 'original', langLabel: 'Original', settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition } }])];
+    for (const v of reelVariationRows) {
+      const isOrigAudio = v.audio === 'original';
+      const isOrigSub = v.subtitle === 'original';
 
-      for (const lang of allLangs) {
-        reelProgressLabel.textContent = `Translating to ${langNames[lang] || lang}...`;
-        setStatus(`Translating to ${langNames[lang]}...`, true);
-
-        // Translate each original reel's words separately
-        for (const origReel of originalReels) {
-          const origText = origReel.words.map(w => w.word).join(' ');
-          if (!origText) continue;
-
+      // Subtitle words
+      let subWords = origReel.words;
+      if (!isOrigSub && origText) {
+        const cKey = `sub_${v.subtitle}`;
+        if (!translationCache[cKey]) {
+          reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`;
+          setStatus(`Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`, true);
           try {
-            const transBody = { contents: [{ parts: [{ text: `Translate to ${langNames[lang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
-            const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
+            const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
             trackCost('textGeneration', 1);
-            const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (!translated) continue;
+            translationCache[cKey] = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          } catch(e) { reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.subtitle]} subtitle failed`; }
+        }
+        if (translationCache[cKey]) {
+          const transWords = translationCache[cKey].split(/\s+/);
+          const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+          const wDur = totalDur / Math.max(1, transWords.length);
+          const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+          subWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
+        }
+      }
 
-            // Map translated words to original timings
-            const transWords = translated.split(/\s+/);
-            const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
-            const wordDur = totalDur / transWords.length;
-            const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
-            const langWords = transWords.map((w, i) => ({ word: w, start: st + i * wordDur, end: st + (i + 1) * wordDur }));
-
-            // Audio track for this language
-            let langAudioBuffer = origReel.audioBuffer;
-            if (selectedAudioLangs.includes(lang)) {
-              reelProgressLabel.textContent = `Generating ${langNames[lang]} audio...`;
-              try {
-                const ttsModels = getTTSModels();
-                const ttsResp = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
-                  { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: translated }] }],
-                      generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-                    })
-                  }
-                );
-                if (ttsResp.ok) {
-                  const ttsData = await ttsResp.json();
-                  const part = ttsData.candidates?.[0]?.content?.parts?.[0];
-                  if (part?.inlineData?.data) {
-                    trackCost('ttsPerLang', 1);
-                    const b64 = part.inlineData.data;
-                    const binary = atob(b64);
-                    const buf = new Uint8Array(binary.length);
-                    for (let j = 0; j < binary.length; j++) buf[j] = binary.charCodeAt(j);
-                    langAudioBuffer = await audioCtx.decodeAudioData(buf.buffer);
-                  }
+      // Audio buffer
+      let audioBuffer = origReel.audioBuffer;
+      if (!isOrigAudio && origText) {
+        const tKey = `tts_${v.audio}`;
+        if (!ttsCache[tKey]) {
+          const ttsCKey = `sub_${v.audio}`;
+          let ttsText = translationCache[ttsCKey];
+          if (!ttsText) {
+            reelProgressLabel.textContent = `Translating audio to ${REEL_LANG_OPTIONS[v.audio]}...`;
+            try {
+              const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.audio]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+              const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+              trackCost('textGeneration', 1);
+              ttsText = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+              translationCache[ttsCKey] = ttsText;
+            } catch(e) { reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} translation failed`; }
+          }
+          if (ttsText) {
+            reelProgressLabel.textContent = `Generating ${REEL_LANG_OPTIONS[v.audio]} audio...`;
+            setStatus(`Generating ${REEL_LANG_OPTIONS[v.audio]} TTS...`, true);
+            try {
+              const ttsModels = getTTSModels();
+              const ttsResp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }],
+                    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+                  })
                 }
-              } catch(e) {
-                reelProgressLabel.textContent = `${langNames[lang]} audio failed: ${friendlyApiError(e.message)}`;
+              );
+              if (ttsResp.ok) {
+                const ttsData = await ttsResp.json();
+                const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+                if (part?.inlineData?.data) {
+                  const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
+                  ttsCache[tKey] = decoded.audioBuffer;
+                  trackCost('ttsPerLang', 1);
+                }
               }
-            }
-
-            // Add as new reel variant
-            if (!window._reelMultiResults) window._reelMultiResults = [];
-            window._reelMultiResults.push({
-              audioBuffer: langAudioBuffer,
-              scenes: origReel.scenes,
-              words: langWords,
-              videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
-              lang, langLabel: langNames[lang],
-              settings: { ...origReel.settings },
-            });
-          } catch(e) {
-            reelProgressLabel.textContent = `${langNames[lang]} failed: ${friendlyApiError(e.message)}`;
+            } catch(e) { reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} TTS failed`; }
+          }
+        }
+        if (ttsCache[tKey]) {
+          audioBuffer = ttsCache[tKey];
+          // Stretch/compress TTS audio to match original duration
+          const targetDur = origReel.audioBuffer.duration;
+          if (Math.abs(audioBuffer.duration - targetDur) > 0.5) {
+            const rate = audioBuffer.duration / targetDur;
+            const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+            const src = offlineCtx.createBufferSource();
+            src.buffer = audioBuffer;
+            src.playbackRate.value = rate;
+            src.connect(offlineCtx.destination);
+            src.start();
+            audioBuffer = await offlineCtx.startRendering();
+            ttsCache[tKey] = audioBuffer;
           }
         }
       }
+
+      singleResults.push({
+        audioBuffer, scenes: origReel.scenes, words: subWords,
+        videoStart: 0, videoEnd: audioBuffer.duration,
+        audioLang: v.audio, subtitleLang: v.subtitle,
+        audioLangLabel: REEL_LANG_OPTIONS[v.audio],
+        subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
+        lang: v.subtitle, langLabel: REEL_LANG_OPTIONS[v.subtitle],
+        segmentIndex: 0,
+        settings: { ...origReel.settings },
+      });
     }
+
+    window._reelMultiResults = singleResults;
+    activeReelPreview = 0;
 
     // Show mini editor
     reelProgressBar.style.width = '100%';
     reelProgressLabel.textContent = 'Done!';
     reelProgressEl.classList.add('hidden');
-    setStatus('Reel generated!');
+    reelGenerateStatus.textContent = `${singleResults.length} Reel(s) ready`;
+    setStatus(`${singleResults.length} Reel(s) ready`);
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
     renderReelFrame(0);
+    renderAllReelPreviews();
 
   } catch(e) {
+    console.error('[ReelGen] Error:', e);
     reelProgressLabel.textContent = 'Error: ' + friendlyApiError(e.message || 'Generation failed');
+    reelProgressEl.classList.add('hidden');
     setStatus('Reel generation failed');
   }
   btnReelGenerate.disabled = false;
@@ -862,72 +1173,269 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 let activeReelPreview = 0;
 
 function renderAllReelPreviews() {
-  const container = $('reel-all-previews');
-  if (!container || !window._reelMultiResults) return;
+  const container = $('reel-previews-container');
+  if (!container) return;
   const results = window._reelMultiResults;
-  if (results.length === 0) { container.innerHTML = ''; return; }
-  container.innerHTML = results.map((r, i) => `
-    <div class="reel-preview-card ${i === activeReelPreview ? 'selected' : ''}" data-ri="${i}">
-      <button class="reel-seg-remove" data-reel-del="${i}">✕</button>
-      <video class="reel-multi-vid" data-ri="${i}" src="${reelVideoSrc}" playsinline muted preload="metadata"></video>
-      <div class="reel-preview-label">Reel ${i + 1}${r.langLabel && r.langLabel !== 'Original' ? ' · ' + r.langLabel : ''} · ${fmtShort(r.videoStart)}–${fmtShort(r.videoEnd)}</div>
-      <div class="reel-preview-controls">
-        <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
-        <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
-        <span class="text-2xs text-muted reel-mp-time" id="reel-mp-time-${i}">0:00</span>
+
+  if (!results || results.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+  container.style.gap = '16px';
+  container.style.justifyContent = 'center';
+  container.style.alignItems = 'flex-start';
+  container.style.flexWrap = 'wrap';
+
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const cw = platform.width;
+  const ch = platform.height;
+
+  container.innerHTML = results.map((r, i) => {
+    const audioLabel = r.audioLangLabel || 'Original';
+    const subLabel = r.subtitleLangLabel || 'Original';
+    const selected = i === activeReelPreview;
+    return `
+    <div class="reel-preview-card" data-ri="${i}" style="cursor:pointer; position:relative; text-align:center;">
+      <div style="font-size:0.68rem; color:var(--text-secondary); margin-bottom:4px; line-height:1.3;">
+        <strong>Reel ${i + 1}</strong><br>🔊 ${audioLabel} · 💬 ${subLabel}
       </div>
-    </div>
-  `).join('');
-  // Seek each to start
-  container.querySelectorAll('.reel-multi-vid').forEach(v => {
-    const idx = parseInt(v.dataset.ri);
-    v.currentTime = results[idx].videoStart;
-  });
-  // Select card → load that reel for editing
+      ${i > 0 ? '<button class="reel-thumb-delete" data-ri="' + i + '" style="position:absolute; top:0; right:0; width:20px; height:20px; border:none; border-radius:50%; background:#ef4444; color:#fff; font-size:0.6rem; cursor:pointer; z-index:1; display:flex; align-items:center; justify-content:center;">✕</button>' : ''}
+      <div class="reel-canvas-wrap" style="width:300px; border-color:${selected ? 'var(--accent)' : 'var(--border)'}; ${selected ? 'box-shadow:0 0 0 2px rgba(139,92,246,0.3);' : ''}">
+        <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+      </div>
+      <div style="max-width:220px; margin:6px auto 0;">
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+          <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
+          <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
+        </div>
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
+          <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
+          <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Render frame with subtitles on each canvas
+  function drawPreviewFrame(cvs, r) {
+    const ctx = cvs.getContext('2d');
+    const midTime = r.words && r.words.length > 0 ? r.words[Math.min(3, r.words.length - 1)].start + 0.1 : 0.5;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cw, ch);
+    if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+      const vp = r.settings?.viewport || 'fill-center';
+      const vpx = r.settings?.viewportX ?? 50;
+      try { drawViewportCrop(ctx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {
+        try { drawCoverFit(ctx, reelVideoEl, cw, ch); } catch(e2) {}
+      }
+    } else if (r.scenes) {
+      const scene = r.scenes[0];
+      if (scene?.imgDataUrl) {
+        const img = new Image(); img.src = scene.imgDataUrl;
+        try { drawCoverFit(ctx, img, cw, ch); } catch(e) {}
+      }
+    }
+    const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+    if (subStyle !== 'none' && r.words && r.words.length > 0) {
+      renderReelSubtitle(ctx, cw, ch, midTime, r.words, subStyle);
+    }
+  }
+  // Seek video then draw all previews
+  const canvases = [...container.querySelectorAll('.reel-thumb-canvas')];
+  if (reelVideoEl && reelVideoEl.videoWidth > 0 && canvases.length > 0) {
+    const firstResult = results[0];
+    const seekTime = (firstResult?.videoStart || 0) + (firstResult?.words?.[3]?.start || 0.5);
+    reelVideoEl.currentTime = seekTime;
+    reelVideoEl.onseeked = () => {
+      reelVideoEl.onseeked = null;
+      canvases.forEach(cvs => drawPreviewFrame(cvs, results[parseInt(cvs.dataset.ri)]));
+    };
+  } else {
+    canvases.forEach(cvs => drawPreviewFrame(cvs, results[parseInt(cvs.dataset.ri)]));
+  }
+
+  // Click card → select that reel, update controls
   container.querySelectorAll('.reel-preview-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.reel-seg-remove') || e.target.closest('.reel-mp-play') || e.target.closest('.reel-mp-stop')) return;
+      if (e.target.closest('.reel-thumb-delete')) return;
       const idx = parseInt(card.dataset.ri);
       selectReelPreview(idx);
+      renderAllReelPreviews();
     });
   });
   // Delete reel
-  container.querySelectorAll('.reel-seg-remove').forEach(btn => {
+  container.querySelectorAll('.reel-thumb-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const idx = parseInt(btn.dataset.reelDel);
+      const idx = parseInt(btn.dataset.ri);
       results.splice(idx, 1);
       if (activeReelPreview >= results.length) activeReelPreview = Math.max(0, results.length - 1);
       if (results.length > 0) selectReelPreview(activeReelPreview);
       renderAllReelPreviews();
     });
   });
-  // Play/stop handlers
+
+  // Per-preview playback
+  const mpState = {}; // idx → { source, startedAt, playing, animId }
   container.querySelectorAll('.reel-mp-play').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const idx = parseInt(btn.dataset.ri);
       const r = results[idx];
-      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
-      if (!vid) return;
-      container.querySelectorAll('.reel-multi-vid').forEach(v => { v.pause(); v.muted = true; });
-      vid.currentTime = r.videoStart;
-      vid.muted = false;
-      vid.play();
-      const timeEl = $(`reel-mp-time-${idx}`);
-      const iv = setInterval(() => {
-        if (vid.paused || vid.currentTime >= r.videoEnd) { vid.pause(); vid.muted = true; clearInterval(iv); return; }
-        if (timeEl) timeEl.textContent = fmtShort(vid.currentTime - r.videoStart);
-      }, 100);
+      if (!r || !r.audioBuffer) return;
+      // Stop any other playing preview
+      Object.keys(mpState).forEach(k => { if (mpState[k].playing) stopMp(parseInt(k)); });
+      // Select this reel (don't re-render, just update selection visually)
+      if (idx !== activeReelPreview) {
+        selectReelPreview(idx);
+        container.querySelectorAll('.reel-preview-card').forEach(c => {
+          const ci = parseInt(c.dataset.ri);
+          const wrap = c.querySelector('.reel-canvas-wrap');
+          if (wrap) {
+            wrap.style.borderColor = ci === idx ? 'var(--accent)' : 'var(--border)';
+            wrap.style.boxShadow = ci === idx ? '0 0 0 2px rgba(139,92,246,0.3)' : '';
+          }
+        });
+      }
+      // Start playback
+      const ctx = ensureAudioCtx();
+      const source = ctx.createBufferSource();
+      source.buffer = r.audioBuffer;
+      source.connect(ctx.destination);
+      const startedAt = ctx.currentTime;
+      source.start();
+      mpState[idx] = { source, startedAt, playing: true, animId: null };
+      // Start video playback in sync
+      if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+        const seg = r.segments?.[0];
+        reelVideoEl.currentTime = seg?.startTime || 0;
+        reelVideoEl.play().catch(() => {});
+      }
+      // Animate canvas + scrub
+      const cvs = container.querySelector(`.reel-thumb-canvas[data-ri="${idx}"]`);
+      const scrub = container.querySelector(`.reel-mp-scrub[data-ri="${idx}"]`);
+      const timeEl = container.querySelector(`.reel-mp-time[data-ri="${idx}"]`);
+      const drawCtx = cvs?.getContext('2d');
+      function tick() {
+        if (!mpState[idx]?.playing) return;
+        const elapsed = ensureAudioCtx().currentTime - mpState[idx].startedAt;
+        if (elapsed >= r.audioBuffer.duration) { stopMp(idx); return; }
+        if (scrub) scrub.value = Math.round((elapsed / r.audioBuffer.duration) * 1000);
+        if (timeEl) timeEl.textContent = fmtShort(elapsed);
+        if (drawCtx) {
+          drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
+          if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+            const vp = r.settings?.viewport || reelViewport;
+            const vpx = r.settings?.viewportX ?? reelViewportX;
+            try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {}
+          } else if (r.scenes) {
+            const scene = r.scenes.find(s => elapsed >= s.startTime && elapsed < s.endTime);
+            if (scene?.imgDataUrl) {
+              if (!scene._img) { scene._img = new Image(); scene._img.src = scene.imgDataUrl; }
+              if (scene._img.naturalWidth > 0) {
+                try { drawCoverFit(drawCtx, scene._img, cw, ch); } catch(e) {}
+              }
+            }
+          }
+          const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+          if (subStyle !== 'none' && r.words?.length > 0) {
+            renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle);
+          }
+        }
+        mpState[idx].animId = requestAnimationFrame(tick);
+      }
+      source.onended = () => { if (mpState[idx]?.playing) stopMp(idx); };
+      mpState[idx].animId = requestAnimationFrame(tick);
     });
   });
-  container.querySelectorAll('.reel-mp-stop').forEach(btn => {
-    btn.addEventListener('click', () => {
+
+  function stopMp(idx) {
+    const st = mpState[idx];
+    if (!st) return;
+    st.playing = false;
+    if (st.source) { try { st.source.stop(); } catch(e) {} }
+    if (st.animId) cancelAnimationFrame(st.animId);
+    if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
+    const scrub = container.querySelector(`.reel-mp-scrub[data-ri="${idx}"]`);
+    if (scrub) scrub.value = 0;
+    const timeEl = container.querySelector(`.reel-mp-time[data-ri="${idx}"]`);
+    if (timeEl) timeEl.textContent = '0:00';
+    delete mpState[idx];
+  }
+
+  container.querySelectorAll('.reel-mp-pause').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const idx = parseInt(btn.dataset.ri);
+      if (mpState[idx]?.playing) stopMp(idx);
+    });
+  });
+
+  container.querySelectorAll('.reel-mp-stop').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.ri);
+      stopMp(idx);
+      // Re-render static frame
+      const cvs = container.querySelector(`.reel-thumb-canvas[data-ri="${idx}"]`);
+      if (cvs) {
+        const r = results[idx];
+        const drawCtx = cvs.getContext('2d');
+        const midTime = r.words?.length > 0 ? r.words[Math.min(3, r.words.length - 1)].start + 0.1 : 0.5;
+        drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
+        if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+          try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, r.settings?.viewport || 'fill-center', r.settings?.viewportX ?? 50); } catch(e) {}
+        }
+        const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+        if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, midTime, r.words, subStyle);
+      }
+    });
+  });
+
+  // Scrub seek
+  container.querySelectorAll('.reel-mp-scrub').forEach(scrub => {
+    scrub.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(scrub.dataset.ri);
       const r = results[idx];
-      const vid = container.querySelector(`.reel-multi-vid[data-ri="${idx}"]`);
-      if (vid) { vid.pause(); vid.muted = true; vid.currentTime = r.videoStart; }
-      const timeEl = $(`reel-mp-time-${idx}`);
-      if (timeEl) timeEl.textContent = '0:00';
+      if (!r) return;
+      // Stop audio/anim without resetting scrub position
+      const st = mpState[idx];
+      if (st) {
+        st.playing = false;
+        if (st.source) { try { st.source.stop(); } catch(e) {} }
+        if (st.animId) cancelAnimationFrame(st.animId);
+        delete mpState[idx];
+      }
+      const t = (scrub.value / 1000) * r.audioBuffer.duration;
+      const timeEl = container.querySelector(`.reel-mp-time[data-ri="${idx}"]`);
+      if (timeEl) timeEl.textContent = fmtShort(t);
+      const cvs = container.querySelector(`.reel-thumb-canvas[data-ri="${idx}"]`);
+      if (cvs) {
+        const drawCtx = cvs.getContext('2d');
+        const drawFrame = () => {
+          drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
+          if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+            try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, r.settings?.viewport || 'fill-center', r.settings?.viewportX ?? 50); } catch(e) {}
+          } else if (r.scenes) {
+            const scene = r.scenes.find(s => t >= s.startTime && t < s.endTime);
+            if (scene?.imgDataUrl) {
+              if (!scene._img) { scene._img = new Image(); scene._img.src = scene.imgDataUrl; }
+              if (scene._img.naturalWidth > 0) { try { drawCoverFit(drawCtx, scene._img, cw, ch); } catch(e) {} }
+            }
+          }
+          const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+          if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, t, r.words, subStyle);
+        };
+        if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+          reelVideoEl.currentTime = (r.videoStart || 0) + t;
+          reelVideoEl.onseeked = () => { drawFrame(); reelVideoEl.onseeked = null; };
+        } else {
+          drawFrame();
+        }
+      }
     });
   });
 }
@@ -1021,6 +1529,408 @@ function renderReelScenes() {
   });
 }
 
+// ── Scene Image Cards (audio/text mode) ──
+const reelStepScenes = $('reel-step-scenes');
+const reelSceneGrid = $('reel-scene-grid');
+
+function renderReelSceneGrid(scenes) {
+  if (!reelSceneGrid) return;
+  reelSceneGrid.innerHTML = '';
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const ratio = `${platform.width}/${platform.height}`;
+  scenes.forEach((scene, idx) => {
+    const card = document.createElement('div');
+    card.className = 'scene-card';
+    const refThumbHtml = scene.refImageDataUrl ? `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">` : '';
+    const refLabel = scene.refImageDataUrl ? '✓ Reference set' : '';
+    card.innerHTML = `
+      <div class="scene-img" id="reel-scene-img-${idx}" style="aspect-ratio:${ratio};">
+        ${scene.imgDataUrl
+          ? `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`
+          : `<div class="scene-img-placeholder" style="aspect-ratio:${ratio};"></div>`}
+      </div>
+      <div class="scene-body">
+        <div class="scene-time">🕐 ${fmtShort(scene.startTime)} – ${fmtShort(scene.endTime)}</div>
+        <div class="scene-text" style="max-height:40px; overflow:hidden; color:var(--text-muted); font-size:0.72rem;">"${(scene.text || '').slice(0, 120)}"</div>
+        <textarea id="reel-scene-prompt-${idx}" style="width:100%; min-height:50px; font-size:0.72rem; margin-top:4px;">${scene.prompt || scene.sceneDescription || ''}</textarea>
+        <div class="scene-actions">
+          <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
+          <button class="btn-download-img" style="font-size:0.68rem; padding:3px 8px; ${scene.imgDataUrl ? '' : 'display:none;'}">📥 Download</button>
+          <button class="btn-ref" style="font-size:0.68rem; padding:3px 8px;">📎 Ref Image</button>
+          <input type="file" class="ref-input" accept="image/*" style="display:none;">
+          <span class="scene-status ${scene.status || ''}" id="reel-scene-status-${idx}">
+            ${scene.status === 'done' ? '✓ Done' : scene.status === 'generating' ? '⏳ Generating...' : scene.status === 'error' ? '✗ Error' : '○ Pending'}
+          </span>
+        </div>
+        <div class="scene-ref-row" id="reel-scene-ref-${idx}" style="${scene.refImageDataUrl ? '' : 'display:none;'}">
+          ${refThumbHtml}
+          <span class="ref-label">${refLabel}</span>
+          <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px; ${scene.refImageDataUrl ? '' : 'display:none;'}">✕</button>
+        </div>
+      </div>`;
+
+    // Regenerate
+    card.querySelector('.btn-regen').addEventListener('click', () => reelRegenerateScene(idx));
+    // Download
+    const dlBtn = card.querySelector('.btn-download-img');
+    if (dlBtn) dlBtn.addEventListener('click', () => {
+      if (!scene.imgDataUrl) return;
+      const a = document.createElement('a'); a.href = scene.imgDataUrl; a.download = `stori-reel-scene-${idx + 1}.png`; a.click();
+    });
+    // Reference image
+    const refInput = card.querySelector('.ref-input');
+    const btnRef = card.querySelector('.btn-ref');
+    const refRow = card.querySelector('.scene-ref-row');
+    const btnRefRemove = card.querySelector('.btn-ref-remove');
+    btnRef.addEventListener('click', () => refInput.click());
+    refInput.addEventListener('change', async () => {
+      const file = refInput.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        scene.refImageDataUrl = e.target.result;
+        refRow.style.display = '';
+        refRow.innerHTML = `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref"><span class="ref-label">⏳ Analyzing...</span>`;
+        try {
+          await reelUpdatePromptFromReference(idx, scenes);
+          refRow.innerHTML = `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref"><span class="ref-label" style="color:#10b981;">✓ Prompt updated</span><button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>`;
+          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => { scene.refImageDataUrl = null; refRow.style.display = 'none'; });
+        } catch (err) {
+          refRow.innerHTML = `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref"><span class="ref-label" style="color:#ef4444;">✗ ${err.message}</span><button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>`;
+          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => { scene.refImageDataUrl = null; refRow.style.display = 'none'; });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    if (btnRefRemove) btnRefRemove.addEventListener('click', () => { scene.refImageDataUrl = null; refRow.style.display = 'none'; });
+    reelSceneGrid.appendChild(card);
+  });
+}
+
+async function reelUpdatePromptFromReference(idx, scenes) {
+  const scene = scenes[idx];
+  if (!scene.refImageDataUrl) return;
+  const key = getReelApiKey();
+  if (!key) throw new Error('API key required');
+  const match = scene.refImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) throw new Error('Invalid image');
+  const [, mimeType, base64Data] = match;
+  const data = await callGeminiAPI(getTranscriptionModels(), {
+    contents: [{ parts: [
+      { inlineData: { mimeType, data: base64Data } },
+      { text: `Analyze this reference image. The generated image should resemble the person/people — same face, features, appearance, clothing. Incorporate visual style and mood.\n\nOriginal scene prompt: "${scene.prompt}"\n\nReturn ONLY the updated prompt text.` }
+    ]}]
+  }, key);
+  const updatedPrompt = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (updatedPrompt) {
+    scene.prompt = updatedPrompt;
+    const textarea = $(`reel-scene-prompt-${idx}`);
+    if (textarea) {
+      textarea.value = updatedPrompt;
+      textarea.style.transition = 'background 0.5s';
+      textarea.style.background = 'rgba(16,185,129,0.15)';
+      setTimeout(() => { textarea.style.background = ''; }, 2000);
+    }
+  }
+}
+
+function reelUpdateSceneCardImage(idx) {
+  const imgDiv = $(`reel-scene-img-${idx}`);
+  if (!imgDiv || !reelPendingScenes) return;
+  const scene = reelPendingScenes[idx];
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const ratio = `${platform.width}/${platform.height}`;
+  if (scene.imgDataUrl) {
+    imgDiv.innerHTML = `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`;
+  } else {
+    imgDiv.innerHTML = `<div class="scene-img-placeholder" style="aspect-ratio:${ratio};"></div>`;
+  }
+}
+
+function reelUpdateSceneCardStatus(idx, errorMsg) {
+  const statusEl = $(`reel-scene-status-${idx}`);
+  if (!statusEl || !reelPendingScenes) return;
+  const scene = reelPendingScenes[idx];
+  statusEl.className = 'scene-status ' + scene.status;
+  statusEl.textContent = scene.status === 'done' ? '✓ Done'
+    : scene.status === 'generating' ? '⏳ Generating...'
+    : scene.status === 'error' ? `✗ ${errorMsg || 'Error'}`
+    : '○ Pending';
+  const card = statusEl.closest('.scene-card');
+  if (card) {
+    const dlBtn = card.querySelector('.btn-download-img');
+    if (dlBtn) dlBtn.style.display = scene.imgDataUrl ? '' : 'none';
+  }
+}
+
+async function reelGenerateSceneImage(idx) {
+  const scene = reelPendingScenes[idx];
+  const key = getReelApiKey();
+  const platform = REEL_PLATFORMS[reelPlatform];
+  // Sync prompt from textarea
+  const promptEl = $(`reel-scene-prompt-${idx}`);
+  if (promptEl) scene.prompt = promptEl.value;
+  scene.status = 'generating';
+  reelUpdateSceneCardStatus(idx);
+  try {
+    if (!key) throw new Error('API key required');
+    // Build prompt with style and references
+    const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+    const stylePrompt = STYLE_PRESETS[styleName] || '';
+    const hasRefs = (scene.refCharacters && scene.refCharacters.length > 0) || (scene.refEnvironment >= 0);
+    let effectivePrompt = hasRefs
+      ? buildScenePromptWithRefs(scene, scene.prompt)
+      : (stylePrompt ? `Style: ${stylePrompt}. Scene: ${scene.prompt}` : scene.prompt);
+    effectivePrompt += ' STRICT: Do NOT include any text, words, letters in the image. Vertical 9:16 portrait format.';
+    const refParts = hasRefs ? getSceneRefImageParts(scene) : [];
+    const opts = { width: platform.width, height: platform.height, refImageDataUrl: scene.refImageDataUrl, refParts };
+    const models = getImageModels();
+    let imgDataUrl = null, lastError = null;
+    for (const model of models) {
+      try {
+        if (model.startsWith('imagen-')) imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
+        else imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+        if (imgDataUrl) break;
+      } catch(e) {
+        lastError = e;
+        console.warn(`Reel image gen failed for model ${model}:`, e.message);
+        continue; // try next model
+      }
+    }
+    if (!imgDataUrl) throw lastError || new Error('Image generation failed');
+    scene.imgDataUrl = imgDataUrl;
+    scene.status = 'done';
+    trackCost('imageGenFast', 1);
+    reelUpdateSceneCardImage(idx);
+    reelUpdateSceneCardStatus(idx);
+  } catch(e) {
+    scene.status = 'error';
+    reelUpdateSceneCardStatus(idx, friendlyApiError(e.message));
+    console.error(`Reel scene ${idx + 1} error:`, e);
+  }
+}
+
+function reelRegenerateScene(idx) { reelGenerateSceneImage(idx); }
+
+async function reelRunImageGeneration(scenesToGen) {
+  const btnGenImages = $('btn-reel-gen-images');
+  const btnRetry = $('btn-reel-retry-images');
+  const btnPause = $('btn-reel-pause-images');
+  const btnContinue = $('btn-reel-scenes-continue');
+  const progressEl = $('reel-image-progress');
+  const barEl = $('reel-image-bar');
+  const labelEl = $('reel-image-label');
+
+  if (btnGenImages) btnGenImages.disabled = true;
+  if (btnRetry) btnRetry.style.display = 'none';
+  if (btnPause) { btnPause.style.display = ''; btnPause.textContent = '⏸ Pause'; }
+  reelGenImagesPaused = false;
+  reelGenImagesRunning = true;
+  if (progressEl) progressEl.style.display = '';
+  if (labelEl) labelEl.style.color = '';
+  const total = scenesToGen.length;
+
+  for (let i = 0; i < total; i++) {
+    if (reelGenImagesPaused) {
+      const doneNow = reelPendingScenes.filter(s => s.status === 'done').length;
+      if (labelEl) { labelEl.textContent = `Paused — ${doneNow} done, ${total - i} remaining.`; labelEl.style.color = '#f59e0b'; }
+      await new Promise(resolve => {
+        const check = () => { if (!reelGenImagesPaused || !reelGenImagesRunning) { resolve(); return; } setTimeout(check, 200); };
+        check();
+      });
+      if (!reelGenImagesRunning) break;
+      if (labelEl) labelEl.style.color = '';
+    }
+    const idx = reelPendingScenes.indexOf(scenesToGen[i]);
+    if (barEl) barEl.style.width = Math.round((i / total) * 100) + '%';
+    if (labelEl) labelEl.textContent = `Generating image ${i + 1} of ${total}...`;
+    await reelGenerateSceneImage(idx);
+  }
+
+  reelGenImagesRunning = false;
+  if (btnPause) btnPause.style.display = 'none';
+  if (barEl) barEl.style.width = '100%';
+  const doneCount = reelPendingScenes.filter(s => s.status === 'done').length;
+  const failedCount = reelPendingScenes.filter(s => s.status === 'error' || s.status === 'pending').length;
+  if (failedCount > 0) {
+    if (labelEl) { labelEl.textContent = `${doneCount}/${reelPendingScenes.length} generated, ${failedCount} remaining.`; labelEl.style.color = '#f59e0b'; }
+    if (btnRetry) { btnRetry.style.display = ''; btnRetry.textContent = `🔄 Retry ${failedCount} Remaining`; }
+  } else {
+    if (labelEl) labelEl.textContent = `Done! All ${doneCount} images generated.`;
+    setTimeout(() => { if (progressEl) progressEl.style.display = 'none'; }, 3000);
+  }
+  if (btnGenImages) btnGenImages.disabled = false;
+  if (btnContinue) btnContinue.style.display = '';
+}
+
+async function reelBuildVariationsAndPreview() {
+  // Use pending scenes if available (audio/text mode with scene cards)
+  if (reelPendingScenes) {
+    // Reassign scenes back to multi-seg results if they came from there
+    if (window._reelMultiSegResults) {
+      for (const r of window._reelMultiSegResults) {
+        // Scenes were flattened into reelPendingScenes, reassign back
+        r.scenes = r.scenes.map(s => reelPendingScenes.find(ps => ps === s) || s);
+      }
+    }
+    reelScenes = reelPendingScenes;
+  }
+  if (!reelAudioBuffer || !reelScenes) { setStatus('Nothing to preview'); return; }
+  const key = getReelApiKey();
+  if (!key) { setStatus('API key required'); return; }
+
+  setStatus('Building variations...', true);
+  if (reelStepScenes) reelStepScenes.classList.add('hidden');
+
+  try {
+    const origReel = {
+      audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords,
+      videoStart: 0, videoEnd: reelAudioBuffer.duration, segmentIndex: 0,
+      settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition }
+    };
+    const singleResults = [];
+    const translationCache = {};
+    const ttsCache = {};
+    const origText = reelWords?.map(w => w.word).join(' ') || '';
+
+    for (const v of reelVariationRows) {
+      const isOrigAudio = v.audio === 'original';
+      const isOrigSub = v.subtitle === 'original';
+      let subWords = origReel.words;
+      if (!isOrigSub && origText) {
+        const cKey = `sub_${v.subtitle}`;
+        if (!translationCache[cKey]) {
+          setStatus(`Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`, true);
+          try {
+            const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+            trackCost('textGeneration', 1);
+            translationCache[cKey] = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          } catch(e) { setStatus(`${REEL_LANG_OPTIONS[v.subtitle]} subtitle failed`); }
+        }
+        if (translationCache[cKey]) {
+          const transWords = translationCache[cKey].split(/\s+/);
+          const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+          const wDur = totalDur / Math.max(1, transWords.length);
+          const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+          subWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
+        }
+      }
+      let audioBuffer = origReel.audioBuffer;
+      if (!isOrigAudio && origText) {
+        const tKey = `tts_${v.audio}`;
+        if (!ttsCache[tKey]) {
+          const ttsCKey = `sub_${v.audio}`;
+          let ttsText = translationCache[ttsCKey];
+          if (!ttsText) {
+            setStatus(`Translating audio to ${REEL_LANG_OPTIONS[v.audio]}...`, true);
+            try {
+              const targetDur = origReel.audioBuffer.duration;
+              const transBody = { contents: [{ parts: [{ text: `Translate the following to ${REEL_LANG_OPTIONS[v.audio]}. The original audio is ${Math.round(targetDur)} seconds long. Keep the translation concise enough to be spoken in approximately the same duration. Return ONLY the translated text:\n\n${origText}` }] }] };
+              const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+              trackCost('textGeneration', 1);
+              ttsText = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+              translationCache[ttsCKey] = ttsText;
+            } catch(e) { setStatus(`${REEL_LANG_OPTIONS[v.audio]} translation failed`); }
+          }
+          if (ttsText) {
+            setStatus(`Generating ${REEL_LANG_OPTIONS[v.audio]} audio...`, true);
+            try {
+              const ttsModels = getTTSModels();
+              const ttsResp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }],
+                    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+                  })
+                }
+              );
+              if (ttsResp.ok) {
+                const ttsData = await ttsResp.json();
+                const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+                if (part?.inlineData?.data) {
+                  const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
+                  ttsCache[tKey] = decoded.audioBuffer;
+                  trackCost('ttsPerLang', 1);
+                }
+              }
+            } catch(e) { setStatus(`${REEL_LANG_OPTIONS[v.audio]} TTS failed`); }
+          }
+        }
+        if (ttsCache[tKey]) {
+          audioBuffer = ttsCache[tKey];
+          const targetDur = origReel.audioBuffer.duration;
+          if (Math.abs(audioBuffer.duration - targetDur) > 0.5) {
+            const rate = audioBuffer.duration / targetDur;
+            const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+            const src = offlineCtx.createBufferSource();
+            src.buffer = audioBuffer;
+            src.playbackRate.value = rate;
+            src.connect(offlineCtx.destination);
+            src.start();
+            audioBuffer = await offlineCtx.startRendering();
+            ttsCache[tKey] = audioBuffer;
+          }
+        }
+      }
+      singleResults.push({
+        audioBuffer, scenes: origReel.scenes, words: subWords,
+        videoStart: 0, videoEnd: audioBuffer.duration,
+        audioLang: v.audio, subtitleLang: v.subtitle,
+        audioLangLabel: REEL_LANG_OPTIONS[v.audio],
+        subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
+        lang: v.subtitle, langLabel: REEL_LANG_OPTIONS[v.subtitle],
+        segmentIndex: 0,
+        settings: { ...origReel.settings },
+      });
+    }
+
+    window._reelMultiResults = singleResults;
+    activeReelPreview = 0;
+    reelStepEditor.classList.remove('hidden');
+    renderReelScenes();
+    // Pre-load all scene images so they're ready when renderReelFrame runs
+    const allSceneImgs = singleResults.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
+    await Promise.all(allSceneImgs.map(s => new Promise(res => {
+      s._img = new Image();
+      s._img.onload = s._img.onerror = res;
+      s._img.src = s.imgDataUrl;
+    })));
+    renderReelFrame(0);
+    renderAllReelPreviews();
+    reelGenerateStatus.textContent = `${singleResults.length} Reel(s) ready`;
+    setStatus(`${singleResults.length} Reel(s) ready`);
+  } catch(e) {
+    console.error('[ReelGen] Variation error:', e);
+    setStatus('Variation generation failed: ' + friendlyApiError(e.message));
+  }
+}
+
+// ── Scene Image Button Handlers ──
+const btnReelGenImages = $('btn-reel-gen-images');
+const btnReelRetryImages = $('btn-reel-retry-images');
+const btnReelPauseImages = $('btn-reel-pause-images');
+const btnReelSkipImages = $('btn-reel-skip-images');
+const btnReelScenesContinue = $('btn-reel-scenes-continue');
+
+if (btnReelGenImages) btnReelGenImages.addEventListener('click', () => {
+  if (!reelPendingScenes || reelPendingScenes.length === 0) return;
+  reelRunImageGeneration(reelPendingScenes.filter(s => s.status !== 'done'));
+});
+if (btnReelRetryImages) btnReelRetryImages.addEventListener('click', () => {
+  if (!reelPendingScenes) return;
+  reelRunImageGeneration(reelPendingScenes.filter(s => s.status === 'error' || s.status === 'pending'));
+});
+if (btnReelPauseImages) btnReelPauseImages.addEventListener('click', () => {
+  reelGenImagesPaused = !reelGenImagesPaused;
+  btnReelPauseImages.textContent = reelGenImagesPaused ? '▶ Resume' : '⏸ Pause';
+});
+if (btnReelSkipImages) btnReelSkipImages.addEventListener('click', () => {
+  reelBuildVariationsAndPreview();
+});
+if (btnReelScenesContinue) btnReelScenesContinue.addEventListener('click', () => {
+  reelBuildVariationsAndPreview();
+});
+
 function renderReelFrame(time) {
   if (!reelCanvas || !reelScenes) return;
   const platform = REEL_PLATFORMS[reelPlatform];
@@ -1063,9 +1973,13 @@ function renderReelFrame(time) {
       // Also draw again after seek completes for accuracy
       reelVideoEl.onseeked = () => { reelVideoEl.onseeked = null; drawIt(); };
     } else if (scene.imgDataUrl) {
-      const img = new Image();
-      img.src = scene.imgDataUrl;
-      try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
+      if (!scene._img) {
+        scene._img = new Image();
+        scene._img.src = scene.imgDataUrl;
+      }
+      if (scene._img.naturalWidth > 0) {
+        try { drawCoverFit(ctx, scene._img, platform.width, platform.height); } catch(e) { console.error('[Reel] drawCoverFit error:', e); }
+      }
       drawReelSubtitles(ctx, platform, t);
     } else {
       drawReelSubtitles(ctx, platform, t);
@@ -1101,11 +2015,11 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
   if (reelPlaying) return;
   if (!reelAudioBuffer) return;
   reelPlaying = true;
-  reelAudioSource = audioCtx.createBufferSource();
+  reelAudioSource = ensureAudioCtx().createBufferSource();
   reelAudioSource.buffer = reelAudioBuffer;
-  reelAudioSource.connect(audioCtx.destination);
+  reelAudioSource.connect(ensureAudioCtx().destination);
   reelAudioSource.start();
-  reelStartTime = audioCtx.currentTime;
+  reelStartTime = ensureAudioCtx().currentTime;
   reelAudioSource.onended = () => { reelPlaying = false; reelAudioSource = null; };
 
   // For video mode: start video playback in sync
@@ -1122,7 +2036,7 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
 
   function animate() {
     if (!reelPlaying) return;
-    const elapsed = audioCtx.currentTime - reelStartTime;
+    const elapsed = ensureAudioCtx().currentTime - reelStartTime;
     if (elapsed >= reelAudioBuffer.duration) { stopReelPreview(); return; }
 
     // Draw frame
@@ -1137,9 +2051,12 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
       drawReelVideoFrame(ctx, platform, activeResult);
     } else {
       const scene = reelScenes.find(s => elapsed >= s.startTime && elapsed < s.endTime);
-      if (scene && scene.imgDataUrl) {
-        const img = new Image(); img.src = scene.imgDataUrl;
-        try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {}
+      if (elapsed < 0.5) console.log('[ReelPlay] elapsed:', elapsed.toFixed(2), 'scenes:', reelScenes?.length, 'scene:', scene ? `st=${scene.startTime} en=${scene.endTime} hasImg=${!!scene.imgDataUrl} naturalW=${scene._img?.naturalWidth}` : 'NOT FOUND');
+      if (scene?.imgDataUrl) {
+        if (!scene._img) { scene._img = new Image(); scene._img.src = scene.imgDataUrl; }
+        if (scene._img.naturalWidth > 0) {
+          try { drawCoverFit(ctx, scene._img, platform.width, platform.height); } catch(e) { console.error('[Reel] draw error:', e); }
+        }
       }
     }
     drawReelSubtitles(ctx, platform, elapsed);
@@ -1171,10 +2088,21 @@ function stopReelPreview() {
 }
 
 if (reelScrub) reelScrub.addEventListener('input', () => {
-  if (reelPlaying) return;
   const time = (reelScrub.value / 1000) * (reelAudioBuffer ? reelAudioBuffer.duration : 0);
-  renderReelFrame(time);
   if (reelTimeEl) reelTimeEl.textContent = `${fmtShort(time)} / ${fmtShort(reelAudioBuffer ? reelAudioBuffer.duration : 0)}`;
+  if (reelPlaying) {
+    // Restart audio from new position
+    if (reelAudioSource) { try { reelAudioSource.stop(); } catch(e) {} reelAudioSource = null; }
+    const ac = ensureAudioCtx();
+    reelAudioSource = ac.createBufferSource();
+    reelAudioSource.buffer = reelAudioBuffer;
+    reelAudioSource.connect(ac.destination);
+    reelAudioSource.start(0, time);
+    reelStartTime = ac.currentTime - time;
+    reelAudioSource.onended = () => { reelPlaying = false; reelAudioSource = null; };
+  } else {
+    renderReelFrame(time);
+  }
 });
 
 // ── Edit dropdowns sync ──
@@ -1198,88 +2126,7 @@ if (reelEditSubtitle) reelEditSubtitle.addEventListener('change', () => {
   if (reelSubtitleStyleEl) reelSubtitleStyleEl.value = reelEditSubtitle.value;
 });
 
-// ── Subtitle Language Translation ──
-let reelTranslatedWords = {};  // cache: langCode → [{word, start, end}]
-const reelSubtitleLangEl = $('reel-subtitle-lang');
-
-if (reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', () => {
-  const lang = reelSubtitleLangEl.value;
-  console.log('[LangSwitch] selected:', lang, 'results:', window._reelMultiResults?.map(r => r.lang), 'cache:', Object.keys(reelTranslatedWords));
-  if (lang === 'original') {
-    const activeR = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
-    reelWords = activeR ? [...activeR.words] : [];
-    console.log('[LangSwitch] original words:', reelWords.length);
-    renderReelFrame(0);
-    return;
-  }
-  // Check if this language exists as a reel variant
-  if (window._reelMultiResults) {
-    const langReel = window._reelMultiResults.find(r => r.lang === lang);
-    if (langReel) {
-      reelWords = [...langReel.words];
-      console.log('[LangSwitch] variant found, words:', reelWords.length);
-      renderReelFrame(0);
-      return;
-    }
-  }
-  // Fallback: cached
-  if (reelTranslatedWords[lang]) {
-    reelWords = [...reelTranslatedWords[lang]];
-    console.log('[LangSwitch] cache found, words:', reelWords.length);
-    renderReelFrame(0);
-    return;
-  }
-  console.log('[LangSwitch] NOT FOUND for', lang);
-  setStatus(`No ${lang} translation available. Select it in Step 3 before generating.`);
-});
-
-/* Old handler disabled — translations now done during generation
-if (false && reelSubtitleLangEl) reelSubtitleLangEl.addEventListener('change', async () => {
-  const lang = reelSubtitleLangEl.value;
-  if (lang === 'original') {
-    reelWords = [];
-    if (reelScenes) reelScenes.forEach(s => { if (s.words) reelWords.push(...s.words); });
-    return;
-  }
-  // Check cache
-  if (reelTranslatedWords[lang]) {
-    reelWords = reelTranslatedWords[lang];
-    return;
-  }
-  // Translate
-  const key = getReelApiKey();
-  if (!key) { setStatus('API key needed for translation'); return; }
-  setStatus('Translating subtitles...', true);
-  try {
-    const originalText = reelWords.map(w => w.word).join(' ');
-    const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
-    const body = {
-      contents: [{ parts: [{ text: `Translate the following text to ${langNames[lang] || lang}. Return ONLY the translated text, nothing else:\n\n${originalText}` }] }]
-    };
-    const data = await callGeminiAPI(getTranscriptionModels(), body);
-    trackCost('textGeneration', 1);
-    const translated = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (translated) {
-      // Map translated words back to original timings proportionally
-      const transWords = translated.split(/\s+/);
-      const origWords = reelWords;
-      const totalDur = origWords.length > 0 ? origWords[origWords.length - 1].end - origWords[0].start : 0;
-      const wordDur = totalDur / transWords.length;
-      const startTime = origWords.length > 0 ? origWords[0].start : 0;
-      const mappedWords = transWords.map((w, i) => ({
-        word: w,
-        start: startTime + i * wordDur,
-        end: startTime + (i + 1) * wordDur,
-      }));
-      reelTranslatedWords[lang] = mappedWords;
-      reelWords = mappedWords;
-      setStatus(`Subtitles translated to ${langNames[lang]}`);
-    }
-  } catch(e) {
-    setStatus('Translation failed: ' + e.message);
-  }
-});
-*/
+// (Subtitle language switching removed — now handled via reel preview thumbnails)
 
 // ── Subtitle Styling Controls (from presets section) ──
 const reelSubColorPreset = $('reel-sub-color-preset');
@@ -1321,167 +2168,90 @@ if (reelViewportXEl) reelViewportXEl.addEventListener('input', () => {
   if (reelScenes && reelAudioBuffer) renderReelFrame(0);
 });
 
-// Toggle dropdown panels
-const btnToggleSubLangs = $('btn-toggle-sub-langs');
-const reelSubLangPanel = $('reel-sub-lang-panel');
-const btnToggleAudioLangs = $('btn-toggle-audio-langs');
-const reelAudioLangPanel = $('reel-audio-lang-panel');
-const subLangCount = $('sub-lang-count');
-const audioLangCount = $('audio-lang-count');
+// (Old checkbox/dropdown language panels removed — replaced by variation rows)
+let reelAudioTracks = []; // kept for editor transfer compatibility
 
-if (btnToggleSubLangs) btnToggleSubLangs.addEventListener('click', (e) => {
-  e.stopPropagation();
-  reelSubLangPanel.classList.toggle('hidden');
-  if (reelAudioLangPanel) reelAudioLangPanel.classList.add('hidden');
-});
-if (btnToggleAudioLangs) btnToggleAudioLangs.addEventListener('click', (e) => {
-  e.stopPropagation();
-  reelAudioLangPanel.classList.toggle('hidden');
-  if (reelSubLangPanel) reelSubLangPanel.classList.add('hidden');
-});
-// Close dropdowns on outside click
-document.addEventListener('click', () => {
-  if (reelSubLangPanel) reelSubLangPanel.classList.add('hidden');
-  if (reelAudioLangPanel) reelAudioLangPanel.classList.add('hidden');
-});
-if (reelSubLangPanel) reelSubLangPanel.addEventListener('click', (e) => e.stopPropagation());
-if (reelAudioLangPanel) reelAudioLangPanel.addEventListener('click', (e) => e.stopPropagation());
+// ── Variation Rows UI ──
+function renderVariationRows() {
+  const container = $('reel-variation-list');
+  if (!container) return;
+  const langHtml = Object.entries(REEL_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const platHtml = Object.entries(REEL_PLATFORMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  const durHtml = [30, 60, 90, 120].map(d => `<option value="${d}">${d} seconds</option>`).join('');
+  // Row 0 inline (Audio + Sub only, shares Platform/Duration from presets row)
+  container.innerHTML = `<label class="form-label" data-vi="0">Audio: <select class="var-audio" data-vi="0">${langHtml}</select></label>
+    <label class="form-label" data-vi="0">Sub: <select class="var-subtitle" data-vi="0">${langHtml}</select></label>`;
 
-function updateLangCounts() {
-  const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
-  // Subtitle count
-  const subChecked = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked');
-  if (subLangCount) {
-    const names = [...subChecked].map(cb => langNames[cb.value] || cb.value);
-    subLangCount.textContent = names.length > 0 ? `(${names.join(', ')})` : '(none)';
+  // Additional rows go into a sibling container (each on its own line)
+  let extraContainer = $('reel-variation-extra');
+  if (!extraContainer) {
+    extraContainer = document.createElement('div');
+    extraContainer.id = 'reel-variation-extra';
+    container.parentElement.insertBefore(extraContainer, container.nextElementSibling);
   }
-  // Audio count + show/hide generate button
-  const audioChecked = document.querySelectorAll('#reel-audio-languages input[type="checkbox"]:checked');
-  if (audioLangCount) {
-    const names = [...audioChecked].map(cb => langNames[cb.value] || cb.value);
-    audioLangCount.textContent = names.length > 0 ? `(${names.join(', ')})` : '(none)';
-  }
-  const audioGenRow = $('reel-audio-gen-row');
-  if (audioGenRow) audioGenRow.classList.toggle('hidden', audioChecked.length === 0);
-}
-
-// Update counts on checkbox change
-document.querySelectorAll('#reel-subtitle-languages input, #reel-audio-languages input').forEach(cb => {
-  cb.addEventListener('change', updateLangCounts);
-});
-
-// Populate mini editor subtitle language dropdown from selected languages
-function updateReelSubtitleLangDropdown() {
-  const langSelect = $('reel-subtitle-lang');
-  if (!langSelect) return;
-  const langNames = { original: 'Original', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
-  langSelect.innerHTML = '<option value="original" selected>Original</option>';
-  const checkboxes = document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]:checked');
-  checkboxes.forEach(cb => {
-    if (cb.value !== 'original') {
-      langSelect.innerHTML += `<option value="${cb.value}">${langNames[cb.value] || cb.value}</option>`;
-    }
+  extraContainer.innerHTML = reelVariationRows.slice(1).map((row, idx) => {
+    const i = idx + 1;
+    return `<div class="reel-presets-row" style="margin-top:6px;" data-vi="${i}">
+      <label class="form-label">Platform: <select class="var-platform" data-vi="${i}">${platHtml}</select></label>
+      <label class="form-label">Duration: <select class="var-duration" data-vi="${i}">${durHtml}</select></label>
+      <label class="form-label">Audio: <select class="var-audio" data-vi="${i}">${langHtml}</select></label>
+      <label class="form-label">Sub: <select class="var-subtitle" data-vi="${i}">${langHtml}</select></label>
+      <button class="variation-remove" data-vi="${i}">✕</button>
+    </div>`;
+  }).join('');
+  // Set selected values
+  // Wire up all selects and remove buttons across both containers
+  [container, extraContainer].forEach(el => {
+    el.querySelectorAll('.var-platform').forEach(sel => {
+      const i = parseInt(sel.dataset.vi);
+      sel.value = reelVariationRows[i].platform || 'instagram';
+      sel.addEventListener('change', () => { reelVariationRows[i].platform = sel.value; });
+    });
+    el.querySelectorAll('.var-duration').forEach(sel => {
+      const i = parseInt(sel.dataset.vi);
+      sel.value = reelVariationRows[i].duration || 60;
+      sel.addEventListener('change', () => { reelVariationRows[i].duration = parseInt(sel.value); });
+    });
+    el.querySelectorAll('.var-audio').forEach(sel => {
+      const i = parseInt(sel.dataset.vi);
+      sel.value = reelVariationRows[i].audio;
+      sel.addEventListener('change', () => { reelVariationRows[i].audio = sel.value; updateVariationCount(); });
+    });
+    el.querySelectorAll('.var-subtitle').forEach(sel => {
+      const i = parseInt(sel.dataset.vi);
+      sel.value = reelVariationRows[i].subtitle;
+      sel.addEventListener('change', () => { reelVariationRows[i].subtitle = sel.value; updateVariationCount(); });
+    });
+    el.querySelectorAll('.variation-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.vi);
+        reelVariationRows.splice(i, 1);
+        renderVariationRows();
+        updateVariationCount();
+      });
+    });
   });
+  updateVariationCount();
 }
-// Update on checkbox change
-document.querySelectorAll('#reel-subtitle-languages input[type="checkbox"]').forEach(cb => {
-  cb.addEventListener('change', () => { updateReelSubtitleLangDropdown(); updateLangCounts(); });
+
+function updateVariationCount() {
+  const segCount = Math.max(1, reelSegments.length);
+  const varCount = reelVariationRows.length;
+  const total = segCount * varCount;
+  const countEl = $('reel-variation-count');
+  if (countEl) {
+    countEl.textContent = segCount > 1 ? `(${segCount} segments × ${varCount} = ${total} reels)` : `(${varCount} reel${varCount > 1 ? 's' : ''})`;
+  }
+}
+
+const btnAddVariation = $('btn-add-variation');
+if (btnAddVariation) btnAddVariation.addEventListener('click', () => {
+  reelVariationRows.push({ platform: reelPlatform, duration: reelDuration, audio: 'original', subtitle: 'original' });
+  renderVariationRows();
 });
 
-// ── Audio Language Generation ──
-const btnReelGenAudioLangs = $('btn-reel-gen-audio-langs');
-const reelAudioLangStatus = $('reel-audio-lang-status');
-const reelAudioLangList = $('reel-audio-lang-list');
-let reelAudioTracks = []; // [{langCode, lang, audioBuffer}]
-
-if (btnReelGenAudioLangs) btnReelGenAudioLangs.addEventListener('click', async () => {
-  const key = getReelApiKey();
-  if (!key) { reelAudioLangStatus.textContent = 'API key needed'; return; }
-  if (!reelAudioBuffer || !reelWords || reelWords.length === 0) {
-    reelAudioLangStatus.textContent = 'Generate reel first (need transcript)';
-    return;
-  }
-
-  const selectedLangs = [];
-  document.querySelectorAll('#reel-audio-languages input[type="checkbox"]:checked').forEach(cb => {
-    selectedLangs.push(cb.value);
-  });
-  if (selectedLangs.length === 0) { reelAudioLangStatus.textContent = 'Select at least one language'; return; }
-
-  const langNames = { en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
-  const originalText = reelWords.map(w => w.word).join(' ');
-
-  btnReelGenAudioLangs.disabled = true;
-  reelAudioTracks = [];
-
-  for (const langCode of selectedLangs) {
-    const langName = langNames[langCode] || langCode;
-    reelAudioLangStatus.textContent = `Translating to ${langName}...`;
-    setStatus(`Translating to ${langName}...`, true);
-
-    try {
-      // Translate
-      const transBody = {
-        contents: [{ parts: [{ text: `Translate the following text to ${langName}. Return ONLY the translated text:\n\n${originalText}` }] }]
-      };
-      const transData = await callGeminiAPI(getTranscriptionModels(), transBody);
-      trackCost('textGeneration', 1);
-      const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (!translated) throw new Error('No translation returned');
-
-      // Generate TTS
-      reelAudioLangStatus.textContent = `Generating ${langName} audio...`;
-      setStatus(`Generating ${langName} TTS...`, true);
-
-      const ttsModels = getTTSModels();
-      const ttsResp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: translated }] }],
-            generationConfig: { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-          })
-        }
-      );
-      if (!ttsResp.ok) throw new Error('TTS failed');
-      const ttsData = await ttsResp.json();
-      const part = ttsData.candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) throw new Error('No audio returned');
-      trackCost('ttsPerLang', 1);
-
-      const b64 = part.inlineData.data;
-      const binary = atob(b64);
-      const buf = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
-      const audioBuffer = await audioCtx.decodeAudioData(buf.buffer);
-
-      reelAudioTracks.push({ langCode, lang: langName, audioBuffer, translatedText: translated });
-
-      // Show in list
-      renderReelAudioLangList();
-
-    } catch(e) {
-      reelAudioLangStatus.textContent = `${langName} failed: ${e.message}`;
-    }
-  }
-
-  btnReelGenAudioLangs.disabled = false;
-  reelAudioLangStatus.textContent = `${reelAudioTracks.length} language(s) generated`;
-  setStatus(`${reelAudioTracks.length} audio tracks generated`);
-
-  // Also update subtitle language dropdown
-  updateReelSubtitleLangDropdown();
-});
-
-function renderReelAudioLangList() {
-  if (!reelAudioLangList) return;
-  reelAudioLangList.innerHTML = reelAudioTracks.map(t => `
-    <div class="form-row mb-xs">
-      <span class="text-xs" style="color:var(--green);">✓</span>
-      <span class="text-xs">${t.lang}</span>
-      <span class="text-xs text-muted">(${fmtShort(t.audioBuffer.duration)})</span>
-    </div>
-  `).join('');
-}
+// Render initial variation rows
+renderVariationRows();
 
 // ── Save Reel Project ──
 const btnReelSaveProject = $('btn-reel-save-project');
@@ -1489,11 +2259,22 @@ const btnReelSaveTop = $('btn-reel-save-top');
 if (btnReelSaveTop) btnReelSaveTop.addEventListener('click', () => { if (btnReelSaveProject) btnReelSaveProject.click(); });
 
 if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () => {
+  console.log('[ReelSave] clicked, audioBuffer:', !!reelAudioBuffer, 'results:', !!window._reelMultiResults);
   if (!reelAudioBuffer) { setStatus('Nothing to save'); return; }
   setStatus('Saving reel project...', true);
   try {
     const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
     const audioBase64 = await blobToBase64(wavBlob);
+    // Save video data if present
+    let videoData = null;
+    if (reelVideoSrc) {
+      try {
+        setStatus('Saving video...', true);
+        const resp = await fetch(reelVideoSrc);
+        const blob = await resp.blob();
+        videoData = await blobToBase64(blob);
+      } catch(e) { console.warn('Could not save video:', e); }
+    }
     const project = {
       version: 1,
       type: 'reel',
@@ -1504,6 +2285,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       subColor: reelSubColor,
       subOutline: reelSubOutline,
       subBackdrop: reelSubBackdrop,
+      videoData,
       audio: { data: audioBase64, duration: reelAudioBuffer.duration },
       scenes: reelScenes ? reelScenes.map(s => ({
         startTime: s.startTime, endTime: s.endTime, duration: s.duration,
@@ -1511,17 +2293,47 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
         isVideo: s.isVideo, transition: s.transition,
       })) : [],
       words: reelWords,
-      multiResults: window._reelMultiResults ? window._reelMultiResults.map(r => ({
-        videoStart: r.videoStart, videoEnd: r.videoEnd,
+      variationRows: reelVariationRows,
+      multiResults: window._reelMultiResults ? await Promise.all(window._reelMultiResults.map(async r => {
+        let audioData = null;
+        if (r.audioBuffer) {
+          try {
+            const wav = audioBufferToWavBlob(r.audioBuffer);
+            audioData = await blobToBase64(wav);
+          } catch(e) {}
+        }
+        return {
+          videoStart: r.videoStart, videoEnd: r.videoEnd,
+          audioLang: r.audioLang, subtitleLang: r.subtitleLang,
+          audioLangLabel: r.audioLangLabel, subtitleLangLabel: r.subtitleLangLabel,
+          segmentIndex: r.segmentIndex,
+          settings: r.settings,
+          words: r.words,
+          scenes: r.scenes,
+          audioData,
+        };
       })) : null,
     };
     const json = JSON.stringify(project);
-    // Save to gallery
-    const name = `Reel ${new Date().toLocaleString()}`;
-    try {
-      await saveProjectToGallery(json, name);
-    } catch(e) { /* gallery save failed, continue to file save */ }
-    setStatus(`Reel saved to gallery`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const defaultName = `reel-${timestamp}.aptproj`;
+    const blob = new Blob([json], { type: 'application/json' });
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: defaultName,
+        types: [{ description: 'Project Files', accept: { 'application/json': ['.aptproj'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = defaultName; a.click();
+      URL.revokeObjectURL(url);
+    }
+    setStatus(`Reel saved (${(json.length / 1024 / 1024).toFixed(1)} MB)`);
+    try { await saveProjectToGallery(json, defaultName.replace('.aptproj', '')); } catch(e) { /* gallery save */ }
   } catch(e) {
     setStatus('Save failed. ' + friendlyApiError(e.message));
   }
@@ -1535,7 +2347,7 @@ if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
   reelBgmInput.value = '';
   try {
     const arrayBuf = await file.arrayBuffer();
-    reelBgmBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
     btnReelBgm.textContent = `♫ ${file.name}`;
   } catch(e) { btnReelBgm.textContent = '+ Add BGM (error)'; }
 });
@@ -1550,27 +2362,35 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
   const fps = 30;
   const stream = canvas.captureStream(fps);
 
-  setStatus('Exporting Reel...', true);
+  // Use editor's export progress bar
+  exportProgress.classList.add('visible');
+  exportBar.style.width = '0%';
+  exportLabel.textContent = 'Preparing export...';
   btnReelExport.disabled = true;
 
   try {
-    const audioDest = audioCtx.createMediaStreamDestination();
-    const audioSource = audioCtx.createBufferSource();
+    // Auto-detect best format (MP4 if available, else WebM)
+    const resolved = typeof resolveMime === 'function' ? resolveMime('mp4') || resolveMime('auto') : null;
+    const mimeType = resolved ? resolved.mime : (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm');
+    const fileExt = resolved ? resolved.ext : 'webm';
+    const videoBitrate = typeof baseBitrate === 'function' ? baseBitrate(platform.height) : 8000000;
+
+    const audioDest = ensureAudioCtx().createMediaStreamDestination();
+    const audioSource = ensureAudioCtx().createBufferSource();
     audioSource.buffer = reelAudioBuffer;
     audioSource.connect(audioDest);
     if (reelBgmBuffer) {
-      const bgmSource = audioCtx.createBufferSource();
+      const bgmSource = ensureAudioCtx().createBufferSource();
       bgmSource.buffer = reelBgmBuffer;
       bgmSource.loop = true;
-      const bgmGain = audioCtx.createGain();
+      const bgmGain = ensureAudioCtx().createGain();
       bgmGain.gain.value = 0.3;
       bgmSource.connect(bgmGain);
       bgmGain.connect(audioDest);
       bgmSource.start();
     }
     const combinedStream = new MediaStream([...stream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
-    const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 8000000 });
+    const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const done = new Promise(r => { recorder.onstop = r; });
@@ -1595,14 +2415,20 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       reelVideoEl.play();
     }
 
+    exportLabel.textContent = 'Recording frames...';
     recorder.start(100); audioSource.start();
     const t0 = performance.now();
+    const totalDur = reelAudioBuffer.duration;
     let stopped = false;
 
     timerWorker.onmessage = () => {
       if (stopped) return;
       const elapsed = (performance.now() - t0) / 1000;
-      if (elapsed >= reelAudioBuffer.duration) {
+      const progress = Math.min(elapsed / totalDur, 1);
+      exportBar.style.width = (progress * 100).toFixed(1) + '%';
+      exportLabel.textContent = `Exporting... ${Math.round(progress * 100)}% (${fmtShort(elapsed)} / ${fmtShort(totalDur)})`;
+
+      if (elapsed >= totalDur) {
         stopped = true; timerWorker.postMessage('stop'); timerWorker.terminate(); recorder.stop();
         if (reelVideoEl) { reelVideoEl.pause(); reelVideoEl.muted = true; }
         return;
@@ -1612,7 +2438,6 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
       const scene = reelScenes.find((s, i) => elapsed >= s.startTime && elapsed < s.endTime);
       if (scene) {
         if (isVid && reelVideoEl) {
-          // Video is playing in sync — just draw current frame with viewport
           const vp = activeResult?.settings?.viewport || reelViewport;
           const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
           try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
@@ -1638,21 +2463,50 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
     timerWorker.postMessage('start');
     await done;
 
+    exportLabel.textContent = 'Finalizing...';
+    exportBar.style.width = '100%';
     const videoBlob = new Blob(chunks, { type: mimeType });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(videoBlob);
-    a.download = `stori-reel.webm`;
+    a.download = `stori-reel.${fileExt}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-    setStatus(`Reel exported (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
+    setStatus(`Reel exported as ${fileExt.toUpperCase()} (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
   } catch(e) {
-    setStatus('Export failed. Try a different browser or shorter duration.');
+    console.error('[ReelExport] Error:', e);
+    setStatus('Export failed: ' + (e.message || 'Try a different browser or shorter duration.'));
   }
+  exportProgress.classList.remove('visible');
   btnReelExport.disabled = false;
 });
 
+// ── Export All Reels ──
+const btnReelExportAll = $('btn-reel-export-all');
+if (btnReelExportAll) btnReelExportAll.addEventListener('click', async () => {
+  const results = window._reelMultiResults;
+  if (!results || results.length === 0) return;
+  btnReelExportAll.disabled = true;
+  for (let ri = 0; ri < results.length; ri++) {
+    selectReelPreview(ri);
+    renderAllReelPreviews();
+    setStatus(`Exporting reel ${ri + 1} of ${results.length}...`);
+    // Trigger single export and wait
+    await new Promise((resolve) => {
+      const origOnClick = btnReelExport.onclick;
+      // Simulate export click
+      btnReelExport.click();
+      // Wait for export to finish (poll until button re-enables)
+      const check = setInterval(() => {
+        if (!btnReelExport.disabled) { clearInterval(check); resolve(); }
+      }, 500);
+    });
+  }
+  btnReelExportAll.disabled = false;
+  setStatus(`All ${results.length} reels exported`);
+});
+
 // ── Open in Full Editor ──
-if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
+if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', async () => {
   if (!reelAudioBuffer || !reelScenes) return;
   stopReelPreview();
   currentBuffer = reelAudioBuffer;
@@ -1660,19 +2514,24 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
   videoTimelineItems = [];
   const platform = REEL_PLATFORMS[reelPlatform];
 
+  const activeResult = window._reelMultiResults?.[activeReelPreview];
+  const vidStart = activeResult?.videoStart || 0;
+  console.log('[ToEditor] scenes:', reelScenes.length, 'videoEl:', !!reelVideoEl, 'videoSrc:', !!reelVideoSrc, 'audioDur:', reelAudioBuffer?.duration);
   for (const scene of reelScenes) {
+    console.log('[ToEditor] scene isVideo:', scene.isVideo, 'hasVideoEl:', !!reelVideoEl);
     if (scene.isVideo && reelVideoEl) {
       // Video scene → video timeline
       const tc = document.createElement('canvas'); tc.width = 160; tc.height = 90;
       try { tc.getContext('2d').drawImage(reelVideoEl, 0, 0, 160, 90); } catch(e) {}
       const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
       const thumbImg = new Image(); thumbImg.src = thumbUrl;
+      const clipDur = currentBuffer ? currentBuffer.duration : scene.duration;
       videoTimelineItems.push({
         id: nextVideoTimelineId++,
         videoEl: reelVideoEl, videoSrc: reelVideoSrc,
         videoDuration: reelVideoEl.duration,
-        inPoint: scene.startTime, outPoint: scene.endTime,
-        startTime: scene.startTime, duration: scene.duration,
+        inPoint: vidStart, outPoint: vidStart + clipDur,
+        startTime: 0, duration: clipDur,
         imgSrc: thumbUrl, imgEl: thumbImg,
       });
     } else if (scene.imgDataUrl) {
@@ -1687,6 +2546,7 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
     }
   }
 
+  console.log('[ToEditor] videoTimelineItems:', videoTimelineItems.length, 'photoItems:', photoItems.length);
   // Transfer subtitles as subtitle items
   if (reelWords && reelWords.length > 0) {
     subtitleItems = [];
@@ -1703,7 +2563,7 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
         color: reelSubColor || '#ffffff',
         strokeColor: reelSubOutline || '#000000', strokeWidth: 2,
         bgColor: '#000000', bgAlpha: reelSubBackdrop === 'none' ? 0 : 0.5,
-        bold: true, position: 'bottom', animation: 'none', animDur: 0,
+        bold: true, position: reelSubPosition === 'top' ? 'top-center' : reelSubPosition === 'center' ? 'center' : 'bot-center', animation: 'none', animDur: 0,
       });
     }
   }
@@ -1725,12 +2585,31 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
 
   // Set image size
   if (createImageSize) createImageSize.value = `${platform.width}x${platform.height}`;
+  // Set video mode since reel is video-based
+  if (videoTimelineItems.length > 0) bgVideoMode = 'video-only';
+  // Store reel properties for editor preview
+  window._editorReelSubtitle = {
+    words: reelWords,
+    style: reelSubtitleStyle,
+    subSize: reelSubSize,
+    subPosition: reelSubPosition,
+    subColor: reelSubColor,
+    subOutline: reelSubOutline,
+    subBackdrop: reelSubBackdrop,
+  };
+  window._editorReelViewport = {
+    mode: activeResult?.settings?.viewport || reelViewport || 'fill-center',
+    panX: activeResult?.settings?.viewportX ?? reelViewportX ?? 50,
+  };
+  // Update bg video mode selector if present
+  const bgModeEl = $('bg-video-mode');
+  if (bgModeEl) bgModeEl.value = bgVideoMode;
 
   // Setup reel tabs if multi-reel
   const multiResults = window._reelMultiResults;
   if (multiResults && multiResults.length > 1) {
     window._editorReels = multiResults.map((r, i) => ({
-      index: i, label: `Reel ${i + 1}`,
+      index: i, label: `Reel ${i + 1} (🔊${r.audioLangLabel || 'Orig'} 💬${r.subtitleLangLabel || 'Orig'})`,
       audioBuffer: r.audioBuffer, scenes: r.scenes, words: r.words,
       videoStart: r.videoStart, videoEnd: r.videoEnd,
     }));
@@ -1738,17 +2617,21 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => {
     renderEditorReelTabs();
   }
 
-  reelPage.classList.remove('visible');
-  editorEl.classList.add('visible');
+  navigateTo('editor');
   reelMode = false;
   // Show back-to-reel button
-  const btnBackToReel = $('btn-back-to-reel');
-  if (btnBackToReel) btnBackToReel.classList.remove('hidden');
+  const btnBackToReel2 = $('btn-back-to-reel');
+  if (btnBackToReel2) btnBackToReel2.classList.remove('hidden');
+  // Load audio waveform
+  if (currentBuffer) {
+    try { await refreshWaveform(); } catch(e) { console.warn('Waveform load error:', e); }
+  }
   updateAudioControls();
   applyEditorPlanGating();
   loadEditorLibrary();
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
+  if (typeof showInlinePreview === 'function') showInlinePreview();
   if (typeof setupEditorLanguageSelector === 'function' && editorLanguageTracks.length > 0) setupEditorLanguageSelector();
   const items = photoItems.length + videoTimelineItems.length;
   setStatus(`Reel transferred to editor: ${items} items, ${subtitleItems.length} subtitles`);
@@ -1845,8 +2728,7 @@ function loadEditorReel(idx) {
 // ── Load .storireel project ──
 async function loadReelProject(project) {
   // Navigate to reel page
-  dropZone.classList.add('hidden');
-  reelPage.classList.add('visible');
+  navigateTo('reel');
   reelMode = true;
 
   // Restore settings
@@ -1872,21 +2754,82 @@ async function loadReelProject(project) {
     try {
       showPageLoader('Restoring audio...');
       const arrayBuf = base64ToArrayBuffer(project.audio.data);
-      reelAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+      reelAudioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
       hidePageLoader();
     } catch(e) { hidePageLoader(); setStatus('Could not restore audio'); }
+  }
+
+  // Restore video
+  if (project.videoData) {
+    try {
+      showPageLoader('Restoring video...');
+      const binary = atob(project.videoData.split(',')[1] || project.videoData);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'video/mp4' });
+      const blobUrl = URL.createObjectURL(blob);
+      reelVideoSrc = blobUrl;
+      if (!reelVideoEl) {
+        reelVideoEl = document.createElement('video');
+        reelVideoEl.playsInline = true;
+        reelVideoEl.muted = true;
+        reelVideoEl.preload = 'auto';
+      }
+      reelVideoEl.src = blobUrl;
+      await new Promise((resolve) => {
+        reelVideoEl.onloadeddata = resolve;
+        reelVideoEl.onerror = resolve;
+      });
+      hidePageLoader();
+    } catch(e) { hidePageLoader(); console.warn('Could not restore video:', e); }
   }
 
   // Restore scenes + words
   reelWords = project.words || [];
   reelScenes = project.scenes || [];
 
-  // Show mini editor if scenes exist
+  // Restore variation rows
+  if (project.variationRows) reelVariationRows = project.variationRows;
+  renderVariationRows();
+
+  // Restore multi results
+  if (project.multiResults && project.multiResults.length > 0) {
+    showPageLoader('Restoring reels...');
+    const results = [];
+    for (const r of project.multiResults) {
+      let audioBuffer = reelAudioBuffer;
+      if (r.audioData) {
+        try {
+          const buf = base64ToArrayBuffer(r.audioData);
+          audioBuffer = await ensureAudioCtx().decodeAudioData(buf);
+        } catch(e) {}
+      }
+      results.push({
+        audioBuffer,
+        scenes: r.scenes || reelScenes,
+        words: r.words || reelWords,
+        videoStart: r.videoStart, videoEnd: r.videoEnd,
+        audioLang: r.audioLang, subtitleLang: r.subtitleLang,
+        audioLangLabel: r.audioLangLabel, subtitleLangLabel: r.subtitleLangLabel,
+        segmentIndex: r.segmentIndex,
+        settings: r.settings,
+      });
+    }
+    window._reelMultiResults = results;
+    activeReelPreview = 0;
+    reelAudioBuffer = results[0].audioBuffer;
+    reelScenes = results[0].scenes;
+    reelWords = results[0].words;
+    hidePageLoader();
+  }
+
+  // Show section 3 (presets) and section 4 (editor)
+  if (reelStepPresets) reelStepPresets.classList.remove('hidden');
   if (reelScenes.length > 0) {
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
     renderReelFrame(0);
-    if (reelTimeEl && reelAudioBuffer) reelTimeEl.textContent = `0:00 / ${fmtShort(reelAudioBuffer.duration)}`;
+    renderAllReelPreviews();
   }
 
   setStatus('Reel project loaded');
@@ -1895,8 +2838,7 @@ async function loadReelProject(project) {
 // ── Back to Reel from Editor ──
 const btnBackToReel = $('btn-back-to-reel');
 if (btnBackToReel) btnBackToReel.addEventListener('click', () => {
-  editorEl.classList.remove('visible');
-  reelPage.classList.add('visible');
+  navigateTo('reel');
   reelMode = true;
   btnBackToReel.classList.add('hidden');
   // Hide reel tabs in editor
