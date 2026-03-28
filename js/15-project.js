@@ -85,6 +85,16 @@ async function saveProjectToGallery(jsonStr, name) {
   });
 }
 
+async function getGalleryCount() {
+  const db = galleryDb || await openGalleryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALLERY_STORE, 'readonly');
+    const req = tx.objectStore(GALLERY_STORE).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 async function getGalleryProjects() {
   const db = galleryDb || await openGalleryDb();
   return new Promise((resolve, reject) => {
@@ -94,12 +104,32 @@ async function getGalleryProjects() {
     req.onsuccess = (e) => {
       const cursor = e.target.result;
       if (cursor && results.length < 20) {
-        results.push(cursor.value);
+        const v = cursor.value;
+        // Only keep metadata for gallery display; exclude heavy projectJson
+        results.push({
+          id: v.id, name: v.name, savedAt: v.savedAt,
+          thumbnail: v.thumbnail, duration: v.duration,
+          photoCount: v.photoCount, seriesName: v.seriesName,
+          episodeNumber: v.episodeNumber, stylePrompt: v.stylePrompt,
+          stylePreset: v.stylePreset, type: v.type,
+          hasProjectJson: !!v.projectJson
+        });
         cursor.continue();
       } else {
         resolve(results);
       }
     };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Load full project data on demand (when user clicks a card)
+async function getGalleryProject(id) {
+  const db = galleryDb || await openGalleryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALLERY_STORE, 'readonly');
+    const req = tx.objectStore(GALLERY_STORE).get(id);
+    req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
@@ -148,9 +178,11 @@ function createGalleryCard(p) {
     }
   });
   card.addEventListener('click', async () => {
-    if (!p.projectJson) return;
+    if (!p.hasProjectJson) return;
     try {
       setStatus('Loading project from gallery...');
+      const fullProject = await getGalleryProject(p.id);
+      if (!fullProject?.projectJson) { setStatus('Project data not found.'); return; }
       // Restore series metadata
       currentSeriesName = p.seriesName || '';
       currentEpisodeNumber = p.episodeNumber || 0;
@@ -159,7 +191,7 @@ function createGalleryCard(p) {
       if (seriesEl) seriesEl.value = currentSeriesName;
       if (epEl) epEl.value = currentEpisodeNumber || '';
       // Load project via existing file load logic
-      const blob = new Blob([p.projectJson], { type: 'application/json' });
+      const blob = new Blob([fullProject.projectJson], { type: 'application/json' });
       const dt = new DataTransfer();
       dt.items.add(new File([blob], 'gallery.aptproj', { type: 'application/json' }));
       projectInput.files = dt.files;
@@ -169,17 +201,31 @@ function createGalleryCard(p) {
   return card;
 }
 
-async function renderProjectGallery() {
+// Show gallery header with count (no data loaded)
+async function initGalleryHeader() {
   const galleryEl = $('project-gallery');
+  if (!galleryEl) return;
+  try {
+    const count = await getGalleryCount();
+    if (count === 0) { galleryEl.style.display = 'none'; return; }
+    galleryEl.style.display = '';
+    const countEl = $('gallery-count');
+    if (countEl) countEl.textContent = `(${count})`;
+    const clearBtn = $('btn-gallery-clear');
+    if (clearBtn) clearBtn.style.display = count > 1 ? '' : 'none';
+  } catch(e) { console.warn('Gallery count error:', e); }
+}
+
+// Load and render gallery cards (called on expand)
+let galleryLoaded = false;
+async function loadGalleryCards() {
+  if (galleryLoaded) return;
+  galleryLoaded = true;
   const gridEl = $('gallery-grid');
-  const clearBtn = $('btn-gallery-clear');
-  if (!galleryEl || !gridEl) return;
+  if (!gridEl) return;
   try {
     const projects = await getGalleryProjects();
-    if (projects.length === 0) { galleryEl.style.display = 'none'; return; }
-
-    galleryEl.style.display = '';
-    clearBtn.style.display = projects.length > 1 ? '' : 'none';
+    if (projects.length === 0) return;
     gridEl.innerHTML = '';
 
     // Group by series
@@ -202,7 +248,7 @@ async function renderProjectGallery() {
       const header = document.createElement('div');
       header.className = 'series-header';
       header.innerHTML = `
-        <span class="series-title">📺 ${name}</span>
+        <span class="series-title">${name}</span>
         <span class="series-ep-count">${episodes.length} episode${episodes.length > 1 ? 's' : ''}</span>
         <button class="series-new-episode">+ New Episode</button>
       `;
@@ -213,7 +259,6 @@ async function renderProjectGallery() {
         const epEl = $('episode-number');
         if (seriesEl) seriesEl.value = currentSeriesName;
         if (epEl) epEl.value = currentEpisodeNumber;
-        // Inherit style from last episode
         const lastEp = episodes[episodes.length - 1];
         if (lastEp.stylePrompt) {
           createStylePrompt = lastEp.stylePrompt;
@@ -223,7 +268,6 @@ async function renderProjectGallery() {
           if (spEl) spEl.value = createStylePreset;
           if (stEl) { stEl.value = createStylePrompt; stEl.disabled = createStylePreset !== 'custom'; }
         }
-        // Navigate to Create Content
         btnCreateContent.click();
       });
       group.appendChild(header);
@@ -251,23 +295,58 @@ async function renderProjectGallery() {
       }
       gridEl.appendChild(standaloneGrid);
     }
-  } catch(e) { console.warn('Gallery error:', e); }
+  } catch(e) { console.warn('Gallery load error:', e); }
+}
+
+// For external callers (after save/delete)
+async function renderProjectGallery() {
+  galleryLoaded = false;
+  const bodyEl = $('gallery-body');
+  const arrowEl = $('gallery-arrow');
+  await initGalleryHeader();
+  // If body was open, reload cards
+  if (bodyEl && bodyEl.style.display !== 'none') {
+    await loadGalleryCards();
+  }
+}
+
+// Gallery header click — toggle expand/collapse
+const galleryHeader = $('gallery-header');
+if (galleryHeader) {
+  galleryHeader.addEventListener('click', async (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    const bodyEl = $('gallery-body');
+    const arrowEl = $('gallery-arrow');
+    if (!bodyEl) return;
+    const isOpen = bodyEl.style.display !== 'none';
+    if (isOpen) {
+      bodyEl.style.display = 'none';
+      if (arrowEl) arrowEl.style.transform = '';
+    } else {
+      bodyEl.style.display = '';
+      if (arrowEl) arrowEl.style.transform = 'rotate(90deg)';
+      const spinner = $('gallery-spinner');
+      if (spinner && !galleryLoaded) spinner.style.display = '';
+      await loadGalleryCards();
+      if (spinner) spinner.style.display = 'none';
+    }
+  });
 }
 
 // Clear all gallery projects
 const btnGalleryClear = $('btn-gallery-clear');
 if (btnGalleryClear) {
-  btnGalleryClear.addEventListener('click', async () => {
+  btnGalleryClear.addEventListener('click', async (e) => {
+    e.stopPropagation();
     if (!confirm('Delete all saved projects from gallery?')) return;
     await clearGallery();
     renderProjectGallery();
   });
 }
 
-// Initialize gallery on load
-// Defer gallery load to avoid blocking first paint
+// Initialize — just show header with count, no data loaded
 requestAnimationFrame(() => {
-  openGalleryDb().then(() => renderProjectGallery()).catch(e => console.warn('Gallery init error:', e));
+  openGalleryDb().then(() => initGalleryHeader()).catch(e => console.warn('Gallery init error:', e));
 });
 
 function blobToBase64(blob) {
@@ -298,198 +377,28 @@ function base64ToBlob(dataUrl) {
   return new Blob([arr], { type: mime });
 }
 
-// ── Autosave to IndexedDB ──
-const AUTOSAVE_DB_NAME = 'stori_autosave';
-let autosaveDb = null;
+// ── Library IndexedDB ──
+const LIBRARY_DB_NAME = 'stori_library';
+let libraryDb = null;
 
-function openAutosaveDb() {
+function openLibraryDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(AUTOSAVE_DB_NAME, 2);
+    const req = indexedDB.open(LIBRARY_DB_NAME, 1);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
     };
-    req.onsuccess = () => { autosaveDb = req.result; resolve(autosaveDb); };
+    req.onsuccess = () => { libraryDb = req.result; resolve(libraryDb); };
     req.onerror = () => reject(req.error);
   });
 }
-
-async function autosaveToIDB() {
-  if (!autosaveDirty) return;
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    const state = {
-      id: 'current',
-      timestamp: Date.now(),
-      // Editor state
-      photos: photoItems.map(p => ({ id: p.id, imgSrc: p.imgSrc, startTime: p.startTime, duration: p.duration, transition: p.transition, transDur: p.transDur, motion: p.motion, type: p.type })),
-      texts: textItems.map(t => ({ ...t, imgEl: undefined })),
-      subtitles: subtitleItems.map(s => ({ ...s })),
-      // Create state
-      createTranscript: typeof createTranscript !== 'undefined' ? createTranscript : null,
-      createScenes: typeof createScenes !== 'undefined' && createScenes ? createScenes.map(s => ({
-        prompt: s.prompt, startTime: s.startTime, endTime: s.endTime,
-        duration: s.duration, text: s.text, status: s.status,
-      })) : null,
-      createStylePrompt: typeof createStylePrompt !== 'undefined' ? createStylePrompt : '',
-      createStylePreset: typeof createStylePreset !== 'undefined' ? createStylePreset : '',
-      selectedTemplate: typeof selectedTemplate !== 'undefined' ? selectedTemplate : '',
-      // Settings
-      imageSize: $('create-image-size')?.value || '1280x720',
-      seriesName: typeof currentSeriesName !== 'undefined' ? currentSeriesName : '',
-      episodeNumber: typeof currentEpisodeNumber !== 'undefined' ? currentEpisodeNumber : 0,
-      hasAudio: !!currentBuffer,
-      hasPip: typeof pipItems !== 'undefined' && pipItems.length > 0,
-    };
-    const tx = db.transaction('state', 'readwrite');
-    tx.objectStore('state').put(state);
-    autosaveDirty = false;
-  } catch (e) {
-    console.warn('Autosave failed:', e.message);
-  }
-}
-
-async function autosaveAudio(id, audioBuffer) {
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    const wavBlob = audioBufferToWavBlob(audioBuffer);
-    const tx = db.transaction('audio', 'readwrite');
-    tx.objectStore('audio').put({ id, blob: wavBlob });
-  } catch (e) { console.warn('Autosave audio failed:', e.message); }
-}
-
-async function autosaveImage(sceneIndex, dataUrl) {
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    const tx = db.transaction('images', 'readwrite');
-    tx.objectStore('images').put({ id: `scene-${sceneIndex}`, dataUrl });
-  } catch (e) { console.warn('Autosave image failed:', e.message); }
-}
-
-async function checkAutosaveRecovery() {
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    const tx = db.transaction('state', 'readonly');
-    const req = tx.objectStore('state').get('current');
-    req.onsuccess = () => {
-      const state = req.result;
-      if (!state) return;
-      if (Date.now() - state.timestamp > 86400000) { clearAutosave(); return; }
-      const ago = Math.round((Date.now() - state.timestamp) / 60000);
-      const agoStr = ago < 1 ? 'less than a minute' : ago < 60 ? `${ago} minute(s)` : `${Math.round(ago/60)} hour(s)`;
-      if (confirm(`Unsaved project found (${agoStr} ago). Restore?`)) {
-        restoreFromAutosave(state);
-      } else {
-        clearAutosave();
-      }
-    };
-  } catch (e) { console.warn('Autosave check failed:', e.message); }
-}
-
-async function restoreFromAutosave(state) {
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    // Restore audio
-    if (state.hasAudio) {
-      const atx = db.transaction('audio', 'readonly');
-      const areq = atx.objectStore('audio').get('main');
-      areq.onsuccess = async () => {
-        if (areq.result?.blob) {
-          try {
-            const arrayBuf = await areq.result.blob.arrayBuffer();
-            currentBuffer = await audioCtx.decodeAudioData(arrayBuf);
-          } catch(e) { console.warn('Could not restore audio:', e); }
-        }
-        // Restore photos with images from IndexedDB
-        if (state.createScenes) {
-          const itx = db.transaction('images', 'readonly');
-          const scenes = state.createScenes;
-          for (let i = 0; i < scenes.length; i++) {
-            const ireq = itx.objectStore('images').get(`scene-${i}`);
-            ireq.onsuccess = () => {
-              if (ireq.result?.dataUrl) scenes[i].imgDataUrl = ireq.result.dataUrl;
-            };
-          }
-          itx.oncomplete = () => {
-            createTranscript = state.createTranscript;
-            createScenes = scenes;
-            createStylePrompt = state.createStylePrompt || '';
-            createStylePreset = state.createStylePreset || '';
-            selectedTemplate = state.selectedTemplate || '';
-            currentSeriesName = state.seriesName || '';
-            currentEpisodeNumber = state.episodeNumber || 0;
-            // Restore editor timeline items
-            photoItems = (state.photos || []).map(p => {
-              const img = new Image();
-              img.src = p.imgSrc;
-              return { ...p, imgEl: img };
-            });
-            textItems = state.texts || [];
-            subtitleItems = state.subtitles || [];
-            nextPhotoId = Math.max(1, ...photoItems.map(p => p.id)) + 1;
-            nextTextId = Math.max(1, ...textItems.map(t => t.id)) + 1;
-            // Show editor
-            dropZone.classList.add('hidden');
-            editorEl.classList.add('visible');
-            updateAudioControls();
-            applyEditorPlanGating();
-            drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
-            if (currentBuffer) {
-              setStatus(`Project restored: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos`);
-            } else {
-              setStatus('Project partially restored. Audio could not be recovered.');
-            }
-            if (state.hasPip) setStatus('Re-import your speaker video to continue with PiP.');
-          };
-        } else {
-          // No create scenes, just restore editor
-          photoItems = (state.photos || []).map(p => {
-            const img = new Image();
-            img.src = p.imgSrc;
-            return { ...p, imgEl: img };
-          });
-          textItems = state.texts || [];
-          subtitleItems = state.subtitles || [];
-          dropZone.classList.add('hidden');
-          editorEl.classList.add('visible');
-          updateAudioControls();
-          applyEditorPlanGating();
-          drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
-          setStatus('Project restored from autosave.');
-        }
-      };
-    } else {
-      setStatus('No audio in autosave. Starting fresh.');
-      clearAutosave();
-    }
-  } catch(e) {
-    console.warn('Autosave restore failed:', e.message);
-    setStatus('Could not restore autosave.');
-  }
-}
-
-async function clearAutosave() {
-  try {
-    const db = autosaveDb || await openAutosaveDb();
-    const tx = db.transaction(['state', 'images', 'audio'], 'readwrite');
-    tx.objectStore('state').clear();
-    tx.objectStore('images').clear();
-    tx.objectStore('audio').clear();
-  } catch(e) { console.warn('Autosave clear failed:', e.message); }
-}
-
-// Start autosave interval
-setInterval(autosaveToIDB, 30000);
 
 // ── Logo & Frame Library (3 slots each, persisted in IndexedDB) ──
 async function saveToLibrary(type, slot, imgSrc) {
   // type: 'logo' or 'frame', slot: 0-2
   if (slot < 0 || slot > 2) return;
   try {
-    const db = autosaveDb || await openAutosaveDb();
+    const db = libraryDb || await openLibraryDb();
     const tx = db.transaction('library', 'readwrite');
     tx.objectStore('library').put({ id: `${type}-${slot}`, imgSrc });
   } catch(e) { console.warn('Library save failed:', e.message); }
@@ -497,7 +406,7 @@ async function saveToLibrary(type, slot, imgSrc) {
 
 async function removeFromLibrary(type, slot) {
   try {
-    const db = autosaveDb || await openAutosaveDb();
+    const db = libraryDb || await openLibraryDb();
     const tx = db.transaction('library', 'readwrite');
     tx.objectStore('library').delete(`${type}-${slot}`);
   } catch(e) { console.warn('Library remove failed:', e.message); }
@@ -505,7 +414,7 @@ async function removeFromLibrary(type, slot) {
 
 async function loadLibrary() {
   try {
-    const db = autosaveDb || await openAutosaveDb();
+    const db = libraryDb || await openLibraryDb();
     const tx = db.transaction('library', 'readonly');
     const store = tx.objectStore('library');
     const items = [];
@@ -752,7 +661,7 @@ projectInput.addEventListener('change', async () => {
 
     // Decode audio
     const audioArrayBuf = base64ToArrayBuffer(project.audio.data);
-    currentBuffer = await audioCtx.decodeAudioData(audioArrayBuf);
+    currentBuffer = await ensureAudioCtx().decodeAudioData(audioArrayBuf);
     undoStack = [];
     btnUndo.disabled = true;
 
@@ -964,7 +873,7 @@ projectInput.addEventListener('change', async () => {
     if (project.bgm && project.bgm.data) {
       try {
         const bgmArrayBuf = base64ToArrayBuffer(project.bgm.data);
-        bgmBuffer = await audioCtx.decodeAudioData(bgmArrayBuf);
+        bgmBuffer = await ensureAudioCtx().decodeAudioData(bgmArrayBuf);
         bgmVolume = project.bgm.volume ?? 0.3;
         bgmLoop = project.bgm.loop ?? true;
         const bgmSec = $('bgm-section');
@@ -1070,7 +979,7 @@ projectInput.addEventListener('change', async () => {
       for (const t of project.languageTracks) {
         try {
           const arrayBuf = base64ToArrayBuffer(t.audioData);
-          const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+          const audioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
           editorLanguageTracks.push({
             lang: t.lang, langCode: t.langCode,
             audioBuffer, translatedText: t.translatedText,
@@ -1087,8 +996,7 @@ projectInput.addEventListener('change', async () => {
     // Show editor
     await refreshWaveform();
     updateAudioControls();
-    dropZone.classList.add('hidden');
-    editorEl.classList.add('visible');
+    navigateTo('editor');
 
     if (!project.photos || project.photos.length === 0) {
       const textInfo = textItems.length > 0 ? `, ${textItems.length} texts` : '';
@@ -1100,3 +1008,71 @@ projectInput.addEventListener('change', async () => {
   }
   hidePageLoader();
 });
+
+// ══════════════════════════════════════════
+//  USER SECTION (runs on page load)
+// ══════════════════════════════════════════
+const btnUserMenu = $('btn-user-menu');
+const userDropdown = $('user-dropdown');
+const btnSignIn = $('btn-sign-in');
+const btnSignOut = $('btn-sign-out');
+const btnManageSub = $('btn-manage-sub');
+
+if (btnUserMenu) btnUserMenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+  userDropdown.classList.toggle('hidden');
+});
+document.addEventListener('click', () => {
+  if (userDropdown) userDropdown.classList.add('hidden');
+});
+if (userDropdown) userDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+if (btnSignIn) btnSignIn.addEventListener('click', () => {
+  localStorage.setItem('stori_user', JSON.stringify({ name: 'User', email: 'user@email.com' }));
+  updateUserSection();
+});
+if (btnSignOut) btnSignOut.addEventListener('click', () => {
+  localStorage.removeItem('stori_user');
+  updateUserSection();
+});
+if (btnManageSub) btnManageSub.addEventListener('click', () => {
+  setStatus('Subscription management coming soon.');
+});
+
+function updateUserSection() {
+  const userData = JSON.parse(localStorage.getItem('stori_user') || 'null');
+  const signedOut = $('user-signed-out');
+  const signedIn = $('user-signed-in');
+  if (!signedOut || !signedIn) return;
+
+  if (userData) {
+    signedOut.classList.add('hidden');
+    signedIn.classList.remove('hidden');
+    const nameEl = $('user-name');
+    const emailEl = $('user-email');
+    if (nameEl) nameEl.textContent = userData.name || 'User';
+    if (emailEl) emailEl.textContent = userData.email || '';
+    const badge = $('user-plan-badge');
+    const detail = $('user-plan-detail');
+    if (badge) {
+      badge.textContent = isPro() ? 'Pro' : 'Free';
+      badge.className = `plan-badge ${isPro() ? 'plan-pro' : 'plan-free'}`;
+    }
+    if (detail) detail.textContent = isPro() ? '$10/mo' : '';
+    const freeStatus = $('user-key-free-status');
+    const paidStatus = $('user-key-paid-status');
+    if (freeStatus) freeStatus.textContent = localStorage.getItem('stori_key_free') ? '✓ Set' : 'Not set';
+    if (paidStatus) paidStatus.textContent = localStorage.getItem('stori_key_paid') ? '✓ Set' : 'Not set';
+    if (typeof getGalleryCount === 'function') {
+      getGalleryCount().then(count => {
+        const countEl = $('user-project-count');
+        if (countEl) countEl.textContent = count;
+      });
+    }
+  } else {
+    signedOut.classList.remove('hidden');
+    signedIn.classList.add('hidden');
+  }
+}
+
+updateUserSection();

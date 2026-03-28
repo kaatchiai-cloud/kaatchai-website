@@ -168,9 +168,9 @@ createPipInput.addEventListener('change', async () => {
     });
 
     // Extract audio from the video file
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    if (ensureAudioCtx().state === 'suspended') await ensureAudioCtx().resume();
     const arrayBuf = await file.arrayBuffer();
-    createOriginalBuffer = await audioCtx.decodeAudioData(arrayBuf.slice(0));
+    createOriginalBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf.slice(0));
     createAudioBuffer = createOriginalBuffer;
     createAudioFile = file;
 
@@ -482,7 +482,7 @@ async function decodeBase64Audio(base64, mimeType) {
     ? (mimeType.split(';')[0] || 'audio/mpeg') : 'audio/wav';
   const blob = new Blob([audioBytes], { type: blobType });
   const arrayBuf = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+  const audioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
   return { audioBuffer, blob };
 }
 
@@ -950,7 +950,7 @@ function updateStepStates() {
 
 // Auto-save create state to localStorage (#4)
 function autoSaveCreateState() {
-  markDirty();
+ 
   try {
     const state = {
       transcript: createTranscript,

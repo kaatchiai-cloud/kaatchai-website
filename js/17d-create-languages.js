@@ -72,9 +72,9 @@ function stopLangPlayer() {
 
 function playLangAudio(buffer, playBtn) {
   stopLangPlayer();
-  langPlayerSource = audioCtx.createBufferSource();
+  langPlayerSource = ensureAudioCtx().createBufferSource();
   langPlayerSource.buffer = buffer;
-  langPlayerSource.connect(audioCtx.destination);
+  langPlayerSource.connect(ensureAudioCtx().destination);
   langPlayerSource.start();
   langPlayerPlaying = true;
   playBtn.textContent = '⏸';
@@ -342,7 +342,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         const totalLength = chunkBuffers.reduce((sum, b) => sum + b.length, 0);
         const sampleRate = chunkBuffers[0].sampleRate;
         const channels = chunkBuffers[0].numberOfChannels;
-        const merged = audioCtx.createBuffer(channels, totalLength, sampleRate);
+        const merged = ensureAudioCtx().createBuffer(channels, totalLength, sampleRate);
         let offset = 0;
         for (const buf of chunkBuffers) {
           for (let ch = 0; ch < channels; ch++) {
@@ -547,8 +547,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   // Navigate to editor
   cameFromCreate = true;
   btnBackToCreate.style.display = '';
-  createPage.classList.remove('visible');
-  editorEl.classList.add('visible');
+  navigateTo('editor');
   await refreshWaveform();
   updateAudioControls();
   renderPhotos();
@@ -560,10 +559,6 @@ btnCreateSendEditor.addEventListener('click', async () => {
   setStatus(`Content created: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos${subInfo}${langInfo}. Edit and export!`);
   applyEditorPlanGating();
   loadEditorLibrary();
-  // Autosave audio and images
-  if (currentBuffer) autosaveAudio('main', currentBuffer);
-  if (createScenes) createScenes.forEach((s, i) => { if (s.imgDataUrl) autosaveImage(i, s.imgDataUrl); });
-  markDirty();
 });
 
 // ── Editor language selector ──
@@ -705,8 +700,7 @@ btnBackToCreate.addEventListener('click', () => {
     }
   }
 
-  editorEl.classList.remove('visible');
-  createPage.classList.add('visible');
+  navigateTo('create');
 
   // Restore all completed steps visibility
   if (createAudioBuffer) {

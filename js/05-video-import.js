@@ -67,7 +67,7 @@
               startTime,
               duration: clipDur,
             });
-            renderVideoTimeline(); drawRuler(); markDirty();
+            renderVideoTimeline(); drawRuler();
             setStatus(`Video added to video track: ${file.name} (${fmtShort(videoDuration)})`);
           };
           thumbImg.onerror = () => {
@@ -112,7 +112,7 @@
               startTime, duration: clipDur,
               transition: 'fade', transDur: 0.5, motion: 'none',
             });
-            renderPhotos(); drawRuler(); markDirty();
+            renderPhotos(); drawRuler();
             setStatus(`Video clip added to photo timeline: ${file.name}`);
           };
           thumbImg.src = thumbDataUrl;

@@ -39,7 +39,7 @@ function createVideoBlock(item) {
     videoTimelineItems = videoTimelineItems.filter(v => v.id !== item.id);
     selectedVideoIds.delete(item.id);
     hideVideoProps();
-    renderVideoTimeline(); markDirty();
+    renderVideoTimeline();
   };
   block.appendChild(delBtn);
 
@@ -153,25 +153,25 @@ function getSelectedVideo() {
 if (vpropStart) {
   vpropStart.addEventListener('change', () => {
     const item = getSelectedVideo();
-    if (item) { item.startTime = Math.max(0, parseFloat(vpropStart.value) || 0); renderVideoTimeline(); showVideoProps(item.id); markDirty(); }
+    if (item) { item.startTime = Math.max(0, parseFloat(vpropStart.value) || 0); renderVideoTimeline(); showVideoProps(item.id); }
   });
 }
 if (vpropDuration) {
   vpropDuration.addEventListener('change', () => {
     const item = getSelectedVideo();
-    if (item) { item.duration = Math.max(0.5, parseFloat(vpropDuration.value) || 1); renderVideoTimeline(); showVideoProps(item.id); markDirty(); }
+    if (item) { item.duration = Math.max(0.5, parseFloat(vpropDuration.value) || 1); renderVideoTimeline(); showVideoProps(item.id); }
   });
 }
 if (vpropInPoint) {
   vpropInPoint.addEventListener('change', () => {
     const item = getSelectedVideo();
-    if (item) { item.inPoint = Math.max(0, Math.min(item.outPoint - 0.1, parseFloat(vpropInPoint.value) || 0)); showVideoProps(item.id); markDirty(); }
+    if (item) { item.inPoint = Math.max(0, Math.min(item.outPoint - 0.1, parseFloat(vpropInPoint.value) || 0)); showVideoProps(item.id); }
   });
 }
 if (vpropOutPoint) {
   vpropOutPoint.addEventListener('change', () => {
     const item = getSelectedVideo();
-    if (item) { item.outPoint = Math.min(item.videoDuration, Math.max(item.inPoint + 0.1, parseFloat(vpropOutPoint.value) || item.videoDuration)); showVideoProps(item.id); markDirty(); }
+    if (item) { item.outPoint = Math.min(item.videoDuration, Math.max(item.inPoint + 0.1, parseFloat(vpropOutPoint.value) || item.videoDuration)); showVideoProps(item.id); }
   });
 }
 
@@ -221,7 +221,7 @@ document.addEventListener('mouseup', () => {
     isVideoDragging = false;
     isVideoResizing = false;
     renderVideoTimeline();
-    markDirty();
+   
   }
 });
 

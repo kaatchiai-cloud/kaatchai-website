@@ -240,11 +240,11 @@
         propTransition.value = item.transition;
         return;
       }
-      item.transition = propTransition.value; renderPhotos(); markDirty();
+      item.transition = propTransition.value; renderPhotos();
     });
     propTransDur.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.transDur = Math.max(0.1, Math.min(5, parseFloat(propTransDur.value) || 0.5)); markDirty(); }
+      if (item) { item.transDur = Math.max(0.1, Math.min(5, parseFloat(propTransDur.value) || 0.5)); }
     });
     propMotion.addEventListener('change', () => {
       const item = getSelectedPhoto();
@@ -254,7 +254,7 @@
         propMotion.value = 'none';
         return;
       }
-      item.motion = propMotion.value; renderPhotos(); markDirty();
+      item.motion = propMotion.value; renderPhotos();
     });
     propInPoint.addEventListener('change', () => {
       const item = getSelectedPhoto();
@@ -363,7 +363,7 @@
               transDur: 0.5,
               motion: 'none',
             });
-            renderPhotos(); drawRuler(); markDirty();
+            renderPhotos(); drawRuler();
           };
           img.src = ev.target.result;
         };

@@ -22,7 +22,11 @@ const dropZone = $('drop-zone'), fileInput = $('file-input'), insertInput = $('i
 
 // ── State ──
 let wavesurfer = null, regions = null;
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = null;
+function ensureAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
 let currentBuffer = null, undoStack = [], activeRegion = null;
 
 // Background music
@@ -160,9 +164,6 @@ const FREE_STYLES = ['watercolor', 'cinematic', 'digital-art', 'photorealistic',
 const FREE_SIZES = ['1280x720', '1080x1920', '1080x1080'];
 const FREE_TRANSITIONS = ['none', 'fade'];
 
-// Autosave
-let autosaveDirty = false;
-function markDirty() { autosaveDirty = true; }
 
 // ── Cost Estimation ──
 const COST_ESTIMATES = {
@@ -253,6 +254,11 @@ function setStatus(m, loading) {
   // Top progress bar
   const prog = $('global-progress');
   if (prog) prog.classList.toggle('visible', !!loading);
+  // Mirror to reel status when on reel page
+  if (currentView === 'reel') {
+    const reelStatus = $('reel-generate-status');
+    if (reelStatus) reelStatus.textContent = m;
+  }
 }
 function showPageLoader(msg) {
   const loader = $('page-loader');
@@ -267,4 +273,45 @@ function hidePageLoader() {
 }
 function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 // getSelectedImageSize() is defined in 17-create-content.js (needs createImageSize ref)
+
+// ── Navigation with browser history ──
+let currentView = 'home'; // home | editor | create | reel
+
+function navigateTo(view, pushHistory) {
+  if (pushHistory !== false && view !== currentView) {
+    history.pushState({ view }, '', '#' + view);
+  }
+  currentView = view;
+  // Hide all views
+  dropZone.classList.add('hidden');
+  editorEl.classList.remove('visible');
+  const createPage = $('create-page');
+  const reelPage = $('reel-page');
+  if (createPage) createPage.classList.remove('visible');
+  if (reelPage) reelPage.classList.remove('visible');
+  // Show target view
+  if (view === 'home') {
+    dropZone.classList.remove('hidden');
+    if (typeof renderProjectGallery === 'function') renderProjectGallery();
+  } else if (view === 'editor') {
+    editorEl.classList.add('visible');
+  } else if (view === 'create') {
+    if (createPage) createPage.classList.add('visible');
+  } else if (view === 'reel') {
+    if (reelPage) reelPage.classList.add('visible');
+  }
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', (e) => {
+  const view = e.state?.view || 'home';
+  if (view !== 'home' && typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
+    loadEditorScripts(function() { navigateTo(view, false); });
+  } else {
+    navigateTo(view, false);
+  }
+});
+
+// Set initial state
+history.replaceState({ view: 'home' }, '', location.hash || '#home');
 

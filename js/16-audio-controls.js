@@ -31,10 +31,10 @@
       bgmInputEl.value = '';
       try {
         const arrayBuf = await file.arrayBuffer();
-        bgmBuffer = await audioCtx.decodeAudioData(arrayBuf);
+        bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
-        setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`); markDirty();
+        setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
     });
 
@@ -102,7 +102,7 @@
         });
         renderPipList();
         pipSectionEl.style.display = '';
-        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`); markDirty();
+        setStatus(`PiP added: ${file.name} (${pipItems.length} total)`);
       } catch(e) { setStatus('PiP error: ' + e.message); }
     });
 
@@ -213,7 +213,7 @@
           if (frameSec) frameSec.style.display = '';
           const thumb = $('frame-thumb');
           if (thumb) { thumb.src = frameImgSrc; thumb.style.display = ''; }
-          setStatus('Frame added'); markDirty();
+          setStatus('Frame added');
         };
         img.src = e.target.result;
       };
@@ -224,14 +224,14 @@
     if (frameRemove) frameRemove.addEventListener('click', () => {
       frameImgEl = null; frameImgSrc = '';
       if (frameSec) frameSec.style.display = 'none';
-      setStatus('Frame removed'); markDirty();
+      setStatus('Frame removed');
     });
 
     ['top', 'bottom', 'left', 'right'].forEach(side => {
       const el = $(`frame-pad-${side}`);
       if (el) el.addEventListener('change', () => {
         framePadding[side] = Math.max(0, parseInt(el.value) || 0);
-        markDirty();
+       
       });
     });
 
@@ -240,7 +240,7 @@
     if (frameOpacityEl) frameOpacityEl.addEventListener('input', () => {
       frameOpacity = frameOpacityEl.value / 100;
       if (frameOpacityLabel) frameOpacityLabel.textContent = frameOpacityEl.value + '%';
-      markDirty();
+     
     });
 
     // ── Logo ──
@@ -262,7 +262,7 @@
           if (logoSec) logoSec.style.display = '';
           const thumb = $('logo-thumb');
           if (thumb) { thumb.src = logoImgSrc; thumb.style.display = ''; }
-          setStatus('Logo added'); markDirty();
+          setStatus('Logo added');
         };
         img.src = e.target.result;
       };
@@ -273,18 +273,18 @@
     if (logoRemove) logoRemove.addEventListener('click', () => {
       logoImgEl = null; logoImgSrc = '';
       if (logoSec) logoSec.style.display = 'none';
-      setStatus('Logo removed'); markDirty();
+      setStatus('Logo removed');
     });
 
     const logoPositionEl = $('logo-position');
-    if (logoPositionEl) logoPositionEl.addEventListener('change', () => { logoPosition = logoPositionEl.value; markDirty(); });
+    if (logoPositionEl) logoPositionEl.addEventListener('change', () => { logoPosition = logoPositionEl.value; });
 
     const logoSizeEl = $('logo-size');
     const logoSizeLabel = $('logo-size-label');
     if (logoSizeEl) logoSizeEl.addEventListener('input', () => {
       logoSize = parseInt(logoSizeEl.value);
       if (logoSizeLabel) logoSizeLabel.textContent = logoSize + '%';
-      markDirty();
+     
     });
 
     const logoOpacityEl = $('logo-opacity');
@@ -292,7 +292,7 @@
     if (logoOpacityEl) logoOpacityEl.addEventListener('input', () => {
       logoOpacity = logoOpacityEl.value / 100;
       if (logoOpacityLabel) logoOpacityLabel.textContent = logoOpacityEl.value + '%';
-      markDirty();
+     
     });
 
     // ── Library slot handlers ──
@@ -315,7 +315,7 @@
             const thumb = $('frame-thumb'); if (thumb) { thumb.src = src; thumb.style.display = ''; }
             setStatus('Frame applied from library');
           }
-          markDirty();
+         
         };
         img.src = src;
       });

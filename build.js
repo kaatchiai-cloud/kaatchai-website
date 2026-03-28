@@ -22,7 +22,7 @@ if (fs.existsSync(cssPath)) {
 }
 
 // 2. Inline vendor scripts: replace <script src="vendor/..."> with inline <script>
-const vendorRegex = /\s*<script\s+src="vendor\/([^"]+)"><\/script>/g;
+const vendorRegex = /\s*<script\s+(?:defer\s+)?src="vendor\/([^"]+)"><\/script>/g;
 const vendorFiles = [];
 let vm;
 const htmlForVendor = html;
@@ -34,46 +34,75 @@ if (vendorFiles.length > 0) {
     return fs.readFileSync(path.join(ROOT, 'vendor', f), 'utf8');
   }).join('\n');
   let vReplaced = false;
-  html = html.replace(/\s*<script\s+src="vendor\/[^"]+"><\/script>/g, (m) => {
+  html = html.replace(/\s*<script\s+(?:defer\s+)?src="vendor\/[^"]+"><\/script>/g, (m) => {
     if (!vReplaced) { vReplaced = true; return `\n  <script>\n${vendorJs}\n  </script>`; }
     return '';
   });
   console.log(`  Vendor inlined: ${vendorFiles.join(', ')}`);
 }
 
-// 3. Inline JS: collect all <script src="js/..."> tags, replace with single <script> block
-const jsTagRegex = /\s*<script\s+src="js\/([^"]+)"><\/script>/g;
-const jsFiles = [];
-let match;
-const htmlCopy = html;
-while ((match = jsTagRegex.exec(htmlCopy)) !== null) {
-  jsFiles.push(match[1]);
+// 3. Collect all JS files referenced in <script src="js/..."> tags AND the dynamic loader
+const allJsFiles = [];
+
+// Find static script tags
+const staticRegex = /\s*<script\s+(?:defer\s+)?src="js\/([^"]+)"><\/script>/g;
+const htmlForStatic = html;
+let sm;
+while ((sm = staticRegex.exec(htmlForStatic)) !== null) {
+  if (!allJsFiles.includes(sm[1])) allJsFiles.push(sm[1]);
 }
 
-if (jsFiles.length > 0) {
-  // Build combined JS
-  const allJs = jsFiles.map(f => {
+// Find files in the dynamic loader script block
+const loaderMatch = html.match(/var scripts\s*=\s*\[([\s\S]*?)\]/);
+if (loaderMatch) {
+  const fileRefs = loaderMatch[1].match(/'js\/([^']+)'/g);
+  if (fileRefs) {
+    for (const ref of fileRefs) {
+      const fname = ref.replace(/^'js\//, '').replace(/'$/, '');
+      if (!allJsFiles.includes(fname)) allJsFiles.push(fname);
+    }
+  }
+}
+
+// Critical scripts (loaded before idle)
+const CRITICAL = new Set(['01-core.js', '15-project.js']);
+
+if (allJsFiles.length > 0) {
+  const criticalJs = [];
+  const deferredJs = [];
+
+  for (const f of allJsFiles) {
     const filePath = path.join(ROOT, 'js', f);
     const content = fs.readFileSync(filePath, 'utf8');
-    return `    // ── ${f} ──\n${content}`;
-  }).join('\n\n');
-
-  // Replace first js script tag with the combined inline script
-  let replaced = false;
-  html = html.replace(/\s*<script\s+src="js\/[^"]+"><\/script>/g, (m) => {
-    if (!replaced) {
-      replaced = true;
-      return `\n  <script>\n${allJs}\n  </script>`;
+    const entry = `    // ── ${f} ──\n${content}`;
+    if (CRITICAL.has(f)) {
+      criticalJs.push(entry);
+    } else {
+      deferredJs.push(entry);
     }
-    return ''; // remove subsequent js script tags
-  });
+  }
+
+  const criticalBlock = criticalJs.join('\n\n');
+  const deferredBlock = deferredJs.join('\n\n');
+
+  // Remove static script tags
+  html = html.replace(/\s*<script\s+(?:defer\s+)?src="js\/[^"]+"><\/script>/g, '');
+
+  // Remove the dynamic loader script block
+  html = html.replace(/\s*<script>\s*\(function\(\)\{[\s\S]*?var scripts[\s\S]*?\}\)\(\);\s*<\/script>/, '');
+
+  // Insert combined script before </body>
+  const combinedScript = `\n  <script>\n${criticalBlock}\n\n  var _idle = window.requestIdleCallback || function(cb){setTimeout(cb,50);};\n  _idle(function(){\n${deferredBlock}\n  });\n  </script>`;
+
+  html = html.replace('</body>', `${combinedScript}\n</body>`);
+
+  console.log(`  JS inlined from ${allJsFiles.length} files: ${allJsFiles.join(', ')}`);
 }
 
-// 3. Write output
+// 4. Write output
 fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
 fs.writeFileSync(OUT, html);
 
 const sizeKB = (Buffer.byteLength(html) / 1024).toFixed(0);
 console.log(`✓ Built: dist/index.html (${sizeKB} KB, ${html.split('\n').length} lines)`);
 console.log(`  CSS inlined from css/styles.css`);
-console.log(`  JS inlined from ${jsFiles.length} files: ${jsFiles.join(', ')}`);

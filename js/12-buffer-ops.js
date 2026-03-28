@@ -1,5 +1,5 @@
 // ── Buffer ops ──
-    function createBuf(n, l, sr) { return audioCtx.createBuffer(n, l, sr); }
+    function createBuf(n, l, sr) { return ensureAudioCtx().createBuffer(n, l, sr); }
     function extractRegion(b, s, e) {
       const sr=b.sampleRate, s0=Math.round(s*sr), s1=Math.round(e*sr), len=s1-s0;
       const o=createBuf(b.numberOfChannels,len,sr);

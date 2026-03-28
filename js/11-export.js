@@ -47,8 +47,8 @@
 
     // Show export settings panel
     btnExportVideo.addEventListener('click', () => {
-      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0)) {
-        setStatus('Add at least one photo or text to export'); return;
+      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) {
+        setStatus('Add at least one photo, video, or text to export'); return;
       }
       exportSettingsPanel.style.display = exportSettingsPanel.style.display === 'none' ? '' : 'none';
       // Gate quality and format options for free tier
@@ -108,17 +108,17 @@
 
       try {
         exportLabel.textContent = 'Recording frames...';
-        const audioDest = audioCtx.createMediaStreamDestination();
-        const audioSource = audioCtx.createBufferSource();
+        const audioDest = ensureAudioCtx().createMediaStreamDestination();
+        const audioSource = ensureAudioCtx().createBufferSource();
         audioSource.buffer = currentBuffer;
         audioSource.connect(audioDest);
         // Mix BGM into export if loaded
         let exportBgmSource = null;
         if (bgmBuffer) {
-          exportBgmSource = audioCtx.createBufferSource();
+          exportBgmSource = ensureAudioCtx().createBufferSource();
           exportBgmSource.buffer = bgmBuffer;
           exportBgmSource.loop = bgmLoop;
-          const exportBgmGain = audioCtx.createGain();
+          const exportBgmGain = ensureAudioCtx().createGain();
           exportBgmGain.gain.value = bgmVolume;
           exportBgmSource.connect(exportBgmGain);
           exportBgmGain.connect(audioDest);
@@ -164,7 +164,15 @@
           renderBgVideoAfter(ctx, ew, eh, elapsed, sorted, bgM);
           renderPiP(ctx, ew, eh, elapsed);
           renderTextOverlays(ctx, ew, eh, elapsed, sortedTexts);
-          renderTextOverlays(ctx, ew, eh, elapsed, sortedSubs);
+          if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
+            const rs = window._editorReelSubtitle;
+            const prevSize = reelSubSize, prevPos = reelSubPosition, prevColor = reelSubColor, prevOutline = reelSubOutline, prevBackdrop = reelSubBackdrop;
+            reelSubSize = rs.subSize; reelSubPosition = rs.subPosition; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline; reelSubBackdrop = rs.subBackdrop;
+            renderReelSubtitle(ctx, ew, eh, elapsed, rs.words, rs.style);
+            reelSubSize = prevSize; reelSubPosition = prevPos; reelSubColor = prevColor; reelSubOutline = prevOutline; reelSubBackdrop = prevBackdrop;
+          } else {
+            renderTextOverlays(ctx, ew, eh, elapsed, sortedSubs);
+          }
           if (fr.applied) ctx.restore();
           renderLogo(ctx, exportW, exportH);
           // Watermark for free tier
@@ -243,14 +251,14 @@
             const ctx = canvas.getContext('2d');
             const stream = canvas.captureStream(fps);
 
-            const audioDest = audioCtx.createMediaStreamDestination();
-            const audioSource = audioCtx.createBufferSource();
+            const audioDest = ensureAudioCtx().createMediaStreamDestination();
+            const audioSource = ensureAudioCtx().createBufferSource();
             audioSource.buffer = track.buffer;
             audioSource.connect(audioDest);
             if (bgmBuffer) {
-              const bgmSrc = audioCtx.createBufferSource();
+              const bgmSrc = ensureAudioCtx().createBufferSource();
               bgmSrc.buffer = bgmBuffer; bgmSrc.loop = bgmLoop;
-              const bgmGn = audioCtx.createGain(); bgmGn.gain.value = bgmVolume;
+              const bgmGn = ensureAudioCtx().createGain(); bgmGn.gain.value = bgmVolume;
               bgmSrc.connect(bgmGn); bgmGn.connect(audioDest);
               bgmSrc.start();
             }

@@ -551,5 +551,5 @@
         animDur: 0.5,
       });
       selectText(textItems[textItems.length - 1].id);
-      renderTexts(); markDirty();
+      renderTexts();
     });

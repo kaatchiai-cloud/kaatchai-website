@@ -38,7 +38,7 @@ function renderCharacterCards() {
   charCardsEl.querySelectorAll('.ref-card-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       storyCharacters = storyCharacters.filter(c => c.id !== parseInt(btn.dataset.removeChar));
-      renderCharacterCards(); renderSceneAssignments(); markDirty();
+      renderCharacterCards(); renderSceneAssignments();
     });
   });
   charCardsEl.querySelectorAll('[data-upload-char]').forEach(el => {
@@ -49,10 +49,10 @@ function renderCharacterCards() {
     });
   });
   charCardsEl.querySelectorAll('.char-name').forEach((input, i) => {
-    input.addEventListener('change', () => { storyCharacters[i].name = input.value; renderSceneAssignments(); markDirty(); });
+    input.addEventListener('change', () => { storyCharacters[i].name = input.value; renderSceneAssignments(); });
   });
   charCardsEl.querySelectorAll('.char-desc').forEach((ta, i) => {
-    ta.addEventListener('change', () => { storyCharacters[i].description = ta.value; markDirty(); });
+    ta.addEventListener('change', () => { storyCharacters[i].description = ta.value; });
   });
   charCardsEl.querySelectorAll('.char-describe-btn').forEach(btn => {
     btn.addEventListener('click', () => autoDescribeRef('char', parseInt(btn.dataset.describeChar)));
@@ -82,7 +82,7 @@ function renderEnvironmentCards() {
   envCardsEl.querySelectorAll('.ref-card-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       storyEnvironments = storyEnvironments.filter(e => e.id !== parseInt(btn.dataset.removeEnv));
-      renderEnvironmentCards(); renderSceneAssignments(); markDirty();
+      renderEnvironmentCards(); renderSceneAssignments();
     });
   });
   envCardsEl.querySelectorAll('[data-upload-env]').forEach(el => {
@@ -93,10 +93,10 @@ function renderEnvironmentCards() {
     });
   });
   envCardsEl.querySelectorAll('.env-name').forEach((input, i) => {
-    input.addEventListener('change', () => { storyEnvironments[i].name = input.value; renderSceneAssignments(); markDirty(); });
+    input.addEventListener('change', () => { storyEnvironments[i].name = input.value; renderSceneAssignments(); });
   });
   envCardsEl.querySelectorAll('.env-desc').forEach((ta, i) => {
-    ta.addEventListener('change', () => { storyEnvironments[i].description = ta.value; markDirty(); });
+    ta.addEventListener('change', () => { storyEnvironments[i].description = ta.value; });
   });
   envCardsEl.querySelectorAll('.env-describe-btn').forEach(btn => {
     btn.addEventListener('click', () => autoDescribeRef('env', parseInt(btn.dataset.describeEnv)));
@@ -133,7 +133,7 @@ async function autoDescribeRef(type, id) {
       item.description = desc;
       if (type === 'char') renderCharacterCards();
       else renderEnvironmentCards();
-      markDirty();
+     
     }
   } catch(e) {
     console.warn('Auto-describe failed:', e.message);
@@ -159,7 +159,7 @@ function handleRefImageUpload(input) {
         renderEnvironmentCards();
       }
       renderSceneAssignments();
-      markDirty();
+     
     };
     img.src = e.target.result;
   };
@@ -175,7 +175,7 @@ if (btnAddChar) btnAddChar.addEventListener('click', () => {
     return;
   }
   storyCharacters.push({ id: nextCharId++, name: '', description: '', imgDataUrl: null, imgEl: null });
-  renderCharacterCards(); renderSceneAssignments(); markDirty();
+  renderCharacterCards(); renderSceneAssignments();
 });
 
 if (btnAddEnv) btnAddEnv.addEventListener('click', () => {
@@ -184,7 +184,7 @@ if (btnAddEnv) btnAddEnv.addEventListener('click', () => {
     return;
   }
   storyEnvironments.push({ id: nextEnvId++, name: '', description: '', imgDataUrl: null, imgEl: null });
-  renderEnvironmentCards(); renderSceneAssignments(); markDirty();
+  renderEnvironmentCards(); renderSceneAssignments();
 });
 
 // Per-scene reference assignments
@@ -241,7 +241,7 @@ function renderSceneAssignments() {
         scene.refCharacters = scene.refCharacters.filter(id => id !== charId);
       }
       renderSceneAssignments();
-      markDirty();
+     
     });
   });
 
@@ -250,7 +250,7 @@ function renderSceneAssignments() {
     sel.addEventListener('change', () => {
       const sceneIdx = parseInt(sel.dataset.sceneEnv);
       createScenes[sceneIdx].refEnvironment = parseInt(sel.value);
-      markDirty();
+     
     });
   });
 }

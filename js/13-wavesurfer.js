@@ -26,7 +26,7 @@
     }
     function pushUndo() { undoStack.push(currentBuffer); if (undoStack.length > 20) undoStack.shift(); btnUndo.disabled = false; }
 
-    async function loadAudioBuffer(file) { return audioCtx.decodeAudioData(await file.arrayBuffer()); }
+    async function loadAudioBuffer(file) { return ensureAudioCtx().decodeAudioData(await file.arrayBuffer()); }
 
     async function loadFileIntoEditor(file) {
       showPageLoader('Decoding audio...');
@@ -35,7 +35,7 @@
         currentBuffer = await loadAudioBuffer(file);
         undoStack = []; btnUndo.disabled = true;
         await refreshWaveform();
-        dropZone.classList.add('hidden'); editorEl.classList.add('visible');
+        navigateTo('editor');
         updateAudioControls();
         drawRuler(); renderPhotos(); renderTexts();
         setStatus(`Loaded: ${file.name} (${fmt(currentBuffer.duration)}, ${currentBuffer.numberOfChannels}ch, ${currentBuffer.sampleRate}Hz)`);

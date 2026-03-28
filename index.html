@@ -9,10 +9,10 @@
   <title>Stori — AI Visual Story Creator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Poppins:wght@300;400;600;700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
-  <script src="vendor/wavesurfer.min.js"></script>
-  <script src="vendor/wavesurfer-regions.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script defer src="vendor/wavesurfer.min.js"></script>
+  <script defer src="vendor/wavesurfer-regions.min.js"></script>
 </head>
 <body>
   <div id="global-progress"><div class="bar"></div></div>
@@ -76,13 +76,16 @@
       </div>
     </div>
 
-    <!-- Project Gallery -->
+    <!-- Project Gallery (collapsed by default, loads on expand) -->
     <div id="project-gallery" style="display:none; margin-top:28px; width:100%; max-width:900px;">
-      <div class="flex-between mb-md">
-        <h3 class="text-base text-secondary">Recent Projects</h3>
-        <button id="btn-gallery-clear" class="danger btn-xs hidden">Clear All</button>
+      <div id="gallery-header" style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 0; user-select:none;">
+        <span id="gallery-arrow" style="font-size:0.7rem; color:var(--text-muted); transition: transform 0.15s;">▶</span>
+        <h3 style="font-size:var(--text-base); color:var(--text-secondary); margin:0;">Recent Projects <span id="gallery-count" style="color:var(--text-muted); font-weight:400;"></span><span id="gallery-spinner" class="spinner" style="display:none;"></span></h3>
+        <button id="btn-gallery-clear" class="danger btn-xs" style="display:none; margin-left:auto;">Clear All</button>
       </div>
-      <div id="gallery-grid" class="gallery-grid"></div>
+      <div id="gallery-body" style="display:none;">
+        <div id="gallery-grid" class="gallery-grid"></div>
+      </div>
     </div>
 
     <!-- How It Works -->
@@ -583,6 +586,22 @@
           <span id="reel-audio-name" class="text-sm text-muted"></span>
         </div>
         <input type="file" id="reel-audio-input" accept="audio/*,video/*,.mp3,.wav,.m4a" class="hidden">
+        <div id="reel-audio-editor" class="hidden mt-md">
+          <div class="reel-video-controls">
+            <button id="btn-reel-aud-play" class="btn-xs">▶ Play</button>
+            <button id="btn-reel-aud-pause" class="btn-xs">⏸ Pause</button>
+            <button id="btn-reel-aud-stop" class="btn-xs">⏹ Stop</button>
+            <button id="btn-reel-aud-play-segment" class="btn-xs">▶ Segment</button>
+            <span id="reel-aud-time" class="text-xs text-muted">0:00</span>
+          </div>
+          <div id="reel-audio-waveform"></div>
+          <div class="form-row mt-sm">
+            <label class="form-label">Start: <input type="number" id="reel-aud-start" step="0.1" min="0" value="0" style="width:65px;">s</label>
+            <label class="form-label">End: <input type="number" id="reel-aud-end" step="0.1" min="0" value="60" style="width:65px;">s</label>
+            <span id="reel-audio-info" class="text-xs text-muted">Duration: 60.0s</span>
+            <button id="btn-reel-add-audio-segment" class="btn-xs primary">+ Add Segment</button>
+          </div>
+        </div>
       </div>
       <div id="reel-text-section" class="hidden">
         <textarea id="reel-text-input" placeholder="Type or paste your script (keep it short — 30 to 120 seconds)..." rows="4" class="w-full"></textarea>
@@ -632,7 +651,7 @@
             <option value="tiktok">TikTok</option>
           </select>
         </label>
-        <label class="form-label">Duration:
+        <label class="form-label" id="reel-duration-label" style="display:none">Duration:
           <select id="reel-duration">
             <option value="30">30 seconds</option>
             <option value="60" selected>60 seconds</option>
@@ -652,45 +671,15 @@
             <option value="flash">Flash</option>
           </select>
         </label>
-        <div class="reel-dropdown-section">
-          <label class="form-label">Subtitles:
-          <button id="btn-toggle-sub-langs" class="reel-dropdown-btn"><span id="sub-lang-count">none</span> ▾</button></label>
-          <div id="reel-sub-lang-panel" class="reel-dropdown-panel hidden">
-            <div id="reel-subtitle-languages" class="reel-checkbox-grid">
-              <label><input type="checkbox" value="en"> English</label>
-              <label><input type="checkbox" value="ta"> Tamil</label>
-              <label><input type="checkbox" value="hi"> Hindi</label>
-              <label><input type="checkbox" value="te"> Telugu</label>
-              <label><input type="checkbox" value="ml"> Malayalam</label>
-              <label><input type="checkbox" value="es"> Spanish</label>
-              <label><input type="checkbox" value="fr"> French</label>
-            </div>
-          </div>
-        </div>
-        <div class="reel-dropdown-section">
-          <label class="form-label">Audio:
-          <button id="btn-toggle-audio-langs" class="reel-dropdown-btn"><span id="audio-lang-count">none</span> ▾</button></label>
-          <div id="reel-audio-lang-panel" class="reel-dropdown-panel hidden">
-            <div id="reel-audio-languages" class="reel-checkbox-grid">
-              <label><input type="checkbox" value="ta"> Tamil</label>
-              <label><input type="checkbox" value="hi"> Hindi</label>
-              <label><input type="checkbox" value="te"> Telugu</label>
-              <label><input type="checkbox" value="ml"> Malayalam</label>
-              <label><input type="checkbox" value="en"> English</label>
-              <label><input type="checkbox" value="es"> Spanish</label>
-              <label><input type="checkbox" value="fr"> French</label>
-            </div>
-          </div>
-        </div>
+        <span id="reel-variation-list" style="display:contents;"></span>
       </div>
-      <div id="reel-audio-gen-row" class="form-row mt-sm hidden">
-        <span id="reel-audio-lang-status" class="text-xs text-muted"></span>
-        <span id="reel-audio-lang-list" class="text-xs"></span>
+      <div style="margin-top:8px; display:flex; justify-content:center;">
+        <button id="btn-add-variation" class="btn-sm" style="background:var(--bg-elevated); border:1px dashed var(--accent); color:var(--accent);">+ Add Variation</button>
       </div>
 
-
-      <div class="form-row mt-md">
+      <div class="form-row mt-md" style="align-items:center; gap:8px;">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Generate Reel</button>
+        <span id="reel-variation-count" class="text-xs text-muted">(1 reel)</span>
         <span id="reel-generate-status" class="text-sm text-muted"></span>
       </div>
       <div class="create-progress hidden" id="reel-progress">
@@ -699,26 +688,25 @@
       </div>
     </div>
 
+    <!-- Reel Step 3.5: Scene Images (audio/text mode only) -->
+    <div class="reel-step hidden" id="reel-step-scenes">
+      <h3><span class="step-num">3.5</span> Scene Images</h3>
+      <div id="reel-scene-grid" class="scene-grid"></div>
+      <div class="form-row mt-md" style="justify-content:center; gap:8px;">
+        <button id="btn-reel-retry-images" class="btn-md" style="display:none;">Retry Failed</button>
+        <button id="btn-reel-pause-images" class="btn-md" style="display:none;">Pause</button>
+      </div>
+      <div id="reel-image-progress" style="display:none;">
+        <div class="bar-bg"><div class="bar-fill" id="reel-image-bar"></div></div>
+        <span id="reel-image-label" class="text-xs text-muted"></span>
+      </div>
+    </div>
+
     <!-- Reel Step 4: Mini Editor + Preview -->
     <div class="reel-step hidden" id="reel-step-editor">
       <h3><span class="step-num">4</span> Preview & Edit</h3>
       <div class="reel-editor-vertical">
-        <div id="reel-single-preview">
-          <div class="reel-canvas-wrap">
-            <canvas id="reel-canvas" width="1080" height="1920"></canvas>
-          </div>
-          <div class="reel-playback mt-sm" style="max-width:400px; margin:0 auto;">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-              <input type="range" id="reel-scrub" min="0" max="1000" value="0" style="flex:1;">
-              <span id="reel-time" class="text-xs">0:00 / 0:00</span>
-            </div>
-            <div class="form-row">
-              <button id="btn-reel-play" class="btn-sm">▶ Play</button>
-              <button id="btn-reel-pause" class="btn-sm">⏸ Pause</button>
-              <button id="btn-reel-stop" class="btn-sm">⏹ Stop</button>
-            </div>
-          </div>
-        </div>
+        <div id="reel-previews-container" style="display:none;"></div>
         <div class="reel-scenes mt-md" id="reel-scene-list"></div>
         <div class="reel-settings mt-md">
           <label class="form-label">Style: <select id="reel-edit-style"></select></label>
@@ -730,11 +718,6 @@
               <option value="karaoke">Karaoke</option>
               <option value="bold-center">3-Word Highlight</option>
               <option value="none">None</option>
-            </select>
-          </label>
-          <label class="form-label">Sub language:
-            <select id="reel-subtitle-lang">
-              <option value="original" selected>Original</option>
             </select>
           </label>
           <label class="form-label">Color: <input type="color" id="reel-sub-color-preset" value="#ffffff"></label>
@@ -775,9 +758,10 @@
         </div>
         <div class="form-row mt-md">
           <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
+          <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
           <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
           <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
-          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -881,7 +865,7 @@
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
 
-    <div id="bgm-section" class="hidden">
+    <div id="bgm-section" style="display:none">
       <div class="bgm-bar">
         <span class="bgm-label">🎵 BGM</span>
         <span id="bgm-name" class="bgm-name">No file</span>
@@ -894,7 +878,7 @@
       </div>
     </div>
 
-    <div id="pip-section" class="hidden">
+    <div id="pip-section" style="display:none">
       <div class="pip-bar">
         <span class="pip-label">🎭 PiP Speaker</span>
         <span id="pip-name" class="pip-name">No video</span>
@@ -904,7 +888,7 @@
     </div>
     <input type="file" id="pip-input" accept="video/*" hidden>
 
-    <div id="bg-video-section" class="hidden">
+    <div id="bg-video-section" style="display:none">
       <div class="editor-bar">
         <span class="text-sm text-secondary">🎬 Video Mode:</span>
         <select id="bg-video-mode" >
@@ -941,7 +925,7 @@
     </div>
 
     <!-- Frame Section -->
-    <div id="frame-section" class="hidden">
+    <div id="frame-section" style="display:none">
       <div class="editor-bar">
         <span class="text-sm text-secondary">🖼️ Frame</span>
         <img id="frame-thumb" src="" alt="" style="width:36px; height:24px; object-fit:cover; border-radius:3px; border:1px solid var(--border); display:none;">
@@ -961,7 +945,7 @@
     </div>
 
     <!-- Logo Section -->
-    <div id="logo-section" class="hidden">
+    <div id="logo-section" style="display:none">
       <div class="editor-bar">
         <span class="text-sm text-secondary">⭐ Logo</span>
         <img id="logo-thumb" src="" alt="" style="width:28px; height:28px; object-fit:contain; border-radius:3px; display:none;">
@@ -1216,7 +1200,7 @@
     </div>
 
     <!-- Inline Preview Panel (collapsible) -->
-    <div id="inline-preview-panel" class="hidden">
+    <div id="inline-preview-panel" style="display:none">
       <div id="inline-preview-header">
         <span>▶ Preview</span>
         <button id="inline-preview-collapse" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.8rem;">▼ Collapse</button>
@@ -1275,12 +1259,14 @@
     </div>
     <input type="file" id="project-input" accept="*/*">
 
-    <div id="export-progress">
-      <div class="bar-bg"><div class="bar-fill" id="export-bar" style="width:0%"></div></div>
-      <div class="label" id="export-label">Exporting...</div>
-    </div>
-    <div id="status"><span id="status-spinner" class="status-spinner"></span><span id="status-text"></span></div>
   </div>
+
+  <!-- Status + export progress (outside editor so visible on all pages) -->
+  <div id="export-progress">
+    <div class="bar-bg"><div class="bar-fill" id="export-bar" style="width:0%"></div></div>
+    <div class="label" id="export-label">Exporting...</div>
+  </div>
+  <div id="status"><span id="status-spinner" class="status-spinner"></span><span id="status-text"></span></div>
 
   <div id="preview-overlay">
     <canvas id="preview-canvas" width="1280" height="720"></canvas>
@@ -1312,29 +1298,61 @@
     </div>
   </div>
 
+  <!-- Critical: globals + gallery (landing page) -->
   <script src="js/01-core.js"></script>
-  <script src="js/02-zoom.js"></script>
-  <script src="js/03-ruler.js"></script>
-  <script src="js/04-photo-timeline.js"></script>
-  <script src="js/05-video-import.js"></script>
-  <script src="js/19-video-timeline.js"></script>
-  <script src="js/06-text-timeline.js"></script>
-  <script src="js/09-transitions.js"></script>
-  <script src="js/07-text-renderer.js"></script>
-  <script src="js/08-playhead.js"></script>
-  <script src="js/10-preview.js"></script>
-  <script src="js/11-export.js"></script>
-  <script src="js/12-buffer-ops.js"></script>
-  <script src="js/13-wavesurfer.js"></script>
-  <script src="js/14-silence.js"></script>
   <script src="js/15-project.js"></script>
-  <script src="js/16-audio-controls.js"></script>
-  <script src="js/17a-create-api.js"></script>
-  <script src="js/17b-create-references.js"></script>
-  <script src="js/17c-create-pipeline.js"></script>
-  <script src="js/17d-create-languages.js"></script>
-  <script src="js/20-reels-creator.js"></script>
-  <script src="js/18-navigation.js"></script>
-  <script src="https://unpkg.com/@niccoborg/capacitor-core@latest/dist/capacitor.js" nomodule></script>
+  <!-- All other scripts loaded on demand when user navigates -->
+  <script>
+  var _editorScriptsLoaded = false;
+  var _editorScriptsLoading = false;
+  var _editorScriptsCallbacks = [];
+  function loadEditorScripts(callback) {
+    if (_editorScriptsLoaded) { if (callback) callback(); return; }
+    if (callback) _editorScriptsCallbacks.push(callback);
+    if (_editorScriptsLoading) return;
+    _editorScriptsLoading = true;
+    showPageLoader('Loading editor...');
+    var scripts = [
+      'js/02-zoom.js','js/03-ruler.js','js/04-photo-timeline.js','js/05-video-import.js',
+      'js/19-video-timeline.js','js/06-text-timeline.js','js/09-transitions.js',
+      'js/07-text-renderer.js','js/08-playhead.js','js/10-preview.js','js/11-export.js',
+      'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
+      'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
+      'js/17d-create-languages.js','js/20-reels-creator.js','js/18-navigation.js'
+    ];
+    var loaded = 0;
+    for (var i = 0; i < scripts.length; i++) {
+      var s = document.createElement('script');
+      s.src = scripts[i];
+      s.async = false;
+      s.onload = function() {
+        loaded++;
+        if (loaded === scripts.length) {
+          _editorScriptsLoaded = true;
+          _editorScriptsLoading = false;
+          hidePageLoader();
+          for (var j = 0; j < _editorScriptsCallbacks.length; j++) _editorScriptsCallbacks[j]();
+          _editorScriptsCallbacks = [];
+        }
+      };
+      document.body.appendChild(s);
+    }
+  }
+
+  // Intercept landing page buttons — load scripts, then re-click
+  ['btn-create-content','btn-create-reel','btn-new-project','btn-load-project-home'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', function handler(e) {
+      if (_editorScriptsLoaded) return; // scripts loaded, let real handler run
+      e.stopImmediatePropagation();
+      loadEditorScripts(function() { btn.click(); });
+    }, true); // capture phase — runs before any other handler
+  });
+
+  // Also load on drag over the drop zone (user might drag an audio file)
+  var dz = document.getElementById('drop-zone');
+  if (dz) dz.addEventListener('dragover', function() { loadEditorScripts(); }, { once: true });
+  </script>
 </body>
 </html>

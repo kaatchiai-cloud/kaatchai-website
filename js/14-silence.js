@@ -113,7 +113,7 @@
       const newLength = buffer.length - removedSamples;
       if (newLength <= 0) return null;
 
-      const out = audioCtx.createBuffer(numCh, newLength, sr);
+      const out = ensureAudioCtx().createBuffer(numCh, newLength, sr);
 
       for (let ch = 0; ch < numCh; ch++) {
         const src = buffer.getChannelData(ch);

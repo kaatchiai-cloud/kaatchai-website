@@ -268,7 +268,7 @@ let activeTier = 'free'; // 'free' | 'paid'
 
 function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
 function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
-function getCreateGeminiKey() { return activeTier === 'paid' ? getPaidKey() : getFreeKey(); }
+function getCreateGeminiKey() { return getPaidKey(); }
 function getImageKey() { return activeTier === 'paid' ? getPaidKey() : (freeImageGenAvailable ? getFreeKey() : null); }
 function isPaidTier() { return activeTier === 'paid'; }
 
@@ -357,8 +357,7 @@ function flashSave(btn, statusEl) {
 
 // Navigation
 btnCreateContent.addEventListener('click', () => {
-  dropZone.classList.add('hidden');
-  createPage.classList.add('visible');
+  navigateTo('create');
   const savedFree = localStorage.getItem('stori_key_free');
   const savedPaid = localStorage.getItem('stori_key_paid');
   if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
@@ -374,8 +373,7 @@ btnCreateContent.addEventListener('click', () => {
   applyPlanGating();
 });
 btnCreateBack.addEventListener('click', () => {
-  createPage.classList.remove('visible');
-  dropZone.classList.remove('hidden');
+  navigateTo('home');
   destroyCreateAudioEditor();
 });
 
@@ -399,23 +397,21 @@ btnSaveKeyPaid.addEventListener('click', () => {
 });
 
 // ── Model Selection (paid tier) ──
-function getTextModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
-function getTranscriptionModels() { return ['gemini-2.5-flash', 'gemini-3-flash']; }
+function hasDedicatedPaidKey() { return isPaidTier() && getPaidKey() && getPaidKey() !== getFreeKey(); }
+function getTextModels() { return hasDedicatedPaidKey() ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash']; }
+function getTranscriptionModels() { return hasDedicatedPaidKey() ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash']; }
 function getImageModels() {
-  if (!isPaidTier()) return ['gemini-2.5-flash-image']; // Free tier
-  const cat = $('create-image-category')?.value || 'fast';
-  if (cat === 'quality') return ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001', 'gemini-2.5-flash-image'];
-  return ['gemini-2.5-flash-image', 'imagen-4.0-fast-generate-001', 'gemini-3.1-flash-image-preview'];
+  return ['gemini-2.5-flash-image', 'imagen-4.0-generate-001'];
 }
-function getTTSModels() { return ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-tts']; }
+function getTTSModels() { return ['gemini-2.5-flash-preview-tts']; }
 function getSegmentDuration() {
   return isPaidTier() ? { min: 5, max: 15 } : { min: 12, max: 24 };
 }
 
 // ── API Call Wrapper with model fallback ──
-async function callGeminiAPI(models, body) {
+async function callGeminiAPI(models, body, apiKey) {
   const modelList = Array.isArray(models) ? models : [models];
-  const key = getCreateGeminiKey();
+  const key = apiKey || getCreateGeminiKey();
   if (!key) throw new Error('No API key configured. Enter a free or paid tier key in Step 1.');
 
   for (const model of modelList) {
@@ -425,7 +421,7 @@ async function callGeminiAPI(models, body) {
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
       if (resp.ok) { trackCost('textGeneration', 1); return await resp.json(); }
-      if (resp.status === 429 || resp.status === 403) continue;
+      if (resp.status === 429 || resp.status === 403 || resp.status === 503) continue;
       const err = await resp.json().catch(() => ({}));
       if (err.error?.message?.includes('quota') || err.error?.message?.includes('rate')) continue;
       throw new Error(err.error?.message || `API error ${resp.status}`);

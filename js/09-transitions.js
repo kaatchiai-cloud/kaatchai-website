@@ -290,7 +290,12 @@
     function drawVideoClipFull(ctx, cw, ch, elapsed, clip) {
       if (!clip || !clip.videoEl) return;
       seekVideoClip(clip, elapsed);
-      drawCoverFit(ctx, clip.videoEl, cw, ch);
+      console.log('[DrawVideoFull] cw:', cw, 'ch:', ch, 'videoW:', clip.videoEl.videoWidth, 'videoH:', clip.videoEl.videoHeight, 'reelViewport:', !!window._editorReelViewport);
+      if (window._editorReelViewport) {
+        drawViewportCrop(ctx, clip.videoEl, cw, ch, window._editorReelViewport.mode, window._editorReelViewport.panX);
+      } else {
+        drawCoverFit(ctx, clip.videoEl, cw, ch);
+      }
     }
 
     // Draw video clip as PiP (uses shared PiP settings)

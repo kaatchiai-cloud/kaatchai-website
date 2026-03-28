@@ -1,4 +1,15 @@
     // ── Preview (inline + fullscreen) ──
+    function _renderReelOrStdSubs(ctx, cw, ch, t, sortedSubs) {
+      if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
+        const rs = window._editorReelSubtitle;
+        const prevSize = reelSubSize, prevPos = reelSubPosition, prevColor = reelSubColor, prevOutline = reelSubOutline, prevBackdrop = reelSubBackdrop;
+        reelSubSize = rs.subSize; reelSubPosition = rs.subPosition; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline; reelSubBackdrop = rs.subBackdrop;
+        renderReelSubtitle(ctx, cw, ch, t, rs.words, rs.style);
+        reelSubSize = prevSize; reelSubPosition = prevPos; reelSubColor = prevColor; reelSubOutline = prevOutline; reelSubBackdrop = prevBackdrop;
+      } else {
+        renderTextOverlays(ctx, cw, ch, t, sortedSubs);
+      }
+    }
     let previewAnimId = null, previewAudioSource = null;
     let previewPlaying = false, previewStartedAt = 0, previewPausedAt = 0;
     let previewSorted = [], previewSortedTexts = [], previewSortedSubs = [], previewCtx = null, previewCW = 0, previewCH = 0;
@@ -22,17 +33,31 @@
 
     // Show inline preview panel when there's content
     function showInlinePreview() {
-      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0)) return;
+      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) return;
       inlinePanel.style.display = '';
-      if (previewMode === 'none') renderInlineFrame(0);
+      if (previewMode === 'none') {
+        // For video items, seek first then render
+        const clip = videoTimelineItems[0];
+        if (clip && clip.videoEl) {
+          const seekTime = clip.inPoint || 0;
+          clip.videoEl.currentTime = seekTime;
+          clip.videoEl.onseeked = () => { clip.videoEl.onseeked = null; renderInlineFrame(0); };
+          // Fallback if onseeked doesn't fire
+          setTimeout(() => renderInlineFrame(0), 300);
+        } else {
+          renderInlineFrame(0);
+        }
+      }
     }
 
     // Render a single frame on inline canvas at given time
     function renderInlineFrame(t) {
       if (typeof getSelectedImageSize !== 'function') return;
       const { width, height } = getSelectedImageSize();
-      // Scale down for inline: max 480px wide
-      const scale = Math.min(480 / width, 1);
+      console.log('[InlinePreview] size:', width, 'x', height, 'createImageSize:', $('create-image-size')?.value);
+      // Scale down for inline: portrait (reel) = 300px wide, landscape = max 480px wide
+      const maxW = height > width ? 300 : 480;
+      const scale = Math.min(maxW / width, 1);
       inlineCanvas.width = Math.round(width * scale);
       inlineCanvas.height = Math.round(height * scale);
       const ctx = inlineCanvas.getContext('2d');
@@ -55,7 +80,7 @@
       renderBgVideoAfter(ctx, cw, ch, t, sorted, bgMode);
       renderPiP(ctx, cw, ch, t);
       renderTextOverlays(ctx, cw, ch, t, sortedTexts);
-      renderTextOverlays(ctx, cw, ch, t, sortedSubs);
+      _renderReelOrStdSubs(ctx, cw, ch, t, sortedSubs);
       if (fr.applied) ctx.restore();
       renderLogo(ctx, width, height);
       ctx.restore();
@@ -63,7 +88,7 @@
 
     // ── Fullscreen preview ──
     btnPreview.addEventListener('click', () => {
-      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0)) { setStatus('Add at least one photo or text to preview'); return; }
+      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) { setStatus('Add at least one photo, video, or text to preview'); return; }
       stopPreview();
       previewMode = 'fullscreen';
       previewOverlay.classList.add('visible');
@@ -74,10 +99,10 @@
 
     // ── Inline preview ──
     inlinePlay.addEventListener('click', () => {
-      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0)) return;
+      if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) return;
       if (previewPlaying && previewMode === 'inline') {
         // Pause
-        previewPausedAt = audioCtx.currentTime - previewStartedAt;
+        previewPausedAt = ensureAudioCtx().currentTime - previewStartedAt;
         previewPlaying = false;
         inlinePlay.textContent = '▶';
         stopPreviewAudio();
@@ -128,7 +153,8 @@
         previewCtx = previewCanvas.getContext('2d');
         previewCW = width; previewCH = height;
       } else {
-        const scale = Math.min(480 / width, 1);
+        const maxW = height > width ? 300 : 480;
+        const scale = Math.min(maxW / width, 1);
         inlineCanvas.width = Math.round(width * scale);
         inlineCanvas.height = Math.round(height * scale);
         previewCtx = inlineCanvas.getContext('2d');
@@ -142,25 +168,25 @@
       setupPreviewCanvas(mode);
 
       // Resume AudioContext and wait for it to be running
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
+      if (ensureAudioCtx().state === 'suspended') {
+        await ensureAudioCtx().resume();
       }
 
-      previewAudioSource = audioCtx.createBufferSource();
+      previewAudioSource = ensureAudioCtx().createBufferSource();
       previewAudioSource.buffer = currentBuffer;
-      previewAudioSource.connect(audioCtx.destination);
-      previewStartedAt = audioCtx.currentTime - fromTime;
+      previewAudioSource.connect(ensureAudioCtx().destination);
+      previewStartedAt = ensureAudioCtx().currentTime - fromTime;
       previewAudioSource.start(0, fromTime);
 
       // Start BGM if loaded
       if (bgmBuffer) {
-        bgmSource = audioCtx.createBufferSource();
+        bgmSource = ensureAudioCtx().createBufferSource();
         bgmSource.buffer = bgmBuffer;
         bgmSource.loop = bgmLoop;
-        bgmGainNode = audioCtx.createGain();
+        bgmGainNode = ensureAudioCtx().createGain();
         bgmGainNode.gain.value = bgmVolume;
         bgmSource.connect(bgmGainNode);
-        bgmGainNode.connect(audioCtx.destination);
+        bgmGainNode.connect(ensureAudioCtx().destination);
         bgmSource.start(0, fromTime % bgmBuffer.duration);
       }
 
@@ -190,7 +216,8 @@
       const isInline = previewMode === 'inline';
       if (isInline) {
         const { width, height } = getSelectedImageSize();
-        const scale = Math.min(480 / width, 1);
+        const maxW = height > width ? 300 : 480;
+        const scale = Math.min(maxW / width, 1);
         previewCtx.save();
         previewCtx.scale(scale, scale);
         const fr1 = applyFrame(previewCtx, previewCW, previewCH);
@@ -201,7 +228,7 @@
         renderBgVideoAfter(previewCtx, cw1, ch1, elapsed, previewSorted, bgM1);
         renderPiP(previewCtx, cw1, ch1, elapsed);
         renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
+        _renderReelOrStdSubs(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
         if (fr1.applied) previewCtx.restore();
         renderLogo(previewCtx, previewCW, previewCH);
         previewCtx.restore();
@@ -214,7 +241,7 @@
         renderBgVideoAfter(previewCtx, cw2, ch2, elapsed, previewSorted, bgM2);
         renderPiP(previewCtx, cw2, ch2, elapsed);
         renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedTexts);
-        renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
+        _renderReelOrStdSubs(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
         if (fr2.applied) previewCtx.restore();
         renderLogo(previewCtx, previewCW, previewCH);
       }
@@ -248,7 +275,7 @@
       if (isScrubbing) {
         elapsed = (activeScrub.value / 1000) * currentBuffer.duration;
       } else {
-        elapsed = audioCtx.currentTime - previewStartedAt;
+        elapsed = ensureAudioCtx().currentTime - previewStartedAt;
       }
       elapsed = Math.max(0, Math.min(elapsed, currentBuffer.duration));
 
@@ -287,7 +314,7 @@
     previewPlayPause.addEventListener('click', () => {
       if (!currentBuffer) return;
       if (previewPlaying) {
-        previewPausedAt = audioCtx.currentTime - previewStartedAt;
+        previewPausedAt = ensureAudioCtx().currentTime - previewStartedAt;
         previewPlaying = false;
         updatePlayButtons();
         stopPreviewAudio();
