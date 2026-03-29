@@ -1174,46 +1174,91 @@ function renderAllReelPreviews() {
   if (!container) return;
   const results = window._reelMultiResults;
 
+  console.log('[ReelPreview] renderAllReelPreviews called, results:', results?.length || 0);
   if (!results || results.length === 0) {
     container.style.display = 'none';
     return;
   }
 
-  // Stack vertically for multiple segment reels, horizontal wrap for variations
-  const hasMultiSeg = results.some(r => r.segmentIndex > 0);
   container.style.display = 'flex';
-  container.style.flexDirection = hasMultiSeg ? 'column' : 'row';
-  container.style.gap = '16px';
-  container.style.justifyContent = 'center';
-  container.style.alignItems = hasMultiSeg ? 'center' : 'flex-start';
-  container.style.flexWrap = hasMultiSeg ? 'nowrap' : 'wrap';
+  container.style.flexDirection = 'column';
+  container.style.gap = '20px';
 
   const platform = REEL_PLATFORMS[reelPlatform];
   const cw = platform.width;
   const ch = platform.height;
+  const isVid = results.some(r => r.scenes?.some(s => s.isVideo));
+
+  // Build controls HTML for each reel
+  function buildControlsHtml(i, r) {
+    const s = r.settings || {};
+    const subStyle = s.subtitleStyle || reelSubtitleStyle;
+    const trans = s.transition || reelTransition;
+    const subColor = s.subColor || reelSubColor;
+    const subOutline = s.subOutline || reelSubOutline;
+    const subBackdrop = s.subBackdrop || reelSubBackdrop;
+    const subSize = s.subSize || reelSubSize;
+    const subPos = s.subPosition || reelSubPosition;
+    const viewport = s.viewport || reelViewport;
+    const vpx = s.viewportX ?? reelViewportX;
+    return `
+      <label class="form-label">Transition: <select class="rc-transition" data-ri="${i}">
+        ${Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}" ${k === trans ? 'selected' : ''}>${v.label}</option>`).join('')}
+      </select></label>
+      <label class="form-label">Subtitle: <select class="rc-sub-style" data-ri="${i}">
+        ${Object.entries(REEL_SUBTITLE_STYLES).map(([k, v]) => `<option value="${k}" ${k === subStyle ? 'selected' : ''}>${v}</option>`).join('')}
+      </select></label>
+      <label class="form-label">Color: <input type="color" class="rc-sub-color" data-ri="${i}" value="${subColor}"></label>
+      <label class="form-label">Outline: <input type="color" class="rc-sub-outline" data-ri="${i}" value="${subOutline}"></label>
+      <label class="form-label">Backdrop: <select class="rc-sub-backdrop" data-ri="${i}">
+        <option value="dark" ${subBackdrop === 'dark' ? 'selected' : ''}>Dark</option>
+        <option value="blur" ${subBackdrop === 'blur' ? 'selected' : ''}>Blur</option>
+        <option value="none" ${subBackdrop === 'none' ? 'selected' : ''}>None</option>
+      </select></label>
+      <label class="form-label">Size: <input type="range" class="rc-sub-size" data-ri="${i}" min="2" max="8" value="${subSize}" step="0.5" style="width:50px;"><span class="rc-size-label text-2xs">${subSize}</span></label>
+      <label class="form-label">Position: <select class="rc-sub-pos" data-ri="${i}">
+        <option value="top" ${subPos === 'top' ? 'selected' : ''}>Top</option>
+        <option value="center" ${subPos === 'center' ? 'selected' : ''}>Center</option>
+        <option value="bottom" ${subPos === 'bottom' ? 'selected' : ''}>Bottom</option>
+      </select></label>
+      ${isVid ? `<label class="form-label">Viewport: <select class="rc-viewport" data-ri="${i}">
+        <option value="fill-center" ${viewport === 'fill-center' ? 'selected' : ''}>Fill</option>
+        <option value="fit" ${viewport === 'fit' ? 'selected' : ''}>Fit</option>
+        <option value="left-third" ${viewport === 'left-third' ? 'selected' : ''}>Left</option>
+        <option value="center-third" ${viewport === 'center-third' ? 'selected' : ''}>Center</option>
+        <option value="right-third" ${viewport === 'right-third' ? 'selected' : ''}>Right</option>
+        <option value="custom" ${viewport === 'custom' ? 'selected' : ''}>Custom</option>
+      </select></label>
+      <label class="form-label ${viewport !== 'custom' ? 'hidden' : ''} rc-vpx-label" data-ri="${i}">Pan: <input type="range" class="rc-vpx" data-ri="${i}" min="0" max="100" value="${vpx}" style="width:60px;"></label>` : ''}
+      <button class="btn-xs rc-export" data-ri="${i}">⬇ Export</button>
+      <button class="btn-xs rc-editor" data-ri="${i}">Open in Editor</button>`;
+  }
 
   container.innerHTML = results.map((r, i) => {
     const audioLabel = r.audioLangLabel || 'Original';
     const subLabel = r.subtitleLangLabel || 'Original';
-    const selected = i === activeReelPreview;
     return `
-    <div class="reel-preview-card" data-ri="${i}" style="cursor:pointer; position:relative; text-align:center;">
-      <div style="font-size:0.68rem; color:var(--text-secondary); margin-bottom:4px; line-height:1.3;">
-        <strong>Reel ${i + 1}</strong><br>🔊 ${audioLabel} · 💬 ${subLabel}
-      </div>
-      ${i > 0 ? '<button class="reel-thumb-delete" data-ri="' + i + '" style="position:absolute; top:0; right:0; width:20px; height:20px; border:none; border-radius:50%; background:#ef4444; color:#fff; font-size:0.6rem; cursor:pointer; z-index:1; display:flex; align-items:center; justify-content:center;">✕</button>' : ''}
-      <div class="reel-canvas-wrap" style="width:300px; border-color:${selected ? 'var(--accent)' : 'var(--border)'}; ${selected ? 'box-shadow:0 0 0 2px rgba(139,92,246,0.3);' : ''}">
-        <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
-      </div>
-      <div style="max-width:220px; margin:6px auto 0;">
-        <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
-          <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
-          <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
+    <div class="reel-preview-section" data-ri="${i}" style="border:1px solid var(--border); border-radius:var(--radius); padding:12px; background:var(--bg-secondary);">
+      <div style="font-size:0.82rem; font-weight:600; margin-bottom:8px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span></div>
+      <div style="display:flex; gap:16px; align-items:flex-start;">
+        <div style="flex-shrink:0;">
+          <div class="reel-canvas-wrap" style="width:300px;">
+            <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+          </div>
+          <div style="width:300px; margin-top:6px;">
+            <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+              <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
+              <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
+            </div>
+            <div style="display:flex; gap:4px; justify-content:center;">
+              <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
+              <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
+              <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
+            </div>
+          </div>
         </div>
-        <div style="display:flex; gap:4px; justify-content:center;">
-          <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
-          <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
-          <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
+        <div class="reel-preview-controls-right" style="display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; font-size:0.72rem;">
+          ${buildControlsHtml(i, r)}
         </div>
       </div>
     </div>`;
@@ -1233,14 +1278,21 @@ function renderAllReelPreviews() {
     } else if (r.scenes) {
       const scene = r.scenes[0];
       if (scene?.imgDataUrl) {
-        const img = new Image(); img.src = scene.imgDataUrl;
-        try { drawCoverFit(ctx, img, cw, ch); } catch(e) {}
+        if (!scene._img) { scene._img = new Image(); scene._img.src = scene.imgDataUrl; }
+        if (scene._img.naturalWidth > 0) {
+          try { drawCoverFit(ctx, scene._img, cw, ch); } catch(e) {}
+        }
       }
     }
-    const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+    const rs = r.settings || {};
+    const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
+    reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
+    reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+    const subStyle = rs.subtitleStyle || reelSubtitleStyle;
     if (subStyle !== 'none' && r.words && r.words.length > 0) {
       renderReelSubtitle(ctx, cw, ch, midTime, r.words, subStyle);
     }
+    reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
   }
   // Seek video then draw all previews
   const canvases = [...container.querySelectorAll('.reel-thumb-canvas')];
@@ -1256,27 +1308,6 @@ function renderAllReelPreviews() {
     canvases.forEach(cvs => drawPreviewFrame(cvs, results[parseInt(cvs.dataset.ri)]));
   }
 
-  // Click card → select that reel, update controls
-  container.querySelectorAll('.reel-preview-card').forEach(card => {
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.reel-thumb-delete')) return;
-      const idx = parseInt(card.dataset.ri);
-      selectReelPreview(idx);
-      renderAllReelPreviews();
-    });
-  });
-  // Delete reel
-  container.querySelectorAll('.reel-thumb-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.ri);
-      results.splice(idx, 1);
-      if (activeReelPreview >= results.length) activeReelPreview = Math.max(0, results.length - 1);
-      if (results.length > 0) selectReelPreview(activeReelPreview);
-      renderAllReelPreviews();
-    });
-  });
-
   // Per-preview playback
   const mpState = {}; // idx → { source, startedAt, playing, animId }
   container.querySelectorAll('.reel-mp-play').forEach(btn => {
@@ -1287,26 +1318,14 @@ function renderAllReelPreviews() {
       if (!r || !r.audioBuffer) return;
       // Stop any other playing preview
       Object.keys(mpState).forEach(k => { if (mpState[k].playing) stopMp(parseInt(k), true); });
-      // Select this reel (don't re-render, just update selection visually)
-      if (idx !== activeReelPreview) {
-        selectReelPreview(idx);
-        container.querySelectorAll('.reel-preview-card').forEach(c => {
-          const ci = parseInt(c.dataset.ri);
-          const wrap = c.querySelector('.reel-canvas-wrap');
-          if (wrap) {
-            wrap.style.borderColor = ci === idx ? 'var(--accent)' : 'var(--border)';
-            wrap.style.boxShadow = ci === idx ? '0 0 0 2px rgba(139,92,246,0.3)' : '';
-          }
-        });
-      }
       // Start playback
       const ctx = ensureAudioCtx();
       if (ctx.state === 'suspended') await ctx.resume();
       const source = ctx.createBufferSource();
       source.buffer = r.audioBuffer;
       source.connect(ctx.destination);
-      source.start();
       const startedAt = ctx.currentTime;
+      source.start(startedAt);
       mpState[idx] = { source, startedAt, playing: true, animId: null };
       // Start video playback in sync
       if (reelVideoEl && reelVideoEl.videoWidth > 0) {
@@ -1341,10 +1360,16 @@ function renderAllReelPreviews() {
               try { renderTimelineFrame(drawCtx, cw, ch, elapsed, items); } catch(e) {}
             }
           }
-          const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+          // Sync globals from per-reel settings for renderReelSubtitle
+          const rs = r.settings || {};
+          const savedColor = reelSubColor, savedOutline = reelSubOutline, savedBackdrop = reelSubBackdrop, savedSize = reelSubSize, savedPos = reelSubPosition;
+          reelSubColor = rs.subColor || savedColor; reelSubOutline = rs.subOutline || savedOutline;
+          reelSubBackdrop = rs.subBackdrop || savedBackdrop; reelSubSize = rs.subSize || savedSize; reelSubPosition = rs.subPosition || savedPos;
+          const subStyle = rs.subtitleStyle || reelSubtitleStyle;
           if (subStyle !== 'none' && r.words?.length > 0) {
             renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle);
           }
+          reelSubColor = savedColor; reelSubOutline = savedOutline; reelSubBackdrop = savedBackdrop; reelSubSize = savedSize; reelSubPosition = savedPos;
         }
         mpState[idx].animId = requestAnimationFrame(tick);
       }
@@ -1432,8 +1457,13 @@ function renderAllReelPreviews() {
               try { renderTimelineFrame(drawCtx, cw, ch, t, items); } catch(e) {}
             }
           }
-          const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
+          const rs2 = r.settings || {};
+          const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition;
+          reelSubColor = rs2.subColor || sC; reelSubOutline = rs2.subOutline || sO;
+          reelSubBackdrop = rs2.subBackdrop || sB; reelSubSize = rs2.subSize || sSz; reelSubPosition = rs2.subPosition || sP;
+          const subStyle = rs2.subtitleStyle || reelSubtitleStyle;
           if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, t, r.words, subStyle);
+          reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP;
         };
         if (reelVideoEl && reelVideoEl.videoWidth > 0) {
           reelVideoEl.currentTime = (r.videoStart || 0) + t;
@@ -1442,6 +1472,61 @@ function renderAllReelPreviews() {
           drawFrame();
         }
       }
+    });
+  });
+
+  // Per-reel control handlers — update settings for that specific reel
+  function updateReelSetting(el, key, transform) {
+    const idx = parseInt(el.dataset.ri);
+    const r = results[idx];
+    if (!r) return;
+    if (!r.settings) r.settings = {};
+    r.settings[key] = transform ? transform(el.value) : el.value;
+    // Also update scene transitions if transition changed
+    if (key === 'transition' && r.scenes) {
+      const preset = REEL_TRANSITIONS[el.value] || REEL_TRANSITIONS['whip-pan'];
+      r.scenes.forEach(s => { s.transition = preset.transition; s.transDur = preset.transDur; s.motion = preset.motion; });
+    }
+  }
+  container.querySelectorAll('.rc-transition').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'transition')));
+  container.querySelectorAll('.rc-sub-style').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subtitleStyle')));
+  container.querySelectorAll('.rc-sub-color').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subColor')));
+  container.querySelectorAll('.rc-sub-outline').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subOutline')));
+  container.querySelectorAll('.rc-sub-backdrop').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subBackdrop')));
+  container.querySelectorAll('.rc-sub-size').forEach(el => {
+    el.addEventListener('input', () => {
+      updateReelSetting(el, 'subSize', v => parseFloat(v));
+      const label = el.closest('label')?.querySelector('.rc-size-label');
+      if (label) label.textContent = el.value;
+    });
+  });
+  container.querySelectorAll('.rc-sub-pos').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subPosition')));
+  container.querySelectorAll('.rc-viewport').forEach(el => {
+    el.addEventListener('change', () => {
+      updateReelSetting(el, 'viewport');
+      const vpxLabel = container.querySelector(`.rc-vpx-label[data-ri="${el.dataset.ri}"]`);
+      if (vpxLabel) vpxLabel.classList.toggle('hidden', el.value !== 'custom');
+    });
+  });
+  container.querySelectorAll('.rc-vpx').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'viewportX', v => parseInt(v))));
+  // Export single reel
+  container.querySelectorAll('.rc-export').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      activeReelPreview = idx;
+      const r = results[idx];
+      if (r) { reelAudioBuffer = r.audioBuffer; reelScenes = r.scenes; reelWords = r.words; }
+      exportSingleReel();
+    });
+  });
+  // Open in editor
+  container.querySelectorAll('.rc-editor').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.ri);
+      activeReelPreview = idx;
+      const r = results[idx];
+      if (r) { reelAudioBuffer = r.audioBuffer; reelScenes = r.scenes; reelWords = r.words; }
+      openReelInFullEditor();
     });
   });
 }
@@ -1550,23 +1635,29 @@ function renderReelSceneGrid(scenes) {
   const platform = REEL_PLATFORMS[reelPlatform];
   const ratio = `${platform.width}/${platform.height}`;
 
-  // Group by segmentIndex if multiple segments
+  // Group by segmentIndex
   const segIndices = [...new Set(scenes.map(s => s.segmentIndex ?? 0))];
   const hasMultiSeg = segIndices.length > 1;
 
-  scenes.forEach((scene, idx) => {
-    // Insert segment header when segment changes
+  // Create per-reel containers stacked vertically
+  const reelContainers = {};
+  for (const si of segIndices) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-bottom:16px; background:var(--bg-secondary);';
     if (hasMultiSeg) {
-      const segIdx = scene.segmentIndex ?? 0;
-      const isFirst = idx === 0 || (scenes[idx - 1].segmentIndex ?? 0) !== segIdx;
-      if (isFirst) {
-        const header = document.createElement('div');
-        header.style.cssText = 'width:100%; font-size:0.85rem; font-weight:600; color:var(--text-secondary); padding:12px 0 6px; border-top:1px solid var(--border); margin-top:8px;';
-        if (idx === 0) header.style.borderTop = 'none';
-        header.textContent = `Reel ${segIdx + 1}`;
-        reelSceneGrid.appendChild(header);
-      }
+      const title = document.createElement('h4');
+      title.style.cssText = 'margin:0 0 10px; font-size:0.9rem; color:var(--text-primary);';
+      title.textContent = `Reel ${si + 1}`;
+      wrapper.appendChild(title);
     }
+    const grid = document.createElement('div');
+    grid.className = 'scene-grid';
+    wrapper.appendChild(grid);
+    reelSceneGrid.appendChild(wrapper);
+    reelContainers[si] = grid;
+  }
+
+  scenes.forEach((scene, idx) => {
     const card = document.createElement('div');
     card.className = 'scene-card';
     const refThumbHtml = scene.refImageDataUrl ? `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">` : '';
@@ -1630,7 +1721,9 @@ function renderReelSceneGrid(scenes) {
       reader.readAsDataURL(file);
     });
     if (btnRefRemove) btnRefRemove.addEventListener('click', () => { scene.refImageDataUrl = null; refRow.style.display = 'none'; });
-    reelSceneGrid.appendChild(card);
+    // Append to correct reel container
+    const targetGrid = reelContainers[scene.segmentIndex ?? 0];
+    targetGrid.appendChild(card);
   });
 }
 
@@ -1826,7 +1919,6 @@ async function reelBuildVariationsAndPreview() {
       audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords,
       videoStart: 0, videoEnd: reelAudioBuffer.duration, segmentIndex: 0, settings,
     }];
-
     for (const origReel of baseReels) {
       const origText = origReel.words?.map(w => w.word).join(' ') || '';
       const translationCache = {};
@@ -1928,13 +2020,23 @@ async function reelBuildVariationsAndPreview() {
 
     window._reelMultiResults = allResults;
     activeReelPreview = 0;
-    reelAudioBuffer = allResults[0].audioBuffer;
-    reelScenes = allResults[0].scenes;
-    reelWords = allResults[0].words;
+    if (allResults.length > 0) {
+      reelAudioBuffer = allResults[0].audioBuffer;
+      reelScenes = allResults[0].scenes;
+      reelWords = allResults[0].words;
+    }
+  } catch(e) {
+    console.error('[ReelGen] Variation error:', e);
+    setStatus('Variation generation failed: ' + friendlyApiError(e.message));
+  }
+
+  // Show preview — outside try/catch so _reelMultiResults is always set
+  const allResults2 = window._reelMultiResults;
+  if (allResults2 && allResults2.length > 0) {
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
-    // Pre-load all scene images so they're ready when renderReelFrame runs
-    const allSceneImgs = allResults.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
+    // Pre-load all scene images
+    const allSceneImgs = allResults2.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
     await Promise.all(allSceneImgs.map(s => new Promise(res => {
       s._img = new Image();
       s._img.onload = s._img.onerror = res;
@@ -1942,11 +2044,8 @@ async function reelBuildVariationsAndPreview() {
     })));
     renderReelFrame(0);
     renderAllReelPreviews();
-    reelGenerateStatus.textContent = `${allResults.length} Reel(s) ready`;
-    setStatus(`${allResults.length} Reel(s) ready`);
-  } catch(e) {
-    console.error('[ReelGen] Variation error:', e);
-    setStatus('Variation generation failed: ' + friendlyApiError(e.message));
+    reelGenerateStatus.textContent = `${allResults2.length} Reel(s) ready`;
+    setStatus(`${allResults2.length} Reel(s) ready`);
   }
 }
 
@@ -2308,7 +2407,9 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
   if (!reelAudioBuffer) { setStatus('Nothing to save'); return; }
   setStatus('Saving reel project...', true);
   try {
-    const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
+    // Save the original full audio (before segmentation) so all segments can be reconstructed
+    const audioToSave = reelOriginalAudioBuffer || reelAudioBuffer;
+    const wavBlob = audioBufferToWavBlob(audioToSave);
     const audioBase64 = await blobToBase64(wavBlob);
     // Save video data if present
     let videoData = null;
@@ -2364,6 +2465,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
             text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
             prompt: s.prompt, isVideo: s.isVideo,
             transition: s.transition, transDur: s.transDur, motion: s.motion,
+            segmentIndex: s.segmentIndex,
           })) : [],
           audioData,
         };
@@ -2408,7 +2510,7 @@ if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
 });
 
 // ── Export ──
-if (btnReelExport) btnReelExport.addEventListener('click', async () => {
+async function exportSingleReel() {
   if (!reelAudioBuffer || !reelScenes) return;
   const platform = REEL_PLATFORMS[reelPlatform];
   const canvas = document.createElement('canvas');
@@ -2421,7 +2523,7 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
   exportProgress.classList.add('visible');
   exportBar.style.width = '0%';
   exportLabel.textContent = 'Preparing export...';
-  btnReelExport.disabled = true;
+  if (btnReelExport) btnReelExport.disabled = true;
 
   try {
     // Auto-detect best format (MP4 if available, else WebM)
@@ -2532,8 +2634,8 @@ if (btnReelExport) btnReelExport.addEventListener('click', async () => {
     setStatus('Export failed: ' + (e.message || 'Try a different browser or shorter duration.'));
   }
   exportProgress.classList.remove('visible');
-  btnReelExport.disabled = false;
-});
+}
+if (btnReelExport) btnReelExport.addEventListener('click', () => exportSingleReel());
 
 // ── Export All Reels ──
 const btnReelExportAll = $('btn-reel-export-all');
@@ -2542,26 +2644,20 @@ if (btnReelExportAll) btnReelExportAll.addEventListener('click', async () => {
   if (!results || results.length === 0) return;
   btnReelExportAll.disabled = true;
   for (let ri = 0; ri < results.length; ri++) {
-    selectReelPreview(ri);
-    renderAllReelPreviews();
+    const r = results[ri];
+    reelAudioBuffer = r.audioBuffer;
+    reelScenes = r.scenes;
+    reelWords = r.words;
+    activeReelPreview = ri;
     setStatus(`Exporting reel ${ri + 1} of ${results.length}...`);
-    // Trigger single export and wait
-    await new Promise((resolve) => {
-      const origOnClick = btnReelExport.onclick;
-      // Simulate export click
-      btnReelExport.click();
-      // Wait for export to finish (poll until button re-enables)
-      const check = setInterval(() => {
-        if (!btnReelExport.disabled) { clearInterval(check); resolve(); }
-      }, 500);
-    });
+    await exportSingleReel();
   }
   btnReelExportAll.disabled = false;
   setStatus(`All ${results.length} reels exported`);
 });
 
 // ── Open in Full Editor ──
-if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', async () => {
+async function openReelInFullEditor() {
   if (!reelAudioBuffer || !reelScenes) return;
   stopReelPreview();
   currentBuffer = reelAudioBuffer;
@@ -2690,7 +2786,8 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', async () => {
   if (typeof setupEditorLanguageSelector === 'function' && editorLanguageTracks.length > 0) setupEditorLanguageSelector();
   const items = photoItems.length + videoTimelineItems.length;
   setStatus(`Reel transferred to editor: ${items} items, ${subtitleItems.length} subtitles`);
-});
+}
+if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', () => openReelInFullEditor());
 
 function renderEditorReelTabs() {
   const tabsEl = $('editor-reel-tabs');
@@ -2820,7 +2917,11 @@ async function loadReelProject(project) {
     try {
       showPageLoader('Restoring audio...');
       const arrayBuf = base64ToArrayBuffer(project.audio.data);
-      reelAudioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+      const fullAudio = await ensureAudioCtx().decodeAudioData(arrayBuf);
+      reelOriginalAudioBuffer = fullAudio;
+      reelAudioBuffer = fullAudio;
+      // Show audio info in section 2
+      if (reelAudioName) reelAudioName.textContent = `Loaded audio (${fmtShort(fullAudio.duration)})`;
       hidePageLoader();
     } catch(e) { hidePageLoader(); setStatus('Could not restore audio'); }
   }
@@ -2882,60 +2983,111 @@ async function loadReelProject(project) {
   }
 
   // Restore multi results
-  if (project.multiResults && project.multiResults.length > 0) {
+  const savedResults = project.multiResults || [];
+  const results = [];
+  if (savedResults.length > 0) {
     showPageLoader('Restoring reels...');
-    const results = [];
-    for (const r of project.multiResults) {
+    for (let ri = 0; ri < savedResults.length; ri++) {
+      const r = savedResults[ri];
       let audioBuffer = reelAudioBuffer;
       if (r.audioData) {
         try {
           const buf = base64ToArrayBuffer(r.audioData);
           audioBuffer = await ensureAudioCtx().decodeAudioData(buf);
         } catch(e) {}
+      } else if (reelSegments.length > 0 && reelOriginalAudioBuffer) {
+        // Reconstruct segment audio from full original buffer
+        const si = r.segmentIndex ?? ri;
+        const seg = reelSegments[si];
+        if (seg) audioBuffer = extractRegion(reelOriginalAudioBuffer, seg.start, seg.end);
       }
       const scenes = r.scenes || reelScenes;
+      const si = r.segmentIndex ?? ri;
+      for (const s of scenes) { if (s.segmentIndex == null) s.segmentIndex = si; }
       await preloadSceneImages(scenes);
       results.push({
         audioBuffer,
         scenes,
         words: r.words || reelWords,
-        videoStart: r.videoStart, videoEnd: r.videoEnd,
-        audioLang: r.audioLang, subtitleLang: r.subtitleLang,
-        audioLangLabel: r.audioLangLabel, subtitleLangLabel: r.subtitleLangLabel,
-        segmentIndex: r.segmentIndex,
-        settings: r.settings,
+        videoStart: r.videoStart ?? (reelSegments[si]?.start || 0),
+        videoEnd: r.videoEnd ?? (reelSegments[si]?.end || audioBuffer.duration),
+        audioLang: r.audioLang || 'original', subtitleLang: r.subtitleLang || 'original',
+        audioLangLabel: r.audioLangLabel || 'Original', subtitleLangLabel: r.subtitleLangLabel || 'Original',
+        segmentIndex: si,
+        settings: r.settings || { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
       });
     }
-    window._reelMultiResults = results;
-    activeReelPreview = 0;
+    hidePageLoader();
+  }
+
+  // If we have segments but fewer results (old save), reconstruct missing ones
+  if (reelSegments.length > results.length && reelOriginalAudioBuffer) {
+    for (let si = 0; si < reelSegments.length; si++) {
+      if (results.some(r => r.segmentIndex === si)) continue; // already loaded
+      const seg = reelSegments[si];
+      const segAudio = extractRegion(reelOriginalAudioBuffer, seg.start, seg.end);
+      results.push({
+        audioBuffer: segAudio,
+        scenes: [], words: [],
+        videoStart: seg.start, videoEnd: seg.end,
+        audioLang: 'original', subtitleLang: 'original',
+        audioLangLabel: 'Original', subtitleLangLabel: 'Original',
+        segmentIndex: si,
+        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
+        needsRegeneration: true,
+      });
+    }
+  }
+
+  // If no results at all, create one from main scenes
+  if (results.length === 0 && reelAudioBuffer && reelScenes.length > 0) {
+    await preloadSceneImages(reelScenes);
+    results.push({
+      audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords,
+      videoStart: 0, videoEnd: reelAudioBuffer.duration,
+      audioLang: 'original', subtitleLang: 'original',
+      audioLangLabel: 'Original', subtitleLangLabel: 'Original',
+      segmentIndex: 0,
+      settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
+    });
+  }
+
+  window._reelMultiResults = results;
+  activeReelPreview = 0;
+  if (results.length > 0) {
     reelAudioBuffer = results[0].audioBuffer;
     reelScenes = results[0].scenes;
     reelWords = results[0].words;
-    hidePageLoader();
-  } else {
-    // No multi results — pre-load main scenes
-    await preloadSceneImages(reelScenes);
   }
 
-  // Show section 3 (presets) and section 4 (editor)
+  // Show section 3 (presets) with segments
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
+  if (reelSegments.length > 0) renderReelPresetSegments();
 
-  // Show section 3.5 (scene images) if scenes have images
-  const hasImages = reelScenes.some(s => s.imgDataUrl);
+  // Show section 3.5 (scene images) — collect from all results
+  const allLoadedScenes = results.flatMap(r => r.scenes || []);
+  const hasImages = allLoadedScenes.some(s => s.imgDataUrl);
   if (hasImages) {
-    reelPendingScenes = reelScenes;
+    reelPendingScenes = allLoadedScenes;
     if (reelStepScenes) reelStepScenes.classList.remove('hidden');
     renderReelSceneGrid(reelPendingScenes);
   }
 
-  if (reelScenes.length > 0) {
+  // Show section 4 (preview)
+  if (results.length > 0) {
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
   }
 
-  setStatus('Reel project loaded');
+  // Status
+  const needsRegen = results.filter(r => r.needsRegeneration);
+  if (needsRegen.length > 0) {
+    setStatus(`Project loaded. ${needsRegen.length} reel(s) need re-generation — click Generate Reel.`);
+  } else {
+    setStatus(`Project loaded — ${results.length} reel(s)`);
+  }
 }
 
 // ── Back to Reel from Editor ──

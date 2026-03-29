@@ -691,7 +691,7 @@
     <!-- Reel Step 3.5: Scene Images (audio/text mode only) -->
     <div class="reel-step hidden" id="reel-step-scenes">
       <h3><span class="step-num">3.5</span> Scene Images</h3>
-      <div id="reel-scene-grid" class="scene-grid"></div>
+      <div id="reel-scene-grid"></div>
       <div class="form-row mt-md" style="justify-content:center; gap:8px;">
         <button id="btn-reel-retry-images" class="btn-md" style="display:none;">Retry Failed</button>
         <button id="btn-reel-pause-images" class="btn-md" style="display:none;">Pause</button>
@@ -708,61 +708,12 @@
       <div class="reel-editor-vertical">
         <div id="reel-previews-container" style="display:none;"></div>
         <div class="reel-scenes mt-md" id="reel-scene-list"></div>
-        <div class="reel-settings mt-md">
-          <label class="form-label">Style: <select id="reel-edit-style"></select></label>
-          <label class="form-label">Transition: <select id="reel-edit-transition"></select></label>
-          <label class="form-label">Subtitle style:
-            <select id="reel-subtitle-style">
-              <option value="highlight" selected>Highlight</option>
-              <option value="word-by-word">Pop-up (2 words)</option>
-              <option value="karaoke">Karaoke</option>
-              <option value="bold-center">3-Word Highlight</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <label class="form-label">Color: <input type="color" id="reel-sub-color-preset" value="#ffffff"></label>
-          <label class="form-label">Outline: <input type="color" id="reel-sub-outline-preset" value="#000000"></label>
-          <label class="form-label">Backdrop:
-            <select id="reel-sub-backdrop-preset">
-              <option value="dark" selected>Dark</option>
-              <option value="blur">Blur</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <label class="form-label">Size:
-            <input type="range" id="reel-sub-size" min="2" max="8" value="4" step="0.5" style="width:60px;">
-            <span id="reel-sub-size-label" class="text-2xs">4</span>
-          </label>
-          <label class="form-label">Position:
-            <select id="reel-sub-position">
-              <option value="top">Top</option>
-              <option value="center">Center</option>
-              <option value="bottom" selected>Bottom</option>
-            </select>
-          </label>
-          <label class="form-label">Viewport:
-            <select id="reel-viewport">
-              <option value="fill-center" selected>Fill (center crop)</option>
-              <option value="fit">Fit (letterbox)</option>
-              <option value="left-third">Left third</option>
-              <option value="center-third">Center third</option>
-              <option value="right-third">Right third</option>
-              <option value="custom">Custom pan</option>
-            </select>
-          </label>
-          <label class="form-label reel-viewport-custom hidden" id="reel-viewport-custom-label">Pan:
-            <input type="range" id="reel-viewport-x" min="0" max="100" value="50" style="width:80px;">
-          </label>
-          <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
-          <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
-        </div>
-        <div class="form-row mt-md">
-          <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
-          <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
+        <div class="form-row mt-md" style="justify-content:center;">
+          <button id="btn-reel-export-all" class="primary btn-md">⬇ Export All</button>
           <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
           <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
         </div>
-        </div>
+        <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
       </div>
     </div>
   </div>

@@ -155,9 +155,9 @@ const MOTIONS = {
 // ── Plan Gating ──
 const PLAN_FREE = 'free';
 const PLAN_PRO = 'pro';
-let currentPlan = localStorage.getItem('stori_plan') || PLAN_FREE;
-function isPro() { return currentPlan === PLAN_PRO; }
-function isFree() { return currentPlan === PLAN_FREE; }
+let currentPlan = PLAN_PRO;
+function isPro() { return true; }
+function isFree() { return false; }
 
 const FREE_TEMPLATES = ['blank', 'bedtime-story', 'youtube-video', 'explainer', 'instagram-reel'];
 const FREE_STYLES = ['watercolor', 'cinematic', 'digital-art', 'photorealistic', 'minimalist'];

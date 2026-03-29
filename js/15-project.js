@@ -27,14 +27,6 @@ function openGalleryDb() {
 }
 
 async function saveProjectToGallery(jsonStr, name) {
-  // Gallery limit for free tier
-  if (isFree()) {
-    const existing = await getGalleryProjects();
-    if (existing.length >= 3) {
-      setStatus('Free plan allows 3 saved projects. Delete one or upgrade to Pro.');
-      return;
-    }
-  }
   const db = galleryDb || await openGalleryDb();
   // Generate thumbnail
   let thumbnailDataUrl = '';
