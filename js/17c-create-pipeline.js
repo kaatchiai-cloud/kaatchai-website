@@ -2201,12 +2201,13 @@ async function generateGridImage(prompts, key, stylePrompt) {
   const gridPrompt = `${stylePrefix}Generate a single image containing a 3x3 grid of 9 scenes arranged in 3 rows and 3 columns. Each cell is a separate scene. NO borders, NO lines, NO separators between cells. NO text, words, or letters anywhere. Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell.\n\n${cellDescriptions}\n\nThe image should be landscape orientation (16:9 aspect ratio). Each cell should be a complete, detailed scene.`.slice(0, 2000);
 
   const body = JSON.stringify({
-    contents: [{ parts: [{ text: gridPrompt }] }]
+    contents: [{ parts: [{ text: gridPrompt }] }],
+    generationConfig: { responseModalities: ['IMAGE'], imageDimension: { width: 2048, height: 1152 } }
   });
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
-    const model = 'gemini-2.5-flash-image';
+    const model = 'gemini-3-pro-image-preview';
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body }
@@ -2252,7 +2253,7 @@ function cropGridCells(gridDataUrl, rows, cols, sceneCount) {
         canvas.height = Math.round(sh);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-        results.push(canvas.toDataURL('image/jpeg', 0.92));
+        results.push(canvas.toDataURL('image/png'));
       }
       resolve(results);
     };

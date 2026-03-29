@@ -73,7 +73,7 @@ let reelGenImagesPaused = false;
 let reelGenImagesRunning = false;
 
 // Variation rows: each row = one reel variant (audio lang + subtitle lang)
-let reelVariationRows = [{ platform: 'instagram', duration: 60, audio: 'original', subtitle: 'original' }];
+let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'original' }];
 let reelPerSegmentVariations = {}; // segIndex → rows array, null = use global
 const REEL_LANG_OPTIONS = { original: 'Original', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
 
@@ -1201,10 +1201,12 @@ function renderAllReelPreviews() {
     const subPos = s.subPosition || reelSubPosition;
     const viewport = s.viewport || reelViewport;
     const vpx = s.viewportX ?? reelViewportX;
+    const transDur = r.scenes?.[1]?.transDur ?? 0.3;
     return `
       <label class="form-label">Transition: <select class="rc-transition" data-ri="${i}">
         ${Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}" ${k === trans ? 'selected' : ''}>${v.label}</option>`).join('')}
       </select></label>
+      <label class="form-label">Duration: <input type="range" class="rc-trans-dur" data-ri="${i}" min="0.1" max="1.0" value="${transDur}" step="0.1" style="width:50px;"><span class="rc-transdur-label text-2xs">${transDur}s</span></label>
       <label class="form-label">Subtitle: <select class="rc-sub-style" data-ri="${i}">
         ${Object.entries(REEL_SUBTITLE_STYLES).map(([k, v]) => `<option value="${k}" ${k === subStyle ? 'selected' : ''}>${v}</option>`).join('')}
       </select></label>
@@ -1230,8 +1232,7 @@ function renderAllReelPreviews() {
         <option value="custom" ${viewport === 'custom' ? 'selected' : ''}>Custom</option>
       </select></label>
       <label class="form-label ${viewport !== 'custom' ? 'hidden' : ''} rc-vpx-label" data-ri="${i}">Pan: <input type="range" class="rc-vpx" data-ri="${i}" min="0" max="100" value="${vpx}" style="width:60px;"></label>` : ''}
-      <button class="btn-xs rc-export" data-ri="${i}">⬇ Export</button>
-      <button class="btn-xs rc-editor" data-ri="${i}">Open in Editor</button>`;
+      <button class="btn-xs rc-export" data-ri="${i}">⬇ Export</button>`;
   }
 
   container.innerHTML = results.map((r, i) => {
@@ -1473,6 +1474,59 @@ function renderAllReelPreviews() {
         }
       }
     });
+    // Resume playback from seek position on release
+    scrub.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const idx = parseInt(scrub.dataset.ri);
+      const r = results[idx];
+      if (!r || !r.audioBuffer) return;
+      const seekTime = (scrub.value / 1000) * r.audioBuffer.duration;
+      // Start audio from seek position
+      const ctx = ensureAudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume();
+      const source = ctx.createBufferSource();
+      source.buffer = r.audioBuffer;
+      source.connect(ctx.destination);
+      const startedAt = ctx.currentTime - seekTime;
+      source.start(0, seekTime);
+      mpState[idx] = { source, startedAt, playing: true, animId: null };
+      const cvs = container.querySelector(`.reel-thumb-canvas[data-ri="${idx}"]`);
+      const timeEl = container.querySelector(`.reel-mp-time[data-ri="${idx}"]`);
+      const drawCtx = cvs?.getContext('2d');
+      function tickFromSeek() {
+        if (!mpState[idx]?.playing) return;
+        const elapsed = ctx.currentTime - mpState[idx].startedAt;
+        if (elapsed >= r.audioBuffer.duration) { stopMp(idx); return; }
+        scrub.value = Math.round((elapsed / r.audioBuffer.duration) * 1000);
+        if (timeEl) timeEl.textContent = fmtShort(elapsed);
+        if (drawCtx) {
+          drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
+          if (reelVideoEl && reelVideoEl.videoWidth > 0) {
+            const vp = r.settings?.viewport || reelViewport;
+            const vpx = r.settings?.viewportX ?? reelViewportX;
+            try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {}
+          } else if (r.scenes) {
+            const items = r.scenes.filter(s => s.imgDataUrl).map((s, i) => {
+              if (!s._img) { s._img = new Image(); s._img.src = s.imgDataUrl; }
+              return { startTime: s.startTime, duration: s.endTime - s.startTime, transition: i === 0 ? 'none' : (s.transition || 'none'), transDur: i === 0 ? 0 : (s.transDur || 0), motion: s.motion || 'none', imgEl: s._img };
+            });
+            if (items.length > 0 && typeof renderTimelineFrame === 'function') {
+              try { renderTimelineFrame(drawCtx, cw, ch, elapsed, items); } catch(e) {}
+            }
+          }
+          const rs3 = r.settings || {};
+          const sC2 = reelSubColor, sO2 = reelSubOutline, sB2 = reelSubBackdrop, sSz2 = reelSubSize, sP2 = reelSubPosition;
+          reelSubColor = rs3.subColor || sC2; reelSubOutline = rs3.subOutline || sO2;
+          reelSubBackdrop = rs3.subBackdrop || sB2; reelSubSize = rs3.subSize || sSz2; reelSubPosition = rs3.subPosition || sP2;
+          const subStyle3 = rs3.subtitleStyle || reelSubtitleStyle;
+          if (subStyle3 !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle3);
+          reelSubColor = sC2; reelSubOutline = sO2; reelSubBackdrop = sB2; reelSubSize = sSz2; reelSubPosition = sP2;
+        }
+        mpState[idx].animId = requestAnimationFrame(tickFromSeek);
+      }
+      source.onended = () => { if (mpState[idx]?.playing) stopMp(idx); };
+      mpState[idx].animId = requestAnimationFrame(tickFromSeek);
+    });
   });
 
   // Per-reel control handlers — update settings for that specific reel
@@ -1489,6 +1543,16 @@ function renderAllReelPreviews() {
     }
   }
   container.querySelectorAll('.rc-transition').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'transition')));
+  container.querySelectorAll('.rc-trans-dur').forEach(el => {
+    el.addEventListener('input', () => {
+      const dur = parseFloat(el.value);
+      const idx = parseInt(el.dataset.ri);
+      const r = results[idx];
+      if (r && r.scenes) r.scenes.forEach((s, si) => { if (si > 0) s.transDur = dur; });
+      const label = el.closest('label')?.querySelector('.rc-transdur-label');
+      if (label) label.textContent = dur.toFixed(1) + 's';
+    });
+  });
   container.querySelectorAll('.rc-sub-style').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subtitleStyle')));
   container.querySelectorAll('.rc-sub-color').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subColor')));
   container.querySelectorAll('.rc-sub-outline').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subOutline')));
@@ -1632,6 +1696,7 @@ const reelSceneGrid = $('reel-scene-grid');
 function renderReelSceneGrid(scenes) {
   if (!reelSceneGrid) return;
   reelSceneGrid.innerHTML = '';
+  reelSelectedSceneIdxs.clear();
   const platform = REEL_PLATFORMS[reelPlatform];
   const ratio = `${platform.width}/${platform.height}`;
 
@@ -1690,6 +1755,21 @@ function renderReelSceneGrid(scenes) {
 
     // Regenerate
     card.querySelector('.btn-regen').addEventListener('click', () => reelRegenerateScene(idx));
+    // Click image to toggle selection for multi-regen
+    const imgArea = card.querySelector('.scene-img');
+    imgArea.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('input')) return;
+      if (reelSelectedSceneIdxs.has(idx)) {
+        reelSelectedSceneIdxs.delete(idx);
+        card.style.borderColor = '';
+        card.style.boxShadow = '';
+      } else {
+        reelSelectedSceneIdxs.add(idx);
+        card.style.borderColor = 'var(--accent)';
+        card.style.boxShadow = '0 0 10px var(--accent-glow)';
+      }
+      updateReelRegenSelectedBtn();
+    });
     // Download
     const dlBtn = card.querySelector('.btn-download-img');
     if (dlBtn) dlBtn.addEventListener('click', () => {
@@ -1727,6 +1807,30 @@ function renderReelSceneGrid(scenes) {
   });
 }
 
+function updateReelRegenSelectedBtn() {
+  let btn = $('btn-reel-regen-selected');
+  const container = $('reel-step-scenes');
+  if (!container) return;
+  const count = reelSelectedSceneIdxs.size;
+  if (count === 0) {
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'btn-reel-regen-selected';
+    btn.className = 'primary btn-md';
+    btn.style.cssText = 'display:block; margin:12px auto;';
+    const grid = $('reel-scene-grid');
+    if (grid) grid.after(btn);
+    btn.addEventListener('click', () => reelRegenerateSelected());
+  }
+  const method = count >= 4 ? 'grid' : 'individual';
+  const cost = count >= 4 ? '$0.134' : `$${(count * 0.039).toFixed(3)}`;
+  btn.textContent = `🔄 Regenerate Selected (${count}) — ${method} mode ~${cost}`;
+  btn.style.display = '';
+}
+
 async function reelUpdatePromptFromReference(idx, scenes) {
   const scene = scenes[idx];
   if (!scene.refImageDataUrl) return;
@@ -1753,6 +1857,8 @@ async function reelUpdatePromptFromReference(idx, scenes) {
     }
   }
 }
+
+let reelSelectedSceneIdxs = new Set();
 
 function reelUpdateSceneCardImage(idx) {
   const imgDiv = $(`reel-scene-img-${idx}`);
@@ -1837,6 +1943,20 @@ async function reelGenerateSceneImage(idx) {
 
 function reelRegenerateScene(idx) { reelGenerateSceneImage(idx); }
 
+async function reelRegenerateSelected() {
+  if (reelSelectedSceneIdxs.size === 0 || !reelPendingScenes) return;
+  const scenesToRegen = [...reelSelectedSceneIdxs]
+    .sort((a, b) => a - b)
+    .map(idx => reelPendingScenes[idx])
+    .filter(Boolean);
+  if (scenesToRegen.length === 0) return;
+  for (const s of scenesToRegen) { s.status = 'pending'; }
+  reelSelectedSceneIdxs.clear();
+  document.querySelectorAll('.scene-card').forEach(c => { c.style.borderColor = ''; c.style.boxShadow = ''; });
+  updateReelRegenSelectedBtn();
+  await reelRunImageGeneration(scenesToRegen);
+}
+
 async function reelRunImageGeneration(scenesToGen) {
   const btnGenImages = $('btn-reel-gen-images');
   const btnRetry = $('btn-reel-retry-images');
@@ -1871,13 +1991,41 @@ async function reelRunImageGeneration(scenesToGen) {
       if (barEl) barEl.style.width = '30%';
       const key = getReelApiKey();
       const gridDataUrl = await generateGridImage(prompts, key, stylePrompt);
-      if (barEl) barEl.style.width = '60%';
-      const cells = await cropGridCells(gridDataUrl, 3, 3, total);
-      if (barEl) barEl.style.width = '80%';
+      if (barEl) barEl.style.width = '50%';
+      // Log original grid size
+      const origSize = await new Promise(r => { const i = new Image(); i.onload = () => r({w: i.naturalWidth, h: i.naturalHeight}); i.onerror = () => r({w:0,h:0}); i.src = gridDataUrl; });
+      console.log('[Grid] Original grid size:', origSize.w, 'x', origSize.h, 'dataUrl length:', gridDataUrl.length);
+      // Upscale full grid to 4K before cropping for better cell resolution
+      if (labelEl) labelEl.textContent = 'Upscaling grid to 4K...';
+      const upscaledGrid = await new Promise((resolve, reject) => {
+        const gridImg = new Image();
+        gridImg.onload = () => {
+          const scale = 2; // 2K → 4K
+          const canvas = document.createElement('canvas');
+          canvas.width = gridImg.naturalWidth * scale;
+          canvas.height = gridImg.naturalHeight * scale;
+          console.log('[Grid] Upscaled grid size:', canvas.width, 'x', canvas.height);
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(gridImg, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        gridImg.onerror = () => { console.error('[Grid] Failed to load grid for upscale'); resolve(gridDataUrl); };
+        gridImg.src = gridDataUrl;
+      });
+      if (barEl) barEl.style.width = '70%';
+      const cells = await cropGridCells(upscaledGrid, 3, 3, total);
+      // Log cell sizes
+      if (cells.length > 0) {
+        const cellCheck = await new Promise(r => { const i = new Image(); i.onload = () => r({w: i.naturalWidth, h: i.naturalHeight}); i.onerror = () => r({w:0,h:0}); i.src = cells[0]; });
+        console.log('[Grid] Cell 0 size:', cellCheck.w, 'x', cellCheck.h, 'total cells:', cells.length);
+      }
+      if (barEl) barEl.style.width = '85%';
       for (let gi = 0; gi < cells.length; gi++) {
         const scene = scenesToGen[gi];
         const idx = reelPendingScenes.indexOf(scene);
-        scene.imgDataUrl = typeof browserUpscale === 'function' ? browserUpscale(cells[gi], REEL_PLATFORMS[reelPlatform].width, REEL_PLATFORMS[reelPlatform].height) : cells[gi];
+        scene.imgDataUrl = cells[gi];
         scene._img = null;
         scene.status = 'done';
         reelUpdateSceneCardImage(idx);
@@ -2362,8 +2510,9 @@ function renderVariationRows() {
   if (!container) return;
   const langHtml = Object.entries(REEL_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   const platHtml = Object.entries(REEL_PLATFORMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
-  const durHtml = [30, 60, 90, 120].map(d => `<option value="${d}">${d} seconds</option>`).join('');
-  // Row 0 inline (Audio + Sub only, shares Platform/Duration from presets row)
+  const styleHtml = typeof STYLE_PRESETS !== 'undefined' ? Object.keys(STYLE_PRESETS).map(k => `<option value="${k}">${k.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`).join('') : '<option value="cinematic">Cinematic</option>';
+  const transHtml = Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  // Row 0 inline (Audio + Sub only, shares Platform/Style/Transition from presets row)
   container.innerHTML = `<label class="form-label" data-vi="0">Audio: <select class="var-audio" data-vi="0">${langHtml}</select></label>
     <label class="form-label" data-vi="0">Sub: <select class="var-subtitle" data-vi="0">${langHtml}</select></label>`;
 
@@ -2378,24 +2527,29 @@ function renderVariationRows() {
     const i = idx + 1;
     return `<div class="reel-presets-row" style="margin-top:6px;" data-vi="${i}">
       <label class="form-label">Platform: <select class="var-platform" data-vi="${i}">${platHtml}</select></label>
-      <label class="form-label">Duration: <select class="var-duration" data-vi="${i}">${durHtml}</select></label>
+      <label class="form-label">Visual style: <select class="var-style" data-vi="${i}">${styleHtml}</select></label>
+      <label class="form-label">Transition: <select class="var-transition" data-vi="${i}">${transHtml}</select></label>
       <label class="form-label">Audio: <select class="var-audio" data-vi="${i}">${langHtml}</select></label>
       <label class="form-label">Sub: <select class="var-subtitle" data-vi="${i}">${langHtml}</select></label>
       <button class="variation-remove" data-vi="${i}">✕</button>
     </div>`;
   }).join('');
-  // Set selected values
-  // Wire up all selects and remove buttons across both containers
+  // Set selected values and wire up event handlers
   [container, extraContainer].forEach(el => {
     el.querySelectorAll('.var-platform').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
-      sel.value = reelVariationRows[i].platform || 'instagram';
+      sel.value = reelVariationRows[i].platform || reelPlatform || 'instagram';
       sel.addEventListener('change', () => { reelVariationRows[i].platform = sel.value; });
     });
-    el.querySelectorAll('.var-duration').forEach(sel => {
+    el.querySelectorAll('.var-style').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
-      sel.value = reelVariationRows[i].duration || 60;
-      sel.addEventListener('change', () => { reelVariationRows[i].duration = parseInt(sel.value); });
+      sel.value = reelVariationRows[i].style || (reelStyleEl ? reelStyleEl.value : 'cinematic');
+      sel.addEventListener('change', () => { reelVariationRows[i].style = sel.value; });
+    });
+    el.querySelectorAll('.var-transition').forEach(sel => {
+      const i = parseInt(sel.dataset.vi);
+      sel.value = reelVariationRows[i].transition || reelTransition || 'whip-pan';
+      sel.addEventListener('change', () => { reelVariationRows[i].transition = sel.value; });
     });
     el.querySelectorAll('.var-audio').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
@@ -2431,7 +2585,7 @@ function updateVariationCount() {
 
 const btnAddVariation = $('btn-add-variation');
 if (btnAddVariation) btnAddVariation.addEventListener('click', () => {
-  reelVariationRows.push({ platform: reelPlatform, duration: reelDuration, audio: 'original', subtitle: 'original' });
+  reelVariationRows.push({ platform: reelPlatform, style: reelStyleEl ? reelStyleEl.value : 'cinematic', transition: reelTransition, audio: 'original', subtitle: 'original' });
   renderVariationRows();
 });
 

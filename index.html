@@ -200,36 +200,13 @@
     <!-- Step 1: API Key -->
     <div class="create-step">
       <h3><span class="step-num">1</span> Gemini API Key</h3>
-      <div class="tier-cards">
-        <div class="tier-card" id="tier-card-free">
-          <label class="tier-radio">
-            <input type="radio" name="active-tier" value="free" id="tier-radio-free" checked>
-            <span class="tier-label">Free Tier</span>
-          </label>
-          <div class="create-row mt-sm">
-            <input type="password" id="create-api-key-free" placeholder="Free tier API key">
-            <button id="btn-save-key-free" class="primary btn-sm">Save</button>
-            <span id="key-status-free" class="text-sm"></span>
-          </div>
-          <span id="key-image-status" class="text-xs mt-xs block"></span>
-          <p class="hint-text">No credit card needed. Slower image generation (2/min).</p>
-        </div>
-        <div class="tier-card" id="tier-card-paid">
-          <label class="tier-radio">
-            <input type="radio" name="active-tier" value="paid" id="tier-radio-paid">
-            <span class="tier-label">Paid Tier</span>
-          </label>
-          <div class="create-row mt-sm">
-            <input type="password" id="create-api-key-paid" placeholder="Paid tier API key">
-            <button id="btn-save-key-paid" class="primary btn-sm">Save</button>
-            <span id="key-status-paid" class="text-sm"></span>
-          </div>
-          <p class="hint-text">Higher quality images + faster generation (~$0.04/image).</p>
-        </div>
+      <div class="create-row mt-sm">
+        <input type="password" id="create-api-key-paid" placeholder="Gemini API key">
+        <button id="btn-save-key-paid" class="primary btn-sm">Save</button>
+        <span id="key-status-paid" class="text-sm"></span>
       </div>
       <p class="text-xs text-muted mt-md">
         Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a>.
-        Paid: <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">enable billing</a> on your project.
       </p>
       <p class="cost-disclaimer">Cost estimates shown in the app are approximate and based on published API pricing. Actual charges are determined by your API provider and may vary. Stori does not charge for API usage — costs are billed directly by Google to your account. For actual usage and billing, check your <a href="https://console.cloud.google.com/billing" target="_blank" class="link-accent">Google Cloud Console</a>.</p>
     </div>
@@ -558,18 +535,12 @@
     <div class="reel-step" id="reel-step-key">
       <h3><span class="step-num">1</span> API Keys</h3>
       <div class="form-row mb-md">
-        <span class="text-xs text-secondary" style="min-width:70px;">Free tier:</span>
-        <input type="password" id="reel-api-key-free" placeholder="Free Gemini API key (subtitles, transcription)" style="width:280px;">
-        <button id="btn-reel-save-key-free" class="primary btn-xs">Save</button>
-        <span id="reel-key-status-free" class="text-xs text-muted"></span>
-      </div>
-      <div class="form-row mb-md">
-        <span class="text-xs text-secondary" style="min-width:70px;">Paid tier:</span>
-        <input type="password" id="reel-api-key-paid" placeholder="Paid Gemini API key (image gen, faster)" style="width:280px;">
-        <button id="btn-reel-save-key-paid" class="btn-xs">Save</button>
+        <span class="text-xs text-secondary" style="min-width:70px;">API Key:</span>
+        <input type="password" id="reel-api-key-paid" placeholder="Gemini API key" style="width:280px;">
+        <button id="btn-reel-save-key-paid" class="primary btn-xs">Save</button>
         <span id="reel-key-status-paid" class="text-xs text-muted"></span>
       </div>
-      <p class="hint-text">Free key: subtitles + transcription (no cost). Paid key: image generation + faster processing. Get key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a></p>
+      <p class="hint-text">Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank" class="link-accent">aistudio.google.com</a></p>
     </div>
 
     <!-- Reel Step 2: Input -->
