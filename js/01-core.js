@@ -174,6 +174,7 @@ const COST_ESTIMATES = {
   tts: 0.003,                // per 5 min TTS
   ttsPerLang: 0.02,          // per language track (translate + TTS)
   visionDescribe: 0.002,     // per image description (auto-describe)
+  gridGen2K: 0.134,          // per 3x3 grid (up to 9 images in one call)
 };
 let sessionCost = 0;
 let sessionCalls = 0;

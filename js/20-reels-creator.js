@@ -1855,6 +1855,47 @@ async function reelRunImageGeneration(scenesToGen) {
   if (labelEl) labelEl.style.color = '';
   const total = scenesToGen.length;
 
+  // Grid mode: 4+ scenes without reference images → single grid API call (saves ~50% cost)
+  const hasRefs = scenesToGen.some(s => s.refImageDataUrl || (s.refCharacters && s.refCharacters.length > 0));
+  if (total >= 4 && !hasRefs && typeof generateGridImage === 'function') {
+    try {
+      const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+      const stylePrompt = (typeof STYLE_PRESETS !== 'undefined' && STYLE_PRESETS[styleName]) || '';
+      const prompts = scenesToGen.map(s => {
+        const idx = reelPendingScenes.indexOf(s);
+        const promptEl = $(`reel-scene-prompt-${idx}`);
+        if (promptEl) s.prompt = promptEl.value;
+        return s.prompt || s.text || 'A cinematic scene';
+      });
+      if (labelEl) labelEl.textContent = `Generating ${total} images in grid mode...`;
+      if (barEl) barEl.style.width = '30%';
+      const key = getReelApiKey();
+      const gridDataUrl = await generateGridImage(prompts, key, stylePrompt);
+      if (barEl) barEl.style.width = '60%';
+      const cells = await cropGridCells(gridDataUrl, 3, 3, total);
+      if (barEl) barEl.style.width = '80%';
+      for (let gi = 0; gi < cells.length; gi++) {
+        const scene = scenesToGen[gi];
+        const idx = reelPendingScenes.indexOf(scene);
+        scene.imgDataUrl = typeof browserUpscale === 'function' ? browserUpscale(cells[gi], REEL_PLATFORMS[reelPlatform].width, REEL_PLATFORMS[reelPlatform].height) : cells[gi];
+        scene._img = null;
+        scene.status = 'done';
+        reelUpdateSceneCardImage(idx);
+        reelUpdateSceneCardStatus(idx);
+      }
+      trackCost('gridGen2K', 1);
+      reelGenImagesRunning = false;
+      if (btnPause) btnPause.style.display = 'none';
+      if (barEl) barEl.style.width = '100%';
+      if (labelEl) labelEl.textContent = `Done! ${cells.length} images generated (grid mode — $0.134 vs $${(total * 0.039).toFixed(3)} individual).`;
+      if (btnGenImages) btnGenImages.disabled = false;
+      return;
+    } catch(gridErr) {
+      console.warn('[Grid] Grid generation failed, falling back to individual:', gridErr.message);
+      if (labelEl) labelEl.textContent = 'Grid failed, generating individually...';
+    }
+  }
+
   for (let i = 0; i < total; i++) {
     if (reelGenImagesPaused) {
       const doneNow = reelPendingScenes.filter(s => s.status === 'done').length;

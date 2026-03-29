@@ -2189,6 +2189,100 @@ async function generateImageImagen(prompt, key, { width, height } = {}, modelOve
   return `data:image/png;base64,${b64}`;
 }
 
+// ── Grid Image Generation ──
+// Generates up to 9 scene images in a single 3x3 grid API call
+async function generateGridImage(prompts, key, stylePrompt) {
+  // Pad to 9 prompts by duplicating from the start
+  const padded = [...prompts];
+  while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
+
+  const cellDescriptions = padded.map((p, i) => `Cell ${i + 1}: ${p}`).join('\n');
+  const stylePrefix = stylePrompt ? `Art style for ALL cells: ${stylePrompt}.\n\n` : '';
+  const gridPrompt = `${stylePrefix}Generate a single image containing a 3x3 grid of 9 scenes arranged in 3 rows and 3 columns. Each cell is a separate scene. NO borders, NO lines, NO separators between cells. NO text, words, or letters anywhere. Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell.\n\n${cellDescriptions}\n\nThe image should be landscape orientation (16:9 aspect ratio). Each cell should be a complete, detailed scene.`.slice(0, 2000);
+
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: gridPrompt }] }]
+  });
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+    const model = 'gemini-2.5-flash-image';
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body }
+    );
+    if (!resp.ok) {
+      if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) continue;
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Grid image error ${resp.status}`);
+    }
+    const data = await resp.json();
+    const resParts = data.candidates?.[0]?.content?.parts || [];
+    for (const part of resParts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+  }
+  throw new Error('Grid image generation failed after 3 attempts');
+}
+
+// Crops individual cells from a grid image
+function cropGridCells(gridDataUrl, rows, cols, sceneCount) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const cellW = img.width / cols;
+      const cellH = img.height / rows;
+      const trimPct = 0.05; // 5% edge trim to avoid bleed
+      const results = [];
+      for (let i = 0; i < Math.min(rows * cols, sceneCount); i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const cx = col * cellW + cellW / 2;
+        const cy = row * cellH + cellH / 2;
+        const halfW = cellW / 2 - (cellW * trimPct);
+        const halfH = cellH / 2 - (cellH * trimPct);
+        const sx = cx - halfW;
+        const sy = cy - halfH;
+        const sw = halfW * 2;
+        const sh = halfH * 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(sw);
+        canvas.height = Math.round(sh);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        results.push(canvas.toDataURL('image/jpeg', 0.92));
+      }
+      resolve(results);
+    };
+    img.onerror = () => reject(new Error('Failed to load grid image for cropping'));
+    img.src = gridDataUrl;
+  });
+}
+
+// Upscales image to target resolution using browser canvas (bicubic)
+function browserUpscale(dataUrl, targetW, targetH) {
+  const img = new Image();
+  img.src = dataUrl;
+  // If image not loaded yet, return dataUrl as-is (will be loaded by the time it's used)
+  if (img.naturalWidth === 0) return dataUrl;
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  // Scale to fit target dimensions (maintain aspect, no crop)
+  const scale = Math.max(targetW / img.naturalWidth, targetH / img.naturalHeight);
+  const sw = targetW / scale;
+  const sh = targetH / scale;
+  const sx = (img.naturalWidth - sw) / 2;
+  const sy = (img.naturalHeight - sh) / 2;
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
 async function generateSceneImage(idx) {
   const scene = createScenes[idx];
   const key = getImageKey() || getCreateGeminiKey();
