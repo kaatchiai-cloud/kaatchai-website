@@ -2191,26 +2191,32 @@ async function generateImageImagen(prompt, key, { width, height } = {}, modelOve
 
 // ── Grid Image Generation ──
 // Generates up to 9 scene images in a single 3x3 grid API call
-async function generateGridImage(prompts, key, stylePrompt) {
+async function generateGridImage(prompts, key, stylePrompt, modelOverride) {
   // Pad to 9 prompts by duplicating from the start
   const padded = [...prompts];
   while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
 
   const cellDescriptions = padded.map((p, i) => `Cell ${i + 1}: ${p}`).join('\n');
   const stylePrefix = stylePrompt ? `Art style for ALL cells: ${stylePrompt}.\n\n` : '';
-  const gridPrompt = `${stylePrefix}Generate a single image containing a 3x3 grid of 9 scenes arranged in 3 rows and 3 columns. Each cell is a separate scene. NO borders, NO lines, NO separators between cells. NO text, words, or letters anywhere. Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell.\n\n${cellDescriptions}\n\nThe image should be landscape orientation (16:9 aspect ratio). Each cell should be a complete, detailed scene.`.slice(0, 2000);
+  const gridPrompt = `${stylePrefix}Generate a single image containing a 3x3 grid of 9 scenes arranged in 3 rows and 3 columns. Each cell is a separate scene. NO borders, NO lines, NO separators between cells. NO text, words, or letters anywhere. Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell.\n\n${cellDescriptions}\n\nThe image should be square format (1:1 aspect ratio) at 2K resolution. Each cell should be a complete, detailed scene.`.slice(0, 2000);
 
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: gridPrompt }] }],
-    generationConfig: { responseModalities: ['IMAGE'], imageDimension: { width: 2048, height: 1152 } }
-  });
+  // 2.5 Flash: no generationConfig (flat pricing, returns 1K)
+  // 3.1 Flash / Pro: pass imageConfig with imageSize for resolution control
+  const useImageConfig = modelOverride ? !modelOverride.startsWith('gemini-2.5') : true;
+  const bodyObj = { contents: [{ parts: [{ text: gridPrompt }] }] };
+  if (useImageConfig) {
+    bodyObj.generationConfig = {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: { imageSize: '2K' }
+    };
+  }
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
-    const model = 'gemini-3-pro-image-preview';
+    const model = modelOverride || 'gemini-3-pro-image-preview';
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body }
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(bodyObj) }
     );
     if (!resp.ok) {
       if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) continue;
@@ -2225,7 +2231,7 @@ async function generateGridImage(prompts, key, stylePrompt) {
       }
     }
   }
-  throw new Error('Grid image generation failed after 3 attempts');
+  throw new Error('Grid image generation failed after 2 attempts');
 }
 
 // Crops individual cells from a grid image

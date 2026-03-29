@@ -613,6 +613,7 @@ function clampSegments(segs, minN, maxN) {
 
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
+  resetSessionCost();
   console.log('[ReelGen] Generate clicked, inputMode:', reelInputMode);
   const key = getReelApiKey();
   console.log('[ReelGen] API key:', key ? 'present' : 'MISSING');
@@ -1169,6 +1170,102 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 // ── Mini Editor ──
 let activeReelPreview = 0;
 
+// Upscale grid image and crop cells — shared by all grid fallback paths
+async function reelUpscaleAndCrop(gridDataUrl, scale, rows, cols, sceneCount, barEl, labelEl, label) {
+  if (labelEl) labelEl.textContent = `Upscaling ${label} grid...`;
+  const upscaled = await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth * scale;
+      canvas.height = img.naturalHeight * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      console.log(`[Grid] ${label} upscaled: ${img.naturalWidth}x${img.naturalHeight} → ${canvas.width}x${canvas.height}`);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(gridDataUrl);
+    img.src = gridDataUrl;
+  });
+  if (barEl) barEl.style.width = '70%';
+  const cells = await cropGridCells(upscaled, rows, cols, sceneCount);
+  if (barEl) barEl.style.width = '85%';
+  return cells;
+}
+
+// Draw reel frame: previous scene stays fully visible, current scene transitions in on top
+function drawReelSceneFrame(ctx, cw, ch, elapsed, scenes) {
+  const filtered = scenes.filter(s => s.imgDataUrl);
+  if (filtered.length === 0) return;
+  // Find current scene
+  let curIdx = filtered.findIndex(s => elapsed >= s.startTime && elapsed < s.endTime);
+  if (curIdx < 0) curIdx = elapsed >= filtered[filtered.length - 1].endTime ? filtered.length - 1 : 0;
+  const cur = filtered[curIdx];
+  if (!cur._img) { cur._img = new Image(); cur._img.src = cur.imgDataUrl; }
+  const td = curIdx === 0 ? 0 : (cur.transDur || 0);
+  const localT = elapsed - cur.startTime;
+  const inTransition = td > 0 && localT < td;
+  // Draw previous scene underneath during transition
+  if (inTransition && curIdx > 0) {
+    const prev = filtered[curIdx - 1];
+    if (!prev._img) { prev._img = new Image(); prev._img.src = prev.imgDataUrl; }
+    if (prev._img.naturalWidth > 0) {
+      ctx.save();
+      const prevMotion = prev.motion || 'none';
+      if (prevMotion !== 'none' && typeof applyMotionTransform === 'function') {
+        applyMotionTransform(ctx, prevMotion, 1, { startTime: prev.startTime, duration: prev.endTime - prev.startTime, imgEl: prev._img }, cw, ch);
+      }
+      drawCoverFit(ctx, prev._img, cw, ch);
+      ctx.restore();
+    }
+  }
+  // Draw current scene (with entry transition if applicable)
+  if (cur._img.naturalWidth > 0) {
+    const progress = td > 0 ? Math.min(localT / td, 1) : 1;
+    const eased = progress * progress * (3 - 2 * progress); // smoothstep
+    const motion = cur.motion || 'none';
+    const transition = curIdx === 0 ? 'none' : (cur.transition || 'none');
+    ctx.save();
+    if (motion !== 'none' && typeof applyMotionTransform === 'function') {
+      const lifeProg = (cur.endTime - cur.startTime) > 0 ? localT / (cur.endTime - cur.startTime) : 0;
+      applyMotionTransform(ctx, motion, lifeProg, { startTime: cur.startTime, duration: cur.endTime - cur.startTime, imgEl: cur._img }, cw, ch);
+    }
+    if (transition === 'none' || progress >= 1) {
+      drawCoverFit(ctx, cur._img, cw, ch);
+    } else if (transition === 'fade' || transition === 'crossfade') {
+      ctx.globalAlpha = eased;
+      drawCoverFit(ctx, cur._img, cw, ch);
+    } else if (transition === 'whip-pan') {
+      const ox = (1 - eased) * cw * 1.2;
+      const blur = Math.round(ox / cw * 30);
+      if (blur > 0) ctx.filter = `blur(${blur}px)`;
+      ctx.translate(ox, 0);
+      drawCoverFit(ctx, cur._img, cw, ch);
+      ctx.filter = 'none';
+    } else if (transition === 'zoom-in') {
+      const scale = 0.5 + 0.5 * eased;
+      ctx.globalAlpha = eased;
+      ctx.translate(cw / 2, ch / 2); ctx.scale(scale, scale); ctx.translate(-cw / 2, -ch / 2);
+      drawCoverFit(ctx, cur._img, cw, ch);
+    } else if (transition === 'flash') {
+      if (progress < 0.5) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); }
+      else { drawCoverFit(ctx, cur._img, cw, ch); }
+    } else if (transition === 'slide-left') {
+      ctx.translate((1 - eased) * cw, 0);
+      drawCoverFit(ctx, cur._img, cw, ch);
+    } else if (transition === 'slide-right') {
+      ctx.translate(-(1 - eased) * cw, 0);
+      drawCoverFit(ctx, cur._img, cw, ch);
+    } else {
+      ctx.globalAlpha = eased;
+      drawCoverFit(ctx, cur._img, cw, ch);
+    }
+    ctx.restore();
+  }
+}
+
 function renderAllReelPreviews() {
   const container = $('reel-previews-container');
   if (!container) return;
@@ -1202,27 +1299,37 @@ function renderAllReelPreviews() {
     const viewport = s.viewport || reelViewport;
     const vpx = s.viewportX ?? reelViewportX;
     const transDur = r.scenes?.[1]?.transDur ?? 0.3;
+    const curMotion = r.scenes?.[0]?.motion || 'slow-zoom-in';
     return `
-      <label class="form-label">Transition: <select class="rc-transition" data-ri="${i}">
-        ${Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}" ${k === trans ? 'selected' : ''}>${v.label}</option>`).join('')}
-      </select></label>
-      <label class="form-label">Duration: <input type="range" class="rc-trans-dur" data-ri="${i}" min="0.1" max="1.0" value="${transDur}" step="0.1" style="width:50px;"><span class="rc-transdur-label text-2xs">${transDur}s</span></label>
-      <label class="form-label">Subtitle: <select class="rc-sub-style" data-ri="${i}">
-        ${Object.entries(REEL_SUBTITLE_STYLES).map(([k, v]) => `<option value="${k}" ${k === subStyle ? 'selected' : ''}>${v}</option>`).join('')}
-      </select></label>
-      <label class="form-label">Color: <input type="color" class="rc-sub-color" data-ri="${i}" value="${subColor}"></label>
-      <label class="form-label">Outline: <input type="color" class="rc-sub-outline" data-ri="${i}" value="${subOutline}"></label>
-      <label class="form-label">Backdrop: <select class="rc-sub-backdrop" data-ri="${i}">
-        <option value="dark" ${subBackdrop === 'dark' ? 'selected' : ''}>Dark</option>
-        <option value="blur" ${subBackdrop === 'blur' ? 'selected' : ''}>Blur</option>
-        <option value="none" ${subBackdrop === 'none' ? 'selected' : ''}>None</option>
-      </select></label>
-      <label class="form-label">Size: <input type="range" class="rc-sub-size" data-ri="${i}" min="2" max="8" value="${subSize}" step="0.5" style="width:50px;"><span class="rc-size-label text-2xs">${subSize}</span></label>
-      <label class="form-label">Position: <select class="rc-sub-pos" data-ri="${i}">
-        <option value="top" ${subPos === 'top' ? 'selected' : ''}>Top</option>
-        <option value="center" ${subPos === 'center' ? 'selected' : ''}>Center</option>
-        <option value="bottom" ${subPos === 'bottom' ? 'selected' : ''}>Bottom</option>
-      </select></label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label class="form-label">Transition: <select class="rc-transition" data-ri="${i}">
+          ${Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}" ${k === trans ? 'selected' : ''}>${v.label}</option>`).join('')}
+        </select></label>
+        <label class="form-label">Duration: <input type="range" class="rc-trans-dur" data-ri="${i}" min="0.1" max="1.0" value="${transDur}" step="0.1" style="width:50px;"><span class="rc-transdur-label text-2xs">${transDur}s</span></label>
+        <label class="form-label">Motion: <select class="rc-motion" data-ri="${i}">
+          ${Object.entries(MOTIONS).map(([k, v]) => `<option value="${k}" ${k === curMotion ? 'selected' : ''}>${v}</option>`).join('')}
+        </select></label>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label class="form-label">Subtitle: <select class="rc-sub-style" data-ri="${i}">
+          ${Object.entries(REEL_SUBTITLE_STYLES).map(([k, v]) => `<option value="${k}" ${k === subStyle ? 'selected' : ''}>${v}</option>`).join('')}
+        </select></label>
+        <label class="form-label">Color: <input type="color" class="rc-sub-color" data-ri="${i}" value="${subColor}"></label>
+        <label class="form-label">Outline: <input type="color" class="rc-sub-outline" data-ri="${i}" value="${subOutline}"></label>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label class="form-label">Backdrop: <select class="rc-sub-backdrop" data-ri="${i}">
+          <option value="dark" ${subBackdrop === 'dark' ? 'selected' : ''}>Dark</option>
+          <option value="blur" ${subBackdrop === 'blur' ? 'selected' : ''}>Blur</option>
+          <option value="none" ${subBackdrop === 'none' ? 'selected' : ''}>None</option>
+        </select></label>
+        <label class="form-label">Size: <input type="range" class="rc-sub-size" data-ri="${i}" min="2" max="8" value="${subSize}" step="0.5" style="width:50px;"><span class="rc-size-label text-2xs">${subSize}</span></label>
+        <label class="form-label">Position: <select class="rc-sub-pos" data-ri="${i}">
+          <option value="top" ${subPos === 'top' ? 'selected' : ''}>Top</option>
+          <option value="center" ${subPos === 'center' ? 'selected' : ''}>Center</option>
+          <option value="bottom" ${subPos === 'bottom' ? 'selected' : ''}>Bottom</option>
+        </select></label>
+      </div>
       ${isVid ? `<label class="form-label">Viewport: <select class="rc-viewport" data-ri="${i}">
         <option value="fill-center" ${viewport === 'fill-center' ? 'selected' : ''}>Fill</option>
         <option value="fit" ${viewport === 'fit' ? 'selected' : ''}>Fit</option>
@@ -1239,28 +1346,26 @@ function renderAllReelPreviews() {
     const audioLabel = r.audioLangLabel || 'Original';
     const subLabel = r.subtitleLangLabel || 'Original';
     return `
-    <div class="reel-preview-section" data-ri="${i}" style="border:1px solid var(--border); border-radius:var(--radius); padding:12px; background:var(--bg-secondary);">
-      <div style="font-size:0.82rem; font-weight:600; margin-bottom:8px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span></div>
-      <div style="display:flex; gap:16px; align-items:flex-start;">
-        <div style="flex-shrink:0;">
-          <div class="reel-canvas-wrap" style="width:300px;">
-            <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+    <div class="reel-preview-section" data-ri="${i}" style="border:1px solid var(--border); border-radius:var(--radius); padding:16px; background:var(--bg-secondary); text-align:center;">
+      <div style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span></div>
+      <div style="display:inline-block;">
+        <div class="reel-canvas-wrap" style="width:300px; margin:0 auto;">
+          <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+        </div>
+        <div style="width:300px; margin:6px auto 0;">
+          <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+            <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
+            <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
           </div>
-          <div style="width:300px; margin-top:6px;">
-            <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
-              <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
-              <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
-            </div>
-            <div style="display:flex; gap:4px; justify-content:center;">
-              <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
-              <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
-              <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
-            </div>
+          <div style="display:flex; gap:4px; justify-content:center;">
+            <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
+            <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
+            <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
           </div>
         </div>
-        <div class="reel-preview-controls-right" style="display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; font-size:0.72rem;">
-          ${buildControlsHtml(i, r)}
-        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; font-size:0.72rem; margin-top:12px; align-items:center;">
+        ${buildControlsHtml(i, r)}
       </div>
     </div>`;
   }).join('');
@@ -1353,13 +1458,7 @@ function renderAllReelPreviews() {
             try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {}
           } else if (r.scenes) {
             // Use renderTimelineFrame for transitions between scenes
-            const items = r.scenes.filter(s => s.imgDataUrl).map((s, i) => {
-              if (!s._img) { s._img = new Image(); s._img.src = s.imgDataUrl; }
-              return { startTime: s.startTime, duration: s.endTime - s.startTime, transition: i === 0 ? 'none' : (s.transition || 'none'), transDur: i === 0 ? 0 : (s.transDur || 0), motion: s.motion || 'none', imgEl: s._img };
-            });
-            if (items.length > 0 && typeof renderTimelineFrame === 'function') {
-              try { renderTimelineFrame(drawCtx, cw, ch, elapsed, items); } catch(e) {}
-            }
+            try { drawReelSceneFrame(drawCtx, cw, ch, elapsed, r.scenes); } catch(e) {}
           }
           // Sync globals from per-reel settings for renderReelSubtitle
           const rs = r.settings || {};
@@ -1450,13 +1549,7 @@ function renderAllReelPreviews() {
           if (reelVideoEl && reelVideoEl.videoWidth > 0) {
             try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, r.settings?.viewport || 'fill-center', r.settings?.viewportX ?? 50); } catch(e) {}
           } else if (r.scenes) {
-            const items = r.scenes.filter(s => s.imgDataUrl).map((s, i) => {
-              if (!s._img) { s._img = new Image(); s._img.src = s.imgDataUrl; }
-              return { startTime: s.startTime, duration: s.endTime - s.startTime, transition: i === 0 ? 'none' : (s.transition || 'none'), transDur: i === 0 ? 0 : (s.transDur || 0), motion: s.motion || 'none', imgEl: s._img };
-            });
-            if (items.length > 0 && typeof renderTimelineFrame === 'function') {
-              try { renderTimelineFrame(drawCtx, cw, ch, t, items); } catch(e) {}
-            }
+            try { drawReelSceneFrame(drawCtx, cw, ch, t, r.scenes); } catch(e) {}
           }
           const rs2 = r.settings || {};
           const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition;
@@ -1506,13 +1599,7 @@ function renderAllReelPreviews() {
             const vpx = r.settings?.viewportX ?? reelViewportX;
             try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {}
           } else if (r.scenes) {
-            const items = r.scenes.filter(s => s.imgDataUrl).map((s, i) => {
-              if (!s._img) { s._img = new Image(); s._img.src = s.imgDataUrl; }
-              return { startTime: s.startTime, duration: s.endTime - s.startTime, transition: i === 0 ? 'none' : (s.transition || 'none'), transDur: i === 0 ? 0 : (s.transDur || 0), motion: s.motion || 'none', imgEl: s._img };
-            });
-            if (items.length > 0 && typeof renderTimelineFrame === 'function') {
-              try { renderTimelineFrame(drawCtx, cw, ch, elapsed, items); } catch(e) {}
-            }
+            try { drawReelSceneFrame(drawCtx, cw, ch, elapsed, r.scenes); } catch(e) {}
           }
           const rs3 = r.settings || {};
           const sC2 = reelSubColor, sO2 = reelSubOutline, sB2 = reelSubBackdrop, sSz2 = reelSubSize, sP2 = reelSubPosition;
@@ -1551,6 +1638,13 @@ function renderAllReelPreviews() {
       if (r && r.scenes) r.scenes.forEach((s, si) => { if (si > 0) s.transDur = dur; });
       const label = el.closest('label')?.querySelector('.rc-transdur-label');
       if (label) label.textContent = dur.toFixed(1) + 's';
+    });
+  });
+  container.querySelectorAll('.rc-motion').forEach(el => {
+    el.addEventListener('change', () => {
+      const idx = parseInt(el.dataset.ri);
+      const r = results[idx];
+      if (r && r.scenes) r.scenes.forEach(s => { s.motion = el.value; });
     });
   });
   container.querySelectorAll('.rc-sub-style').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subtitleStyle')));
@@ -1977,51 +2071,24 @@ async function reelRunImageGeneration(scenesToGen) {
 
   // Grid mode: 4+ scenes without reference images → single grid API call (saves ~50% cost)
   const hasRefs = scenesToGen.some(s => s.refImageDataUrl || (s.refCharacters && s.refCharacters.length > 0));
+  console.log('[Grid] Routing check: total=', total, 'hasRefs=', hasRefs, 'generateGridImage=', typeof generateGridImage);
   if (total >= 4 && !hasRefs && typeof generateGridImage === 'function') {
+    const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+    const stylePrompt = (typeof STYLE_PRESETS !== 'undefined' && STYLE_PRESETS[styleName]) || '';
+    const prompts = scenesToGen.map(s => {
+      const idx = reelPendingScenes.indexOf(s);
+      const promptEl = $(`reel-scene-prompt-${idx}`);
+      if (promptEl) s.prompt = promptEl.value;
+      return s.prompt || s.text || 'A cinematic scene';
+    });
+    const key = getReelApiKey();
     try {
-      const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
-      const stylePrompt = (typeof STYLE_PRESETS !== 'undefined' && STYLE_PRESETS[styleName]) || '';
-      const prompts = scenesToGen.map(s => {
-        const idx = reelPendingScenes.indexOf(s);
-        const promptEl = $(`reel-scene-prompt-${idx}`);
-        if (promptEl) s.prompt = promptEl.value;
-        return s.prompt || s.text || 'A cinematic scene';
-      });
       if (labelEl) labelEl.textContent = `Generating ${total} images in grid mode...`;
       if (barEl) barEl.style.width = '30%';
-      const key = getReelApiKey();
       const gridDataUrl = await generateGridImage(prompts, key, stylePrompt);
       if (barEl) barEl.style.width = '50%';
-      // Log original grid size
-      const origSize = await new Promise(r => { const i = new Image(); i.onload = () => r({w: i.naturalWidth, h: i.naturalHeight}); i.onerror = () => r({w:0,h:0}); i.src = gridDataUrl; });
-      console.log('[Grid] Original grid size:', origSize.w, 'x', origSize.h, 'dataUrl length:', gridDataUrl.length);
-      // Upscale full grid to 4K before cropping for better cell resolution
-      if (labelEl) labelEl.textContent = 'Upscaling grid to 4K...';
-      const upscaledGrid = await new Promise((resolve, reject) => {
-        const gridImg = new Image();
-        gridImg.onload = () => {
-          const scale = 2; // 2K → 4K
-          const canvas = document.createElement('canvas');
-          canvas.width = gridImg.naturalWidth * scale;
-          canvas.height = gridImg.naturalHeight * scale;
-          console.log('[Grid] Upscaled grid size:', canvas.width, 'x', canvas.height);
-          const ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(gridImg, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        gridImg.onerror = () => { console.error('[Grid] Failed to load grid for upscale'); resolve(gridDataUrl); };
-        gridImg.src = gridDataUrl;
-      });
-      if (barEl) barEl.style.width = '70%';
-      const cells = await cropGridCells(upscaledGrid, 3, 3, total);
-      // Log cell sizes
-      if (cells.length > 0) {
-        const cellCheck = await new Promise(r => { const i = new Image(); i.onload = () => r({w: i.naturalWidth, h: i.naturalHeight}); i.onerror = () => r({w:0,h:0}); i.src = cells[0]; });
-        console.log('[Grid] Cell 0 size:', cellCheck.w, 'x', cellCheck.h, 'total cells:', cells.length);
-      }
-      if (barEl) barEl.style.width = '85%';
+      // Pro returns 2K → upscale 2x to 4K → crop cells
+      const cells = await reelUpscaleAndCrop(gridDataUrl, 2, 3, 3, total, barEl, labelEl, 'Pro 2K');
       for (let gi = 0; gi < cells.length; gi++) {
         const scene = scenesToGen[gi];
         const idx = reelPendingScenes.indexOf(scene);
@@ -2039,8 +2106,48 @@ async function reelRunImageGeneration(scenesToGen) {
       if (btnGenImages) btnGenImages.disabled = false;
       return;
     } catch(gridErr) {
-      console.warn('[Grid] Grid generation failed, falling back to individual:', gridErr.message);
-      if (labelEl) labelEl.textContent = 'Grid failed, generating individually...';
+      console.warn('[Grid] Pro grid failed, trying 3.1 Flash 2K grid:', gridErr.message);
+      if (labelEl) labelEl.textContent = 'Pro failed, trying 3.1 Flash 2K grid...';
+      try {
+        // Fallback 1: gemini-3.1-flash-image-preview at 2K → upscale 2K→4K
+        const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview');
+        const fbCells = await reelUpscaleAndCrop(fbGrid, 2, 3, 3, total, barEl, labelEl, '3.1 Flash 2K');
+        for (let gi = 0; gi < fbCells.length; gi++) {
+          const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
+          scene.imgDataUrl = fbCells[gi]; scene._img = null; scene.status = 'done';
+          reelUpdateSceneCardImage(idx); reelUpdateSceneCardStatus(idx);
+        }
+        trackCost('gridGen2K', 1);
+        reelGenImagesRunning = false;
+        if (btnPause) btnPause.style.display = 'none';
+        if (barEl) barEl.style.width = '100%';
+        if (labelEl) labelEl.textContent = `Done! ${fbCells.length} images (3.1 Flash grid — $0.101).`;
+        if (btnGenImages) btnGenImages.disabled = false;
+        return;
+      } catch(fb1Err) {
+        console.warn('[Grid] 3.1 Flash grid failed, trying 2.5 Flash 1K grid:', fb1Err.message);
+        if (labelEl) labelEl.textContent = '3.1 Flash failed, trying 2.5 Flash 1K grid...';
+        try {
+          // Fallback 2: gemini-2.5-flash-image at 1K → upscale 1K→2K
+          const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image');
+          const fbCells2 = await reelUpscaleAndCrop(fbGrid2, 2, 3, 3, total, barEl, labelEl, '2.5 Flash 1K');
+          for (let gi = 0; gi < fbCells2.length; gi++) {
+            const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
+            scene.imgDataUrl = fbCells2[gi]; scene._img = null; scene.status = 'done';
+            reelUpdateSceneCardImage(idx); reelUpdateSceneCardStatus(idx);
+          }
+          trackCost('imageGenFast', 1);
+          reelGenImagesRunning = false;
+          if (btnPause) btnPause.style.display = 'none';
+          if (barEl) barEl.style.width = '100%';
+          if (labelEl) labelEl.textContent = `Done! ${fbCells2.length} images (2.5 Flash grid — $0.039).`;
+          if (btnGenImages) btnGenImages.disabled = false;
+          return;
+        } catch(fb2Err) {
+          console.warn('[Grid] All grid attempts failed, falling back to individual:', fb2Err.message);
+          if (labelEl) labelEl.textContent = 'All grids failed, generating individually...';
+        }
+      }
     }
   }
 
@@ -2768,14 +2875,16 @@ async function exportSingleReel() {
     }
 
     exportLabel.textContent = 'Recording frames...';
-    recorder.start(100); audioSource.start();
-    const t0 = performance.now();
+    recorder.start(100);
+    const audioCtxRef = ensureAudioCtx();
+    audioSource.start();
+    const audioStartedAt = audioCtxRef.currentTime;
     const totalDur = reelAudioBuffer.duration;
     let stopped = false;
 
     timerWorker.onmessage = () => {
       if (stopped) return;
-      const elapsed = (performance.now() - t0) / 1000;
+      const elapsed = audioCtxRef.currentTime - audioStartedAt;
       const progress = Math.min(elapsed / totalDur, 1);
       exportBar.style.width = (progress * 100).toFixed(1) + '%';
       exportLabel.textContent = `Exporting... ${Math.round(progress * 100)}% (${fmtShort(elapsed)} / ${fmtShort(totalDur)})`;
@@ -2787,24 +2896,28 @@ async function exportSingleReel() {
       }
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, platform.width, platform.height);
-      const scene = reelScenes.find((s, i) => elapsed >= s.startTime && elapsed < s.endTime);
-      if (scene) {
-        if (isVid && reelVideoEl) {
+      if (isVid && reelVideoEl) {
+        const scene = reelScenes.find(s => elapsed >= s.startTime && elapsed < s.endTime);
+        if (scene) {
           const vp = activeResult?.settings?.viewport || reelViewport;
           const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
           try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
             try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
           }
-        } else {
-          const idx = reelScenes.indexOf(scene);
-          const img = sceneImages[idx];
-          if (img) { try { drawCoverFit(ctx, img, platform.width, platform.height); } catch(e) {} }
         }
+      } else {
+        try { drawReelSceneFrame(ctx, platform.width, platform.height, elapsed, reelScenes); } catch(e) {}
       }
-      const subStyle = activeResult?.settings?.subtitleStyle || reelSubtitleStyle;
+      // Sync per-reel subtitle settings
+      const rs = activeResult?.settings || {};
+      const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
+      reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
+      reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+      const subStyle = rs.subtitleStyle || reelSubtitleStyle;
       if (subStyle !== 'none' && reelWords.length > 0) {
         renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
       }
+      reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
       if (isFree()) {
         ctx.save(); ctx.globalAlpha = 0.5;
         ctx.font = '600 20px Poppins, sans-serif'; ctx.fillStyle = '#fff';
