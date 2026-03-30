@@ -159,9 +159,9 @@ let currentPlan = PLAN_PRO;
 function isPro() { return true; }
 function isFree() { return false; }
 
-const FREE_TEMPLATES = ['blank', 'bedtime-story', 'youtube-video', 'explainer', 'instagram-reel'];
+const FREE_TEMPLATES = ['blank', 'bedtime-story', 'youtube-video', 'explainer'];
 const FREE_STYLES = ['watercolor', 'cinematic', 'digital-art', 'photorealistic', 'minimalist'];
-const FREE_SIZES = ['1280x720', '1080x1920', '1080x1080'];
+const FREE_SIZES = ['1280x720', '1080x1080'];
 const FREE_TRANSITIONS = ['none', 'fade'];
 
 

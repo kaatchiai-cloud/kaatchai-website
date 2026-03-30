@@ -2163,12 +2163,17 @@ async function reelGenerateSceneImage(idx) {
     const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
     const stylePrompt = STYLE_PRESETS[styleName] || '';
     const hasRefs = (scene.refCharacters && scene.refCharacters.length > 0) || (scene.refEnvironment >= 0);
+    const isSpecialStyle = typeof SPECIAL_STYLES !== 'undefined' && SPECIAL_STYLES.includes(styleName);
     let effectivePrompt = hasRefs
       ? buildScenePromptWithRefs(scene, scene.prompt)
       : (stylePrompt ? `Style: ${stylePrompt}. Scene: ${scene.prompt}` : scene.prompt);
-    effectivePrompt += ' STRICT: Do NOT include any text, words, letters in the image. Vertical 9:16 portrait format.';
+    if (isSpecialStyle) {
+      effectivePrompt = `Style: ${stylePrompt}. ${scene.prompt} Place the main subject at the center of the image. Fill the entire 9:16 vertical canvas. Do NOT include any text, words, or letters.`;
+    } else {
+      effectivePrompt += ' STRICT: Do NOT include any text, words, letters in the image. Vertical 9:16 portrait format.';
+    }
     const refParts = hasRefs ? getSceneRefImageParts(scene) : [];
-    const opts = { width: platform.width, height: platform.height, refImageDataUrl: scene.refImageDataUrl, refParts };
+    const opts = { width: platform.width, height: platform.height, refImageDataUrl: scene.refImageDataUrl, refParts, aspectRatio: '9:16' };
     const models = getImageModels();
     let imgDataUrl = null, lastError = null;
     for (const model of models) {
@@ -2235,10 +2240,12 @@ async function reelRunImageGeneration(scenesToGen) {
   const total = scenesToGen.length;
 
   // Grid mode: 4+ scenes without reference images → single grid API call (saves ~50% cost)
+  // Skip grid for special styles — use individual Flash 2.5 generation instead
   const hasRefs = scenesToGen.some(s => s.refImageDataUrl || (s.refCharacters && s.refCharacters.length > 0));
-  console.log('[Grid] Routing check: total=', total, 'hasRefs=', hasRefs, 'generateGridImage=', typeof generateGridImage);
-  if (total >= 4 && !hasRefs && typeof generateGridImage === 'function') {
-    const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+  const styleName = reelStyleEl ? reelStyleEl.value : 'cinematic';
+  const isSkipStyle = typeof SPECIAL_STYLES !== 'undefined' && SPECIAL_STYLES.includes(styleName);
+  console.log('[Grid] Routing check: total=', total, 'hasRefs=', hasRefs, 'style=', styleName, 'isSkipStyle=', isSkipStyle, 'generateGridImage=', typeof generateGridImage);
+  if (total >= 4 && !hasRefs && !isSkipStyle && typeof generateGridImage === 'function') {
     const stylePrompt = (typeof STYLE_PRESETS !== 'undefined' && STYLE_PRESETS[styleName]) || '';
     const prompts = scenesToGen.map(s => {
       const idx = reelPendingScenes.indexOf(s);

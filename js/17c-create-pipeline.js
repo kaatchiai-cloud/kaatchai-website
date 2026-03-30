@@ -2092,7 +2092,7 @@ const GEMINI_IMAGE_MODELS = [
 ];
 let geminiImageModel = null; // cached after first success
 
-async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl, refParts } = {}, modelOverride) {
+async function generateImageGeminiFlash(prompt, key, { width, height, refImageDataUrl, refParts, aspectRatio } = {}, modelOverride) {
   const sizeHint = width && height ? ` The image should be ${width}x${height} pixels, ${width > height ? 'landscape' : width < height ? 'portrait' : 'square'} orientation.` : '';
   const cleanPrompt = prompt.trim().slice(0, 1200);
 
@@ -2116,9 +2116,9 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
     parts.push({ text: `Generate an image: ${cleanPrompt}${sizeHint}` });
   }
 
-  const body = JSON.stringify({
-    contents: [{ parts }]
-  });
+  const bodyObj = { contents: [{ parts }] };
+  if (aspectRatio) bodyObj.generationConfig = { imageConfig: { aspectRatio } };
+  const body = JSON.stringify(bodyObj);
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
