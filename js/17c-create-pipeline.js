@@ -355,9 +355,9 @@ function setCreateInputMode(mode) {
   createModeVoice.classList.toggle('active', mode === 'voice');
   createModeVideo.classList.toggle('active', mode === 'video');
   createModeText.classList.toggle('active', mode === 'text');
-  createVoiceSection.style.display = mode === 'voice' ? '' : 'none';
-  createVideoSection.style.display = mode === 'video' ? '' : 'none';
-  createTextSection.style.display = mode === 'text' ? '' : 'none';
+  createVoiceSection.classList.toggle('hidden', mode !== 'voice');
+  createVideoSection.classList.toggle('hidden', mode !== 'video');
+  createTextSection.classList.toggle('hidden', mode !== 'text');
   // Show lock icon on podcast tab for free tier
   if (isFree()) createModeVideo.innerHTML = '🔒 Podcast';
   else createModeVideo.innerHTML = '🎙️ Podcast';
@@ -638,14 +638,14 @@ function createPushUndo() {
 }
 
 async function showCreateAudioEditor() {
-  createAudioEditor.style.display = 'block';
+  createAudioEditor.classList.remove('hidden');
   createUndoStack = [];
   await refreshCreateWaveform();
 }
 
 function destroyCreateAudioEditor() {
   if (createWavesurfer) { createWavesurfer.destroy(); createWavesurfer = null; }
-  createAudioEditor.style.display = 'none';
+  createAudioEditor.classList.add('hidden');
   createUndoStack = [];
   createActiveRegion = null;
 }
@@ -2191,23 +2191,55 @@ async function generateImageImagen(prompt, key, { width, height } = {}, modelOve
 
 // ── Grid Image Generation ──
 // Generates up to 9 scene images in a single 3x3 grid API call
-async function generateGridImage(prompts, key, stylePrompt, modelOverride) {
+async function generateGridImage(prompts, key, stylePrompt, modelOverride, formatHint) {
   // Pad to 9 prompts by duplicating from the start
   const padded = [...prompts];
   while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
 
-  const cellDescriptions = padded.map((p, i) => `Cell ${i + 1}: ${p}`).join('\n');
-  const stylePrefix = stylePrompt ? `Art style for ALL cells: ${stylePrompt}.\n\n` : '';
-  const gridPrompt = `${stylePrefix}Generate a single image containing a 3x3 grid of 9 scenes arranged in 3 rows and 3 columns. Each cell is a separate scene. NO borders, NO lines, NO separators between cells. NO text, words, or letters anywhere. Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell.\n\n${cellDescriptions}\n\nThe image should be square format (1:1 aspect ratio) at 2K resolution. Each cell should be a complete, detailed scene.`.slice(0, 2000);
+  const stylePrefix = stylePrompt ? `Style: ${stylePrompt}\n\n` : '';
+  const format = formatHint || 'square format (1:1 aspect ratio)';
+  const arMatch = format.match(/\((\d+:\d+) aspect ratio\)/);
+  const gridAspectRatio = arMatch ? arMatch[1] : '1:1';
+
+  // Exact 2K canvas dimensions per aspect ratio
+  const CANVAS_SIZES = {
+    '9:16': { w: 1536, h: 2752 },
+    '16:9': { w: 2752, h: 1536 },
+    '1:1':  { w: 2048, h: 2048 },
+    '4:5':  { w: 1792, h: 2240 },
+  };
+  const canvas = CANVAS_SIZES[gridAspectRatio] || CANVAS_SIZES['1:1'];
+  const cw = canvas.w, ch = canvas.h;
+  const cellW = Math.round(cw / 3), cellH = Math.round(ch / 3);
+
+  // Compute exact pixel start/end for each of the 9 cells
+  const CELL_PIXELS = [
+    { pos: 'top-left',      x1: 0,        x2: cellW,      y1: 0,        y2: cellH      },
+    { pos: 'top-center',    x1: cellW,    x2: cellW * 2,  y1: 0,        y2: cellH      },
+    { pos: 'top-right',     x1: cellW*2,  x2: cw,         y1: 0,        y2: cellH      },
+    { pos: 'middle-left',   x1: 0,        x2: cellW,      y1: cellH,    y2: cellH * 2  },
+    { pos: 'middle-center', x1: cellW,    x2: cellW * 2,  y1: cellH,    y2: cellH * 2  },
+    { pos: 'middle-right',  x1: cellW*2,  x2: cw,         y1: cellH,    y2: cellH * 2  },
+    { pos: 'bottom-left',   x1: 0,        x2: cellW,      y1: cellH*2,  y2: ch         },
+    { pos: 'bottom-center', x1: cellW,    x2: cellW * 2,  y1: cellH*2,  y2: ch         },
+    { pos: 'bottom-right',  x1: cellW*2,  x2: cw,         y1: cellH*2,  y2: ch         },
+  ];
+
+  const cellDescriptions = padded.map((p, i) => {
+    const c = CELL_PIXELS[i];
+    return `Cell ${i + 1} (${c.pos}) [canvas: ${cw}×${ch}px | this panel: x:${c.x1}-${c.x2}px, y:${c.y1}-${c.y2}px, size:${cellW}×${cellH}px]: ${p}`;
+  }).join('\n');
+
+  const gridPrompt = `Generate a single image of exactly ${cw}×${ch} pixels (2K, ${gridAspectRatio} aspect ratio). This image is a 3×3 grid of 9 panels. The canvas is ${cw}px wide and ${ch}px tall, divided into exactly 3 columns and 3 rows. Each panel is ${cellW}×${cellH}px.\n${stylePrefix}\n${cellDescriptions}\n\nRULES:\n- EXACTLY 9 panels in a 3×3 layout (3 columns, 3 rows). NOT 4 rows. NOT 4 columns. NOT 12 panels.\n- Each panel MUST be drawn at its exact pixel coordinates specified above\n- Each panel MUST be a completely separate scene illustration\n- Do NOT draw any borders, lines, or separators between panels\n- Do NOT blend, merge, or overlap scenes across panel boundaries\n- Do NOT include any text, words, letters, numbers, or writing in any panel\n- Place the main subject and key objects at the CENTER of each panel. Keep all important elements within the center 80% of each panel\n- Maintain consistent style across all panels\n- Final image MUST be exactly ${cw}×${ch}px (${format})`;
 
   // 2.5 Flash: no generationConfig (flat pricing, returns 1K)
-  // 3.1 Flash / Pro: pass imageConfig with imageSize for resolution control
+  // 3.1 Flash / Pro: pass imageConfig with aspectRatio + imageSize for resolution control
   const useImageConfig = modelOverride ? !modelOverride.startsWith('gemini-2.5') : true;
   const bodyObj = { contents: [{ parts: [{ text: gridPrompt }] }] };
   if (useImageConfig) {
     bodyObj.generationConfig = {
       responseModalities: ['TEXT', 'IMAGE'],
-      imageConfig: { imageSize: '2K' }
+      imageConfig: { aspectRatio: gridAspectRatio, imageSize: '2K' }
     };
   }
 
@@ -2236,12 +2268,12 @@ async function generateGridImage(prompts, key, stylePrompt, modelOverride) {
 
 // Crops individual cells from a grid image
 function cropGridCells(gridDataUrl, rows, cols, sceneCount) {
+  const trimPct = 0.10; // 10% edge trim to avoid bleed (model draws ~5-10% past cell boundaries)
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const cellW = img.width / cols;
       const cellH = img.height / rows;
-      const trimPct = 0.05; // 5% edge trim to avoid bleed
       const results = [];
       for (let i = 0; i < Math.min(rows * cols, sceneCount); i++) {
         const row = Math.floor(i / cols);
@@ -2288,6 +2320,61 @@ function browserUpscale(dataUrl, targetW, targetH) {
   const sy = (img.naturalHeight - sh) / 2;
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
   return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+// Upscales grid 2x via canvas then crops individual cells
+async function createUpscaleAndCrop(gridDataUrl, scale, rows, cols, sceneCount) {
+  // Step 1: upscale entire grid image by `scale` factor on canvas
+  const upscaledDataUrl = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth * scale;
+      canvas.height = img.naturalHeight * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Failed to load grid image for upscaling'));
+    img.src = gridDataUrl;
+  });
+  // Step 2: crop individual cells from the upscaled grid
+  return cropGridCells(upscaledDataUrl, rows, cols, sceneCount);
+}
+
+// Async cover-fit center-crop resize — scales to fill targetW×targetH, crops excess
+function resizeCellToTarget(cellDataUrl, targetW, targetH) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      // Cover-fit: scale so smallest dimension fills target, crop excess from center
+      const scale = Math.max(targetW / img.naturalWidth, targetH / img.naturalHeight);
+      const sw = targetW / scale;
+      const sh = targetH / scale;
+      const sx = (img.naturalWidth - sw) / 2;
+      const sy = (img.naturalHeight - sh) / 2;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
+    };
+    img.onerror = () => reject(new Error('Failed to load cell image for resize'));
+    img.src = cellDataUrl;
+  });
+}
+
+// Maps output dimensions to grid format hint for generateGridImage()
+function getGridFormatHint(width, height) {
+  if (width > height) return 'wide landscape format (16:9 aspect ratio)';
+  if (width === height) return 'square format (1:1 aspect ratio)';
+  // Distinguish 9:16 (ratio ≥ 1.7) from 4:5 (ratio < 1.7)
+  return (height / width) >= 1.7 ? 'portrait format (9:16 aspect ratio)' : 'portrait format (4:5 aspect ratio)';
 }
 
 async function generateSceneImage(idx) {
@@ -2443,40 +2530,174 @@ async function runImageGeneration(scenesToGen) {
   generateRunning = true;
   createGenerateProgress.classList.add('visible');
   createGenerateLabel.style.color = '';
-  const total = scenesToGen.length;
 
-  for (let i = 0; i < total; i++) {
-    // Check if paused — wait until resumed
-    if (generatePaused) {
-      const doneNow = createScenes.filter(s => s.status === 'done').length;
-      const remaining = total - i;
-      createGenerateLabel.textContent = `Paused — ${doneNow} done, ${remaining} remaining.`;
-      createGenerateLabel.style.color = '#f59e0b';
-      // Wait for resume
-      await new Promise(resolve => {
-        const check = () => {
-          if (!generatePaused) { resolve(); return; }
-          if (!generateRunning) { resolve(); return; } // cancelled
-          setTimeout(check, 200);
-        };
-        check();
-      });
-      if (!generateRunning) break; // generation was cancelled
-      createGenerateLabel.style.color = '';
+  const { width, height } = getSelectedImageSize();
+  const isFree = !isPaidTier();
+
+  // Partition: scenes with reference images go individual; rest go grid
+  const refScenes = scenesToGen.filter(s =>
+    s.refImageDataUrl || (s.refCharacters && s.refCharacters.length > 0));
+  const gridCandidates = scenesToGen.filter(s =>
+    !s.refImageDataUrl && !(s.refCharacters && s.refCharacters.length > 0));
+
+  // Build grid batches and individual list based on routing logic
+  const gridBatches = [];   // each element = array of scene objects (up to 9)
+  const individualScenes = [...refScenes]; // ref scenes always individual
+
+  if (gridCandidates.length >= 4) {
+    gridBatches.push(gridCandidates.slice(0, 9));
+    let remaining = gridCandidates.slice(9);
+    while (remaining.length > 0) {
+      if (remaining.length >= 4) {
+        gridBatches.push(remaining.slice(0, 9));
+        remaining = remaining.slice(9);
+      } else {
+        individualScenes.push(...remaining);
+        remaining = [];
+      }
+    }
+  } else {
+    individualScenes.push(...gridCandidates);
+  }
+
+  const totalUnits = gridBatches.length + individualScenes.length;
+  let completedUnits = 0;
+
+  // Helper: wait while paused, return false if cancelled
+  async function checkPause(label) {
+    if (!generatePaused) return true;
+    const doneNow = createScenes.filter(s => s.status === 'done').length;
+    createGenerateLabel.textContent = `Paused — ${doneNow} done. ${label}`;
+    createGenerateLabel.style.color = '#f59e0b';
+    await new Promise(resolve => {
+      const check = () => {
+        if (!generatePaused || !generateRunning) { resolve(); return; }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+    createGenerateLabel.style.color = '';
+    return generateRunning;
+  }
+
+  const textMode = $('create-image-text-mode')?.value || 'no-text';
+  const noTextSuffix = textMode === 'no-text'
+    ? ' No text, words, or letters in the image.'
+    : textMode === 'english-only' ? ' English text only if any.' : '';
+  const centerInstruction = 'Place the main subject, characters, and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell. Leave cell edges clear of important content.';
+  const formatHint = getGridFormatHint(width, height);
+  const key = getImageKey() || getCreateGeminiKey();
+
+  // ── Grid Batches ──
+  for (let b = 0; b < gridBatches.length; b++) {
+    if (!await checkPause(`${gridBatches.length - b} batch(es) + ${individualScenes.length} individual remaining.`)) break;
+
+    const batch = gridBatches[b];
+    const batchLabel = `batch ${b + 1}/${gridBatches.length} (${batch.length} images, grid mode)`;
+    createGenerateLabel.textContent = `Generating ${batchLabel}...`;
+    createGenerateBar.style.width = `${Math.round((completedUnits / totalUnits) * 100)}%`;
+
+    // Mark all batch scenes as generating
+    batch.forEach(scene => {
+      scene.status = 'generating';
+      updateSceneCardStatus(createScenes.indexOf(scene));
+    });
+
+    const prompts = batch.map(s => s.prompt + noTextSuffix);
+    const styleWithHint = createStylePrompt
+      ? `${createStylePrompt}. ${centerInstruction}`
+      : centerInstruction;
+
+    let gridDataUrl = null;
+    let gridError = null;
+
+    // Fallback chain: Pro 2K → 3.1 Flash 2K → 2.5 Flash 1K → individual
+    const gridModels = [
+      { model: undefined, costKey: 'gridGen2K' },
+      { model: 'gemini-3.1-flash-image-preview', costKey: 'gridGen2K' },
+      { model: 'gemini-2.5-flash-image', costKey: 'imageGenFast' },
+    ];
+
+    for (const { model, costKey } of gridModels) {
+      try {
+        gridDataUrl = await generateGridImage(prompts, key, styleWithHint, model, formatHint);
+        trackCost(costKey, 1);
+        console.log(`[Grid] batch ${b + 1} generated with ${model || 'gemini-3-pro-image-preview'}`);
+        break;
+      } catch (e) {
+        gridError = e;
+        console.warn(`[Grid] ${model || 'pro'} failed:`, e.message);
+      }
     }
 
-    const idx = createScenes.indexOf(scenesToGen[i]);
-    const pct = Math.round(((i) / total) * 100);
-    createGenerateBar.style.width = pct + '%';
-    const isFree = !isPaidTier();
-    if (isFree) {
-      createGenerateLabel.textContent = `Generating image ${i + 1} of ${total} (free tier — slower)...`;
-    } else {
-      createGenerateLabel.textContent = `Generating image ${i + 1} of ${total}...`;
+    if (gridDataUrl) {
+      try {
+        // Upscale entire grid 2x then crop cells
+        const cells = await createUpscaleAndCrop(gridDataUrl, 2, 3, 3, batch.length);
+        for (let ci = 0; ci < cells.length; ci++) {
+          const scene = batch[ci];
+          const resized = await resizeCellToTarget(cells[ci], width, height);
+          scene.imgDataUrl = resized;
+          scene.status = 'done';
+          const idx = createScenes.indexOf(scene);
+          updateSceneCardImage(idx);
+          updateSceneCardStatus(idx);
+        }
+      } catch (cropErr) {
+        console.error('[Grid] Crop/resize failed, falling back to individual:', cropErr);
+        // Fall through to individual fallback below
+        gridDataUrl = null;
+      }
     }
+
+    if (!gridDataUrl) {
+      // Grid fully failed — generate each scene individually
+      console.warn('[Grid] All grid models failed, falling back to individual for this batch');
+      for (const scene of batch) {
+        if (!generateRunning) break;
+        await generateSceneImage(createScenes.indexOf(scene));
+        if (isFree) {
+          for (let wait = 30; wait > 0; wait--) {
+            createGenerateLabel.textContent = `Scene done. Next in ${wait}s (free tier)...`;
+            await new Promise(r => setTimeout(r, 1000));
+            if (!generateRunning) break;
+          }
+        }
+      }
+    }
+
+    autoSaveCreateState();
+    completedUnits++;
+    createGenerateBar.style.width = `${Math.round((completedUnits / totalUnits) * 100)}%`;
+
+    // Free tier: wait 30s between batches (not per-image)
+    if (isFree && (b < gridBatches.length - 1 || individualScenes.length > 0)) {
+      for (let wait = 30; wait > 0; wait--) {
+        createGenerateLabel.textContent = `Batch ${b + 1} done. Next in ${wait}s (free tier: 2 images/min)...`;
+        await new Promise(r => setTimeout(r, 1000));
+        if (!generateRunning) break;
+      }
+    }
+  }
+
+  // ── Individual Scenes ──
+  for (let i = 0; i < individualScenes.length; i++) {
+    if (!generateRunning) break;
+    if (!await checkPause(`${individualScenes.length - i} individual scene(s) remaining.`)) break;
+
+    const scene = individualScenes[i];
+    const idx = createScenes.indexOf(scene);
+    createGenerateLabel.textContent = isFree
+      ? `Generating image ${i + 1}/${individualScenes.length} (individual, free tier — slower)...`
+      : `Generating image ${i + 1}/${individualScenes.length} (individual)...`;
+    createGenerateBar.style.width = `${Math.round((completedUnits / totalUnits) * 100)}%`;
+
     await generateSceneImage(idx);
-    // Free tier: 2 IPM limit — wait 30s between images
-    if (isFree && i < total - 1) {
+    autoSaveCreateState();
+    completedUnits++;
+
+    // Free tier: wait 30s between images
+    if (isFree && i < individualScenes.length - 1) {
       for (let wait = 30; wait > 0; wait--) {
         createGenerateLabel.textContent = `Image ${i + 1} done. Next in ${wait}s (free tier: 2 images/min)...`;
         await new Promise(r => setTimeout(r, 1000));

@@ -209,6 +209,57 @@ setReelInputMode(reelInputMode);
 
 function showReelPresets() {
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
+  initReelTemplateUI();
+}
+
+let _reelTemplateUIInit = false;
+let _reelTemplateCat = 'all';
+let _reelSelectedTemplate = '';
+
+function initReelTemplateUI() {
+  if (_reelTemplateUIInit) return;
+  _reelTemplateUIInit = true;
+  const catEl = $('reel-template-categories');
+  const gridEl = $('reel-template-grid');
+  if (!catEl || !gridEl || typeof TEMPLATE_CATEGORIES === 'undefined') return;
+
+  // Category buttons
+  catEl.innerHTML = Object.entries(TEMPLATE_CATEGORIES).map(([k, v]) =>
+    `<button class="tpl-cat-btn${k === 'all' ? ' active' : ''}" data-cat="${k}">${v}</button>`
+  ).join('');
+  catEl.querySelectorAll('.tpl-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _reelTemplateCat = btn.dataset.cat;
+      catEl.querySelectorAll('.tpl-cat-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderReelTemplateGrid();
+    });
+  });
+
+  renderReelTemplateGrid();
+}
+
+function renderReelTemplateGrid() {
+  const gridEl = $('reel-template-grid');
+  if (!gridEl || typeof TEMPLATES === 'undefined') return;
+  const filtered = _reelTemplateCat === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.category === _reelTemplateCat || t.category === 'all');
+  gridEl.innerHTML = filtered.map(t => {
+    const selected = _reelSelectedTemplate === t.id;
+    return `<div class="template-card${selected ? ' selected' : ''}" data-tpl="${t.id}" style="background:${t.gradient}; position:relative;">
+      <div class="template-card-name">${t.name}</div>
+      <div class="template-card-desc">${t.description}</div>
+    </div>`;
+  }).join('');
+  gridEl.querySelectorAll('.template-card').forEach(card => {
+    card.addEventListener('click', () => {
+      _reelSelectedTemplate = card.dataset.tpl;
+      const tpl = TEMPLATES.find(t => t.id === _reelSelectedTemplate);
+      if (tpl && tpl.style && reelStyleEl) {
+        reelStyleEl.value = tpl.style;
+        reelStyleEl.dispatchEvent(new Event('change'));
+      }
+      renderReelTemplateGrid();
+    });
+  });
 }
 
 // Show presets when text is entered
@@ -908,22 +959,53 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressEl.classList.add('hidden');
       return;
     }
+
+    // Apply base variation subtitle language to segment jobs
+    const baseSubLang5 = reelVariationRows[0]?.subtitle || 'original';
+    const segTransMap5 = new Map();
+    if (baseSubLang5 !== 'original') {
+      for (const job of doneJobs) {
+        if (job.type !== 'segment') continue;
+        const origText = job.words.map(w => w.word).join(' ');
+        if (!origText) continue;
+        try {
+          reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[baseSubLang5]}...`;
+          const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[baseSubLang5]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+          const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+          trackCost('textGeneration', 1);
+          const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (translated) {
+            const tw = translated.split(/\s+/);
+            const tDur = job.words.length > 0 ? job.words[job.words.length - 1].end - job.words[0].start : 0;
+            const wD = tDur / Math.max(1, tw.length);
+            const tSt = job.words.length > 0 ? job.words[0].start : 0;
+            segTransMap5.set(job.id, tw.map((w, i) => ({ word: w, start: tSt + i * wD, end: tSt + (i + 1) * wD })));
+          }
+        } catch(e) { console.warn('[ReelSub] Translation failed:', e.message); }
+      }
+    }
+
     const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
-    window._reelMultiResults = doneJobs.map(job => ({
-      audioBuffer: job.audioBuffer,
-      scenes: job.scenes,
-      words: job.words,
-      videoStart: job.segStart,
-      videoEnd: job.segEnd,
-      audioLang: job.audioLang,
-      subtitleLang: job.subtitleLang,
-      audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
-      subtitleLangLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
-      lang: job.subtitleLang,
-      langLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
-      segmentIndex: job.id,
-      settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
-    }));
+    window._reelMultiResults = doneJobs.map(job => {
+      const isSegJob = job.type === 'segment';
+      const effSubLang = isSegJob ? baseSubLang5 : job.subtitleLang;
+      const effWords = (isSegJob && segTransMap5.get(job.id)) ? segTransMap5.get(job.id) : job.words;
+      return {
+        audioBuffer: job.audioBuffer,
+        scenes: job.scenes,
+        words: effWords,
+        videoStart: job.segStart,
+        videoEnd: job.segEnd,
+        audioLang: job.audioLang,
+        subtitleLang: effSubLang,
+        audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
+        subtitleLangLabel: REEL_LANG_OPTIONS[effSubLang] || 'Original',
+        lang: effSubLang,
+        langLabel: REEL_LANG_OPTIONS[effSubLang] || 'Original',
+        segmentIndex: job.id,
+        settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
+      };
+    });
     activeReelPreview = 0;
     reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
     reelScenes = window._reelMultiResults[0].scenes;
@@ -1475,6 +1557,17 @@ function renderAllReelPreviews() {
     canvases.forEach(cvs => drawPreviewFrame(cvs, results[parseInt(cvs.dataset.ri)]));
   }
 
+  // Preload all scene images so they're ready before playback hits transitions
+  results.forEach(r => {
+    if (!r.scenes) return;
+    r.scenes.forEach(s => {
+      if (s.imgDataUrl && !s._img) {
+        s._img = new Image();
+        s._img.src = s.imgDataUrl;
+      }
+    });
+  });
+
   // Per-preview playback
   const mpState = {}; // idx → { source, startedAt, playing, animId }
   container.querySelectorAll('.reel-mp-play').forEach(btn => {
@@ -1486,6 +1579,17 @@ function renderAllReelPreviews() {
       // Stop any other playing preview
       Object.keys(mpState).forEach(k => { if (mpState[k].playing) stopMp(parseInt(k), true); });
       // Start playback
+      // Ensure all scene images are loaded before starting playback
+      if (r.scenes) {
+        const unloaded = r.scenes.filter(s => s.imgDataUrl && (!s._img || s._img.naturalWidth === 0));
+        if (unloaded.length > 0) {
+          await Promise.all(unloaded.map(s => new Promise(res => {
+            if (!s._img) { s._img = new Image(); s._img.src = s.imgDataUrl; }
+            if (s._img.naturalWidth > 0) { res(); return; }
+            s._img.onload = s._img.onerror = res;
+          })));
+        }
+      }
       const ctx = ensureAudioCtx();
       if (ctx.state === 'suspended') await ctx.resume();
       const source = ctx.createBufferSource();
@@ -2146,7 +2250,7 @@ async function reelRunImageGeneration(scenesToGen) {
     try {
       if (labelEl) labelEl.textContent = `Generating ${total} images in grid mode...`;
       if (barEl) barEl.style.width = '30%';
-      const gridDataUrl = await generateGridImage(prompts, key, stylePrompt);
+      const gridDataUrl = await generateGridImage(prompts, key, stylePrompt, undefined, 'portrait format (9:16 aspect ratio)');
       if (barEl) barEl.style.width = '50%';
       // Pro returns 2K → upscale 2x to 4K → crop cells
       const cells = await reelUpscaleAndCrop(gridDataUrl, 2, 3, 3, total, barEl, labelEl, 'Pro 2K');
@@ -2171,7 +2275,7 @@ async function reelRunImageGeneration(scenesToGen) {
       if (labelEl) labelEl.textContent = 'Pro failed, trying 3.1 Flash 2K grid...';
       try {
         // Fallback 1: gemini-3.1-flash-image-preview at 2K → upscale 2K→4K
-        const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview');
+        const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview', 'portrait format (9:16 aspect ratio)');
         const fbCells = await reelUpscaleAndCrop(fbGrid, 2, 3, 3, total, barEl, labelEl, '3.1 Flash 2K');
         for (let gi = 0; gi < fbCells.length; gi++) {
           const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
@@ -2190,7 +2294,7 @@ async function reelRunImageGeneration(scenesToGen) {
         if (labelEl) labelEl.textContent = '3.1 Flash failed, trying 2.5 Flash 1K grid...';
         try {
           // Fallback 2: gemini-2.5-flash-image at 1K → upscale 1K→2K
-          const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image');
+          const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image', 'portrait format (9:16 aspect ratio)');
           const fbCells2 = await reelUpscaleAndCrop(fbGrid2, 2, 3, 3, total, barEl, labelEl, '2.5 Flash 1K');
           for (let gi = 0; gi < fbCells2.length; gi++) {
             const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
@@ -2251,24 +2355,65 @@ async function reelBuildVariationsAndPreview() {
     const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
     const activeJobs = reelJobs.filter(j => j.scenes && j.scenes.length > 0);
     if (activeJobs.length === 0) { setStatus('No scenes yet — wait for transcription'); return; }
-    window._reelMultiResults = activeJobs.map(job => ({
-      audioBuffer: job.audioBuffer,
-      scenes: job.scenes,
-      words: job.words,
-      videoStart: job.segStart, videoEnd: job.segEnd,
-      audioLang: job.audioLang, subtitleLang: job.subtitleLang,
-      audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
-      subtitleLangLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
-      lang: job.subtitleLang, langLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
-      segmentIndex: job.id,
-      settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
-    }));
+
+    // Apply base variation subtitle language to segment jobs (variation jobs already have their own subtitleLang)
+    const baseSubLang = reelVariationRows[0]?.subtitle || 'original';
+    const segTranslationMap = new Map(); // job.id → translatedWords
+    if (baseSubLang !== 'original') {
+      const tKey = getReelApiKey();
+      for (const job of activeJobs) {
+        if (job.type !== 'segment') continue;
+        const origText = job.words.map(w => w.word).join(' ');
+        if (!origText) continue;
+        try {
+          setStatus(`Translating subtitle to ${REEL_LANG_OPTIONS[baseSubLang]}...`, true);
+          const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[baseSubLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+          const transData = await callGeminiAPI(getTranscriptionModels(), transBody, tKey);
+          trackCost('textGeneration', 1);
+          const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (translated) {
+            const tw = translated.split(/\s+/);
+            const tDur = job.words.length > 0 ? job.words[job.words.length - 1].end - job.words[0].start : 0;
+            const wD = tDur / Math.max(1, tw.length);
+            const tSt = job.words.length > 0 ? job.words[0].start : 0;
+            segTranslationMap.set(job.id, tw.map((w, i) => ({ word: w, start: tSt + i * wD, end: tSt + (i + 1) * wD })));
+          }
+        } catch(e) { console.warn('[ReelSub] Translation failed:', e.message); }
+      }
+    }
+
+    window._reelMultiResults = activeJobs.map(job => {
+      const isSegJob = job.type === 'segment';
+      const effSubLang = isSegJob ? baseSubLang : job.subtitleLang;
+      const effWords = (isSegJob && segTranslationMap.get(job.id)) ? segTranslationMap.get(job.id) : job.words;
+      return {
+        audioBuffer: job.audioBuffer,
+        scenes: job.scenes,
+        words: effWords,
+        videoStart: job.segStart, videoEnd: job.segEnd,
+        audioLang: job.audioLang, subtitleLang: effSubLang,
+        audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
+        subtitleLangLabel: REEL_LANG_OPTIONS[effSubLang] || 'Original',
+        lang: effSubLang, langLabel: REEL_LANG_OPTIONS[effSubLang] || 'Original',
+        segmentIndex: job.id,
+        settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
+      };
+    });
     activeReelPreview = 0;
     reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
     reelScenes = window._reelMultiResults[0].scenes;
     reelWords = window._reelMultiResults[0].words;
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
+    // Pre-load all scene images before showing preview (mirrors the non-job path)
+    const jobSceneImgs = window._reelMultiResults.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
+    if (jobSceneImgs.length > 0) {
+      await Promise.all(jobSceneImgs.map(s => new Promise(res => {
+        s._img = new Image();
+        s._img.onload = s._img.onerror = res;
+        s._img.src = s.imgDataUrl;
+      })));
+    }
     renderReelFrame(0);
     renderAllReelPreviews();
     setStatus(`${window._reelMultiResults.length} Reel(s) ready`);
