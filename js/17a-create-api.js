@@ -399,7 +399,7 @@ btnSaveKeyPaid.addEventListener('click', () => {
 // ── Model Selection (paid tier) ──
 function hasDedicatedPaidKey() { return isPaidTier() && getPaidKey() && getPaidKey() !== getFreeKey(); }
 function getTextModels() { return hasDedicatedPaidKey() ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash']; }
-function getTranscriptionModels() { return hasDedicatedPaidKey() ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash']; }
+function getTranscriptionModels() { return ['gemini-2.5-pro', 'gemini-2.5-flash']; }
 function getImageModels() {
   return ['gemini-2.5-flash-image', 'imagen-4.0-generate-001'];
 }

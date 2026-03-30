@@ -651,15 +651,24 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       segments = clampSegments(segments, 6, 9);
 
       const words = [];
+      let hasWordTimestamps = false;
       for (const s of segments) {
-        if (s.words && s.words.length > 0) {
+        if (s.words && s.words.length > 1) {
           words.push(...s.words);
-        } else if (s.text) {
-          const wds = s.text.trim().split(/\s+/);
+          hasWordTimestamps = true;
+        }
+      }
+      // If API didn't return word timestamps, generate from segment text
+      if (!hasWordTimestamps) {
+        words.length = 0;
+        for (const s of segments) {
+          const text = s.text || '';
+          const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+          if (wds.length === 0) continue;
           const sStart = s.startTime || 0;
           const sEnd = s.endTime || segAudio.duration;
           const sDur = Math.max(0.1, sEnd - sStart);
-          const wDur = sDur / Math.max(1, wds.length);
+          const wDur = sDur / wds.length;
           wds.forEach((w, wi) => { words.push({ word: w, start: sStart + wi * wDur, end: sStart + (wi + 1) * wDur }); });
         }
       }
@@ -682,8 +691,11 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         // Audio/text mode: scenes need image generation
         const totalDur = segAudio.duration;
         scenes = segments.map((s, si2) => {
-          const st = typeof s.startTime === 'number' ? s.startTime : (si2 / segments.length) * totalDur;
-          const en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
+          let st = typeof s.startTime === 'number' ? s.startTime : (si2 / segments.length) * totalDur;
+          let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
+          // Clamp: first scene must start at 0, last scene must end at audio duration
+          if (si2 === 0 && st > 0.5) st = 0;
+          if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
           return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: si };
         });
       }
@@ -725,10 +737,16 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelWords = allReelResults[0].words;
       reelScenes = allReelResults[0].scenes;
 
-      // Show scene cards and auto-generate images
+      // Show scene cards and auto-generate images per segment
       if (reelStepScenes) reelStepScenes.classList.remove('hidden');
       renderReelSceneGrid(reelPendingScenes);
-      await reelRunImageGeneration(reelPendingScenes.filter(s => s.status === 'pending'));
+      for (let ri = 0; ri < allReelResults.length; ri++) {
+        const segScenes = allReelResults[ri].scenes.filter(s => s.status === 'pending');
+        if (segScenes.length > 0) {
+          setStatus(`Generating images for Reel ${ri + 1}...`, true);
+          await reelRunImageGeneration(segScenes);
+        }
+      }
       // Proceed to preview automatically
       await reelBuildVariationsAndPreview();
       btnReelGenerate.disabled = false;
@@ -966,16 +984,23 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 
     // Collect all words for subtitle rendering
     reelWords = [];
+    let singleHasWordTimestamps = false;
     for (const seg of segments) {
-      if (seg.words && seg.words.length > 0) {
+      if (seg.words && seg.words.length > 1) {
         reelWords.push(...seg.words);
-      } else if (seg.text) {
-        // Fallback: generate proportional word timings from segment text
-        const wds = seg.text.trim().split(/\s+/);
+        singleHasWordTimestamps = true;
+      }
+    }
+    if (!singleHasWordTimestamps) {
+      reelWords = [];
+      for (const seg of segments) {
+        const text = seg.text || '';
+        const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+        if (wds.length === 0) continue;
         const sStart = seg.startTime || 0;
         const sEnd = seg.endTime || reelAudioBuffer.duration;
         const sDur = Math.max(0.1, sEnd - sStart);
-        const wDur = sDur / Math.max(1, wds.length);
+        const wDur = sDur / wds.length;
         wds.forEach((w, i) => {
           reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
         });

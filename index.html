@@ -1275,6 +1275,31 @@
   // Also load on drag over the drop zone (user might drag an audio file)
   var dz = document.getElementById('drop-zone');
   if (dz) dz.addEventListener('dragover', function() { loadEditorScripts(); }, { once: true });
+
+  // If opened from Marketing Pipeline ("Open in Reel Editor"), load IndexedDB job data
+  if (location.hash === '#reel') {
+    loadEditorScripts(function() {
+      navigateTo('reel', false);
+      (function() {
+        var req = indexedDB.open('stori_db', 1);
+        req.onupgradeneeded = function(e) { e.target.result.createObjectStore('kv'); };
+        req.onsuccess = function(e) {
+          var db = e.target.result;
+          var tx = db.transaction('kv', 'readwrite');
+          var store = tx.objectStore('kv');
+          var getReq = store.get('stori_pipeline_job');
+          getReq.onsuccess = function() {
+            var data = getReq.result;
+            if (!data) return;
+            store.delete('stori_pipeline_job'); // consume once
+            if (typeof loadReelProject === 'function') {
+              loadReelProject(data).catch(function(e) { console.warn('[pipeline bridge]', e); });
+            }
+          };
+        };
+      })();
+    });
+  }
   </script>
 </body>
 </html>
