@@ -75,7 +75,39 @@ let reelGenImagesRunning = false;
 // Variation rows: each row = one reel variant (audio lang + subtitle lang)
 let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'original' }];
 let reelPerSegmentVariations = {}; // segIndex → rows array, null = use global
-const REEL_LANG_OPTIONS = { original: 'Original', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+const REEL_LANG_OPTIONS = { original: 'Same as Input', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+
+// ── Job Queue ──
+let reelJobs = [];
+let nextReelJobId = 1;
+
+function createReelJob(overrides) {
+  return {
+    id: nextReelJobId++,
+    status: 'pending',
+    type: 'segment',
+    parentId: null,
+    audioBuffer: null,
+    audioName: '',
+    segStart: 0,
+    segEnd: 0,
+    platform: reelPlatform,
+    style: reelStyleEl ? reelStyleEl.value : 'cinematic',
+    transition: reelTransition,
+    subtitleStyle: reelSubtitleStyle,
+    subColor: reelSubColor,
+    subOutline: reelSubOutline,
+    subBackdrop: reelSubBackdrop,
+    subSize: reelSubSize,
+    subPosition: reelSubPosition,
+    audioLang: 'original',
+    subtitleLang: 'original',
+    scenes: [],
+    words: [],
+    error: null,
+    ...overrides,
+  };
+}
 
 // ── Reel API Keys (free for subtitles, paid for image gen) ──
 const reelApiKeyFreeEl = $('reel-api-key-free');
@@ -279,9 +311,10 @@ if (btnAddAudioSeg) btnAddAudioSeg.addEventListener('click', () => {
   const end = reelAudioRegion.end;
   if (end - start < 1) return;
   if (reelAudioWavesurfer) reelAudioWavesurfer.pause();
-  reelSegments.push({ start, end, thumbDataUrl: null });
   reelOriginalAudioBuffer = reelAudioBuffer;
-  renderReelPresetSegments();
+  const segAudio = extractRegion(reelOriginalAudioBuffer, start, end);
+  reelJobs.push(createReelJob({ audioBuffer: segAudio, audioName: reelAudioName ? reelAudioName.textContent : '', segStart: start, segEnd: end }));
+  renderReelJobCards();
   showReelPresets();
 });
 
@@ -297,6 +330,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
     reelOriginalAudioBuffer = reelAudioBuffer;
     reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
     reelSegments = [];
+    reelJobs = [];
     if (reelAudioEditor) reelAudioEditor.classList.remove('hidden');
     initReelAudioWaveform();
     hidePageLoader();
@@ -328,6 +362,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     reelAudioBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
     reelOriginalAudioBuffer = reelAudioBuffer;
     reelSegments = [];
+    reelJobs = [];
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
@@ -442,13 +477,8 @@ if (btnReelAddSegment) btnReelAddSegment.addEventListener('click', () => {
   // Generate thumbnail from segment start
   reelPreviewVideo.currentTime = start;
   setTimeout(() => {
-    const tc = document.createElement('canvas');
-    tc.width = 100; tc.height = 56;
-    try { tc.getContext('2d').drawImage(reelPreviewVideo, 0, 0, 100, 56); } catch(e) {}
-    const thumbDataUrl = tc.toDataURL('image/jpeg', 0.6);
-
-    reelSegments.push({ start, end, thumbDataUrl });
-    renderReelPresetSegments();
+    reelJobs.push(createReelJob({ segStart: start, segEnd: end, audioBuffer: reelAudioBuffer ? extractRegion(reelAudioBuffer, start, end) : null }));
+    renderReelJobCards();
     showReelPresets();
   }, 300);
 });
@@ -562,6 +592,78 @@ function stopSegPreview() {
   document.querySelectorAll('.seg-pause').forEach(b => b.classList.add('hidden'));
 }
 
+// ── Job Cards UI ──
+function renderReelJobCards() {
+  const container = $('reel-preset-segments');
+  if (!container) return;
+  const segmentJobs = reelJobs.filter(j => j.type === 'segment');
+  if (segmentJobs.length === 0) { container.innerHTML = ''; return; }
+  const langHtml = Object.entries(REEL_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  container.innerHTML = `<div class="reel-segments-list">${segmentJobs.map((job, si) => {
+    const varJobs = reelJobs.filter(j => j.type === 'variation' && j.parentId === job.id);
+    const statusBadge = job.status === 'done' ? '<span style="color:#10b981;">✓ Done</span>'
+      : job.status === 'transcribing' ? '<span style="color:#f59e0b;">⏳ Transcribing</span>'
+      : job.status === 'generating-images' ? '<span style="color:#f59e0b;">⏳ Generating images</span>'
+      : job.status === 'error' ? `<span style="color:#ef4444;">✗ ${job.error || 'Error'}</span>`
+      : '<span style="color:var(--text-muted);">○ Pending</span>';
+    const varHtml = varJobs.map(vj => `
+      <div class="reel-var-card" style="display:flex;align-items:center;gap:6px;margin-top:4px;padding:4px 8px;background:var(--bg-input);border-radius:4px;font-size:0.72rem;" data-vid="${vj.id}">
+        <span style="color:var(--text-muted);">↳ Variation ${vj.id}</span>
+        <label class="form-label" style="font-size:0.72rem;">Audio: <select class="var-job-audio" data-vid="${vj.id}" style="font-size:0.72rem;">${langHtml}</select></label>
+        <label class="form-label" style="font-size:0.72rem;">Sub: <select class="var-job-sub" data-vid="${vj.id}" style="font-size:0.72rem;">${langHtml}</select></label>
+        ${vj.status === 'done' ? '<span style="color:#10b981;font-size:0.7rem;">✓</span>' : vj.status === 'error' ? `<span style="color:#ef4444;font-size:0.7rem;">✗</span>` : ''}
+        <button class="btn-xs var-job-remove" data-vid="${vj.id}" style="margin-left:auto;">✕</button>
+      </div>`).join('');
+    return `<div class="reel-seg-card" data-jid="${job.id}" style="padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.8rem;font-weight:600;flex:1;">Segment ${si + 1}: ${fmtShort(job.segStart)} – ${fmtShort(job.segEnd)} (${(job.segEnd - job.segStart).toFixed(0)}s)</span>
+        <span style="font-size:0.7rem;">${statusBadge}</span>
+        <button class="btn-xs job-add-var" data-jid="${job.id}">+ Variation</button>
+        <button class="btn-xs reel-seg-remove" data-jid="${job.id}">✕</button>
+      </div>
+      ${varHtml}
+    </div>`;
+  }).join('')}</div>`;
+
+  // Wire variation language selectors
+  container.querySelectorAll('.var-job-audio').forEach(sel => {
+    const vid = parseInt(sel.dataset.vid);
+    const vj = reelJobs.find(j => j.id === vid);
+    if (vj) { sel.value = vj.audioLang; sel.addEventListener('change', () => { vj.audioLang = sel.value; }); }
+  });
+  container.querySelectorAll('.var-job-sub').forEach(sel => {
+    const vid = parseInt(sel.dataset.vid);
+    const vj = reelJobs.find(j => j.id === vid);
+    if (vj) { sel.value = vj.subtitleLang; sel.addEventListener('change', () => { vj.subtitleLang = sel.value; }); }
+  });
+  // Add variation button
+  container.querySelectorAll('.job-add-var').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const jid = parseInt(btn.dataset.jid);
+      const segJob = reelJobs.find(j => j.id === jid);
+      if (!segJob) return;
+      reelJobs.push(createReelJob({ type: 'variation', parentId: jid, audioBuffer: segJob.audioBuffer, audioLang: 'original', subtitleLang: 'original' }));
+      renderReelJobCards();
+    });
+  });
+  // Remove segment job (and its variations)
+  container.querySelectorAll('.reel-seg-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const jid = parseInt(btn.dataset.jid);
+      reelJobs = reelJobs.filter(j => j.id !== jid && j.parentId !== jid);
+      renderReelJobCards();
+    });
+  });
+  // Remove variation job
+  container.querySelectorAll('.var-job-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const vid = parseInt(btn.dataset.vid);
+      reelJobs = reelJobs.filter(j => j.id !== vid);
+      renderReelJobCards();
+    });
+  });
+}
+
 // ── Preset handlers ──
 function updateReelAspectRatio() {
   const p = REEL_PLATFORMS[reelPlatform];
@@ -619,22 +721,24 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   console.log('[ReelGen] API key:', key ? 'present' : 'MISSING');
   if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
 
-  // Multi-segment mode (video or audio) — process each as separate reel
-  if (reelSegments.length > 0 && (reelInputMode === 'video' ? reelVideoEl : reelAudioBuffer)) {
+  // ── Job queue mode: reelJobs has segment jobs (skip in text mode — text mode is always single-reel) ──
+  if (reelInputMode !== 'text' && reelJobs.filter(j => j.type === 'segment').length > 0) {
     btnReelGenerate.disabled = true;
     reelProgressEl.classList.remove('hidden');
-    const allReelResults = [];
-    for (let si = 0; si < reelSegments.length; si++) {
-      const seg = reelSegments[si];
-      reelProgressLabel.textContent = `Processing Reel ${si + 1} of ${reelSegments.length}...`;
-      reelProgressBar.style.width = `${(si / reelSegments.length * 100).toFixed(0)}%`;
-      setStatus(`Processing Reel ${si + 1}/${reelSegments.length}...`, true);
-
     try {
-      // Extract audio for this segment from original full buffer
-      const segAudio = extractRegion(reelOriginalAudioBuffer || reelAudioBuffer, seg.start, seg.end);
-      const platform = REEL_PLATFORMS[reelPlatform];
-      const transPreset = REEL_TRANSITIONS[reelTransition] || REEL_TRANSITIONS['whip-pan'];
+    const segmentJobs = reelJobs.filter(j => j.type === 'segment' && j.status === 'pending');
+
+    // Phase 1: Transcribe all segment jobs
+    for (let si = 0; si < segmentJobs.length; si++) {
+      const job = segmentJobs[si];
+      reelProgressLabel.textContent = `Transcribing Segment ${si + 1} of ${segmentJobs.length}...`;
+      reelProgressBar.style.width = `${(si / segmentJobs.length * 40).toFixed(0)}%`;
+      setStatus(`Transcribing Segment ${si + 1}/${segmentJobs.length}...`, true);
+      job.status = 'transcribing';
+      renderReelJobCards();
+    try {
+      const segAudio = job.audioBuffer;
+      const transPreset = REEL_TRANSITIONS[job.transition] || REEL_TRANSITIONS['whip-pan'];
 
       // Transcribe segment
       const wavBlob = audioBufferToWavBlob(segAudio);
@@ -682,234 +786,169 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       console.log(`[ReelGen] Segment ${si+1}: ${segments.length} segments, ${words.length} words generated`);
 
       const isVidInput = reelInputMode === 'video' && reelVideoEl;
-      let scenes;
       if (isVidInput && reelEditMode === 'subtitles') {
-        scenes = [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none' }];
+        job.scenes = [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none', segmentIndex: job.id }];
       } else if (isVidInput) {
-        scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none' }));
+        job.scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none', segmentIndex: job.id }));
       } else {
-        // Audio/text mode: scenes need image generation
         const totalDur = segAudio.duration;
-        scenes = segments.map((s, si2) => {
+        job.scenes = segments.map((s, si2) => {
           let st = typeof s.startTime === 'number' ? s.startTime : (si2 / segments.length) * totalDur;
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
-          // Clamp: first scene must start at 0, last scene must end at audio duration
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: si };
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
         });
       }
-
-      allReelResults.push({
-        audioBuffer: segAudio, scenes, words, videoStart: seg.start, videoEnd: seg.end,
-        lang: 'original', langLabel: 'Original', segmentIndex: si,
-        audioLang: 'original', subtitleLang: 'original',
-        audioLangLabel: 'Original', subtitleLangLabel: 'Original',
-        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
-      });
-    } catch(segErr) {
-      reelProgressLabel.textContent = `Reel ${si + 1} failed: ${friendlyApiError(segErr.message)}`;
+      job.words = words;
+    } catch(err) {
+      job.status = 'error';
+      job.error = friendlyApiError(err.message);
+      renderReelJobCards();
+      reelProgressLabel.textContent = `Segment ${si + 1} failed: ${job.error}`;
     }
     }
 
-    // Show results — all segments
-    reelProgressBar.style.width = '100%';
-    reelProgressEl.classList.add('hidden');
+    // Phase 2: Collect all transcribed scenes, show scene grid
+    const transcribedJobs = reelJobs.filter(j => j.type === 'segment' && (j.status === 'transcribing' || j.status === 'generating-images') && j.scenes.length > 0);
+    const allJobScenes = [];
+    for (const transcJob of transcribedJobs) { for (const s of transcJob.scenes) allJobScenes.push(s); }
+    if (allJobScenes.some(s => s.status === 'pending')) {
+      reelPendingScenes = allJobScenes;
+      if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+      renderReelSceneGrid(reelPendingScenes);
+      // Phase 3: Generate images per segment job
+      for (let ri = 0; ri < transcribedJobs.length; ri++) {
+        const imgJob = transcribedJobs[ri];
+        const pendingScenes = imgJob.scenes.filter(s => s.status === 'pending');
+        if (pendingScenes.length > 0) {
+          imgJob.status = 'generating-images';
+          renderReelJobCards();
+          setStatus(`Generating images for Segment ${ri + 1}...`, true);
+          await reelRunImageGeneration(pendingScenes);
+        }
+        imgJob.status = 'done';
+        renderReelJobCards();
+      }
+    } else {
+      for (const transcJob of transcribedJobs) { transcJob.status = 'done'; }
+      renderReelJobCards();
+    }
 
-    if (allReelResults.length === 0) {
+    // Phase 4: Run variation jobs
+    const variationJobs = reelJobs.filter(j => j.type === 'variation' && j.status === 'pending');
+    for (const varJob of variationJobs) {
+      const parent = reelJobs.find(j => j.id === varJob.parentId);
+      if (!parent || parent.status !== 'done') { varJob.status = 'error'; varJob.error = 'Parent not ready'; renderReelJobCards(); continue; }
+      varJob.status = 'transcribing';
+      renderReelJobCards();
+      setStatus('Processing variation...', true);
+      try {
+        varJob.scenes = parent.scenes.map(s => ({ ...s, segmentIndex: varJob.id }));
+        varJob.words = parent.words;
+        const origText = parent.words.map(w => w.word).join(' ');
+        if (varJob.subtitleLang !== 'original' && origText) {
+          reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[varJob.subtitleLang]}...`;
+          try {
+            const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[varJob.subtitleLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+            trackCost('textGeneration', 1);
+            const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (translated) {
+              const tw = translated.split(/\s+/);
+              const tDur = parent.words.length > 0 ? parent.words[parent.words.length - 1].end - parent.words[0].start : 0;
+              const wD = tDur / Math.max(1, tw.length);
+              const tSt = parent.words.length > 0 ? parent.words[0].start : 0;
+              varJob.words = tw.map((w, i) => ({ word: w, start: tSt + i * wD, end: tSt + (i + 1) * wD }));
+            }
+          } catch(e) { reelProgressLabel.textContent = 'Subtitle translation failed'; }
+        }
+        if (varJob.audioLang !== 'original' && origText) {
+          reelProgressLabel.textContent = `Generating ${REEL_LANG_OPTIONS[varJob.audioLang]} audio...`;
+          try {
+            const targetDur = parent.audioBuffer.duration;
+            const ttransBody = { contents: [{ parts: [{ text: `Translate the following to ${REEL_LANG_OPTIONS[varJob.audioLang]}. The original audio is ${Math.round(targetDur)} seconds long. Keep it concise. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const ttransData = await callGeminiAPI(getTranscriptionModels(), ttransBody, key);
+            trackCost('textGeneration', 1);
+            const ttsText = ttransData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (ttsText) {
+              const ttsModels = getTTSModels();
+              const ttsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } } }) });
+              if (ttsResp.ok) {
+                const ttsData = await ttsResp.json();
+                const ttsPart = ttsData.candidates?.[0]?.content?.parts?.[0];
+                if (ttsPart?.inlineData?.data) {
+                  const decoded = await decodeBase64Audio(ttsPart.inlineData.data, ttsPart.inlineData.mimeType || 'audio/wav');
+                  let ttsBuffer = decoded.audioBuffer;
+                  if (Math.abs(ttsBuffer.duration - targetDur) > 0.5) {
+                    const rate = ttsBuffer.duration / targetDur;
+                    const offCtx = new OfflineAudioContext(ttsBuffer.numberOfChannels, Math.round(targetDur * ttsBuffer.sampleRate), ttsBuffer.sampleRate);
+                    const src = offCtx.createBufferSource();
+                    src.buffer = ttsBuffer; src.playbackRate.value = rate; src.connect(offCtx.destination); src.start();
+                    ttsBuffer = await offCtx.startRendering();
+                  }
+                  varJob.audioBuffer = ttsBuffer;
+                  trackCost('ttsPerLang', 1);
+                }
+              }
+            }
+          } catch(e) { reelProgressLabel.textContent = 'TTS failed'; }
+        }
+        varJob.status = 'done';
+        renderReelJobCards();
+      } catch(varErr) { varJob.status = 'error'; varJob.error = friendlyApiError(varErr.message); renderReelJobCards(); }
+    }
+
+    // Phase 5: Build _reelMultiResults from all done jobs
+    const doneJobs = reelJobs.filter(j => j.status === 'done');
+    if (doneJobs.length === 0) {
       reelProgressLabel.textContent = 'No reels generated. Check API key and try again.';
       setStatus('Generation failed — no reels produced');
       btnReelGenerate.disabled = false;
+      reelProgressEl.classList.add('hidden');
       return;
     }
-
-    // Audio/text mode with segments: generate images automatically, then preview
-    const hasImageScenes = allReelResults.some(r => r.scenes.some(s => s.status === 'pending'));
-    if (hasImageScenes) {
-      // Collect all pending scenes across segments, store allReelResults for later
-      reelPendingScenes = [];
-      for (const r of allReelResults) {
-        for (const s of r.scenes) reelPendingScenes.push(s);
-      }
-      // Store original audio/words for building variations later
-      window._reelMultiSegResults = allReelResults;
-      reelAudioBuffer = allReelResults[0].audioBuffer;
-      reelWords = allReelResults[0].words;
-      reelScenes = allReelResults[0].scenes;
-
-      // Show scene cards and auto-generate images per segment
-      if (reelStepScenes) reelStepScenes.classList.remove('hidden');
-      renderReelSceneGrid(reelPendingScenes);
-      for (let ri = 0; ri < allReelResults.length; ri++) {
-        const segScenes = allReelResults[ri].scenes.filter(s => s.status === 'pending');
-        if (segScenes.length > 0) {
-          setStatus(`Generating images for Reel ${ri + 1}...`, true);
-          await reelRunImageGeneration(segScenes);
-        }
-      }
-      // Proceed to preview automatically
-      await reelBuildVariationsAndPreview();
-      btnReelGenerate.disabled = false;
-      return;
-    }
-
-    reelProgressLabel.textContent = `${allReelResults.length} Reel(s) ready!`;
-    setStatus(`${allReelResults.length} Reels generated`);
-    window._reelMultiResults = allReelResults;
-
-    // Generate variation rows for each segment
-    // allReelResults currently has one original reel per segment
-    // Now expand: for each original reel, generate additional variations from reelVariationRows
-    const origReels = [...allReelResults];
-    const finalResults = [];
-    const translationCache = {}; // langCode → translated text (per segment, cleared each loop)
-    const ttsCache = {}; // langCode → audioBuffer
-
-    console.log('[ReelGen] Variation rows:', JSON.stringify(reelVariationRows));
-    for (const origReel of origReels) {
-      const segVariations = reelPerSegmentVariations[origReel.segmentIndex] || reelVariationRows;
-      console.log('[ReelGen] Seg', origReel.segmentIndex, 'variations:', JSON.stringify(segVariations));
-      for (const v of segVariations) {
-        const isOrigAudio = v.audio === 'original';
-        const isOrigSub = v.subtitle === 'original';
-        const origText = origReel.words?.map(w => w.word).join(' ') || '';
-
-        // Subtitle words
-        let subWords = origReel.words;
-        if (!isOrigSub && origText) {
-          const cacheKey = `sub_${v.subtitle}_${origReel.segmentIndex}`;
-          if (!translationCache[cacheKey]) {
-            reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`;
-            setStatus(`Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`, true);
-            try {
-              const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
-              const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
-              trackCost('textGeneration', 1);
-              translationCache[cacheKey] = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            } catch(e) { reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.subtitle]} subtitle failed`; }
-          }
-          if (translationCache[cacheKey]) {
-            const transWords = translationCache[cacheKey].split(/\s+/);
-            const totalDur = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
-            const wDur = totalDur / Math.max(1, transWords.length);
-            const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
-            subWords = transWords.map((w, i) => ({ word: w, start: st + i * wDur, end: st + (i + 1) * wDur }));
-          }
-        }
-
-        // Audio buffer
-        let audioBuffer = origReel.audioBuffer;
-        console.log(`[ReelGen] Audio: isOrig=${isOrigAudio}, lang=${v.audio}, hasText=${!!origText}`);
-        if (!isOrigAudio && origText) {
-          const cacheKey = `tts_${v.audio}_${origReel.segmentIndex}`;
-          if (!ttsCache[cacheKey]) {
-            // First translate text for TTS
-            const ttsCacheKey = `sub_${v.audio}_${origReel.segmentIndex}`;
-            let ttsText = translationCache[ttsCacheKey];
-            if (!ttsText) {
-              reelProgressLabel.textContent = `Translating audio to ${REEL_LANG_OPTIONS[v.audio]}...`;
-              console.log(`[ReelGen] Translating for TTS: ${v.audio}`);
-              try {
-                const targetDur = origReel.audioBuffer.duration;
-                const transBody = { contents: [{ parts: [{ text: `Translate the following to ${REEL_LANG_OPTIONS[v.audio]}. The original audio is ${Math.round(targetDur)} seconds long. Keep the translation concise enough to be spoken in approximately the same duration. Do NOT add extra explanations or expand the content. Return ONLY the translated text:\n\n${origText}` }] }] };
-                const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
-                trackCost('textGeneration', 1);
-                ttsText = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-                translationCache[ttsCacheKey] = ttsText;
-                console.log(`[ReelGen] Translation done, length: ${ttsText?.length}`);
-              } catch(e) { console.error(`[ReelGen] Translation failed:`, e); reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} translation failed`; }
-            }
-            if (ttsText) {
-              reelProgressLabel.textContent = `Generating ${REEL_LANG_OPTIONS[v.audio]} audio...`;
-              setStatus(`Generating ${REEL_LANG_OPTIONS[v.audio]} TTS...`, true);
-              console.log(`[ReelGen] Calling TTS for: ${v.audio}`);
-              try {
-                const ttsModels = getTTSModels();
-                const ttsResp = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
-                  { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }],
-                      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-                    })
-                  }
-                );
-                console.log(`[ReelGen] TTS response: ${ttsResp.status}`);
-                if (ttsResp.ok) {
-                  const ttsData = await ttsResp.json();
-                  const part = ttsData.candidates?.[0]?.content?.parts?.[0];
-                  if (part?.inlineData?.data) {
-                    const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
-                    ttsCache[cacheKey] = decoded.audioBuffer;
-                    trackCost('ttsPerLang', 1);
-                    console.log(`[ReelGen] TTS audio decoded, duration: ${ttsCache[cacheKey].duration}s`);
-                  } else {
-                    console.error(`[ReelGen] TTS response structure:`, JSON.stringify(ttsData).substring(0, 1000));
-                  }
-                } else {
-                  const errText = await ttsResp.text();
-                  console.error(`[ReelGen] TTS failed ${ttsResp.status}:`, errText);
-                }
-              } catch(e) { console.error(`[ReelGen] TTS error:`, e); reelProgressLabel.textContent = `${REEL_LANG_OPTIONS[v.audio]} TTS failed`; }
-            }
-          }
-          if (ttsCache[cacheKey]) {
-            audioBuffer = ttsCache[cacheKey];
-            // Stretch/compress TTS audio to match original duration
-            const targetDur = origReel.audioBuffer.duration;
-            if (Math.abs(audioBuffer.duration - targetDur) > 0.5) {
-              console.log(`[ReelGen] Matching TTS duration ${audioBuffer.duration.toFixed(1)}s → ${targetDur.toFixed(1)}s`);
-              const rate = audioBuffer.duration / targetDur;
-              const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
-              const src = offlineCtx.createBufferSource();
-              src.buffer = audioBuffer;
-              src.playbackRate.value = rate;
-              src.connect(offlineCtx.destination);
-              src.start();
-              audioBuffer = await offlineCtx.startRendering();
-              ttsCache[cacheKey] = audioBuffer;
-            }
-          }
-          console.log(`[ReelGen] Final audio: ${audioBuffer === origReel.audioBuffer ? 'ORIGINAL (fallback)' : 'TRANSLATED'}`);
-        }
-
-        finalResults.push({
-          audioBuffer, scenes: origReel.scenes, words: subWords,
-          videoStart: origReel.videoStart, videoEnd: origReel.videoEnd,
-          audioLang: v.audio, subtitleLang: v.subtitle,
-          audioLangLabel: REEL_LANG_OPTIONS[v.audio],
-          subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
-          lang: v.subtitle, langLabel: REEL_LANG_OPTIONS[v.subtitle],
-          segmentIndex: origReel.segmentIndex,
-          settings: { ...origReel.settings },
-        });
-      }
-    }
-
-    window._reelMultiResults = finalResults;
-
-    // Use first for main preview
-    if (finalResults.length === 0) {
-      reelProgressLabel.textContent = 'No reels generated.';
-      setStatus('Generation failed');
-      btnReelGenerate.disabled = false;
-      return;
-    }
-    const first = finalResults[0];
-    reelAudioBuffer = first.audioBuffer;
-    reelScenes = first.scenes;
-    reelWords = first.words;
+    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
+    window._reelMultiResults = doneJobs.map(job => ({
+      audioBuffer: job.audioBuffer,
+      scenes: job.scenes,
+      words: job.words,
+      videoStart: job.segStart,
+      videoEnd: job.segEnd,
+      audioLang: job.audioLang,
+      subtitleLang: job.subtitleLang,
+      audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
+      subtitleLangLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
+      lang: job.subtitleLang,
+      langLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
+      segmentIndex: job.id,
+      settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
+    }));
     activeReelPreview = 0;
+    reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
+    reelScenes = window._reelMultiResults[0].scenes;
+    reelWords = window._reelMultiResults[0].words;
 
+    reelProgressBar.style.width = '100%';
+    reelProgressEl.classList.add('hidden');
+    reelGenerateStatus.textContent = `${doneJobs.length} Reel(s) ready`;
+    setStatus(`${doneJobs.length} Reel(s) ready`);
     reelStepEditor.classList.remove('hidden');
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
-    reelProgressEl.classList.add('hidden');
-    reelGenerateStatus.textContent = `${finalResults.length} Reel(s) ready`;
-    setStatus(`${finalResults.length} Reel(s) ready`);
     btnReelGenerate.disabled = false;
     return;
+    } catch(e) {
+      console.error('[ReelGen] Job queue error:', e);
+      reelProgressEl.classList.add('hidden');
+      reelGenerateStatus.textContent = 'Error: ' + (e.message || 'Generation failed');
+      setStatus('Reel generation failed');
+      btnReelGenerate.disabled = false;
+      return;
+    }
   }
+
 
   // Get audio — from text input if text mode
   if (reelInputMode === 'text') {
@@ -927,18 +966,15 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           })
         }
       );
-      if (!resp.ok) throw new Error('TTS failed');
+      if (!resp.ok) { const errText = await resp.text(); throw new Error(`TTS ${resp.status}: ${errText.slice(0, 300)}`); }
       const data = await resp.json();
       const part = data.candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) throw new Error('No audio returned');
-      const b64 = part.inlineData.data;
-      const binary = atob(b64);
-      const buf = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
-      const audioArrayBuf = buf.buffer;
-      reelAudioBuffer = await ensureAudioCtx().decodeAudioData(audioArrayBuf);
+      if (!part?.inlineData?.data) throw new Error('No audio returned — model may not support TTS');
+      const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
+      reelAudioBuffer = decoded.audioBuffer;
       trackCost('tts', 1);
     } catch(e) {
+      console.error('[ReelGen] TTS error:', e.message, e);
       reelGenerateStatus.textContent = 'TTS error: ' + e.message;
       setStatus('TTS failed');
       return;
@@ -2210,6 +2246,35 @@ async function reelRunImageGeneration(scenesToGen) {
 }
 
 async function reelBuildVariationsAndPreview() {
+  // Job queue path: build results directly from jobs
+  if (reelJobs.filter(j => j.type === 'segment').length > 0) {
+    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
+    const activeJobs = reelJobs.filter(j => j.scenes && j.scenes.length > 0);
+    if (activeJobs.length === 0) { setStatus('No scenes yet — wait for transcription'); return; }
+    window._reelMultiResults = activeJobs.map(job => ({
+      audioBuffer: job.audioBuffer,
+      scenes: job.scenes,
+      words: job.words,
+      videoStart: job.segStart, videoEnd: job.segEnd,
+      audioLang: job.audioLang, subtitleLang: job.subtitleLang,
+      audioLangLabel: REEL_LANG_OPTIONS[job.audioLang] || 'Original',
+      subtitleLangLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
+      lang: job.subtitleLang, langLabel: REEL_LANG_OPTIONS[job.subtitleLang] || 'Original',
+      segmentIndex: job.id,
+      settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
+    }));
+    activeReelPreview = 0;
+    reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
+    reelScenes = window._reelMultiResults[0].scenes;
+    reelWords = window._reelMultiResults[0].words;
+    reelStepEditor.classList.remove('hidden');
+    renderReelScenes();
+    renderReelFrame(0);
+    renderAllReelPreviews();
+    setStatus(`${window._reelMultiResults.length} Reel(s) ready`);
+    return;
+  }
+
   // Use pending scenes if available (audio/text mode with scene cards)
   if (reelPendingScenes) {
     // Reassign scenes back to multi-seg results if they came from there
@@ -2761,7 +2826,16 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       subSize: reelSubSize,
       subPosition: reelSubPosition,
       inputMode: reelInputMode,
+      inputText: reelTextInput ? reelTextInput.value : '',
       segments: reelSegments,
+      jobs: reelJobs.map(j => ({
+        id: j.id, type: j.type, parentId: j.parentId, status: j.status,
+        audioName: j.audioName, segStart: j.segStart, segEnd: j.segEnd,
+        platform: j.platform, style: j.style, transition: j.transition,
+        subtitleStyle: j.subtitleStyle, subColor: j.subColor, subOutline: j.subOutline,
+        subBackdrop: j.subBackdrop, subSize: j.subSize, subPosition: j.subPosition,
+        audioLang: j.audioLang, subtitleLang: j.subtitleLang,
+      })),
       videoData,
       audio: { data: audioBase64, duration: reelAudioBuffer.duration },
       scenes: reelScenes ? reelScenes.map(s => ({
@@ -3227,7 +3301,9 @@ async function loadReelProject(project) {
   reelSubSize = project.subSize || 4;
   reelSubPosition = project.subPosition || 'bottom';
   if (project.inputMode) reelInputMode = project.inputMode;
+  if (reelTextInput && project.inputText) reelTextInput.value = project.inputText;
   if (project.segments) reelSegments = project.segments;
+  reelJobs = [];
 
   // Update UI
   if (reelPlatformEl) reelPlatformEl.value = reelPlatform;
@@ -3393,9 +3469,24 @@ async function loadReelProject(project) {
     reelWords = results[0].words;
   }
 
+  // Restore job queue (new format)
+  if (project.jobs && project.jobs.length > 0) {
+    reelJobs = project.jobs.map(jData => {
+      const matchingResult = results.find(r => r.segmentIndex === jData.id);
+      let audioBuffer = reelAudioBuffer;
+      if (jData.type === 'segment' && reelOriginalAudioBuffer && jData.segStart != null) {
+        try { audioBuffer = extractRegion(reelOriginalAudioBuffer, jData.segStart, jData.segEnd); } catch(e) {}
+      } else if (matchingResult) {
+        audioBuffer = matchingResult.audioBuffer;
+      }
+      return { ...jData, audioBuffer, scenes: matchingResult?.scenes || [], words: matchingResult?.words || [], error: null };
+    });
+    nextReelJobId = Math.max(...reelJobs.map(j => j.id), 0) + 1;
+  }
+
   // Show section 3 (presets) with segments
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
-  if (reelSegments.length > 0) renderReelPresetSegments();
+  if (reelJobs.length > 0) { renderReelJobCards(); } else if (reelSegments.length > 0) { renderReelPresetSegments(); }
 
   // Show section 3.5 (scene images) — collect from all results
   const allLoadedScenes = results.flatMap(r => r.scenes || []);
