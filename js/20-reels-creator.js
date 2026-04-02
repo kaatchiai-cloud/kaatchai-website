@@ -7,6 +7,13 @@ const btnReelBack = $('btn-reel-back');
 const reelStepInput = $('reel-step-input');
 const reelStepPresets = $('reel-step-presets');
 const reelStepEditor = $('reel-step-editor');
+const reelStepActions = $('reel-step-actions');
+
+function showReelEditorStep() {
+  reelStepEditor.classList.remove('hidden');
+  if (reelStepActions) reelStepActions.classList.remove('hidden');
+  autoPickBgm();
+}
 
 // Input mode
 const reelModeAudio = $('reel-mode-audio');
@@ -66,6 +73,13 @@ let reelPlaying = false;
 let reelAnimId = null;
 let reelStartTime = 0;
 let reelBgmBuffer = null;
+let reelFrameImgEl = null;
+let reelFrameImgSrc = '';
+let reelFrameOpacity = 1.0;
+let reelFrameTemplate = 'none'; // none | bottom-strip | top-bar | corner-tag | full-border | custom-png
+let reelFrameText = '';
+let reelFrameBgColor = '#000000';
+let reelFrameTextColor = '#ffffff';
 let reelSegments = []; // [{start, end, thumbDataUrl}] — each becomes a separate reel
 let reelOriginalAudioBuffer = null; // preserve full audio for multi-segment extraction
 let reelPendingScenes = null; // scenes awaiting image generation (audio/text mode)
@@ -171,6 +185,10 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
 if (btnReelBack) btnReelBack.addEventListener('click', () => {
   navigateTo('home');
   reelMode = false;
+  reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
+  reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
+  if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
+  updateReelFrameControls();
   stopReelPreview();
 });
 
@@ -1015,7 +1033,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     reelProgressEl.classList.add('hidden');
     reelGenerateStatus.textContent = `${doneJobs.length} Reel(s) ready`;
     setStatus(`${doneJobs.length} Reel(s) ready`);
-    reelStepEditor.classList.remove('hidden');
+    showReelEditorStep();
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
@@ -1296,7 +1314,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     reelProgressEl.classList.add('hidden');
     reelGenerateStatus.textContent = `${singleResults.length} Reel(s) ready`;
     setStatus(`${singleResults.length} Reel(s) ready`);
-    reelStepEditor.classList.remove('hidden');
+    showReelEditorStep();
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
@@ -1597,7 +1615,16 @@ function renderAllReelPreviews() {
       source.connect(ctx.destination);
       const startedAt = ctx.currentTime;
       source.start(startedAt);
-      mpState[idx] = { source, startedAt, playing: true, animId: null };
+      let bgmPreviewSource = null;
+      if (reelBgmBuffer) {
+        bgmPreviewSource = ctx.createBufferSource();
+        bgmPreviewSource.buffer = reelBgmBuffer;
+        bgmPreviewSource.loop = true;
+        const bgmGain = ctx.createGain(); bgmGain.gain.value = 0.3;
+        bgmPreviewSource.connect(bgmGain); bgmGain.connect(ctx.destination);
+        bgmPreviewSource.start(startedAt);
+      }
+      mpState[idx] = { source, bgmSource: bgmPreviewSource, startedAt, playing: true, animId: null };
       // Start video playback in sync
       if (reelVideoEl && reelVideoEl.videoWidth > 0) {
         const seg = r.segments?.[0];
@@ -1635,6 +1662,7 @@ function renderAllReelPreviews() {
             renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle);
           }
           reelSubColor = savedColor; reelSubOutline = savedOutline; reelSubBackdrop = savedBackdrop; reelSubSize = savedSize; reelSubPosition = savedPos;
+          drawReelFrame(drawCtx, cw, ch);
         }
         mpState[idx].animId = requestAnimationFrame(tick);
       }
@@ -1648,6 +1676,7 @@ function renderAllReelPreviews() {
     if (!st) return;
     st.playing = false;
     if (st.source) { try { st.source.stop(); } catch(e) {} }
+    if (st.bgmSource) { try { st.bgmSource.stop(); } catch(e) {} }
     if (st.animId) cancelAnimationFrame(st.animId);
     if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
     if (resetScrub) {
@@ -1684,6 +1713,7 @@ function renderAllReelPreviews() {
         }
         const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
         if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, midTime, r.words, subStyle);
+        drawReelFrame(drawCtx, cw, ch);
       }
     });
   });
@@ -1723,6 +1753,7 @@ function renderAllReelPreviews() {
           const subStyle = rs2.subtitleStyle || reelSubtitleStyle;
           if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, t, r.words, subStyle);
           reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP;
+          drawReelFrame(drawCtx, cw, ch);
         };
         if (reelVideoEl && reelVideoEl.videoWidth > 0) {
           reelVideoEl.currentTime = (r.videoStart || 0) + t;
@@ -1747,7 +1778,16 @@ function renderAllReelPreviews() {
       source.connect(ctx.destination);
       const startedAt = ctx.currentTime - seekTime;
       source.start(0, seekTime);
-      mpState[idx] = { source, startedAt, playing: true, animId: null };
+      let bgmSeekSource = null;
+      if (reelBgmBuffer) {
+        bgmSeekSource = ctx.createBufferSource();
+        bgmSeekSource.buffer = reelBgmBuffer;
+        bgmSeekSource.loop = true;
+        const bgmGain2 = ctx.createGain(); bgmGain2.gain.value = 0.3;
+        bgmSeekSource.connect(bgmGain2); bgmGain2.connect(ctx.destination);
+        bgmSeekSource.start(0, seekTime % reelBgmBuffer.duration);
+      }
+      mpState[idx] = { source, bgmSource: bgmSeekSource, startedAt, playing: true, animId: null };
       const cvs = container.querySelector(`.reel-thumb-canvas[data-ri="${idx}"]`);
       const timeEl = container.querySelector(`.reel-mp-time[data-ri="${idx}"]`);
       const drawCtx = cvs?.getContext('2d');
@@ -1773,6 +1813,7 @@ function renderAllReelPreviews() {
           const subStyle3 = rs3.subtitleStyle || reelSubtitleStyle;
           if (subStyle3 !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle3);
           reelSubColor = sC2; reelSubOutline = sO2; reelSubBackdrop = sB2; reelSubSize = sSz2; reelSubPosition = sP2;
+          drawReelFrame(drawCtx, cw, ch);
         }
         mpState[idx].animId = requestAnimationFrame(tickFromSeek);
       }
@@ -2410,7 +2451,7 @@ async function reelBuildVariationsAndPreview() {
     reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
     reelScenes = window._reelMultiResults[0].scenes;
     reelWords = window._reelMultiResults[0].words;
-    reelStepEditor.classList.remove('hidden');
+    showReelEditorStep();
     renderReelScenes();
     // Pre-load all scene images before showing preview (mirrors the non-job path)
     const jobSceneImgs = window._reelMultiResults.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
@@ -2571,7 +2612,7 @@ async function reelBuildVariationsAndPreview() {
   // Show preview — outside try/catch so _reelMultiResults is always set
   const allResults2 = window._reelMultiResults;
   if (allResults2 && allResults2.length > 0) {
-    reelStepEditor.classList.remove('hidden');
+    showReelEditorStep();
     renderReelScenes();
     // Pre-load all scene images
     const allSceneImgs = allResults2.flatMap(r => r.scenes).filter(s => s.imgDataUrl && !s._img);
@@ -2650,6 +2691,7 @@ function renderReelFrame(time) {
           try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
         }
         drawReelSubtitles(ctx, platform, t);
+        drawReelFrame(ctx, platform.width, platform.height);
       };
       drawIt();
       // Also draw again after seek completes for accuracy
@@ -2663,11 +2705,14 @@ function renderReelFrame(time) {
         try { drawCoverFit(ctx, scene._img, platform.width, platform.height); } catch(e) { console.error('[Reel] drawCoverFit error:', e); }
       }
       drawReelSubtitles(ctx, platform, t);
+      drawReelFrame(ctx, platform.width, platform.height);
     } else {
       drawReelSubtitles(ctx, platform, t);
+      drawReelFrame(ctx, platform.width, platform.height);
     }
   } else {
     drawReelSubtitles(ctx, platform, t);
+    drawReelFrame(ctx, platform.width, platform.height);
   }
 }
 
@@ -2687,6 +2732,69 @@ function drawReelSubtitles(ctx, platform, time) {
   if (currentSubStyle !== 'none' && reelWords && reelWords.length > 0) {
     renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, currentSubStyle);
   }
+}
+
+function drawReelFrame(ctx, cw, ch) {
+  if (reelFrameTemplate === 'none') return;
+  ctx.save();
+  ctx.globalAlpha = reelFrameOpacity;
+  if (reelFrameTemplate === 'custom-png') {
+    if (reelFrameImgEl) ctx.drawImage(reelFrameImgEl, 0, 0, cw, ch);
+  } else {
+    const text = reelFrameText;
+    const bg = reelFrameBgColor;
+    const tc = reelFrameTextColor;
+    if (reelFrameTemplate === 'bottom-strip') {
+      const h = Math.round(ch * 0.10);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, ch - h, cw, h);
+      if (text) {
+        const fs = Math.round(h * 0.42);
+        ctx.font = `600 ${fs}px Poppins, sans-serif`;
+        ctx.fillStyle = tc; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, cw / 2, ch - h / 2);
+      }
+    } else if (reelFrameTemplate === 'top-bar') {
+      const h = Math.round(ch * 0.10);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, cw, h);
+      if (text) {
+        const fs = Math.round(h * 0.42);
+        ctx.font = `600 ${fs}px Poppins, sans-serif`;
+        ctx.fillStyle = tc; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, cw / 2, h / 2);
+      }
+    } else if (reelFrameTemplate === 'corner-tag') {
+      if (text) {
+        const fs = Math.round(cw * 0.042);
+        ctx.font = `600 ${fs}px Poppins, sans-serif`;
+        const tw = ctx.measureText(text).width;
+        const padX = fs * 0.6, padY = fs * 0.35;
+        const tagW = tw + padX * 2, tagH = fs + padY * 2;
+        const margin = Math.round(cw * 0.03);
+        const x = cw - tagW - margin, y = ch - tagH - margin;
+        ctx.fillStyle = bg;
+        try { ctx.beginPath(); ctx.roundRect(x, y, tagW, tagH, fs * 0.3); ctx.fill(); }
+        catch(e) { ctx.fillRect(x, y, tagW, tagH); }
+        ctx.fillStyle = tc; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, x + tagW / 2, y + tagH / 2);
+      }
+    } else if (reelFrameTemplate === 'full-border') {
+      const bw = Math.round(cw * 0.015);
+      ctx.strokeStyle = bg; ctx.lineWidth = bw * 2;
+      ctx.strokeRect(0, 0, cw, ch);
+      if (text) {
+        const fs = Math.round(cw * 0.038);
+        const barH = Math.round(fs * 1.8);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, ch - barH, cw, barH);
+        ctx.font = `600 ${fs}px Poppins, sans-serif`;
+        ctx.fillStyle = tc; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, cw / 2, ch - barH / 2);
+      }
+    }
+  }
+  ctx.restore();
 }
 
 // ── Playback ──
@@ -3050,6 +3158,57 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
 });
 
 // ── BGM ──
+const BGM_PRESETS = {
+  upbeat:    { label: 'Upbeat',    src: 'audio/bgm/upbeat.mp3' },
+  calm:      { label: 'Calm',      src: 'audio/bgm/calm.mp3' },
+  cinematic: { label: 'Cinematic', src: 'audio/bgm/cinematic.mp3' },
+  corporate: { label: 'Corporate', src: 'audio/bgm/corporate.mp3' },
+  playful:   { label: 'Playful',   src: 'audio/bgm/playful.mp3' },
+};
+
+async function loadBgmPreset(mood) {
+  if (!mood || mood === 'none' || mood === 'custom') { reelBgmBuffer = null; return; }
+  const preset = BGM_PRESETS[mood];
+  if (!preset) return;
+  try {
+    const resp = await fetch(preset.src);
+    if (!resp.ok) throw new Error('Not found');
+    const arrayBuf = await resp.arrayBuffer();
+    reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+  } catch(e) { console.warn('[BGM] Could not load preset:', mood, e); }
+}
+
+async function autoPickBgm() {
+  if (reelBgmBuffer) return; // don't override user's choice
+  const key = getReelApiKey();
+  if (!key) return;
+  const template = document.querySelector('#reel-template-grid .template-card.selected')?.dataset?.template || '';
+  const style = $('reel-style')?.value || '';
+  const text = ($('reel-text-input')?.value || '').slice(0, 200);
+  const context = [template && `template:${template}`, style && `style:${style}`, text && `topic:${text}`].filter(Boolean).join(', ');
+  if (!context) return;
+  try {
+    const body = { contents: [{ parts: [{ text: `Music director for social media reels. Content: "${context}". Pick ONE mood from: upbeat, calm, cinematic, corporate, playful. Reply with ONLY the single word.` }] }] };
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await resp.json();
+    const mood = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase().replace(/[^a-z]/g, '');
+    if (BGM_PRESETS[mood]) {
+      await loadBgmPreset(mood);
+      const el = $('reel-bgm-preset'); if (el) el.value = mood;
+      const lbl = $('reel-bgm-auto-label'); if (lbl) lbl.style.display = '';
+      console.log('[BGM] Auto-picked:', mood);
+    }
+  } catch(e) { console.warn('[BGM] Auto-pick failed:', e); }
+}
+
+const reelBgmPresetEl = $('reel-bgm-preset');
+if (reelBgmPresetEl) reelBgmPresetEl.addEventListener('change', async () => {
+  const mood = reelBgmPresetEl.value;
+  const autoLabel = $('reel-bgm-auto-label'); if (autoLabel) autoLabel.style.display = 'none';
+  const uploadBtn = $('btn-reel-bgm'); if (uploadBtn) uploadBtn.style.display = mood === 'custom' ? '' : 'none';
+  if (mood === 'custom') { reelBgmBuffer = null; return; }
+  await loadBgmPreset(mood);
+});
 if (btnReelBgm) btnReelBgm.addEventListener('click', () => reelBgmInput.click());
 if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
   const file = reelBgmInput.files[0];
@@ -3058,8 +3217,78 @@ if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
   try {
     const arrayBuf = await file.arrayBuffer();
     reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
-    btnReelBgm.textContent = `♫ ${file.name}`;
-  } catch(e) { btnReelBgm.textContent = '+ Add BGM (error)'; }
+    if (btnReelBgm) btnReelBgm.textContent = `♫ ${file.name.slice(0, 20)}`;
+  } catch(e) { if (btnReelBgm) btnReelBgm.textContent = '+ Upload (error)'; }
+});
+
+// ── Frame Overlay ──
+const btnReelFrame = $('btn-reel-frame');
+const btnReelFrameRemove = $('btn-reel-frame-remove');
+const reelFrameInput = $('reel-frame-input');
+const reelFrameOpacityEl = $('reel-frame-opacity');
+const reelFrameOpacityLabel = $('reel-frame-opacity-label');
+const reelFrameTemplateEl = $('reel-frame-template');
+const reelFrameTextEl = $('reel-frame-text');
+const reelFrameBgColorEl = $('reel-frame-bg-color');
+const reelFrameTextColorEl = $('reel-frame-text-color');
+
+function updateReelFrameControls() {
+  const t = reelFrameTemplate;
+  const isNone = t === 'none';
+  const isPng = t === 'custom-png';
+  const isTemplate = !isNone && !isPng;
+  const textLabel = $('reel-frame-text-label');
+  const colorsLabel = $('reel-frame-colors-label');
+  const pngLabel = $('reel-frame-png-label');
+  if (textLabel) textLabel.style.display = isTemplate ? '' : 'none';
+  if (colorsLabel) colorsLabel.style.display = isTemplate ? '' : 'none';
+  if (pngLabel) pngLabel.style.display = isPng ? '' : 'none';
+  if (reelFrameOpacityLabel) reelFrameOpacityLabel.style.display = isNone ? 'none' : '';
+}
+
+if (reelFrameTemplateEl) reelFrameTemplateEl.addEventListener('change', () => {
+  reelFrameTemplate = reelFrameTemplateEl.value;
+  updateReelFrameControls();
+  renderReelFrame(0);
+});
+if (reelFrameTextEl) reelFrameTextEl.addEventListener('input', () => {
+  reelFrameText = reelFrameTextEl.value;
+  renderReelFrame(0);
+});
+if (reelFrameBgColorEl) reelFrameBgColorEl.addEventListener('input', () => {
+  reelFrameBgColor = reelFrameBgColorEl.value;
+  renderReelFrame(0);
+});
+if (reelFrameTextColorEl) reelFrameTextColorEl.addEventListener('input', () => {
+  reelFrameTextColor = reelFrameTextColorEl.value;
+  renderReelFrame(0);
+});
+if (btnReelFrame) btnReelFrame.addEventListener('click', () => reelFrameInput?.click());
+if (reelFrameInput) reelFrameInput.addEventListener('change', (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  reelFrameInput.value = '';
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      reelFrameImgEl = img; reelFrameImgSrc = ev.target.result;
+      if (btnReelFrame) btnReelFrame.textContent = `🖼 ${file.name.slice(0, 16)}`;
+      if (btnReelFrameRemove) btnReelFrameRemove.style.display = '';
+      renderReelFrame(0);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+if (btnReelFrameRemove) btnReelFrameRemove.addEventListener('click', () => {
+  reelFrameImgEl = null; reelFrameImgSrc = '';
+  if (btnReelFrame) btnReelFrame.textContent = '+ Upload PNG';
+  if (btnReelFrameRemove) btnReelFrameRemove.style.display = 'none';
+  renderReelFrame(0);
+});
+if (reelFrameOpacityEl) reelFrameOpacityEl.addEventListener('input', () => {
+  reelFrameOpacity = reelFrameOpacityEl.value / 100;
+  renderReelFrame(0);
 });
 
 // ── Export ──
@@ -3169,6 +3398,7 @@ async function exportSingleReel() {
         renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
       }
       reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
+      drawReelFrame(ctx, platform.width, platform.height);
       if (isFree()) {
         ctx.save(); ctx.globalAlpha = 0.5;
         ctx.font = '600 20px Poppins, sans-serif'; ctx.fillStyle = '#fff';
@@ -3651,7 +3881,7 @@ async function loadReelProject(project) {
 
   // Show section 4 (preview)
   if (results.length > 0) {
-    reelStepEditor.classList.remove('hidden');
+    showReelEditorStep();
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();

@@ -2062,7 +2062,6 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
           <select id="create-image-size" >
             <option value="1280x720" selected>1280×720 — 16:9 (YouTube, LinkedIn Video)</option>
             <option value="1080x1080">1080×1080 — 1:1 (Instagram Post, Facebook)</option>
-            <option value="1080x1920">1080×1920 — 9:16 (Reels, TikTok, Shorts)</option>
             <option value="1200x628">1200×628 — Landscape (FB/LinkedIn Preview)</option>
             <option value="1080x1350">1080×1350 — 4:5 (Instagram Portrait)</option>
             <option value="1500x500">1500×500 — 3:1 Banner (Twitter/X Header)</option>
@@ -2204,12 +2203,6 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
     <div class="create-step" id="create-generate-step" class="hidden">
       <h3><span class="step-num">8</span> Generate Scene Images</h3>
       <div class="create-row flex-wrap gap-md">
-        <label id="image-category-label" style="color:var(--text-secondary); display:none;">Image mode:
-          <select id="create-image-category">
-            <option value="fast" selected>⚡ Fast ($0.039/img)</option>
-            <option value="quality">🎨 Quality ($0.04-$0.08/img)</option>
-          </select>
-        </label>
         <button id="btn-create-generate" class="primary btn-md">🖼 Generate All Images</button>
         <button id="btn-create-pause" class="btn-xs hidden">⏸ Pause</button>
         <button id="btn-create-retry-failed" class="danger btn-xs hidden">🔄 Retry Failed</button>
@@ -2416,7 +2409,41 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <div class="reel-editor-vertical">
         <div id="reel-previews-container" style="display:none;"></div>
         <div class="reel-scenes mt-md" id="reel-scene-list"></div>
+        <!-- Row 4: Music + Frame -->
         <div class="reel-settings mt-md">
+          <label class="form-label">Music:
+            <select id="reel-bgm-preset">
+              <option value="none">None</option>
+              <option value="upbeat">Upbeat</option>
+              <option value="calm">Calm</option>
+              <option value="cinematic">Cinematic</option>
+              <option value="corporate">Corporate</option>
+              <option value="playful">Playful</option>
+              <option value="custom">Custom Upload</option>
+            </select>
+            <span id="reel-bgm-auto-label" class="text-xs text-muted" style="display:none;">✨ Auto</span>
+            <button id="btn-reel-bgm" class="btn-xs" style="display:none;">📁 Upload</button>
+            <a href="https://pixabay.com/music/" target="_blank" class="btn-xs" style="text-decoration:none; font-size:0.72rem;">🎵 Find more</a>
+          </label>
+          <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
+          <label class="form-label">Frame:
+            <select id="reel-frame-template">
+              <option value="none">None</option>
+              <option value="bottom-strip">Bottom Strip</option>
+              <option value="top-bar">Top Bar</option>
+              <option value="corner-tag">Corner Tag</option>
+              <option value="full-border">Full Border</option>
+              <option value="custom-png">Custom PNG</option>
+            </select>
+          </label>
+          <label class="form-label" id="reel-frame-text-label" style="display:none;">Text: <input type="text" id="reel-frame-text" placeholder="@handle or brand" style="width:120px;"></label>
+          <label class="form-label" id="reel-frame-colors-label" style="display:none;">BG: <input type="color" id="reel-frame-bg-color" value="#000000"> Text: <input type="color" id="reel-frame-text-color" value="#ffffff"></label>
+          <label class="form-label" id="reel-frame-png-label" style="display:none;"><button id="btn-reel-frame" class="btn-xs">+ Upload PNG</button> <button id="btn-reel-frame-remove" class="btn-xs" style="color:var(--red);display:none;">✕</button></label>
+          <label class="form-label" id="reel-frame-opacity-label" style="display:none;">Opacity: <input type="range" id="reel-frame-opacity" min="0" max="100" value="100" style="width:60px;"></label>
+          <input type="file" id="reel-frame-input" accept="image/*" class="hidden">
+        </div>
+        <!-- Video settings -->
+        <div class="reel-settings mt-sm">
           <label class="form-label">Style: <select id="reel-edit-style"></select></label>
           <label class="form-label">Transition: <select id="reel-edit-transition"></select></label>
           <label class="form-label">Subtitle style:
@@ -2461,16 +2488,18 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
           <label class="form-label reel-viewport-custom hidden" id="reel-viewport-custom-label">Pan:
             <input type="range" id="reel-viewport-x" min="0" max="100" value="50" style="width:80px;">
           </label>
-          <label class="form-label">Music: <button id="btn-reel-bgm" class="btn-xs">+ Add BGM</button></label>
-          <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
         </div>
-        <div class="form-row mt-md">
-          <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
-          <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
-          <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
-          <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
-        </div>
-        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Export & Save -->
+    <div class="reel-step hidden" id="reel-step-actions">
+      <h3><span class="step-num">5</span> Export & Save</h3>
+      <div class="form-row">
+        <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
+        <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
+        <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
+        <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
       </div>
     </div>
   </div>
