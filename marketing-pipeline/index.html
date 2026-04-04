@@ -1,0 +1,4103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stori — Marketing Pipeline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f0f13;
+      --bg-card:    #1a1a23;
+      --bg-input:   #12121a;
+      --border:     #2a2a3a;
+      --text:       #e8e8f0;
+      --text-muted: #7a7a9a;
+      --accent:     #7c3aed;
+      --accent-2:   #a855f7;
+      --cyan:       #06b6d4;
+      --green:      #22c55e;
+      --red:        #ef4444;
+      --amber:      #f59e0b;
+      --radius:     8px;
+      --radius-lg:  12px;
+    }
+
+    body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,'Segoe UI',sans-serif; font-size:14px; line-height:1.5; min-height:100vh; }
+
+    a { color:var(--accent-2); }
+
+    .hidden { display:none !important; }
+    .text-muted { color:var(--text-muted); }
+    .text-xs { font-size:12px; }
+    .text-sm { font-size:13px; }
+
+    button { cursor:pointer; border-radius:var(--radius); font-family:inherit; font-size:13px; font-weight:500; transition:opacity .15s; }
+    button:disabled { opacity:.4; cursor:not-allowed; }
+    button:not(:disabled):hover { opacity:.85; }
+
+    .btn-sm  { padding:6px 14px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); }
+    .btn-xs  { padding:4px 10px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-size:12px; }
+    .btn-pri { padding:7px 18px; background:var(--accent); border:1px solid var(--accent); color:#fff; font-weight:600; }
+    .btn-danger { padding:5px 12px; background:transparent; border:1px solid var(--red); color:var(--red); font-size:12px; }
+    .btn-run { padding:5px 12px; background:var(--accent); border:1px solid var(--accent); color:#fff; font-size:12px; font-weight:600; }
+
+    input[type=text], input[type=password], textarea, select {
+      background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius);
+      color:var(--text); font-family:inherit; font-size:13px; padding:7px 10px; outline:none;
+      transition:border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus { border-color:var(--accent-2); }
+    textarea { resize:vertical; width:100%; }
+    select { cursor:pointer; }
+
+    /* Top bar */
+    .top-bar {
+      display:flex; align-items:center; gap:12px; padding:10px 24px;
+      background:var(--bg-card); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:10;
+    }
+    .top-bar h1 { font-size:16px; font-weight:700; }
+    .top-bar .sub { font-size:11px; color:var(--text-muted); }
+    .top-bar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+    /* Main */
+    .main { max-width:1100px; margin:0 auto; padding:24px 20px 60px; }
+
+    /* Step cards */
+    .step-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 22px; margin-bottom:16px; }
+    .step-card h3 { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600; margin-bottom:14px; }
+    .step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:700; flex-shrink:0; }
+
+    /* Form rows */
+    .form-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .form-row label { font-size:12px; color:var(--text-muted); }
+
+    /* Pill toggles */
+    .pill-group { display:flex; gap:6px; flex-wrap:wrap; }
+    .pill { padding:5px 14px; background:var(--bg-input); border:1px solid var(--border); color:var(--text-muted); border-radius:20px; font-size:12px; }
+    .pill.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    /* Tab bar */
+    .tab-bar { display:flex; gap:4px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+    .tab-btn { padding:7px 16px; background:transparent; border:none; border-bottom:2px solid transparent; border-radius:0; color:var(--text-muted); font-size:13px; margin-bottom:-1px; }
+    .tab-btn.active { color:var(--text); border-bottom-color:var(--accent-2); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* Job grid */
+    .job-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:12px; margin-top:12px; }
+
+    /* Job card */
+    .job-card {
+      background:var(--bg-input); border:1px solid var(--border);
+      border-radius:var(--radius); padding:12px 14px;
+      display:flex; flex-direction:column; gap:8px; position:relative;
+    }
+    .job-card[data-status="done-script"]     { border-color:var(--cyan); }
+    .job-card[data-status="generating-audio"]   { border-color:var(--amber); }
+    .job-card[data-status="generating-images"]  { border-color:var(--amber); }
+    .job-card[data-status="generating-clips"]  { border-color:var(--amber); }
+    .job-card[data-status="done-audio"]      { border-color:var(--green); }
+    .job-card[data-status="done"]            { border-color:var(--green); }
+    .job-card[data-status="error"]           { border-color:var(--red); }
+    .job-card[data-status="generating-script"]{ border-color:var(--accent-2); }
+
+    .job-card-header { display:flex; align-items:center; gap:6px; font-size:12px; }
+    .job-remove { position:absolute; top:8px; right:8px; background:none; border:none; color:var(--text-muted); font-size:16px; padding:0 2px; line-height:1; }
+    .job-remove:hover { color:var(--red); }
+    .job-title { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:20px; }
+    .job-meta { font-size:11px; color:var(--text-muted); }
+    .job-status-badge { font-size:11px; font-weight:600; }
+    .job-status-badge.pending         { color:var(--text-muted); }
+    .job-status-badge.generating-script { color:var(--accent-2); }
+    .job-status-badge.done-script     { color:var(--cyan); }
+    .job-status-badge.done            { color:var(--green); }
+    .job-status-badge.error           { color:var(--red); }
+
+    .job-result { margin-top:6px; padding:8px; background:var(--bg-card); border-radius:6px; font-size:12px; }
+    .job-result .style-name { font-weight:600; color:var(--accent-2); }
+    .job-result .style-reason { color:var(--text-muted); margin-top:2px; }
+    .job-result .scene-preview { margin-top:6px; color:var(--text-muted); font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .job-error { color:var(--red); font-size:11px; margin-top:4px; }
+
+    .job-actions { display:flex; gap:6px; flex-wrap:wrap; }
+
+    /* Queue controls */
+    .queue-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .queue-status { font-size:12px; color:var(--text-muted); margin-left:auto; }
+
+    /* Progress bar */
+    .progress-wrap { margin:10px 0; }
+    .progress-bg { background:var(--bg-input); border-radius:4px; height:6px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); border-radius:4px; transition:width .3s; }
+    .progress-label { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+    /* Empty state */
+    .empty-state { text-align:center; padding:32px 20px; color:var(--text-muted); font-size:13px; }
+    .empty-state .icon { font-size:32px; margin-bottom:8px; }
+
+    /* Toast */
+    #toast {
+      position:fixed; bottom:24px; left:50%;
+      transform:translateX(-50%) translateY(20px);
+      background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:10px 20px; font-size:13px; opacity:0; transition:opacity .2s,transform .2s;
+      pointer-events:none; z-index:999;
+    }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    #toast.success { border-color:var(--green); color:var(--green); }
+    #toast.error   { border-color:var(--red);   color:var(--red); }
+    #toast.info    { border-color:var(--cyan);   color:var(--cyan); }
+
+    /* Spinner */
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--accent-2); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:4px; }
+
+    /* Job checkbox + selected */
+    .job-check { position:absolute; top:10px; left:10px; width:14px; height:14px; cursor:pointer; accent-color:var(--accent-2); z-index:1; }
+    .job-card.selected { outline:2px solid var(--accent-2); }
+    .cost-badge { font-size:10px; color:var(--amber); border-radius:4px; padding:1px 5px; background:rgba(245,158,11,.1); display:inline-block; }
+
+    /* Content Planner — 4-tile grid */
+    .api-tile-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .api-tile {
+      background:var(--bg-input); border:2px solid var(--border); border-radius:var(--radius-lg);
+      padding:14px 16px; cursor:pointer; transition:border-color .2s;
+    }
+    .api-tile:hover { border-color:rgba(124,58,237,.3); }
+    .api-tile.active {
+      border-color:var(--accent-2);
+      background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(124,58,237,.02));
+    }
+    .api-tile-header {
+      font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px;
+      margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border);
+    }
+    .api-tile-header .badge-active {
+      font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px;
+      background:rgba(124,58,237,.15); color:var(--accent-2); margin-left:auto; display:none;
+    }
+    .api-tile.active .badge-active { display:inline-block; }
+    .api-tile .form-row { margin-bottom:8px; }
+    .api-tile .form-row label { min-width:100px; font-size:11px; }
+    @media (max-width:700px) { .api-tile-grid { grid-template-columns:1fr; } }
+
+    .planner-tile-grid {
+      display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;
+    }
+    @media (max-width:1200px) { .planner-tile-grid { grid-template-columns:repeat(2, 1fr); } }
+    @media (max-width:700px)  { .planner-tile-grid { grid-template-columns:1fr; } }
+
+    .planner-tile {
+      background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:14px 16px; display:flex; flex-direction:column; gap:10px;
+    }
+    .planner-tile-header {
+      font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px;
+      padding-bottom:8px; border-bottom:1px solid var(--border); margin-bottom:2px;
+    }
+    .planner-tile-header .badge {
+      font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px;
+      background:rgba(124,58,237,.15); color:var(--accent-2);
+    }
+    .planner-tile.magic { border-color:rgba(168,85,247,.4); background:linear-gradient(135deg,#1a1a23,#1e1a2e); }
+
+    .planner-lang-checks { display:flex; flex-wrap:wrap; gap:4px 8px; }
+    .planner-lang-label {
+      font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px; cursor:pointer;
+      white-space:nowrap;
+    }
+    .planner-lang-label input { width:13px; height:13px; accent-color:var(--accent-2); cursor:pointer; }
+
+    .planner-tile label.field { font-size:11px; color:var(--text-muted); margin-bottom:2px; display:block; }
+    .tile-mode-desc {
+      font-size:11px; color:var(--text-muted); line-height:1.5;
+      background:rgba(124,58,237,.07); border-left:2px solid var(--accent-2);
+      border-radius:0 6px 6px 0; padding:6px 10px; margin-top:2px;
+    }
+
+    .planner-topic-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
+      padding:8px 10px; cursor:pointer; transition:border-color .15s, background .15s;
+    }
+    .planner-topic-card:hover { border-color:var(--accent-2); background:#1e1e2e; }
+    .planner-topic-card.selected { border-color:var(--accent); background:rgba(124,58,237,.12); }
+    .planner-topic-title { font-size:12px; font-weight:600; margin-bottom:3px; line-height:1.35; }
+    .planner-topic-sub { font-size:10px; color:var(--text-muted); margin-bottom:4px; }
+    .planner-topic-why { font-size:10px; color:var(--cyan); }
+
+    .planner-pick-col { display:flex; flex-direction:column; gap:6px; }
+    .planner-pick-col-header { font-size:11px; font-weight:700; margin-bottom:2px; }
+
+    .planner-status-strip {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
+      padding:8px 10px; font-size:11px; color:var(--cyan); min-height:0;
+    }
+
+    /* Export overlay */
+    .export-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); display:flex; align-items:center; justify-content:center; z-index:200; }
+    .export-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px 32px; width:360px; text-align:center; }
+    .export-modal h4 { font-size:15px; font-weight:700; margin-bottom:8px; }
+    .export-modal .progress-wrap { margin:14px 0 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div>
+      <h1>Stori — Marketing Pipeline</h1>
+      <div class="sub">Internal batch content production tool</div>
+    </div>
+    <div class="top-bar-right">
+      <span id="session-cost" class="text-xs text-muted" style="display:none;"></span>
+      <button class="btn-sm" id="btn-save-project">Save Project</button>
+      <button class="btn-sm" id="btn-load-project">Load Project</button>
+      <input type="file" id="load-project-input" accept=".json" hidden>
+      <button class="btn-sm" onclick="history.back()">← Back to Stori</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Step 1: API Keys -->
+    <div class="step-card">
+      <h3><span class="step-num">1</span> API Keys</h3>
+
+      <!-- Gemini key — shared across both modes (script / TTS / translation) -->
+      <div class="form-row">
+        <label style="min-width:120px;">Gemini (script/TTS)</label>
+        <input type="password" id="api-key-input" placeholder="Gemini API key" style="width:260px;">
+        <button class="btn-pri" id="btn-save-key">Save</button>
+        <span id="key-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin-bottom:14px;padding-left:130px;">Get one free at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> — used by both modes</p>
+
+      <!-- Two mode tiles -->
+      <div class="api-tile-grid">
+
+        <!-- Tile 1: Illustrated Video -->
+        <div class="api-tile active" data-video-mode="illustrated">
+          <div class="api-tile-header">
+            🎨 Illustrated Video
+            <span class="badge-active">ACTIVE</span>
+          </div>
+          <div class="text-xs text-muted" style="margin-bottom:10px;">Static AI images + TTS narration + canvas render. The current production pipeline.</div>
+
+          <div class="form-row" style="margin-bottom:8px;">
+            <label style="min-width:100px;">Image provider</label>
+            <select id="img-provider-select" style="width:170px;">
+              <option value="gemini">Google Gemini</option>
+              <option value="laozhang">laozhang.ai</option>
+              <option value="wisdom">wisdom (wisgate.ai)</option>
+              <option value="gpt-image-mini">GPT Image 1 Mini (OpenAI)</option>
+            </select>
+          </div>
+
+          <div class="form-row" style="margin-bottom:8px;">
+            <label style="min-width:100px;">Generation mode</label>
+            <select id="img-gen-mode-select" style="width:170px;">
+              <option value="auto">Auto (grid if 4+ scenes)</option>
+              <option value="grid">Grid (1 API call, faster)</option>
+              <option value="individual">Individual (1 call/scene, best quality)</option>
+            </select>
+          </div>
+
+          <div class="form-row hidden" id="gpt-quality-row">
+            <label style="min-width:100px;">GPT quality</label>
+            <select id="gpt-quality-select" style="width:170px;">
+              <option value="low">Low — $0.005/img</option>
+              <option value="medium" selected>Medium — $0.015/img</option>
+              <option value="high">High — $0.052/img</option>
+            </select>
+          </div>
+
+          <div class="form-row hidden" id="laozhang-key-row">
+            <label style="min-width:100px;">laozhang.ai key</label>
+            <input type="password" id="laozhang-key-input" placeholder="laozhang.ai API key" style="width:200px;">
+            <button class="btn-pri" id="btn-save-laozhang-key">Save</button>
+            <span id="laozhang-key-status" class="text-xs text-muted"></span>
+          </div>
+
+          <div class="form-row hidden" id="wisdom-key-row">
+            <label style="min-width:100px;">wisdom key</label>
+            <input type="password" id="wisdom-key-input" placeholder="wisdom API key" style="width:200px;">
+            <button class="btn-pri" id="btn-save-wisdom-key">Save</button>
+            <span id="wisdom-key-status" class="text-xs text-muted"></span>
+          </div>
+
+          <div class="form-row hidden" id="openai-key-row">
+            <label style="min-width:100px;">OpenAI key</label>
+            <input type="password" id="openai-key-input" placeholder="OpenAI API key (sk-...)" style="width:200px;">
+            <button class="btn-pri" id="btn-save-openai-key">Save</button>
+            <span id="openai-key-status" class="text-xs text-muted"></span>
+          </div>
+        </div>
+
+        <!-- Tile 2: Animated Video -->
+        <div class="api-tile" data-video-mode="animated">
+          <div class="api-tile-header">
+            🎬 Animated Video
+            <span class="badge-active">ACTIVE</span>
+          </div>
+          <div class="text-xs text-muted" style="margin-bottom:10px;">AI images animated into 10s video clips via Kling v2.5 Turbo i2v. Experimental.</div>
+
+          <div class="form-row" style="margin-bottom:8px;">
+            <label style="min-width:100px;">Kling provider</label>
+            <select id="kling-provider-select" style="width:170px;">
+              <option value="kling-official">Kling Official API</option>
+              <option value="kie">kie.ai — $0.42/clip</option>
+              <option value="piapi">piapi.ai — $0.33/clip</option>
+            </select>
+          </div>
+
+          <!-- Official Kling API: access key + secret key -->
+          <div id="kling-official-key-row">
+            <div class="form-row" style="margin-bottom:6px;">
+              <label style="min-width:100px;">Access key</label>
+              <input type="password" id="kling-access-key-input" placeholder="Kling access key" style="width:200px;">
+            </div>
+            <div class="form-row" style="margin-bottom:6px;">
+              <label style="min-width:100px;">Secret key</label>
+              <input type="password" id="kling-secret-key-input" placeholder="Kling secret key" style="width:200px;">
+            </div>
+            <div class="form-row">
+              <label style="min-width:100px;"></label>
+              <button class="btn-pri" id="btn-save-kling-official-key">Save</button>
+              <span id="kling-official-key-status" class="text-xs text-muted"></span>
+            </div>
+          </div>
+
+          <!-- Reseller key (kie.ai / piapi.ai): single key -->
+          <div class="form-row hidden" id="kling-reseller-key-row">
+            <label style="min-width:100px;">API key</label>
+            <input type="password" id="kling-key-input" placeholder="Reseller API key" style="width:200px;">
+            <button class="btn-pri" id="btn-save-kling-key">Save</button>
+            <span id="kling-key-status" class="text-xs text-muted"></span>
+          </div>
+
+          <div class="text-xs text-muted" style="margin-top:8px;">
+            Images generated first (uses illustrated provider) then animated by Kling.
+            5 scenes x 10s = 50s video. ~$2.10/video (kie) or ~$1.65 (piapi) + image cost.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Content Planner — 4-tile grid -->
+    <div class="step-card" id="planner-card">
+      <h3 style="margin-bottom:12px;">
+        <span style="font-size:15px;">✨</span> Content Planner
+        <span class="text-xs text-muted" style="font-weight:400;margin-left:6px;">auto-suggest · research · generate</span>
+        <button class="btn-xs" id="btn-toggle-planner" style="margin-left:auto;">Hide</button>
+      </h3>
+
+      <div id="planner-body" class="planner-tile-grid">
+
+        <!-- ═══ Tile 1: Magic ═══ -->
+        <div class="planner-tile magic" data-channel="magic">
+          <div class="planner-tile-header">🪄 Magic <span class="badge">All Languages</span></div>
+          <label class="field">Topic or URL</label>
+          <textarea id="magic-topic-input" rows="2" placeholder="Enter a topic or paste a URL…" style="width:100%;font-size:12px;"></textarea>
+          <label class="field">Channels</label>
+          <div class="planner-lang-checks">
+            <label class="planner-lang-label"><input type="checkbox" class="magic-ch-check" value="stori" checked> Stori (1)</label>
+            <label class="planner-lang-label"><input type="checkbox" class="magic-ch-check" value="stori-india" checked> India (9)</label>
+            <label class="planner-lang-label"><input type="checkbox" class="magic-ch-check" value="stori-global" checked> Global (8)</label>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <button class="btn-pri magic-go-btn" style="font-size:12px;padding:7px 14px;font-weight:700;">🪄 Generate All</button>
+            <span class="text-xs text-muted" id="magic-count-label">18 videos</span>
+            <button class="btn-danger hidden magic-cancel-btn" style="padding:5px 10px;font-size:11px;">✕</button>
+          </div>
+          <div class="planner-status-strip hidden magic-status"></div>
+          <div class="progress-wrap hidden magic-progress" style="margin:0;">
+            <div class="progress-bg"><div class="progress-fill magic-bar" style="width:0%;transition:width .4s;"></div></div>
+          </div>
+        </div>
+
+        <!-- ═══ Tile 2: Stori (English) ═══ -->
+        <div class="planner-tile" data-channel="stori">
+          <div class="planner-tile-header">🇺🇸 Stori <span class="badge">English</span></div>
+          <label class="field">Category</label>
+          <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Mode</label>
+          <div class="pill-group tile-mode-pills">
+            <button class="pill active" data-mode="auto">⚡ Auto</button>
+            <button class="pill" data-mode="pick">🎯 Pick</button>
+            <button class="pill" data-mode="batch">📦 Batch</button>
+          </div>
+          <div class="tile-mode-desc">AI picks the best trending topic, researches it, and generates a video — fully automatic</div>
+          <div class="hidden tile-batch-row" style="display:flex;gap:6px;align-items:center;">
+            <label class="field" style="margin:0;">Count</label>
+            <select class="tile-batch-select" style="width:70px;font-size:11px;">
+              <option value="3">3</option><option value="5">5</option><option value="9">9</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <button class="btn-pri tile-go-btn" style="font-size:12px;padding:7px 14px;font-weight:700;">▶ Generate</button>
+            <button class="btn-danger hidden tile-cancel-btn" style="padding:5px 10px;font-size:11px;">✕</button>
+          </div>
+          <div class="planner-status-strip hidden tile-status"></div>
+          <div class="progress-wrap hidden tile-progress" style="margin:0;">
+            <div class="progress-bg"><div class="progress-fill tile-bar" style="width:0%;transition:width .4s;"></div></div>
+          </div>
+          <div class="hidden tile-pick-area"></div>
+        </div>
+
+        <!-- ═══ Tile 3: Stori India ═══ -->
+        <div class="planner-tile" data-channel="stori-india">
+          <div class="planner-tile-header">🇮🇳 Stori India <span class="badge">9 Languages</span></div>
+          <label class="field">Languages</label>
+          <div class="planner-lang-checks tile-lang-checks">
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="hi"> 🇮🇳 Hindi</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="ta"> 🇮🇳 Tamil</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="te"> 🇮🇳 Telugu</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="kn"> 🇮🇳 Kannada</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="ml"> 🇮🇳 Malayalam</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="bn"> 🇮🇳 Bengali</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="mr"> 🇮🇳 Marathi</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="gu"> 🇮🇳 Gujarati</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="pa"> 🇮🇳 Punjabi</label>
+          </div>
+          <label class="field">Category</label>
+          <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Mode</label>
+          <div class="pill-group tile-mode-pills">
+            <button class="pill active" data-mode="auto">⚡ Auto</button>
+            <button class="pill" data-mode="pick">🎯 Pick</button>
+            <button class="pill" data-mode="batch">📦 Batch</button>
+          </div>
+          <div class="tile-mode-desc">AI picks the best trending topic, researches it, and generates a video — fully automatic</div>
+          <div class="hidden tile-batch-row" style="display:flex;gap:6px;align-items:center;">
+            <label class="field" style="margin:0;">Count</label>
+            <select class="tile-batch-select" style="width:70px;font-size:11px;">
+              <option value="3">3</option><option value="5">5</option><option value="9">9</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <button class="btn-pri tile-go-btn" style="font-size:12px;padding:7px 14px;font-weight:700;">▶ Generate</button>
+            <button class="btn-danger hidden tile-cancel-btn" style="padding:5px 10px;font-size:11px;">✕</button>
+          </div>
+          <div class="planner-status-strip hidden tile-status"></div>
+          <div class="progress-wrap hidden tile-progress" style="margin:0;">
+            <div class="progress-bg"><div class="progress-fill tile-bar" style="width:0%;transition:width .4s;"></div></div>
+          </div>
+          <div class="hidden tile-pick-area"></div>
+        </div>
+
+        <!-- ═══ Tile 4: Stori Global ═══ -->
+        <div class="planner-tile" data-channel="stori-global">
+          <div class="planner-tile-header">🌏 Stori Global <span class="badge">8 Languages</span></div>
+          <label class="field">Languages</label>
+          <div class="planner-lang-checks tile-lang-checks">
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="es"> 🇪🇸 Spanish</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="fr"> 🇫🇷 French</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="pt"> 🇧🇷 Portuguese</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="ar"> 🇸🇦 Arabic</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="id"> 🇮🇩 Indonesian</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="ja"> 🇯🇵 Japanese</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="ko"> 🇰🇷 Korean</label>
+            <label class="planner-lang-label"><input type="checkbox" class="tile-lang-check" value="de"> 🇩🇪 German</label>
+          </div>
+          <label class="field">Category</label>
+          <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Mode</label>
+          <div class="pill-group tile-mode-pills">
+            <button class="pill active" data-mode="auto">⚡ Auto</button>
+            <button class="pill" data-mode="pick">🎯 Pick</button>
+            <button class="pill" data-mode="batch">📦 Batch</button>
+          </div>
+          <div class="tile-mode-desc">AI picks the best trending topic, researches it, and generates a video — fully automatic</div>
+          <div class="hidden tile-batch-row" style="display:flex;gap:6px;align-items:center;">
+            <label class="field" style="margin:0;">Count</label>
+            <select class="tile-batch-select" style="width:70px;font-size:11px;">
+              <option value="3">3</option><option value="5">5</option><option value="9">9</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <button class="btn-pri tile-go-btn" style="font-size:12px;padding:7px 14px;font-weight:700;">▶ Generate</button>
+            <button class="btn-danger hidden tile-cancel-btn" style="padding:5px 10px;font-size:11px;">✕</button>
+          </div>
+          <div class="planner-status-strip hidden tile-status"></div>
+          <div class="progress-wrap hidden tile-progress" style="margin:0;">
+            <div class="progress-bg"><div class="progress-fill tile-bar" style="width:0%;transition:width .4s;"></div></div>
+          </div>
+          <div class="hidden tile-pick-area"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 2: Add Content -->
+    <div class="step-card">
+      <h3><span class="step-num">2</span> Add Content</h3>
+
+      <div class="form-row">
+        <label>Channel</label>
+        <div class="pill-group" id="channel-group">
+          <button class="pill active" data-channel="stori">Stori (English)</button>
+          <button class="pill" data-channel="stori-india">Stori India</button>
+          <button class="pill" data-channel="stori-global">Stori Global</button>
+        </div>
+      </div>
+
+      <div class="form-row" id="lang-row" style="display:none;">
+        <label>Language</label>
+        <select id="lang-select" style="width:200px;"></select>
+      </div>
+
+      <div class="form-row">
+        <label>Platform</label>
+        <div class="pill-group" id="platform-group">
+          <button class="pill active" data-platform="youtube">YouTube Short</button>
+          <button class="pill" data-platform="instagram">Instagram Reel</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Style</label>
+        <select id="style-select" style="width:200px;"></select>
+      </div>
+
+      <div class="form-row">
+        <label>Transition</label>
+        <select id="transition-select" style="width:160px;">
+          <option value="whip-pan">Whip Pan</option>
+          <option value="crossfade">Crossfade</option>
+          <option value="quick-cut">Quick Cut</option>
+          <option value="zoom-in">Zoom In</option>
+          <option value="flash">Flash</option>
+        </select>
+        <label style="margin-left:12px;">Branding:</label>
+        <label class="text-xs"><input type="checkbox" id="chk-watermark" checked> Watermark</label>
+        <label class="text-xs"><input type="checkbox" id="chk-intro" checked> Intro</label>
+        <label class="text-xs"><input type="checkbox" id="chk-endcard" checked> End card</label>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label>Subtitles</label>
+        <select id="sub-lang-select" style="width:140px;" title="Subtitle language"></select>
+        <select id="sub-style-select" style="width:118px;" title="Subtitle style">
+          <option value="highlight">Highlight</option>
+          <option value="word-by-word">Word-by-word</option>
+          <option value="bold-center">Bold Center</option>
+          <option value="karaoke">Karaoke</option>
+          <option value="none">Hidden</option>
+        </select>
+        <select id="sub-backdrop-select" style="width:80px;" title="Backdrop">
+          <option value="dark">Dark</option>
+          <option value="none">None</option>
+        </select>
+        <label style="font-size:12px;margin-left:4px;" title="Text size">Sz</label>
+        <input type="range" id="sub-size-range" min="2" max="8" step="0.5" value="4" style="width:54px;vertical-align:middle;">
+        <span id="sub-size-label" style="font-size:11px;color:var(--text-muted);min-width:16px;">4</span>
+        <select id="sub-position-select" style="width:82px;" title="Position">
+          <option value="top">Top</option>
+          <option value="center">Center</option>
+          <option value="bottom" selected>Bottom</option>
+        </select>
+        <input type="color" id="sub-color-input" value="#ffffff" title="Text color" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
+        <input type="color" id="sub-outline-input" value="#000000" title="Outline color" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="topic">Topic Prompt</button>
+        <button class="tab-btn" data-tab="script">Text Script</button>
+        <button class="tab-btn" data-tab="csv">CSV Import</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-topic">
+        <textarea id="topic-input" rows="3" placeholder="Short: 'Murugan slays Surapadman'&#10;Or paste long text — AI condenses to 60s and picks best visual style."></textarea>
+        <div class="form-row" style="margin-top:8px;">
+          <button class="btn-pri" id="btn-add-topic">+ Add to Queue</button>
+          <span class="text-xs text-muted">Gemini 2.5 Pro writes script + auto-detects style</span>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-script">
+        <textarea id="script-input" rows="5" placeholder="Paste your complete script (~150-180 words for 60s). AI breaks it into scenes and picks visual style."></textarea>
+        <div class="form-row" style="margin-top:8px;">
+          <button class="btn-pri" id="btn-add-script">+ Add to Queue</button>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-csv">
+        <p class="text-xs text-muted" style="margin-bottom:10px;">Columns: <code>channel, language, topic</code> (required) | <code>script, style, platform, transition</code> (optional)</p>
+        <div class="form-row">
+          <button class="btn-sm" id="btn-csv-file">Choose CSV File</button>
+          <input type="file" id="csv-file-input" accept=".csv,.tsv" hidden>
+          <span id="csv-file-name" class="text-xs text-muted">No file chosen</span>
+          <button class="btn-sm" id="btn-csv-template">Download Template</button>
+        </div>
+        <div class="form-row" style="margin-top:6px;">
+          <button class="btn-pri" id="btn-add-csv" disabled>Import All as Jobs</button>
+          <span id="csv-count" class="text-xs text-muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Content Queue -->
+    <div class="step-card">
+      <h3><span class="step-num">3</span> Content Queue</h3>
+
+      <div class="queue-controls">
+        <button class="btn-pri" id="btn-run-all" disabled>▶ Run All</button>
+        <button class="btn-sm"  id="btn-run-seq" disabled>Sequential</button>
+        <button class="btn-sm"  id="btn-run-selected" disabled>▶ Selected</button>
+        <button class="btn-sm"  id="btn-pause"   style="display:none;" disabled>⏸ Pause</button>
+        <button class="btn-sm"  id="btn-resume"  style="display:none;" disabled>▶ Resume</button>
+        <button class="btn-danger" id="btn-clear" disabled>Clear</button>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
+          <span class="text-xs text-muted">Workers:</span>
+          <select id="concurrency" style="width:55px;">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <span class="queue-status" id="queue-status"></span>
+      </div>
+
+      <div class="progress-wrap hidden" id="queue-progress">
+        <div class="progress-bg"><div class="progress-fill" id="queue-bar" style="width:0%"></div></div>
+        <div class="progress-label" id="queue-label"></div>
+      </div>
+
+      <div id="job-grid" class="job-grid">
+        <div class="empty-state"><div class="icon">📋</div>Add content above to build your queue</div>
+      </div>
+    </div>
+
+    <!-- Step 4: Export -->
+    <div class="step-card hidden" id="export-section">
+      <h3><span class="step-num">4</span> Export</h3>
+      <div class="form-row" style="margin-bottom:0;">
+        <button class="btn-pri" id="btn-export-all">⬇ Export All Done Videos</button>
+        <span class="text-xs text-muted" id="export-all-label"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Export overlay -->
+  <div id="export-overlay" class="export-overlay hidden">
+    <div class="export-modal">
+      <h4>Exporting Video…</h4>
+      <p id="export-job-title" class="text-sm text-muted" style="margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></p>
+      <div class="progress-wrap">
+        <div class="progress-bg"><div class="progress-fill" id="export-bar" style="width:0%"></div></div>
+        <div class="progress-label" id="export-label">Preparing…</div>
+      </div>
+      <p class="text-xs text-muted" style="margin-top:10px;">Keep this tab active. Recording in real-time.</p>
+      <button class="btn-danger" id="btn-cancel-export" style="margin-top:14px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Job preview modal -->
+  <div id="job-preview-overlay" class="export-overlay hidden">
+    <div class="export-modal" style="width:560px;max-width:98vw;text-align:left;max-height:95vh;overflow-y:auto;padding:24px 28px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h4 id="preview-modal-title" style="margin:0;font-size:14px;flex:1;padding-right:10px;"></h4>
+        <button class="btn-xs" id="btn-close-preview" style="flex-shrink:0;">✕ Close</button>
+      </div>
+      <div id="preview-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+  // ═══════════════════════════════════════════════
+  // CONSTANTS
+  // ═══════════════════════════════════════════════
+
+  const STYLE_PRESETS = {
+    'watercolor':   'Watercolor painting style with soft, flowing colors and visible brush strokes on textured paper.',
+    'cinematic':    'Cinematic photography with dramatic lighting, shallow depth of field, and film grain. Professional color grading.',
+    'anime':        'Japanese anime art style with clean lines, vibrant colors, and expressive character design.',
+    'oil-painting': 'Classical oil painting style with rich textures, visible brush strokes, and dramatic chiaroscuro lighting.',
+    'digital-art':  'Clean digital art illustration with smooth gradients, vibrant colors, and precise details.',
+    'minimalist':   'Minimalist illustration with simple shapes, limited color palette, and clean negative space.',
+    'photorealistic':'Ultra-photorealistic image with perfect lighting, sharp details, and natural colors.',
+    'comic':        'Comic book art style with bold outlines, halftone dots, dynamic composition, and vivid colors.',
+    'pixel-art':    'Pixel art style with chunky pixels, limited palette, retro 8-bit/16-bit video game aesthetic.',
+    '3d-render':    'Clean 3D rendered illustration with smooth surfaces, soft global illumination, and studio lighting.',
+    'sketch':       'Hand-drawn pencil sketch style with visible strokes, cross-hatching, and paper texture.',
+    'vintage':      'Vintage retro photography with faded colors, film grain, light leaks, and warm sepia undertones.',
+    'flat-design':  'Flat design illustration with bold solid colors, geometric shapes, no shadows or gradients.',
+    'gothic':       'Dark gothic art with intricate details, deep shadows, ornate architecture, and moody atmosphere.',
+    'pastel':       'Soft pastel art with gentle muted colors, dreamy atmosphere, and delicate light diffusion.',
+    'ukiyo-e':      'Japanese ukiyo-e woodblock print style with flowing lines, flat color areas, and nature motifs.',
+    'stained-glass':'Stained glass art style with bold black outlines, jewel-toned translucent colors, and mosaic composition.',
+    'pop-art':      'Pop art style with bold primary colors, Ben-Day dots, thick outlines, and high contrast graphic design.',
+    'noir':         'Film noir style with high contrast black and white, dramatic shadows, venetian blind lighting.',
+    'surrealism':   'Surrealist art with dreamlike impossible scenes, melting forms, unexpected juxtapositions.',
+  };
+
+  const CHANNEL_PRESETS = {
+    'stori':        { languages: [['en','English','🇺🇸']],        transition:'crossfade',  contentType:'explainer' },
+    'stori-india':  { languages: [['hi','Hindi','🇮🇳'],['ta','Tamil','🇮🇳'],['te','Telugu','🇮🇳'],['kn','Kannada','🇮🇳'],['ml','Malayalam','🇮🇳'],['bn','Bengali','🇮🇳'],['mr','Marathi','🇮🇳'],['gu','Gujarati','🇮🇳'],['pa','Punjabi','🇮🇳']], transition:'whip-pan', contentType:'mythology' },
+    'stori-global': { languages: [['es','Spanish','🇪🇸'],['fr','French','🇫🇷'],['pt','Portuguese','🇧🇷'],['ar','Arabic','🇸🇦'],['id','Indonesian','🇮🇩'],['ja','Japanese','🇯🇵'],['ko','Korean','🇰🇷'],['de','German','🇩🇪']], transition:'crossfade', contentType:'folk-tale' },
+  };
+
+  const PLANNER_CATEGORIES = {
+    'stori':        ['Explainer', 'Science', 'History', 'How It Works', 'Technology', 'Culture', 'Psychology', 'Nature'],
+    'stori-india':  ['Mythology', 'Folk Tale', 'Historical', 'Devotional', 'Cultural Heritage', 'Regional Legend', 'Epic Stories', 'Saints & Sages'],
+    'stori-global': ['Folk Tale', 'Legend', 'Mythology', 'Cultural', 'Ancient History', 'Fairy Tale', 'Origin Stories', 'Hero Tales'],
+  };
+
+  const PLANNER_MODE_DESC = {
+    'auto':  'AI picks the best trending topic, researches it, and generates a video — fully automatic',
+    'pick':  'AI suggests 9 topics — you pick one — then research + generation runs automatically',
+    'batch': 'AI picks multiple topics, researches all, and generates a batch of videos automatically',
+  };
+
+  // ═══════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════
+
+  let apiKey = '';
+  let laozhangKey = '';
+  let wisdomKey = '';
+  let openaiKey = '';
+  let gptImageQuality = 'medium';
+  let selectedImageProvider = 'laozhang'; // 'gemini' | 'laozhang' | 'wisdom' | 'gpt-image-mini'
+  let selectedImgGenMode = 'auto'; // 'auto' | 'grid' | 'individual'
+  let selectedVideoMode = 'illustrated'; // 'illustrated' | 'animated'
+  let klingKey = '';            // reseller single key (kie / piapi)
+  let klingAccessKey = '';     // official Kling access_key
+  let klingSecretKey = '';     // official Kling secret_key
+  let klingProvider = 'kling-official'; // 'kling-official' | 'kie' | 'piapi'
+  let jobs = [];
+  let nextJobId = 1;
+  let selectedChannel = 'stori';
+  let selectedPlatform = 'youtube';
+  let csvRows = [];
+  let runningCount = 0;
+
+  // ─── Content Planner state (per-tile) ────────────────────
+  const plannerTileState = {
+    'stori':        { running: false, cancelled: false },
+    'stori-india':  { running: false, cancelled: false },
+    'stori-global': { running: false, cancelled: false },
+  };
+  let magicRunning   = false;
+  let magicCancelled = false;
+
+  // Phase 7 — selection + pause/resume
+  let selectedJobIds = new Set();
+  let isPaused = false;
+  let _resumeCallback = null;
+
+  // Phase 9 — cost tracker
+  let sessionApiCost = 0;
+  let sessionApiCalls = 0;
+
+  // Subtitle global defaults (copied into each job at creation time)
+  let subLang     = 'original'; // 'original' = same as audio
+  let subStyle    = 'highlight';
+  let subBackdrop = 'dark';
+  let subSize     = 4;          // 2–8, matches main app range (% of canvas width / 100)
+  let subPosition = 'bottom';
+  let subColor    = '#ffffff';
+  let subOutline  = '#000000';
+
+  const SUB_LANGUAGES = [
+    ['original', 'Same as audio', ''],
+    ['en','English','🇺🇸'], ['hi','Hindi','🇮🇳'], ['ta','Tamil','🇮🇳'],
+    ['te','Telugu','🇮🇳'], ['kn','Kannada','🇮🇳'], ['ml','Malayalam','🇮🇳'],
+    ['bn','Bengali','🇮🇳'], ['mr','Marathi','🇮🇳'], ['pa','Punjabi','🇮🇳'],
+    ['es','Spanish','🇪🇸'], ['fr','French','🇫🇷'], ['pt','Portuguese','🇧🇷'],
+    ['ar','Arabic','🇸🇦'], ['id','Indonesian','🇮🇩'], ['ja','Japanese','🇯🇵'],
+    ['ko','Korean','🇰🇷'], ['de','German','🇩🇪'], ['zh','Chinese','🇨🇳'],
+  ];
+
+  // ═══════════════════════════════════════════════
+  // CONTENT PLANNER — 4-Tile Grid
+  // ═══════════════════════════════════════════════
+
+  // ── Init: bind all 4 tiles ──
+  function initPlanner() {
+    // Toggle planner body
+    document.getElementById('btn-toggle-planner').addEventListener('click', () => {
+      const body = document.getElementById('planner-body');
+      const hidden = body.classList.toggle('hidden');
+      document.getElementById('btn-toggle-planner').textContent = hidden ? 'Show' : 'Hide';
+    });
+
+    // Init each channel tile
+    document.querySelectorAll('.planner-tile[data-channel]').forEach(tile => {
+      const ch = tile.dataset.channel;
+      if (ch === 'magic') { initMagicTile(tile); return; }
+
+      // Populate category dropdown
+      const catSel = tile.querySelector('.tile-cat-select');
+      const cats = PLANNER_CATEGORIES[ch] || [];
+      catSel.innerHTML = cats.map(c =>
+        `<option value="${c.toLowerCase().replace(/ /g,'-')}">${c}</option>`).join('');
+
+      // Mode pills
+      tile.querySelector('.tile-mode-pills').addEventListener('click', e => {
+        const btn = e.target.closest('[data-mode]');
+        if (!btn) return;
+        tile.querySelectorAll('.tile-mode-pills .pill').forEach(b => b.classList.toggle('active', b === btn));
+        tile.querySelector('.tile-batch-row').classList.toggle('hidden', btn.dataset.mode !== 'batch');
+        // Update mode description
+        const descEl = tile.querySelector('.tile-mode-desc');
+        if (descEl) descEl.textContent = PLANNER_MODE_DESC[btn.dataset.mode] || '';
+        // Enforce max 4 langs in Pick mode
+        if (btn.dataset.mode === 'pick') enforceLangLimit(tile, 4);
+      });
+
+      // Language checkbox change — enforce max 4 in Pick mode
+      tile.querySelectorAll('.tile-lang-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const mode = tile.querySelector('.tile-mode-pills .pill.active')?.dataset.mode;
+          if (mode === 'pick') enforceLangLimit(tile, 4);
+        });
+      });
+
+      // Generate button
+      tile.querySelector('.tile-go-btn').addEventListener('click', () => runTilePlanner(ch));
+
+      // Cancel button
+      tile.querySelector('.tile-cancel-btn').addEventListener('click', () => {
+        plannerTileState[ch].cancelled = true;
+      });
+    });
+  }
+
+  function enforceLangLimit(tile, max) {
+    const checks = [...tile.querySelectorAll('.tile-lang-check')];
+    const checked = checks.filter(c => c.checked);
+    if (checked.length > max) {
+      // Uncheck the earliest ones to bring to max
+      checked.slice(0, checked.length - max).forEach(c => { c.checked = false; });
+      toast(`Pick mode: max ${max} languages`, 'info');
+    }
+  }
+
+  // ── Magic tile init ──
+  function initMagicTile(tile) {
+    // Channel checkboxes → update count label
+    tile.querySelectorAll('.magic-ch-check').forEach(cb => {
+      cb.addEventListener('change', () => magicUpdateCount(tile));
+    });
+    tile.querySelector('.magic-go-btn').addEventListener('click', () => runMagic());
+    tile.querySelector('.magic-cancel-btn').addEventListener('click', () => { magicCancelled = true; });
+    magicUpdateCount(tile);
+  }
+
+  function magicUpdateCount(tile) {
+    let count = 0;
+    tile.querySelectorAll('.magic-ch-check').forEach(cb => {
+      if (cb.checked) count += (cb.value === 'stori' ? 1 : CHANNEL_PRESETS[cb.value].languages.length);
+    });
+    tile.querySelector('#magic-count-label').textContent = count + ' videos';
+    tile.querySelector('.magic-go-btn').textContent = `🪄 Generate All`;
+  }
+
+  // ── Read tile config from DOM ──
+  function getTileConfig(channel) {
+    const tile = document.querySelector(`.planner-tile[data-channel="${channel}"]`);
+    const preset = CHANNEL_PRESETS[channel];
+
+    // For single-language channel (stori), use preset language
+    let langs;
+    if (preset.languages.length <= 1) {
+      langs = [preset.languages[0]];
+    } else {
+      const checked = [...tile.querySelectorAll('.tile-lang-check:checked')].map(cb => cb.value);
+      langs = preset.languages.filter(l => checked.includes(l[0]));
+    }
+
+    const category = tile.querySelector('.tile-cat-select').value;
+    const mode = tile.querySelector('.tile-mode-pills .pill.active')?.dataset.mode || 'auto';
+    const batchN = parseInt(tile.querySelector('.tile-batch-select')?.value || '3');
+
+    return { channel, langs, category, mode, batchN };
+  }
+
+  // ── Per-tile status helpers ──
+  function tileSetStatus(channel, text, pct) {
+    const tile = document.querySelector(`.planner-tile[data-channel="${channel}"]`);
+    const statusEl = tile.querySelector('.tile-status, .magic-status');
+    const progressEl = tile.querySelector('.tile-progress, .magic-progress');
+    const barEl = tile.querySelector('.tile-bar, .magic-bar');
+
+    statusEl.classList.remove('hidden');
+    statusEl.textContent = text;
+
+    if (pct === null || pct === undefined) {
+      progressEl.classList.add('hidden');
+    } else {
+      progressEl.classList.remove('hidden');
+      barEl.style.width = pct + '%';
+    }
+  }
+
+  function tileSetRunning(channel, running) {
+    const tile = document.querySelector(`.planner-tile[data-channel="${channel}"]`);
+    const isM = channel === 'magic';
+
+    const goBtn = tile.querySelector(isM ? '.magic-go-btn' : '.tile-go-btn');
+    const cancelBtn = tile.querySelector(isM ? '.magic-cancel-btn' : '.tile-cancel-btn');
+
+    goBtn.disabled = running;
+    goBtn.textContent = running ? '⏳ Running…' : (isM ? '🪄 Generate All' : '▶ Generate');
+    cancelBtn.classList.toggle('hidden', !running);
+
+    if (!running) {
+      tile.querySelector('.tile-pick-area, .magic-pick-area')?.classList.add('hidden');
+    }
+  }
+
+  // ── Entry point for channel tiles (not Magic) ──
+  async function runTilePlanner(channel) {
+    const ts = plannerTileState[channel];
+    if (ts.running) return;
+    if (!getGeminiKey()) { toast('Add Gemini API key in Step 1 first', 'error'); return; }
+
+    ts.running = true; ts.cancelled = false;
+    tileSetRunning(channel, true);
+
+    try {
+      const cfg = getTileConfig(channel);
+      if (!cfg.langs.length) { toast('Select at least one language', 'error'); return; }
+
+      if (cfg.mode === 'auto')       await tileRunAuto(cfg);
+      else if (cfg.mode === 'pick')  await tileRunPick(cfg);
+      else if (cfg.mode === 'batch') await tileRunBatch(cfg);
+    } catch(e) {
+      if (!ts.cancelled) toast('Planner: ' + e.message, 'error');
+      tileSetStatus(channel, 'Stopped — ' + (ts.cancelled ? 'cancelled' : e.message), null);
+    } finally {
+      ts.running = false;
+      tileSetRunning(channel, false);
+    }
+  }
+
+  // ── Auto mode: 1 video per selected language, AI picks topic ──
+  async function tileRunAuto(cfg) {
+    const { channel, langs, category } = cfg;
+    const ts = plannerTileState[channel];
+    const allJobs = [];
+
+    for (let i = 0; i < langs.length; i++) {
+      if (ts.cancelled) break;
+      const lang = langs[i];
+      const pct = Math.round((i / langs.length) * 80);
+      tileSetStatus(channel, `🔍 [${lang[1]}] Finding topic…`, pct);
+      const topics = await plannerSuggestTopics(1, lang, channel, category);
+      if (ts.cancelled) break;
+
+      const topic = topics[0];
+      tileSetStatus(channel, `📖 [${lang[1]}] Researching "${topic.title}"…`, pct + 15);
+      const research = await plannerResearchTopic(topic, lang);
+      if (ts.cancelled) break;
+
+      const job = plannerCreateJob(channel, lang, topic, research);
+      allJobs.push(job);
+      addJob(job, false);
+    }
+
+    renderJobs(); updateQueueControls();
+    tileSetStatus(channel, `✅ ${allJobs.length} video${allJobs.length !== 1 ? 's' : ''} queued`, 100);
+    toast(`${allJobs.length} videos queued`, 'success');
+    allJobs.forEach(j => runJob(j));
+  }
+
+  // ── Pick mode: show topic columns per language, user picks one each ──
+  async function tileRunPick(cfg) {
+    const { channel, langs, category } = cfg;
+    const ts = plannerTileState[channel];
+    const tile = document.querySelector(`.planner-tile[data-channel="${channel}"]`);
+
+    // Fetch topics for all languages in parallel
+    tileSetStatus(channel, `🔍 Fetching topics for ${langs.length} language${langs.length > 1 ? 's' : ''}…`, 10);
+    const langTopics = await Promise.all(
+      langs.map(lang => plannerSuggestTopics(6, lang, channel, category)
+        .then(topics => ({ lang, topics }))
+        .catch(() => ({ lang, topics: [] }))
+      )
+    );
+    if (ts.cancelled) return;
+
+    // Render pick columns
+    tileSetStatus(channel, '👆 Pick one topic per language, then click Generate Selected', null);
+    const pickArea = tile.querySelector('.tile-pick-area');
+    const colCount = langs.length <= 2 ? langs.length : langs.length <= 4 ? langs.length : 2;
+    pickArea.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(${colCount},1fr);gap:8px;margin-top:8px;">
+        ${langTopics.map(lt => `
+          <div class="planner-pick-col" data-lang='${JSON.stringify(lt.lang)}'>
+            <div class="planner-pick-col-header">${lt.lang[2]} ${lt.lang[1]}</div>
+            ${lt.topics.map((t, i) => `
+              <div class="planner-topic-card" data-idx="${i}" data-topic='${JSON.stringify(t).replace(/'/g, '&#39;')}'>
+                <div class="planner-topic-title">${t.title}</div>
+                <div class="planner-topic-sub">${t.topic}</div>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>
+      <button class="btn-pri" style="margin-top:10px;font-size:12px;padding:7px 16px;" disabled>▶ Generate Selected</button>
+    `;
+    pickArea.classList.remove('hidden');
+
+    // Click handler: select one per column
+    const genBtn = pickArea.querySelector('.btn-pri');
+    pickArea.querySelectorAll('.planner-pick-col').forEach(col => {
+      col.addEventListener('click', e => {
+        const card = e.target.closest('.planner-topic-card');
+        if (!card) return;
+        col.querySelectorAll('.planner-topic-card').forEach(c => c.classList.toggle('selected', c === card));
+        // Enable generate if at least 1 topic picked across all columns
+        const anyPicked = pickArea.querySelector('.planner-topic-card.selected');
+        genBtn.disabled = !anyPicked;
+      });
+    });
+
+    // Wait for "Generate Selected" click
+    const picks = await new Promise((resolve, reject) => {
+      genBtn.addEventListener('click', function handler() {
+        genBtn.removeEventListener('click', handler);
+        const results = [...pickArea.querySelectorAll('.planner-pick-col')].map(col => {
+          const sel = col.querySelector('.planner-topic-card.selected');
+          if (!sel) return null;
+          return { lang: JSON.parse(col.dataset.lang), topic: JSON.parse(sel.dataset.topic) };
+        }).filter(Boolean);
+        resolve(results);
+      });
+      tile.querySelector('.tile-cancel-btn').addEventListener('click', () => reject(new Error('cancelled')), { once: true });
+    });
+
+    pickArea.classList.add('hidden');
+    if (ts.cancelled || !picks.length) return;
+
+    // Research + create jobs for all picks
+    const allJobs = [];
+    for (let i = 0; i < picks.length; i++) {
+      if (ts.cancelled) break;
+      const { lang, topic } = picks[i];
+      tileSetStatus(channel, `📖 [${lang[1]}] Researching "${topic.title}"…`, Math.round(50 + (i / picks.length) * 40));
+      const research = await plannerResearchTopic(topic, lang);
+      const job = plannerCreateJob(channel, lang, topic, research);
+      allJobs.push(job);
+      addJob(job, false);
+    }
+
+    renderJobs(); updateQueueControls();
+    tileSetStatus(channel, `✅ ${allJobs.length} video${allJobs.length !== 1 ? 's' : ''} queued`, 100);
+    toast(`${allJobs.length} videos queued`, 'success');
+    allJobs.forEach(j => runJob(j));
+  }
+
+  // ── Batch mode: distribute count round-robin across langs ──
+  async function tileRunBatch(cfg) {
+    const { channel, langs, category, batchN } = cfg;
+    const ts = plannerTileState[channel];
+
+    // Round-robin distribution
+    const dist = langs.map(() => 0);
+    for (let i = 0; i < batchN; i++) dist[i % langs.length]++;
+
+    const allJobs = [];
+    let done = 0;
+    for (let li = 0; li < langs.length; li++) {
+      const lang = langs[li];
+      const count = dist[li];
+      if (!count || ts.cancelled) continue;
+
+      tileSetStatus(channel, `🔍 [${lang[1]}] Finding ${count} topic${count > 1 ? 's' : ''}…`, Math.round((done / batchN) * 85));
+      const topics = await plannerSuggestTopics(count, lang, channel, category);
+
+      for (const topic of topics) {
+        if (ts.cancelled) break;
+        done++;
+        tileSetStatus(channel, `📖 ${done}/${batchN}: [${lang[1]}] "${topic.title}"…`, Math.round((done / batchN) * 85));
+        const research = await plannerResearchTopic(topic, lang);
+        const job = plannerCreateJob(channel, lang, topic, research);
+        allJobs.push(job);
+        addJob(job, false);
+      }
+    }
+
+    renderJobs(); updateQueueControls();
+    tileSetStatus(channel, `✅ ${allJobs.length} video${allJobs.length !== 1 ? 's' : ''} queued`, 100);
+    toast(`${allJobs.length} videos queued`, 'success');
+    allJobs.forEach(j => runJob(j));
+  }
+
+  // ═══════════════════════════════════════════════
+  // MAGIC TILE — One topic, all languages
+  // ═══════════════════════════════════════════════
+
+  async function runMagic() {
+    if (magicRunning) return;
+    if (!getGeminiKey()) { toast('Add Gemini API key in Step 1 first', 'error'); return; }
+    const input = document.getElementById('magic-topic-input').value.trim();
+    if (!input) { toast('Enter a topic or URL', 'error'); return; }
+
+    magicRunning = true; magicCancelled = false;
+    tileSetRunning('magic', true);
+
+    try {
+      // Build target list from checked channels
+      const tile = document.querySelector('.planner-tile[data-channel="magic"]');
+      const targets = [];
+      tile.querySelectorAll('.magic-ch-check:checked').forEach(cb => {
+        const ch = cb.value;
+        if (ch === 'stori') {
+          targets.push({ channel: ch, lang: ['en', 'English', '🇺🇸'] });
+        } else {
+          CHANNEL_PRESETS[ch].languages.forEach(l => targets.push({ channel: ch, lang: l }));
+        }
+      });
+      if (!targets.length) { toast('Check at least one channel', 'error'); return; }
+
+      // If URL, summarize first
+      let topicText = input;
+      if (input.startsWith('http')) {
+        tileSetStatus('magic', '🌐 Fetching and summarizing URL…', 3);
+        topicText = await magicSummarizeUrl(input);
+        if (magicCancelled) return;
+      }
+
+      // Adapt + create job for each target
+      const allJobs = [];
+      for (let i = 0; i < targets.length; i++) {
+        if (magicCancelled) break;
+        const t = targets[i];
+        const pct = Math.round(5 + (i / targets.length) * 85);
+        tileSetStatus('magic', `📖 ${i + 1}/${targets.length} — ${t.lang[1]} angle…`, pct);
+        const adapted = await magicAdaptTopic(topicText, t.channel, t.lang);
+        const job = plannerCreateJob(t.channel, t.lang,
+          { title: adapted.title, topic: adapted.topicInput },
+          adapted);
+        allJobs.push(job);
+        addJob(job, false);
+      }
+
+      renderJobs(); updateQueueControls();
+      tileSetStatus('magic', `✅ ${allJobs.length} videos queued — generating…`, 100);
+      toast(`Magic: ${allJobs.length} videos queued`, 'success');
+      allJobs.forEach(j => runJob(j));
+    } catch(e) {
+      if (!magicCancelled) toast('Magic: ' + e.message, 'error');
+      tileSetStatus('magic', 'Stopped — ' + (magicCancelled ? 'cancelled' : e.message), null);
+    } finally {
+      magicRunning = false;
+      tileSetRunning('magic', false);
+    }
+  }
+
+  async function magicSummarizeUrl(url) {
+    const prompt = `Summarize the main topic of this URL in 2-3 sentences. Focus on the key subject matter, not the website itself: ${url}`;
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+    });
+    return data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || url;
+  }
+
+  async function magicAdaptTopic(topic, channel, lang) {
+    const channelDesc = channel === 'stori' ? 'English explainer' :
+      channel === 'stori-india' ? 'Indian storytelling' : 'global folk tales';
+
+    const prompt = `Adapt this topic for a ${lang[1]} audience on a ${channelDesc} YouTube Shorts channel.
+
+TOPIC: "${topic}"
+
+Search the web for the latest information and create a culturally + geographically relevant angle for ${lang[1]} viewers.
+
+Include ALL of the following:
+- Local cultural context, traditions, or mythology related to this topic
+- Region-specific facts, local government response, or local impact (especially for news/events)
+- Geographic relevance: how this affects ${lang[1]}-speaking regions specifically
+- An emotional hook that resonates with ${lang[1]} speakers in their region
+
+IMPORTANT: The script generated from your output will be narrated in ${lang[1]}. The content must feel native to that audience — not a translation of a generic version.
+
+Return ONLY valid JSON:
+{
+  "title": "Catchy reel title under 60 chars in English",
+  "topicInput": "Culturally adapted + geographically relevant topic description (2-3 sentences with local context, local impact, regional specifics)"
+}`;
+
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.8 },
+    });
+    const raw = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+    if (!raw) throw new Error(`No adaptation for ${lang[1]}`);
+    return parseGeminiJson(raw);
+  }
+
+  // ═══════════════════════════════════════════════
+  // SHARED PLANNER HELPERS
+  // ═══════════════════════════════════════════════
+
+  // Suggest trending topics for a specific language + category
+  async function plannerSuggestTopics(count, lang, channel, category) {
+    const langLabel = lang[1];
+    const catLabel  = category.replace(/-/g, ' ');
+    const channelDesc = channel === 'stori'
+      ? 'an English explainer channel'
+      : channel === 'stori-india'
+        ? `a ${langLabel} Indian storytelling channel`
+        : `a global folk tales channel in ${langLabel}`;
+
+    const prompt = `You are a YouTube Shorts content strategist for ${channelDesc}.
+
+Search for currently trending, highly engaging topics in the "${catLabel}" category that would perform well as ${langLabel} YouTube Shorts and Instagram Reels (60 seconds, illustrated style).
+
+Return ONLY valid JSON with no markdown fences:
+{
+  "topics": [
+    {
+      "title": "Catchy reel title under 60 chars",
+      "topic": "The core subject in one sentence",
+      "why": "Why this gets views — one sentence"
+    }
+  ]
+}
+
+Return exactly ${count} topics. Prioritise: cultural relevance for ${langLabel} audience, emotional hooks, underserved angles, recent interest spikes.`;
+
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.9 },
+    });
+
+    const raw = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+    if (!raw) throw new Error('No topics returned');
+    const parsed = parseGeminiJson(raw);
+    const topics = parsed.topics || [];
+    if (!topics.length) throw new Error('0 topics returned');
+    return topics.slice(0, count);
+  }
+
+  // Research a topic for a specific language
+  async function plannerResearchTopic(topic, lang) {
+    const langLabel = lang[1];
+    const prompt = `Research this topic for a ${langLabel} YouTube Short (60s, illustrated style):
+
+TOPIC: "${topic.topic || topic.topicInput || topic.title}"
+
+Search the web for accurate, culturally relevant details and return ONLY valid JSON:
+{
+  "topicInput": "Expanded topic description for script generation — culturally adapted for ${langLabel} audience with region-specific facts (2-3 sentences)",
+  "keyPoints": ["fact 1", "fact 2", "fact 3"],
+  "angle": "Most emotionally compelling hook for ${langLabel} viewers"
+}`;
+
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.7 },
+    });
+
+    const raw = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+    if (!raw) throw new Error('No research returned');
+    return parseGeminiJson(raw);
+  }
+
+  // Create a pipeline job from planner data
+  function plannerCreateJob(channel, lang, topic, research) {
+    const preset = CHANNEL_PRESETS[channel];
+    const topicInput = research?.topicInput || topic.topic || topic.title;
+    return {
+      id: nextJobId++,
+      status: 'pending',
+      type: 'topic',
+      input: topicInput,
+      plannerTitle: topic.title,
+      channel: channel,
+      langCode:  lang[0],
+      langLabel: lang[1],
+      langFlag:  lang[2],
+      platform: selectedPlatform,
+      style: document.getElementById('style-select').value,
+      transition: preset.transition,
+      contentType: preset.contentType,
+      watermark: document.getElementById('chk-watermark').checked,
+      intro:     document.getElementById('chk-intro').checked,
+      endcard:   document.getElementById('chk-endcard').checked,
+      imgProvider: selectedImageProvider,
+      imgGenMode:  selectedImgGenMode,
+      gptQuality:  gptImageQuality,
+      videoMode: selectedVideoMode,
+      klingProvider: selectedVideoMode === 'animated' ? klingProvider : null,
+      subLang: 'en',  // Always English subtitles for planner jobs
+      subStyle, subBackdrop, subSize, subPosition, subColor, subOutline,
+    };
+  }
+
+  // ═══════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════
+
+  function init() {
+    initPlanner();
+    loadApiKey();
+    bindApiKey();
+    populateStyleSelect();
+    bindChannels();
+    bindPlatforms();
+    bindSubtitleControls();
+    bindTabs();
+    bindAddButtons();
+    bindCsv();
+    bindQueueControls();
+    bindProjectSaveLoad();
+    document.getElementById('btn-close-preview').addEventListener('click', closeJobPreview);
+    document.getElementById('job-preview-overlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeJobPreview();
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // API KEY
+  // ═══════════════════════════════════════════════
+
+  function loadApiKey() {
+    apiKey = localStorage.getItem('stori_key_paid') || '';
+    if (apiKey) {
+      document.getElementById('api-key-input').value = '●'.repeat(20);
+      document.getElementById('key-status').textContent = '✓ Saved';
+    }
+    laozhangKey = localStorage.getItem('stori_laozhang_key') || '';
+    if (laozhangKey) {
+      document.getElementById('laozhang-key-input').value = '●'.repeat(20);
+      document.getElementById('laozhang-key-status').textContent = '✓ Saved';
+    }
+    wisdomKey = localStorage.getItem('stori_wisdom_key') || '';
+    if (wisdomKey) {
+      document.getElementById('wisdom-key-input').value = '●'.repeat(20);
+      document.getElementById('wisdom-key-status').textContent = '✓ Saved';
+    }
+    openaiKey = localStorage.getItem('stori_openai_key') || '';
+    if (openaiKey) {
+      document.getElementById('openai-key-input').value = '●'.repeat(20);
+      document.getElementById('openai-key-status').textContent = '✓ Saved';
+    }
+    const savedQuality = localStorage.getItem('stori_gpt_quality');
+    if (savedQuality) {
+      gptImageQuality = savedQuality;
+      document.getElementById('gpt-quality-select').value = savedQuality;
+    }
+    // Restore saved image provider
+    const saved = localStorage.getItem('stori_img_provider');
+    if (saved) {
+      selectedImageProvider = saved;
+      document.getElementById('img-provider-select').value = saved;
+      updateImgProviderUI(saved);
+    }
+    const savedGenMode = localStorage.getItem('stori_img_gen_mode');
+    if (savedGenMode) {
+      selectedImgGenMode = savedGenMode;
+      document.getElementById('img-gen-mode-select').value = savedGenMode;
+    }
+    // Restore Kling state
+    klingKey = localStorage.getItem('stori_kling_key') || '';
+    if (klingKey) {
+      document.getElementById('kling-key-input').value = '●'.repeat(20);
+      document.getElementById('kling-key-status').textContent = '✓ Saved';
+    }
+    klingAccessKey = localStorage.getItem('stori_kling_access_key') || '';
+    klingSecretKey = localStorage.getItem('stori_kling_secret_key') || '';
+    if (klingAccessKey && klingSecretKey) {
+      document.getElementById('kling-access-key-input').value = '●'.repeat(20);
+      document.getElementById('kling-secret-key-input').value = '●'.repeat(20);
+      document.getElementById('kling-official-key-status').textContent = '✓ Saved';
+    }
+    const savedKlingProvider = localStorage.getItem('stori_kling_provider');
+    if (savedKlingProvider) {
+      klingProvider = savedKlingProvider;
+      document.getElementById('kling-provider-select').value = savedKlingProvider;
+    }
+    updateKlingProviderUI(klingProvider);
+    // Restore video mode tile selection
+    const savedMode = localStorage.getItem('stori_video_mode');
+    if (savedMode) {
+      selectedVideoMode = savedMode;
+      document.querySelectorAll('.api-tile').forEach(t => {
+        t.classList.toggle('active', t.dataset.videoMode === savedMode);
+      });
+    }
+  }
+
+  function updateKlingProviderUI(provider) {
+    const isOfficial = provider === 'kling-official';
+    document.getElementById('kling-official-key-row').classList.toggle('hidden', !isOfficial);
+    document.getElementById('kling-reseller-key-row').classList.toggle('hidden', isOfficial);
+  }
+
+  function updateImgProviderUI(provider) {
+    document.getElementById('laozhang-key-row').classList.toggle('hidden', provider !== 'laozhang');
+    document.getElementById('wisdom-key-row').classList.toggle('hidden', provider !== 'wisdom');
+    document.getElementById('openai-key-row').classList.toggle('hidden', provider !== 'gpt-image-mini');
+    document.getElementById('gpt-quality-row').classList.toggle('hidden', provider !== 'gpt-image-mini');
+  }
+
+  function bindApiKey() {
+    // Gemini key save
+    document.getElementById('btn-save-key').addEventListener('click', () => {
+      const val = document.getElementById('api-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid Gemini API key', 'error'); return; }
+      localStorage.setItem('stori_key_paid', val);
+      apiKey = val;
+      document.getElementById('api-key-input').value = '●'.repeat(20);
+      document.getElementById('key-status').textContent = '✓ Saved';
+      toast('Gemini key saved', 'success');
+    });
+
+    // laozhang key save
+    document.getElementById('btn-save-laozhang-key').addEventListener('click', () => {
+      const val = document.getElementById('laozhang-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid laozhang.ai key', 'error'); return; }
+      localStorage.setItem('stori_laozhang_key', val);
+      laozhangKey = val;
+      document.getElementById('laozhang-key-input').value = '●'.repeat(20);
+      document.getElementById('laozhang-key-status').textContent = '✓ Saved';
+      toast('laozhang.ai key saved', 'success');
+    });
+
+    // wisdom key save
+    document.getElementById('btn-save-wisdom-key').addEventListener('click', () => {
+      const val = document.getElementById('wisdom-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid wisdom key', 'error'); return; }
+      localStorage.setItem('stori_wisdom_key', val);
+      wisdomKey = val;
+      document.getElementById('wisdom-key-input').value = '●'.repeat(20);
+      document.getElementById('wisdom-key-status').textContent = '✓ Saved';
+    });
+
+    // OpenAI key save
+    document.getElementById('btn-save-openai-key').addEventListener('click', () => {
+      const val = document.getElementById('openai-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid OpenAI key', 'error'); return; }
+      localStorage.setItem('stori_openai_key', val);
+      openaiKey = val;
+      document.getElementById('openai-key-input').value = '●'.repeat(20);
+      document.getElementById('openai-key-status').textContent = '✓ Saved';
+      toast('OpenAI key saved', 'success');
+    });
+
+    // GPT quality change
+    document.getElementById('gpt-quality-select').addEventListener('change', e => {
+      gptImageQuality = e.target.value;
+      localStorage.setItem('stori_gpt_quality', gptImageQuality);
+      toast('wisdom key saved', 'success');
+    });
+
+    // Image provider dropdown
+    document.getElementById('img-provider-select').addEventListener('change', e => {
+      selectedImageProvider = e.target.value;
+      localStorage.setItem('stori_img_provider', selectedImageProvider);
+      updateImgProviderUI(selectedImageProvider);
+    });
+
+    // Image generation mode dropdown
+    document.getElementById('img-gen-mode-select').addEventListener('change', e => {
+      selectedImgGenMode = e.target.value;
+      localStorage.setItem('stori_img_gen_mode', selectedImgGenMode);
+    });
+
+    // ── Video mode tile selection ──
+    document.querySelectorAll('.api-tile').forEach(tile => {
+      tile.addEventListener('click', e => {
+        // Don't toggle when clicking inputs/buttons/selects inside the tile
+        if (e.target.closest('input, button, select, a')) return;
+        const mode = tile.dataset.videoMode;
+        if (!mode) return;
+        selectedVideoMode = mode;
+        localStorage.setItem('stori_video_mode', mode);
+        document.querySelectorAll('.api-tile').forEach(t => {
+          t.classList.toggle('active', t.dataset.videoMode === mode);
+        });
+      });
+    });
+
+    // Kling reseller key save
+    document.getElementById('btn-save-kling-key').addEventListener('click', () => {
+      const val = document.getElementById('kling-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid Kling API key', 'error'); return; }
+      localStorage.setItem('stori_kling_key', val);
+      klingKey = val;
+      document.getElementById('kling-key-input').value = '●'.repeat(20);
+      document.getElementById('kling-key-status').textContent = '✓ Saved';
+      toast('Kling key saved', 'success');
+    });
+
+    // Kling official access key + secret key save
+    document.getElementById('btn-save-kling-official-key').addEventListener('click', () => {
+      const ak = document.getElementById('kling-access-key-input').value.trim();
+      const sk = document.getElementById('kling-secret-key-input').value.trim();
+      if ((!ak || ak.startsWith('●')) && (!sk || sk.startsWith('●'))) {
+        toast('Enter both access key and secret key', 'error'); return;
+      }
+      if (ak && !ak.startsWith('●')) {
+        localStorage.setItem('stori_kling_access_key', ak);
+        klingAccessKey = ak;
+        document.getElementById('kling-access-key-input').value = '●'.repeat(20);
+      }
+      if (sk && !sk.startsWith('●')) {
+        localStorage.setItem('stori_kling_secret_key', sk);
+        klingSecretKey = sk;
+        document.getElementById('kling-secret-key-input').value = '●'.repeat(20);
+      }
+      document.getElementById('kling-official-key-status').textContent = '✓ Saved';
+      toast('Kling official keys saved', 'success');
+    });
+
+    // Kling provider change
+    document.getElementById('kling-provider-select').addEventListener('change', e => {
+      klingProvider = e.target.value;
+      localStorage.setItem('stori_kling_provider', klingProvider);
+      updateKlingProviderUI(klingProvider);
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // STYLE SELECT
+  // ═══════════════════════════════════════════════
+
+  function populateStyleSelect() {
+    const sel = document.getElementById('style-select');
+    sel.innerHTML = '<option value="auto">Auto (AI picks)</option>';
+    for (const key of Object.keys(STYLE_PRESETS)) {
+      const label = key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      sel.innerHTML += `<option value="${key}">${label}</option>`;
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  // CHANNELS & LANGUAGES
+  // ═══════════════════════════════════════════════
+
+  function bindChannels() {
+    document.getElementById('channel-group').addEventListener('click', e => {
+      const btn = e.target.closest('[data-channel]');
+      if (!btn) return;
+      selectedChannel = btn.dataset.channel;
+      document.querySelectorAll('#channel-group .pill').forEach(b => b.classList.toggle('active', b === btn));
+      const preset = CHANNEL_PRESETS[selectedChannel];
+      document.getElementById('transition-select').value = preset.transition;
+      updateLanguageSelect();
+    });
+    updateLanguageSelect();
+  }
+
+  function updateLanguageSelect() {
+    const langs = CHANNEL_PRESETS[selectedChannel].languages;
+    const row = document.getElementById('lang-row');
+    const sel = document.getElementById('lang-select');
+    if (langs.length <= 1) { row.style.display = 'none'; return; }
+    row.style.display = 'flex';
+    sel.innerHTML = langs.map(([code, label, flag]) => `<option value="${code}">${flag} ${label}</option>`).join('');
+  }
+
+  function getLanguage() {
+    const langs = CHANNEL_PRESETS[selectedChannel].languages;
+    if (langs.length === 1) return langs[0];
+    const code = document.getElementById('lang-select').value;
+    return langs.find(l => l[0] === code) || langs[0];
+  }
+
+  // ═══════════════════════════════════════════════
+  // PLATFORMS
+  // ═══════════════════════════════════════════════
+
+  function bindPlatforms() {
+    document.getElementById('platform-group').addEventListener('click', e => {
+      const btn = e.target.closest('[data-platform]');
+      if (!btn) return;
+      selectedPlatform = btn.dataset.platform;
+      document.querySelectorAll('#platform-group .pill').forEach(b => b.classList.toggle('active', b === btn));
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // SUBTITLE CONTROLS
+  // ═══════════════════════════════════════════════
+
+  function bindSubtitleControls() {
+    // Populate language dropdown
+    const langSel = document.getElementById('sub-lang-select');
+    langSel.innerHTML = SUB_LANGUAGES.map(([code, label, flag]) =>
+      `<option value="${code}">${flag ? flag + ' ' : ''}${label}</option>`
+    ).join('');
+    langSel.value = subLang;
+
+    langSel.onchange = () => { subLang = langSel.value; };
+    document.getElementById('sub-style-select').onchange    = e => { subStyle    = e.target.value; };
+    document.getElementById('sub-backdrop-select').onchange = e => { subBackdrop = e.target.value; };
+    document.getElementById('sub-position-select').onchange = e => { subPosition = e.target.value; };
+    document.getElementById('sub-color-input').oninput      = e => { subColor    = e.target.value; };
+    document.getElementById('sub-outline-input').oninput    = e => { subOutline  = e.target.value; };
+
+    const sizeRange = document.getElementById('sub-size-range');
+    const sizeLabel = document.getElementById('sub-size-label');
+    sizeRange.oninput = () => {
+      subSize = parseFloat(sizeRange.value);
+      sizeLabel.textContent = subSize;
+    };
+  }
+
+  // ═══════════════════════════════════════════════
+  // TABS
+  // ═══════════════════════════════════════════════
+
+  function bindTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // BUILD JOB
+  // ═══════════════════════════════════════════════
+
+  function buildJob(overrides = {}) {
+    const [langCode, langLabel, langFlag] = getLanguage();
+    return {
+      id: nextJobId++,
+      status: 'pending',
+      type: 'topic',       // 'topic' | 'script'
+      input: '',           // raw input (topic text or script)
+      channel: selectedChannel,
+      langCode, langLabel, langFlag,
+      platform: selectedPlatform,
+      style: document.getElementById('style-select').value,
+      transition: document.getElementById('transition-select').value,
+      contentType: CHANNEL_PRESETS[selectedChannel].contentType,
+      watermark: document.getElementById('chk-watermark').checked,
+      intro:     document.getElementById('chk-intro').checked,
+      endCard:   document.getElementById('chk-endcard').checked,
+      // Image provider settings (snapshot at job creation time)
+      imgProvider: selectedImageProvider,
+      imgGenMode:  selectedImgGenMode,
+      gptQuality:  gptImageQuality,
+      // Video mode (snapshot at job creation time)
+      videoMode: selectedVideoMode,   // 'illustrated' | 'animated'
+      klingProvider: selectedVideoMode === 'animated' ? klingProvider : null,
+      // Subtitle settings (snapshot of globals at job creation time)
+      subLang,
+      subStyle,
+      subBackdrop,
+      subSize,
+      subPosition,
+      subColor,
+      subOutline,
+      // Filled by Phase 3
+      autoStyle: null,     // { name, reason }
+      scenes: [],          // [{ sceneText, sceneDescription }]
+      // Filled by later phases
+      audioBase64: null,
+      words: [],
+      error: null,
+      createdAt: Date.now(),
+      ...overrides,
+    };
+  }
+
+  // ═══════════════════════════════════════════════
+  // ADD BUTTONS
+  // ═══════════════════════════════════════════════
+
+  function bindAddButtons() {
+    document.getElementById('btn-add-topic').addEventListener('click', () => {
+      const input = document.getElementById('topic-input').value.trim();
+      if (!input) { toast('Enter a topic first', 'error'); return; }
+      addJob(buildJob({ type: 'topic', input }));
+      document.getElementById('topic-input').value = '';
+    });
+
+    document.getElementById('btn-add-script').addEventListener('click', () => {
+      const input = document.getElementById('script-input').value.trim();
+      if (!input) { toast('Paste a script first', 'error'); return; }
+      addJob(buildJob({ type: 'script', input }));
+      document.getElementById('script-input').value = '';
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // CSV
+  // ═══════════════════════════════════════════════
+
+  function bindCsv() {
+    document.getElementById('btn-csv-file').addEventListener('click', () => document.getElementById('csv-file-input').click());
+
+    document.getElementById('csv-file-input').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('csv-file-name').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        csvRows = parseCsvText(ev.target.result);
+        document.getElementById('csv-count').textContent = csvRows.length + ' rows found';
+        document.getElementById('btn-add-csv').disabled = csvRows.length === 0;
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('btn-add-csv').addEventListener('click', () => {
+      if (!csvRows.length) return;
+      csvRows.forEach(row => {
+        const channel = row.channel || selectedChannel;
+        const preset = CHANNEL_PRESETS[channel] || CHANNEL_PRESETS['stori'];
+        const langEntry = row.language
+          ? (preset.languages.find(l => l[0] === row.language || l[1].toLowerCase() === row.language.toLowerCase()) || preset.languages[0])
+          : preset.languages[0];
+        const job = buildJob({
+          type: row.script ? 'script' : 'topic',
+          input: row.script || row.topic || '',
+          channel,
+          langCode: langEntry[0], langLabel: langEntry[1], langFlag: langEntry[2],
+          style: row.style || 'auto',
+          platform: row.platform || preset.languages[0]?.[0] || 'youtube',
+          transition: row.transition || preset.transition,
+          contentType: preset.contentType,
+        });
+        addJob(job, false);
+      });
+      renderJobs();
+      updateQueueControls();
+      toast(csvRows.length + ' jobs added', 'success');
+      csvRows = [];
+      document.getElementById('csv-file-name').textContent = 'No file chosen';
+      document.getElementById('btn-add-csv').disabled = true;
+      document.getElementById('csv-count').textContent = '';
+    });
+
+    document.getElementById('btn-csv-template').addEventListener('click', () => {
+      const csv = `channel,language,topic,style,platform,transition
+stori-india,ta,Murugan slays Surapadman,auto,youtube,whip-pan
+stori-india,hi,Vikram aur Betaal — The first question,auto,youtube,whip-pan
+stori-india,te,The story of Bhagiratha and the Ganga,auto,youtube,crossfade
+stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade`;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'pipeline-template.csv' });
+      a.click(); URL.revokeObjectURL(a.href);
+    });
+  }
+
+  function parseCsvText(text) {
+    const lines = text.trim().split('\n').map(l => l.trim()).filter(l => l);
+    if (lines.length < 2) return [];
+    const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase().replace(/"/g, ''));
+    return lines.slice(1).map(line => {
+      const vals = splitCsvLine(line);
+      const row = {};
+      headers.forEach((h, i) => { row[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
+      return row;
+    }).filter(r => r.topic || r.script);
+  }
+
+  function splitCsvLine(line) {
+    const out = []; let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { out.push(cur); cur = ''; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  // ═══════════════════════════════════════════════
+  // JOB MANAGEMENT
+  // ═══════════════════════════════════════════════
+
+  function addJob(job, render = true) {
+    jobs.push(job);
+    if (render) { renderJobs(); updateQueueControls(); }
+  }
+
+  function removeJob(id) {
+    jobs = jobs.filter(j => j.id !== id);
+    renderJobs();
+    updateQueueControls();
+  }
+
+  function updateJobStatus(job, status, extra = {}) {
+    job.status = status;
+    Object.assign(job, extra);
+    const card = document.querySelector(`.job-card[data-id="${job.id}"]`);
+    if (card) updateJobCard(card, job);
+  }
+
+  // ═══════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════
+
+  function renderJobs() {
+    const grid = document.getElementById('job-grid');
+    if (!jobs.length) {
+      grid.innerHTML = '<div class="empty-state"><div class="icon">📋</div>Add content above to build your queue</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    jobs.forEach(job => {
+      const card = document.createElement('div');
+      card.className = 'job-card';
+      card.dataset.id = job.id;
+      grid.appendChild(card);
+      updateJobCard(card, job); // All event listeners are wired inside updateJobCard
+    });
+  }
+
+  function updateJobCard(card, job) {
+    card.dataset.status = job.status;
+    card.classList.toggle('selected', selectedJobIds.has(job.id));
+
+    const isRunning = ['generating-script', 'generating-audio', 'generating-images', 'generating-clips'].includes(job.status);
+    const isDone    = ['done-script', 'done-audio', 'done'].includes(job.status);
+    const isFullDone = job.status === 'done';
+    const isError   = job.status === 'error';
+
+    const statusText = {
+      'pending':           'Pending',
+      'generating-script': '<span class="spinner"></span>Writing script…',
+      'done-script':       '✓ Script ready',
+      'generating-audio':  '<span class="spinner"></span>Generating audio…',
+      'done-audio':        '✓ Audio ready',
+      'generating-images': '<span class="spinner"></span>Generating images…',
+      'generating-clips':  '<span class="spinner"></span>Animating clips…',
+      'done':              '✓ Done',
+      'error':             '✗ Error',
+    }[job.status] || job.status;
+
+    const hasResult = isDone && job.autoStyle;
+    const hasAudio  = (job.status === 'done-audio' || isFullDone) && job.duration;
+    const hasImages = isFullDone && job.scenes?.some(s => s.imgDataUrl);
+    const thumbUrl  = hasImages ? job.scenes.find(s => s.imgDataUrl)?.imgDataUrl : null;
+    const cost      = calculateJobCost(job);
+
+    card.innerHTML = `
+      <input type="checkbox" class="job-check" title="Select">
+      <button class="job-remove" title="Remove">×</button>
+      <div class="job-title" style="padding-left:24px;padding-right:20px;">${escHtml(job.input.slice(0, 70))}${job.input.length > 70 ? '…' : ''}</div>
+      <div class="job-meta">${job.langFlag} ${job.langLabel} · ${job.channel} · ${job.platform} · ${job.type}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <div class="job-status-badge ${job.status}">${statusText}</div>
+        ${cost > 0 ? `<span class="cost-badge">~$${cost.toFixed(3)}</span>` : ''}
+      </div>
+      ${hasResult ? `
+        <div class="job-result" style="cursor:pointer;" title="Click to preview">
+          ${thumbUrl ? `<img src="${thumbUrl}" style="width:100%;border-radius:4px;margin-bottom:6px;aspect-ratio:9/16;object-fit:cover;">` : ''}
+          <div class="style-name">Style: ${escHtml(job.autoStyle.name)}${job.style !== 'auto' ? ' (manual)' : ''}</div>
+          <div class="style-reason">${escHtml(job.autoStyle.reason)}</div>
+          <div class="scene-preview">${job.scenes.length} scenes${hasAudio ? ` · ${job.duration.toFixed(1)}s` : ''}${hasImages ? ` · ${job.scenes.filter(s=>s.imgDataUrl).length} imgs` : ''}</div>
+        </div>` : ''}
+      ${isError ? `<div class="job-error">${escHtml(job.error || 'Unknown error')}</div>` : ''}
+      <div class="job-actions">
+        <button class="btn-run-job btn-run" ${isRunning ? 'disabled' : ''}>${isDone || job.status === 'done-audio' ? '↺ Re-run' : '▶ Run'}</button>
+        ${isDone ? `<button class="btn-xs btn-preview-job" title="Preview / details">👁 Preview</button>` : ''}
+        ${isFullDone && job.audioBase64 ? `<button class="btn-xs btn-reel-job" title="Open in Reel editor">🎬 Reel</button>` : ''}
+        ${isFullDone ? `<button class="btn-xs btn-export-job" title="Export video">⬇ Export</button>` : ''}
+      </div>
+    `;
+
+    // Checkbox
+    const chk = card.querySelector('.job-check');
+    chk.checked = selectedJobIds.has(job.id);
+    chk.addEventListener('change', e => {
+      if (e.target.checked) selectedJobIds.add(job.id);
+      else selectedJobIds.delete(job.id);
+      card.classList.toggle('selected', e.target.checked);
+      updateQueueControls();
+    });
+
+    card.querySelector('.job-remove').addEventListener('click', e => { e.stopPropagation(); removeJob(job.id); });
+    card.querySelector('.btn-run-job').addEventListener('click', e => { e.stopPropagation(); runJob(job); });
+
+    const previewBtn = card.querySelector('.btn-preview-job');
+    if (previewBtn) previewBtn.addEventListener('click', e => { e.stopPropagation(); openJobPreview(job); });
+
+    // Click on result thumbnail also opens preview
+    const resultEl = card.querySelector('.job-result');
+    if (resultEl) resultEl.addEventListener('click', () => openJobPreview(job));
+
+    const reelBtn = card.querySelector('.btn-reel-job');
+    if (reelBtn) reelBtn.addEventListener('click', e => { e.stopPropagation(); openInReelEditor(job); });
+
+    const exportBtn = card.querySelector('.btn-export-job');
+    if (exportBtn) exportBtn.addEventListener('click', e => { e.stopPropagation(); exportJob(job); });
+  }
+
+  // ═══════════════════════════════════════════════
+  // QUEUE CONTROLS
+  // ═══════════════════════════════════════════════
+
+  function bindQueueControls() {
+    document.getElementById('btn-run-all').addEventListener('click', () => runAll(false));
+    document.getElementById('btn-run-seq').addEventListener('click', () => runAll(true));
+    document.getElementById('btn-run-selected').addEventListener('click', runSelected);
+    document.getElementById('btn-pause').addEventListener('click', pauseQueue);
+    document.getElementById('btn-resume').addEventListener('click', resumeQueue);
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (!confirm('Clear all jobs?')) return;
+      jobs = []; selectedJobIds.clear(); renderJobs(); updateQueueControls();
+    });
+    document.getElementById('btn-export-all').addEventListener('click', exportAll);
+  }
+
+  function updateQueueControls() {
+    const has = jobs.length > 0;
+    document.getElementById('btn-run-all').disabled = !has;
+    document.getElementById('btn-run-seq').disabled = !has;
+    document.getElementById('btn-clear').disabled = !has;
+
+    // Run Selected — enabled when at least one pending/error job is selected
+    const selPending = jobs.filter(j => selectedJobIds.has(j.id) && (j.status === 'pending' || j.status === 'error')).length;
+    document.getElementById('btn-run-selected').disabled = selPending === 0;
+
+    const done    = jobs.filter(j => ['done-script','done-audio','done'].includes(j.status)).length;
+    const pending = jobs.filter(j => j.status === 'pending' || j.status === 'error').length;
+    const running = jobs.filter(j => ['generating-script','generating-audio','generating-images','generating-clips'].includes(j.status)).length;
+    const totalCost = jobs.reduce((s, j) => s + calculateJobCost(j), 0);
+    document.getElementById('queue-status').textContent =
+      has ? `${jobs.length} jobs · ${done} done · ${running} running · ${pending} pending${totalCost > 0 ? ` · ~$${totalCost.toFixed(3)}` : ''}` : '';
+
+    // Show export section when there are fully done jobs
+    const finishedJobs = jobs.filter(j => j.status === 'done');
+    const exportSection = document.getElementById('export-section');
+    if (exportSection) exportSection.classList.toggle('hidden', finishedJobs.length === 0);
+    const exportAllLabel = document.getElementById('export-all-label');
+    if (exportAllLabel) exportAllLabel.textContent = finishedJobs.length > 0 ? `${finishedJobs.length} video${finishedJobs.length !== 1 ? 's' : ''} ready · each exports in real-time` : '';
+  }
+
+  // ═══════════════════════════════════════════════
+  // GEMINI API
+  // ═══════════════════════════════════════════════
+
+  // ─── Cost tracker ───────────────────────────────
+  // Costs verified against https://ai.google.dev/gemini-api/docs/pricing (2026-03-26)
+  const COST_PER_CALL = {
+    // gemini-2.5-flash: $0.075/1M input + $0.30/1M output tokens (thinking off)
+    // Typical script call: ~500 input + ~1000 output tokens → ~$0.00034
+    'script':     0.00034,
+    // gemini-2.5-flash-preview-tts: $0.50/1M input (text) + $10/1M output (audio)
+    // Typical 60s chunk: ~200 input tokens + ~225 audio output tokens → ~$0.003
+    'tts':        0.003,
+    // gemini-2.5-flash (subtitle translation): $0.30/1M input + $2.50/1M output
+    // Typical call: ~400 tokens total → ~$0.001
+    'translate':  0.001,
+    // gemini-3-pro-image-preview 3×3 grid at 2K: confirmed $0.134/grid
+    'img-grid':   0.134,
+    // gemini-2.5-flash-image individual: confirmed $0.039/image
+    'img-single': 0.039,
+    // GPT Image 1 Mini — OpenAI pricing per quality tier (portrait 1024x1536)
+    'img-gpt-low':  0.005,
+    'img-gpt-med':  0.015,
+    'img-gpt-high': 0.052,
+    // Kling v2.5 Turbo i2v — 10s 1080p per clip
+    'kling-clip':   0.42,   // kie.ai ($0.42) — piapi is $0.33
+  };
+
+  function trackApiCost(type, count = 1) {
+    const unit = COST_PER_CALL[type] || 0;
+    sessionApiCost += unit * count;
+    sessionApiCalls += count;
+    const el = document.getElementById('session-cost');
+    if (el) {
+      el.style.display = '';
+      el.textContent = `~$${sessionApiCost.toFixed(3)} est. (${sessionApiCalls} calls)`;
+    }
+  }
+
+  function resetApiCost() {
+    sessionApiCost = 0; sessionApiCalls = 0;
+    const el = document.getElementById('session-cost');
+    if (el) el.style.display = 'none';
+  }
+
+  // ─── Gemini text API ────────────────────────────
+  // ── API endpoint helpers ──────────────────────────────────────────────────
+  // Script / TTS / translation always use official Gemini.
+  // Images use whichever provider is selected in the dropdown.
+  function getGeminiKey() {
+    return apiKey || localStorage.getItem('stori_key_paid') || '';
+  }
+
+  function getImageKey() {
+    if (selectedImageProvider === 'laozhang')       return laozhangKey || localStorage.getItem('stori_laozhang_key') || '';
+    if (selectedImageProvider === 'wisdom')         return wisdomKey   || localStorage.getItem('stori_wisdom_key')   || '';
+    if (selectedImageProvider === 'gpt-image-mini') return openaiKey   || localStorage.getItem('stori_openai_key')   || '';
+    return getGeminiKey(); // gemini
+  }
+
+  function buildImageFetch(model, key) {
+    if (selectedImageProvider === 'laozhang') {
+      return {
+        url: `https://api-vip.laozhang.ai/v1beta/models/${model}:generateContent`,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }
+      };
+    }
+    if (selectedImageProvider === 'wisdom') {
+      return {
+        url: `https://api.wisgate.ai/v1beta/models/${model}:generateContent`,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }
+      };
+    }
+    // gemini
+    return {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      headers: { 'Content-Type': 'application/json' }
+    };
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Script / translation / TTS — always official Gemini
+  async function callGemini(model, body) {
+    const key = getGeminiKey();
+    if (!key) throw new Error('No Gemini API key. Enter one in Step 1.');
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    }
+    return resp.json();
+  }
+
+  // Robust JSON parser — handles markdown fences, trailing commas, extra text
+  function parseGeminiJson(text) {
+    let s = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    try { return JSON.parse(s); } catch (_) {}
+    const objMatch = s.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      let j = objMatch[0].replace(/,\s*([\]}])/g, '$1');
+      try { return JSON.parse(j); } catch (_) {}
+    }
+    const arrMatch = s.match(/\[[\s\S]*\]/);
+    if (arrMatch) {
+      let j = arrMatch[0].replace(/,\s*([\]}])/g, '$1');
+      try { return JSON.parse(j); } catch (_) {}
+    }
+    throw new Error('Could not parse Gemini response as JSON: ' + s.slice(0, 200));
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 3 — SCRIPT GENERATION
+  // ═══════════════════════════════════════════════
+
+  async function generateScript(job) {
+    const styleList = Object.keys(STYLE_PRESETS).join(', ');
+    const isLongText = job.input.length > 500;
+
+    const prompt = `You are a master storyteller creating content for a ${job.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram Reels'} channel.
+
+INPUT:
+"""
+${job.input}
+"""
+
+LANGUAGE: ${job.langLabel} (${job.langCode})
+CONTENT TYPE: ${job.contentType}
+
+${isLongText
+  ? 'The input is a long reference text. Condense it into the most compelling 60-second narrative. Be ruthless — cut everything that does not serve the story.'
+  : 'The input is a story topic. Create an original, vivid narration script for this topic.'}
+
+TASK 1 — SCRIPT:
+Write the narration script entirely in ${job.langLabel}. NOT in English (unless the language IS English).
+${job.videoMode === 'animated' ? `- ANIMATED MODE: 5 scenes exactly. Each scene = one 10-second Kling video clip.
+- STRICT per-scene duration: each scene's narration must be EXACTLY ~10 seconds when read aloud (~20-25 words for English; adjust proportionally for ${job.langLabel} speech rate).
+- Total script = 50 seconds (~100-125 words). Do NOT exceed this.
+- Split evenly — no scene should be more than 30 words or fewer than 15 words.` : `- Duration: exactly 60 seconds when read aloud (~150-180 words, adjust for ${job.langLabel} speech rate)
+- 6-9 natural scene breaks. Each scene = one illustration.`}
+- Pure narration only. No dialogue tags, no stage directions.
+- Vivid, visual language that paints pictures. Each scene must be a distinct visual moment.
+- Cultural authenticity. Use proper names, places, cultural terms.
+- Emotional arc: opening hook → rising tension → climax → resolution.
+${job.videoMode === 'animated' ? `
+ANIMATED VIDEO INSTRUCTIONS:
+Each scene's visual description MUST describe cinematic MOTION — this will be animated, not static.
+- Start each sceneDescription with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, close-up pull-back, dolly forward, tilt up/down.
+- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.
+- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.
+- One continuous motion per scene — no cuts within a scene.` : ''}
+
+TASK 2 — VISUAL STYLE:
+Based on the story's emotional tone, cultural context, and visual requirements, pick the single best art style from:
+[${styleList}]
+
+OUTPUT — Return ONLY valid JSON, no markdown, no extra text:
+{
+  "scenes": [
+    {
+      "sceneText": "Narration text for this scene in ${job.langLabel}",
+      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting, camera angle"
+    }
+  ],
+  "style": {
+    "name": "exact-style-name-from-list",
+    "reason": "One sentence explaining why this style fits this story"
+  }
+}`;
+
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.8 },
+    });
+    trackApiCost('script');
+
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) throw new Error('Empty response from Gemini');
+    const parsed = parseGeminiJson(raw);
+
+    if (!parsed.scenes || !Array.isArray(parsed.scenes) || parsed.scenes.length < 3) {
+      throw new Error('Invalid scenes returned (got ' + (parsed.scenes?.length || 0) + ')');
+    }
+    if (!parsed.style?.name || !STYLE_PRESETS[parsed.style.name]) {
+      parsed.style = { name: 'cinematic', reason: 'Default fallback' };
+    }
+
+    return parsed;
+  }
+
+  async function breakScript(job) {
+    const styleList = Object.keys(STYLE_PRESETS).join(', ');
+
+    const prompt = `You are a visual director breaking a narration script into illustrated scenes.
+
+SCRIPT (in ${job.langLabel}):
+"""
+${job.input}
+"""
+
+TASK 1 — SCENE BREAKDOWN:
+${job.videoMode === 'animated' ? `Split this script into exactly 5 scenes. Each scene becomes a 10-second Kling animated video clip.
+STRICT RULES for animated mode:
+- Each scene's sceneText must be ~10 seconds when read aloud (~20-25 words for English; adjust for ${job.langLabel} speech rate).
+- If a segment of the script is too long for 10 seconds, CONDENSE it — preserve meaning but trim to fit.
+- If a segment is too short, EXPAND slightly to fill ~10 seconds.
+- Every scene must be roughly equal in length. No scene should exceed 30 words or be fewer than 15 words.
+- Total across all 5 scenes: ~50 seconds of narration.` : `Split this script into 6-9 scenes at natural visual break points.
+Each scene must be a distinct visual moment worth illustrating.
+Keep original script text intact — do not paraphrase.`}
+${job.videoMode === 'animated' ? `
+ANIMATED VIDEO: Each sceneDescription MUST describe cinematic MOTION.
+- Start with camera direction: pan, zoom, tracking shot, aerial view, dolly, tilt.
+- Describe subject ACTION: walking, turning, flowing, emerging, transforming.
+- Include environmental motion: wind, water, clouds, particles, flickering light.
+- One continuous motion per scene.` : ''}
+
+TASK 2 — VISUAL STYLE:
+Pick the single best art style from: [${styleList}]
+
+OUTPUT — Return ONLY valid JSON, no markdown:
+{
+  "scenes": [
+    {
+      "sceneText": "The exact text from the script for this scene",
+      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting"
+    }
+  ],
+  "style": {
+    "name": "exact-style-name-from-list",
+    "reason": "Why this style fits"
+  }
+}`;
+
+    const data = await callGemini('gemini-2.5-flash', {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.5 },
+    });
+    trackApiCost('script');
+
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) throw new Error('Empty response from Gemini');
+    const parsed = parseGeminiJson(raw);
+
+    if (!parsed.scenes || !Array.isArray(parsed.scenes) || parsed.scenes.length < 2) {
+      throw new Error('Invalid scene breakdown returned');
+    }
+    if (!parsed.style?.name || !STYLE_PRESETS[parsed.style.name]) {
+      parsed.style = { name: 'cinematic', reason: 'Default fallback' };
+    }
+
+    return parsed;
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 4 — TTS AUDIO GENERATION
+  // ═══════════════════════════════════════════════
+
+  let _audioCtx = null;
+  function getAudioCtx() {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return _audioCtx;
+  }
+
+  // Wrap raw PCM bytes (Gemini TTS output) into a WAV container
+  function wrapPcmInWav(pcmBytes, sampleRate, numChannels, bitsPerSample) {
+    const dataSize = pcmBytes.length;
+    const wav = new Uint8Array(44 + dataSize);
+    const view = new DataView(wav.buffer);
+    wav.set([0x52,0x49,0x46,0x46], 0); // "RIFF"
+    view.setUint32(4, 36 + dataSize, true);
+    wav.set([0x57,0x41,0x56,0x45], 8); // "WAVE"
+    wav.set([0x66,0x6d,0x74,0x20], 12); // "fmt "
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);  // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+    view.setUint16(32, numChannels * bitsPerSample / 8, true);
+    view.setUint16(34, bitsPerSample, true);
+    wav.set([0x64,0x61,0x74,0x61], 36); // "data"
+    view.setUint32(40, dataSize, true);
+    wav.set(pcmBytes, 44);
+    return wav;
+  }
+
+  // Decode base64 audio (handles raw PCM from Gemini TTS) → AudioBuffer + base64 storage
+  async function decodeBase64Audio(base64, mimeType) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    let audioBytes = bytes;
+    // Gemini TTS returns raw PCM (L16) — wrap in WAV
+    if (mimeType.includes('L16') || mimeType.includes('pcm') ||
+        (mimeType.includes('wav') && bytes[0] !== 0x52)) {
+      let sampleRate = 24000;
+      const rateMatch = mimeType.match(/rate=(\d+)/);
+      if (rateMatch) sampleRate = parseInt(rateMatch[1]);
+      audioBytes = wrapPcmInWav(bytes, sampleRate, 1, 16);
+    }
+
+    const arrBuf = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
+    const audioBuffer = await getAudioCtx().decodeAudioData(arrBuf);
+    return { audioBuffer };
+  }
+
+  // Call Gemini TTS — returns { base64, mimeType }
+  async function callGeminiTTS(text, voiceName) {
+    const key = getGeminiKey();
+    if (!key) throw new Error('No API key.');
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+          }
+        })
+      }
+    );
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `TTS error ${resp.status}`);
+    }
+    const data = await resp.json();
+    const part = data.candidates?.[0]?.content?.parts?.[0];
+    if (!part?.inlineData?.data) throw new Error('No audio returned from Gemini TTS');
+    trackApiCost('tts');
+    return { base64: part.inlineData.data, mimeType: part.inlineData.mimeType || 'audio/wav' };
+  }
+
+  // Chunk long text for TTS (Gemini has ~4000 byte limit)
+  function chunkTextForTTS(text, maxBytes = 3500) {
+    const enc = new TextEncoder();
+    if (enc.encode(text).length <= maxBytes) return [text];
+    // Split on sentence boundaries (handles Devanagari/Tamil danda ।)
+    const sentences = text.split(/(?<=[.!?।\n])\s*/).filter(s => s.trim());
+    const chunks = [];
+    let cur = '';
+    for (const s of sentences) {
+      const test = cur ? cur + ' ' + s : s;
+      if (enc.encode(test).length > maxBytes && cur) { chunks.push(cur); cur = s; }
+      else cur = test;
+    }
+    if (cur) chunks.push(cur);
+    return chunks.length ? chunks : [text];
+  }
+
+  // Concatenate multiple AudioBuffers (for chunked TTS)
+  function concatAudioBuffers(buffers) {
+    const ctx = getAudioCtx();
+    const total = buffers.reduce((n, b) => n + b.length, 0);
+    const sr = buffers[0].sampleRate;
+    const ch = buffers[0].numberOfChannels;
+    const out = ctx.createBuffer(ch, total, sr);
+    let offset = 0;
+    for (const buf of buffers) {
+      for (let c = 0; c < ch; c++) out.getChannelData(c).set(buf.getChannelData(c), offset);
+      offset += buf.length;
+    }
+    return out;
+  }
+
+  // AudioBuffer → base64 WAV (for save/restore)
+  function audioBufferToBase64(buffer) {
+    const sr = buffer.sampleRate, len = buffer.length, ch = buffer.numberOfChannels;
+    const pcm = new Int16Array(len * ch);
+    for (let c = 0; c < ch; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < len; i++) pcm[i * ch + c] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
+    }
+    const wav = wrapPcmInWav(new Uint8Array(pcm.buffer), sr, ch, 16);
+    let bin = '';
+    for (let i = 0; i < wav.length; i++) bin += String.fromCharCode(wav[i]);
+    return btoa(bin);
+  }
+
+  async function generateTTS(job) {
+    const fullScript = job.scenes.map(s => s.sceneText).join(' ');
+    const chunks = chunkTextForTTS(fullScript);
+    const voiceName = 'Kore'; // Gemini multilingual voice
+    job.ttsChunks = chunks.length; // store for accurate cost calculation
+
+    const audioBuffers = [];
+    for (const chunk of chunks) {
+      const { base64, mimeType } = await callGeminiTTS(chunk, voiceName);
+      const { audioBuffer } = await decodeBase64Audio(base64, mimeType);
+      audioBuffers.push(audioBuffer);
+    }
+
+    const finalBuffer = audioBuffers.length === 1 ? audioBuffers[0] : concatAudioBuffers(audioBuffers);
+    job.audioBuffer = finalBuffer;
+    job.audioBase64 = audioBufferToBase64(finalBuffer); // for save/load
+    job.duration = finalBuffer.duration;
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 5 — SCENE TIMINGS + WORD TIMINGS
+  // ═══════════════════════════════════════════════
+
+  function distributeSceneTimings(job) {
+    const scenes = job.scenes;
+    const totalDur = job.audioBuffer.duration;
+    const totalChars = scenes.reduce((n, s) => n + (s.sceneText || '').length, 0);
+    let elapsed = 0;
+
+    for (let i = 0; i < scenes.length; i++) {
+      const ratio = (scenes[i].sceneText || '').length / totalChars;
+      let dur = Math.max(2, Math.min(15, ratio * totalDur));
+      scenes[i].startTime = elapsed;
+      scenes[i].endTime = elapsed + dur;
+      scenes[i].duration = dur;
+      elapsed += dur;
+    }
+    // Last scene fills to exact end
+    scenes[scenes.length - 1].endTime = totalDur;
+    scenes[scenes.length - 1].duration = totalDur - scenes[scenes.length - 1].startTime;
+
+    // Word-level timings per scene (for subtitle rendering)
+    for (const scene of scenes) {
+      scene.words = wordTimings(scene.sceneText, scene.startTime, scene.duration);
+    }
+    // Flat array for reel editor compatibility
+    job.words = scenes.flatMap(s => s.words);
+  }
+
+  function wordTimings(text, startTime, duration) {
+    const words = (text || '').split(/\s+/).filter(w => w);
+    if (!words.length) return [];
+    const dpw = duration / words.length;
+    return words.map((word, i) => ({
+      word,
+      start: startTime + i * dpw,
+      end:   startTime + (i + 1) * dpw,
+    }));
+  }
+
+  function prepareScenes(job) {
+    for (const scene of job.scenes) {
+      scene.prompt = scene.sceneDescription;
+      scene.imgDataUrl = null;
+      scene.imgStatus = 'pending';
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  // ═══════════════════════════════════════════════
+  // PHASE 6 — IMAGE GENERATION
+  // ═══════════════════════════════════════════════
+
+  const REEL_DIMS = {
+    youtube:   { w: 1080, h: 1920 },
+    instagram: { w: 1080, h: 1920 },
+    tiktok:    { w: 1080, h: 1920 },
+  };
+
+  // Gemini image models to try in order
+  const IMG_MODELS = ['gemini-2.5-flash-image', 'gemini-2.5-flash-preview-04-17'];
+  let _cachedImgModel = null;
+
+  // Generate a single image via Gemini Flash
+  async function generateSingleImage(prompt, w, h) {
+    const key = getImageKey();
+    const sizeHint = ` Portrait orientation, ${w}x${h} pixels.`;
+    const fullPrompt = `Generate an image: ${prompt.slice(0, 1200)}${sizeHint}`;
+    const body = JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] });
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+      const models = _cachedImgModel ? [_cachedImgModel] : IMG_MODELS;
+      for (const model of models) {
+        const { url, headers } = buildImageFetch(model, key);
+        const resp = await fetch(url, { method: 'POST', headers, body });
+        if (resp.status === 404) continue;
+        if (!resp.ok) {
+          if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) break;
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error?.message || `Image error ${resp.status}`);
+        }
+        const data = await resp.json();
+        for (const part of (data.candidates?.[0]?.content?.parts || [])) {
+          if (part.inlineData) {
+            _cachedImgModel = model;
+            trackApiCost('img-single');
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
+        }
+        if (attempt === 0) break;
+      }
+    }
+    throw new Error('Image generation failed after 3 attempts');
+  }
+
+  // Generate 3×3 grid image at 2K — single API call for up to 9 scenes.
+  // Prompt format matches grid-test/index.html generateGridImage (verified reference).
+  // Uses cell position labels (top-left, middle-center etc.) — no center instruction.
+  async function generateGridImage(prompts, stylePrompt) {
+    const key = getImageKey();
+    const padded = [...prompts];
+    while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
+
+    const CELL_POSITIONS = [
+      'top-left', 'top-center', 'top-right',
+      'middle-left', 'middle-center', 'middle-right',
+      'bottom-left', 'bottom-center', 'bottom-right'
+    ];
+
+    const stylePrefix = stylePrompt ? `Style: ${stylePrompt}\n\n` : '';
+    let gridPrompt = `Generate a 3x3 grid image with ${padded.length} separate illustration panels. NO borders, NO padding, NO whitespace, NO lines between cells — cells must touch edge to edge.\n${stylePrefix}\n`;
+    padded.forEach((p, i) => {
+      gridPrompt += `Cell ${i + 1} (${CELL_POSITIONS[i]}): ${p}\n`;
+    });
+    gridPrompt += `\nRULES:\n- Each cell MUST be a completely separate scene illustration\n- Each cell must be exactly equal in size (1/3 width, 1/3 height)\n- Do NOT draw any borders, lines, separators, padding, or whitespace between cells\n- Do NOT blend, merge, or overlap scenes across cell boundaries\n- Do NOT include any text, words, letters, numbers, or writing in any cell\n- Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell\n- Maintain consistent style across all cells\n- The image should be portrait format (9:16 aspect ratio) at 2K resolution`;
+    gridPrompt = gridPrompt.slice(0, 2000);
+
+    // aspectRatio: '9:16' — matches Instagram Reels / YouTube Shorts output canvas.
+    // Each cell will be portrait, composing subjects correctly for the 1080×1920 canvas.
+    const bodyObj = {
+      contents: [{ parts: [{ text: gridPrompt }] }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio: '9:16', imageSize: '2K' }
+      }
+    };
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+      const { url: gridUrl2, headers: gridHeaders } = buildImageFetch('gemini-3-pro-image-preview', key);
+      const resp = await fetch(gridUrl2, { method: 'POST', headers: gridHeaders, body: JSON.stringify(bodyObj) });
+      if (!resp.ok) {
+        if (attempt < 1 && (resp.status === 429 || resp.status === 503)) continue;
+        throw new Error(`Grid image error ${resp.status}`);
+      }
+      const data = await resp.json();
+      for (const part of (data.candidates?.[0]?.content?.parts || [])) {
+        if (part.inlineData) {
+          trackApiCost('img-grid');
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    return null; // signal fallback
+  }
+
+  // Upscale the whole grid image N× via bicubic canvas scaling (no crop).
+  // Matches main app's reelUpscaleAndCrop first step.
+  function upscaleGrid(dataUrl, scale) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth  * scale;
+        canvas.height = img.naturalHeight * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        console.log(`[grid] ${img.naturalWidth}×${img.naturalHeight} → ${canvas.width}×${canvas.height} (${scale}× upscale)`);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  // Crop individual cells from a grid dataURL as square PNGs (5% trim, no portrait crop).
+  // Cells stay square — drawCoverFit handles portrait rendering at draw time.
+  // Matches js/17c-create-pipeline.js cropGridCells exactly.
+  function cropGridCells(gridDataUrl, rows, cols, count) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const cellW = img.width / cols;
+        const cellH = img.height / rows;
+        const trimPct = 0.05; // 5% edge trim to avoid bleed — matches main app
+        const results = [];
+        for (let i = 0; i < Math.min(rows * cols, count); i++) {
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          const cx = col * cellW + cellW / 2;
+          const cy = row * cellH + cellH / 2;
+          const halfW = cellW / 2 - (cellW * trimPct);
+          const halfH = cellH / 2 - (cellH * trimPct);
+          const sx = cx - halfW, sy = cy - halfH;
+          const sw = halfW * 2, sh = halfH * 2;
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.round(sw);
+          canvas.height = Math.round(sh);
+          canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          results.push(canvas.toDataURL('image/png')); // square PNG, no portrait crop
+        }
+        console.log(`[grid] cropped ${results.length} cells at ${Math.round(cellW)}×${Math.round(cellH)}px each`);
+        resolve(results);
+      };
+      img.onerror = () => reject(new Error('Failed to load grid image'));
+      img.src = gridDataUrl;
+    });
+  }
+
+  // Upscale an individual portrait image to target dims using cover-fit (no crop needed
+  // if source is already portrait — scale fills both axes proportionally).
+  function browserUpscale(dataUrl, targetW, targetH) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const needsDoublePass = img.naturalWidth * 2 < targetW || img.naturalHeight * 2 < targetH;
+
+        function drawToCanvas(src, w, h) {
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          const scale = Math.max(w / src.naturalWidth, h / src.naturalHeight);
+          const sw = w / scale, sh = h / scale;
+          const sx = (src.naturalWidth - sw) / 2, sy = (src.naturalHeight - sh) / 2;
+          ctx.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
+          return canvas;
+        }
+
+        if (needsDoublePass) {
+          const mid = drawToCanvas(img, Math.round(targetW * 0.5) * 2, Math.round(targetH * 0.5) * 2);
+          const midImg = new Image();
+          midImg.onload = () => {
+            const final = drawToCanvas(midImg, targetW, targetH);
+            resolve(final.toDataURL('image/jpeg', 0.93));
+          };
+          midImg.onerror = () => resolve(dataUrl);
+          midImg.src = mid.toDataURL('image/png');
+        } else {
+          resolve(drawToCanvas(img, targetW, targetH).toDataURL('image/jpeg', 0.93));
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  // Main image generation for a job
+  // Generate a single portrait image via GPT Image 1 Mini (OpenAI).
+  // Returns dataUrl. Uses 1024×1536 (portrait) — native 2:3 ratio, close to 9:16.
+  async function generateImageGPT(prompt) {
+    const key = openaiKey || localStorage.getItem('stori_openai_key') || '';
+    if (!key) throw new Error('No OpenAI key. Enter one in Step 1.');
+    const quality = gptImageQuality || 'medium';
+    const body = JSON.stringify({
+      model: 'gpt-image-1',
+      prompt: prompt.slice(0, 1500),
+      size: '1024x1536',    // portrait — best fit for 9:16 canvas
+      quality,
+      n: 1,
+    });
+    const resp = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body,
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `GPT Image error ${resp.status}`);
+    }
+    const data = await resp.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) throw new Error('No image returned from GPT Image API');
+    const costKey = quality === 'low' ? 'img-gpt-low' : quality === 'high' ? 'img-gpt-high' : 'img-gpt-med';
+    trackApiCost(costKey);
+    return `data:image/png;base64,${b64}`;
+  }
+
+  // ═══════════════════════════════════════════════
+  // KLING i2v — IMAGE-TO-VIDEO ANIMATION
+  // ═══════════════════════════════════════════════
+
+  function getKlingKey() {
+    return klingKey || localStorage.getItem('stori_kling_key') || '';
+  }
+  function getKlingAccessKey() {
+    return klingAccessKey || localStorage.getItem('stori_kling_access_key') || '';
+  }
+  function getKlingSecretKey() {
+    return klingSecretKey || localStorage.getItem('stori_kling_secret_key') || '';
+  }
+
+  // Generate JWT for official Kling API (HS256, 30min expiry)
+  async function generateKlingJWT() {
+    const ak = getKlingAccessKey();
+    const sk = getKlingSecretKey();
+    if (!ak || !sk) throw new Error('No Kling access/secret keys. Enter them in the Animated Video tile.');
+
+    const header = { alg: 'HS256', typ: 'JWT' };
+    const now = Math.floor(Date.now() / 1000);
+    const payload = { iss: ak, exp: now + 1800, nbf: now - 5, iat: now };
+
+    const b64url = obj => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const headerB64 = b64url(header);
+    const payloadB64 = b64url(payload);
+    const signingInput = headerB64 + '.' + payloadB64;
+
+    // HMAC-SHA256 via Web Crypto API
+    const keyData = new TextEncoder().encode(sk);
+    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(signingInput));
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    return signingInput + '.' + sigB64;
+  }
+
+  // Upload base64 image to imgbb to get a public URL for Kling
+  async function uploadImageForKling(base64DataUrl) {
+    const b64 = base64DataUrl.split(',')[1];
+    const form = new FormData();
+    form.append('image', b64);
+    // imgbb free API key (anonymous uploads, auto-expire)
+    const resp = await fetch('https://api.imgbb.com/1/upload?expiration=600&key=00000000000000000000000000000000', {
+      method: 'POST', body: form
+    });
+    if (!resp.ok) throw new Error('Image upload failed: ' + resp.status);
+    const data = await resp.json();
+    if (!data.data?.url) throw new Error('Image upload returned no URL');
+    return data.data.url;
+  }
+
+  // Submit Kling i2v task — kie.ai
+  async function submitKlingI2V_kie(imageUrl, prompt) {
+    const key = getKlingKey();
+    if (!key) throw new Error('No Kling API key. Enter one in the Animated Video tile.');
+    const resp = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'kling/v2-5-turbo-image-to-video-pro',
+        input: {
+          image_urls: [imageUrl],
+          prompt: prompt.slice(0, 2500),
+          duration: '10',
+          cfg_scale: 0.5
+        }
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || err.error?.message || `Kie.ai error ${resp.status}`);
+    }
+    const data = await resp.json();
+    return data.data?.taskId || data.taskId;
+  }
+
+  // Submit Kling i2v task — piapi.ai
+  async function submitKlingI2V_piapi(imageUrl, prompt) {
+    const key = getKlingKey();
+    if (!key) throw new Error('No Kling API key. Enter one in the Animated Video tile.');
+    const resp = await fetch('https://api.piapi.ai/api/v1/task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key },
+      body: JSON.stringify({
+        model: 'kling',
+        task_type: 'video_generation',
+        input: {
+          image_url: imageUrl,
+          prompt: prompt.slice(0, 2500),
+          duration: 10,
+          aspect_ratio: '9:16',
+          mode: 'pro',
+          version: '2.5'
+        }
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || err.error?.message || `PiAPI error ${resp.status}`);
+    }
+    const data = await resp.json();
+    return data.data?.task_id;
+  }
+
+  // Submit Kling i2v task — official api-singapore.klingai.com
+  // Accepts a base64 data URL (data:image/png;base64,...) — strips prefix per API requirement
+  async function submitKlingI2V_official(base64DataUrl, prompt) {
+    const jwt = await generateKlingJWT();
+    // Strip data: prefix — Kling requires raw base64 only
+    const rawB64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+    const resp = await fetch('http://localhost:3004/kling/videos/image2video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({
+        model_name: 'kling-v2-5-turbo',
+        image: rawB64,
+        prompt: prompt.slice(0, 2500),
+        duration: '10',
+        mode: 'pro'
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || err.error?.message || `Kling API error ${resp.status}`);
+    }
+    const data = await resp.json();
+    // Official API: { code: 0, data: { task_id: "...", task_status: "submitted", ... } }
+    if (data.code !== 0) throw new Error(data.message || `Kling error code ${data.code}`);
+    return data.data?.task_id;
+  }
+
+  // Poll a Kling task until complete
+  async function pollKlingTask(taskId, provider) {
+    const key = getKlingKey();
+    const maxWait = 5 * 60 * 1000; // 5 minutes
+    const interval = 5000;
+    const start = Date.now();
+
+    while (Date.now() - start < maxWait) {
+      await new Promise(r => setTimeout(r, interval));
+
+      let videoUrl, error;
+
+      if (provider === 'kling-official') {
+        const jwt = await generateKlingJWT();
+        const resp = await fetch(`http://localhost:3004/kling/videos/image2video/${taskId}`, {
+          headers: { 'Authorization': `Bearer ${jwt}` }
+        });
+        const data = await resp.json();
+        if (data.code !== 0) throw new Error(data.message || `Kling poll error ${data.code}`);
+        const task = data.data || {};
+        // task_status: 'submitted' | 'processing' | 'succeed' | 'failed'
+        if (task.task_status === 'succeed') {
+          videoUrl = task.task_result?.videos?.[0]?.url;
+        } else if (task.task_status === 'failed') {
+          error = task.task_status_msg || 'Kling generation failed';
+        }
+      } else if (provider === 'kie') {
+        const resp = await fetch(`https://api.kie.ai/api/v1/jobs/getTaskDetails?taskId=${taskId}`, {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        const data = await resp.json();
+        const task = data.data || data;
+        if (task.status === 'completed' || task.status === 'success') {
+          videoUrl = task.output?.video_url || task.output?.works?.[0]?.video?.resource;
+        } else if (task.status === 'failed') {
+          error = task.error || 'Unknown error';
+        }
+      } else {
+        // piapi
+        const resp = await fetch(`https://api.piapi.ai/api/v1/task/${taskId}`, {
+          headers: { 'x-api-key': key }
+        });
+        const data = await resp.json();
+        const task = data.data || data;
+        if (task.status === 'Completed') {
+          videoUrl = task.output?.works?.[0]?.video?.resource_without_watermark
+                  || task.output?.works?.[0]?.video?.resource;
+        } else if (task.status === 'Failed') {
+          error = task.error || 'Unknown error';
+        }
+      }
+
+      if (videoUrl) return videoUrl;
+      if (error) throw new Error('Kling failed: ' + error);
+    }
+    throw new Error('Kling generation timed out (5 min)');
+  }
+
+  // Generate Kling video clips for all scenes — parallel submission
+  async function generateKlingClips(job, onProgress) {
+    const pending = job.scenes.filter(s => s.imgDataUrl && !s.videoBlobUrl);
+    if (!pending.length) return;
+    const provider = job.klingProvider || klingProvider;
+
+    // Step 1: For official provider, pass base64 directly; resellers need a public URL via imgbb
+    let imageInputs;
+    if (provider === 'kling-official') {
+      imageInputs = pending.map(scene => scene.imgDataUrl); // raw base64 data URLs, stripped in submitFn
+    } else {
+      onProgress?.(0, pending.length, 'Uploading images for animation…');
+      imageInputs = await Promise.all(pending.map(async (scene, i) => {
+        const url = await uploadImageForKling(scene.imgDataUrl);
+        onProgress?.(0, pending.length, `Uploaded ${i + 1}/${pending.length} images…`);
+        return url;
+      }));
+    }
+
+    // Step 2: Submit all Kling tasks in parallel
+    onProgress?.(0, pending.length, 'Submitting animation tasks…');
+    const submitFn = provider === 'kling-official' ? submitKlingI2V_official
+                   : provider === 'kie'            ? submitKlingI2V_kie
+                   :                                 submitKlingI2V_piapi;
+    const taskIds = await Promise.all(pending.map(async (scene, i) => {
+      const motionPrompt = scene.prompt + ' Smooth cinematic motion, high quality, consistent style.';
+      return submitFn(imageInputs[i], motionPrompt);
+    }));
+
+    // Step 3: Poll all tasks in parallel
+    let completed = 0;
+    await Promise.all(taskIds.map(async (taskId, i) => {
+      onProgress?.(completed, pending.length, `Animating ${pending.length} clips… (2-3 min)`);
+      const videoUrl = await pollKlingTask(taskId, provider);
+      // Try to download as blob for local playback; fall back to direct CDN URL if CORS blocks fetch
+      try {
+        const videoResp = await fetch(videoUrl);
+        if (!videoResp.ok) throw new Error(`CDN ${videoResp.status}`);
+        const videoBlob = await videoResp.blob();
+        pending[i].videoBlobUrl = URL.createObjectURL(videoBlob);
+      } catch (_) {
+        // CORS or CDN error — use the URL directly; video element can play cross-origin without fetch
+        pending[i].videoBlobUrl = videoUrl;
+      }
+      completed++;
+      trackApiCost('kling-clip');
+      onProgress?.(completed, pending.length, `${completed}/${pending.length} clips done`);
+    }));
+  }
+
+  async function generateImages(job, onProgress) {
+    const pending = job.scenes.filter(s => s.imgStatus === 'pending');
+    if (!pending.length) return;
+
+    const styleName = job.autoStyle?.name || 'cinematic';
+    const stylePrompt = STYLE_PRESETS[styleName] || STYLE_PRESETS.cinematic;
+
+    // GPT Image Mini — always individual, no grid support
+    if (selectedImageProvider === 'gpt-image-mini') {
+      for (let i = 0; i < pending.length; i++) {
+        onProgress && onProgress(i, pending.length, `GPT Image ${i + 1}/${pending.length} (${gptImageQuality})…`);
+        const prompt = `Style: ${stylePrompt}. Scene: ${pending[i].prompt} STRICT: Do NOT include any text, words, letters in the image. Portrait orientation.`;
+        pending[i].imgDataUrl = await generateImageGPT(prompt);
+        pending[i].imgStatus  = 'done';
+        onProgress && onProgress(i + 1, pending.length);
+      }
+      return;
+    }
+
+    // Determine generation mode — respects user selection for both illustrated and animated jobs
+    const imgGenMode = job.imgGenMode || selectedImgGenMode || 'auto';
+    const useGrid = imgGenMode === 'grid' || (imgGenMode === 'auto' && pending.length >= 4);
+
+    if (useGrid) {
+      // Grid mode: one API call → upscale whole grid 2× → crop cells.
+      onProgress && onProgress(0, pending.length, 'Generating 2K grid…');
+      let gridUrl = null;
+      try { gridUrl = await generateGridImage(pending.map(s => s.prompt), stylePrompt); }
+      catch (_) { /* fall through to individual */ }
+
+      if (gridUrl) {
+        onProgress && onProgress(0, pending.length, 'Upscaling grid 2× (2K→4K)…');
+        const upscaledGrid = await upscaleGrid(gridUrl, 2);
+        onProgress && onProgress(0, pending.length, 'Cropping cells…');
+        const cells = await cropGridCells(upscaledGrid, 3, 3, pending.length);
+        for (let i = 0; i < pending.length; i++) {
+          pending[i].imgDataUrl = cells[i];
+          pending[i].imgStatus  = 'done';
+          onProgress && onProgress(i + 1, pending.length, `Cell ${i + 1}/${pending.length} done`);
+        }
+        return;
+      }
+      // Grid failed — fall through to individual
+    }
+
+    // Individual mode (or grid fallback) — Gemini/laozhang/wisdom.
+    for (let i = 0; i < pending.length; i++) {
+      onProgress && onProgress(i, pending.length, `Image ${i + 1}/${pending.length}…`);
+      const prompt = `Style: ${stylePrompt}. Scene: ${pending[i].prompt} STRICT: Do NOT include any text, words, letters in the image.`;
+      pending[i].imgDataUrl = await generateSingleImage(prompt, 1080, 1920);
+      pending[i].imgStatus  = 'done';
+      onProgress && onProgress(i + 1, pending.length);
+    }
+  }
+
+  // RUN SINGLE JOB
+  // ═══════════════════════════════════════════════
+
+  async function runJob(job) {
+    if (!apiKey && !localStorage.getItem('stori_key_paid')) {
+      toast('Enter an API key in Step 1 first', 'error'); return;
+    }
+
+    // ── Phase 3: Script generation ──
+    updateJobStatus(job, 'generating-script');
+    updateQueueControls();
+
+    try {
+      const result = job.type === 'script' ? await breakScript(job) : await generateScript(job);
+      const effectiveStyle = job.style !== 'auto' ? { name: job.style, reason: 'Manual selection' } : result.style;
+      Object.assign(job, { scenes: result.scenes, autoStyle: effectiveStyle, error: null });
+      updateJobStatus(job, 'done-script');
+    } catch (err) {
+      updateJobStatus(job, 'error', { error: err.message });
+      toast('Script error: ' + err.message, 'error');
+      updateQueueControls(); return;
+    }
+
+    // ── Phase 4: TTS ──
+    updateJobStatus(job, 'generating-audio');
+
+    try {
+      await generateTTS(job);
+    } catch (err) {
+      updateJobStatus(job, 'error', { error: 'TTS: ' + err.message });
+      toast('TTS error: ' + err.message, 'error');
+      updateQueueControls(); return;
+    }
+
+    // ── Phase 5: Scene timings ──
+    distributeSceneTimings(job);
+    prepareScenes(job);
+
+    // ── Subtitle translation (if subtitle language ≠ audio language) ──
+    if (job.subLang && job.subLang !== 'original' && job.subLang !== job.langCode) {
+      try {
+        await translateSubtitles(job);
+        trackApiCost('translate');
+        job.didTranslate = true;
+      } catch (_) {}
+    }
+
+    updateJobStatus(job, 'done-audio');
+
+    // ── Phase 6: Image generation ──
+    updateJobStatus(job, 'generating-images');
+
+    try {
+      await generateImages(job, (done, total, label) => {
+        // Update progress label in card
+        const card = document.querySelector(`.job-card[data-id="${job.id}"]`);
+        const badge = card?.querySelector('.job-status-badge');
+        if (badge) badge.innerHTML = `<span class="spinner"></span>${label || `Images ${done}/${total}…`}`;
+      });
+    } catch (err) {
+      updateJobStatus(job, 'error', { error: 'Images: ' + err.message });
+      toast('Image error: ' + err.message, 'error');
+      updateQueueControls(); return;
+    }
+
+    // ── Phase 6.5: Kling Animation (only if animated mode) ──
+    if (job.videoMode === 'animated') {
+      updateJobStatus(job, 'generating-clips');
+      try {
+        await generateKlingClips(job, (done, total, label) => {
+          const card = document.querySelector(`.job-card[data-id="${job.id}"]`);
+          const badge = card?.querySelector('.job-status-badge');
+          if (badge) badge.innerHTML = `<span class="spinner"></span>${label || `Animating ${done}/${total}…`}`;
+        });
+      } catch (err) {
+        updateJobStatus(job, 'error', { error: 'Kling: ' + err.message });
+        toast('Kling error: ' + err.message, 'error');
+        updateQueueControls(); return;
+      }
+    }
+
+    updateJobStatus(job, 'done');
+    toast(`✓ Job complete — ${job.scenes.length} scenes ready`, 'success');
+    updateQueueControls();
+  }
+
+  // ═══════════════════════════════════════════════
+  // RUN ALL
+  // ═══════════════════════════════════════════════
+
+  async function runAll(sequential) {
+    if (!apiKey && !localStorage.getItem('stori_key_paid')) {
+      toast('Enter an API key in Step 1 first', 'error'); return;
+    }
+
+    const pending = jobs.filter(j => j.status === 'pending' || j.status === 'error');
+    if (!pending.length) { toast('No pending jobs', 'error'); return; }
+
+    const concurrency = parseInt(document.getElementById('concurrency').value) || 2;
+    const progressWrap = document.getElementById('queue-progress');
+    const bar = document.getElementById('queue-bar');
+    const label = document.getElementById('queue-label');
+    progressWrap.classList.remove('hidden');
+
+    let completed = 0;
+    const total = pending.length;
+
+    const updateProgress = () => {
+      bar.style.width = Math.round((completed / total) * 100) + '%';
+      label.textContent = `${completed} / ${total} jobs complete`;
+    };
+    updateProgress();
+
+    // Show pause button while running
+    const pauseBtn = document.getElementById('btn-pause');
+    if (pauseBtn) { pauseBtn.disabled = false; pauseBtn.style.display = ''; }
+
+    if (sequential) {
+      for (const job of pending) {
+        await waitIfPaused();
+        await runJob(job);
+        completed++;
+        updateProgress();
+      }
+    } else {
+      // Parallel with concurrency limit
+      let idx = 0;
+      async function worker() {
+        while (idx < pending.length) {
+          await waitIfPaused();
+          const job = pending[idx++];
+          await runJob(job);
+          completed++;
+          updateProgress();
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, worker));
+    }
+
+    // Hide pause/resume after all done
+    if (pauseBtn) { pauseBtn.style.display = 'none'; pauseBtn.disabled = true; }
+    const resumeBtn = document.getElementById('btn-resume');
+    if (resumeBtn) { resumeBtn.style.display = 'none'; resumeBtn.disabled = true; }
+    isPaused = false; _resumeCallback = null;
+
+    progressWrap.classList.add('hidden');
+    toast(`All done — ${completed} jobs processed`, 'success');
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 7 — PAUSE / RESUME / RUN SELECTED
+  // ═══════════════════════════════════════════════
+
+  async function waitIfPaused() {
+    if (!isPaused) return;
+    return new Promise(resolve => { _resumeCallback = resolve; });
+  }
+
+  function pauseQueue() {
+    isPaused = true;
+    const p = document.getElementById('btn-pause');
+    const r = document.getElementById('btn-resume');
+    if (p) { p.disabled = true; p.style.display = 'none'; }
+    if (r) { r.disabled = false; r.style.display = ''; }
+    toast('Queue paused — current jobs will finish', 'info');
+  }
+
+  function resumeQueue() {
+    isPaused = false;
+    const p = document.getElementById('btn-pause');
+    const r = document.getElementById('btn-resume');
+    if (r) { r.disabled = true; r.style.display = 'none'; }
+    if (p) { p.disabled = false; p.style.display = ''; }
+    if (_resumeCallback) { const cb = _resumeCallback; _resumeCallback = null; cb(); }
+    toast('Queue resumed', 'info');
+  }
+
+  function calculateJobCost(job) {
+    const s = job.status;
+    let cost = 0;
+    const scriptDone = ['done-script','done-audio','done','generating-audio','generating-images','generating-clips'].includes(s);
+    const audioDone  = ['done-audio','done','generating-images','generating-clips'].includes(s);
+    const imgsDone   = ['done','generating-clips'].includes(s) && job.scenes?.some(sc => sc.imgDataUrl);
+
+    // Script: gemini-2.5-flash ≈ $0.00034/call (500 input + 1000 output tokens)
+    if (scriptDone) cost += COST_PER_CALL.script;
+
+    // TTS: gemini-2.5-flash-preview-tts ≈ $0.003/chunk
+    // Use stored chunk count if available, else assume 1 chunk (typical for 60s scripts)
+    if (audioDone) cost += COST_PER_CALL.tts * (job.ttsChunks || 1);
+
+    // Subtitle translation: gemini-2.5-flash ≈ $0.001/call
+    if (job.didTranslate) cost += COST_PER_CALL.translate;
+
+    // Images
+    if (imgsDone) {
+      const n = job.scenes?.length || 0;
+      if (job.imgProvider === 'gpt-image-mini') {
+        const costKey = job.gptQuality === 'low' ? 'img-gpt-low' : job.gptQuality === 'high' ? 'img-gpt-high' : 'img-gpt-med';
+        cost += n * COST_PER_CALL[costKey];
+      } else {
+        // ≥4 scenes → 1 grid call; <4 → individual per scene
+        cost += n >= 4 ? COST_PER_CALL['img-grid'] : n * COST_PER_CALL['img-single'];
+      }
+    }
+
+    // Kling animation clips
+    if (job.videoMode === 'animated' && s === 'done') {
+      const clipCount = job.scenes?.filter(sc => sc.videoBlobUrl)?.length || 0;
+      if (clipCount > 0) {
+        const clipCost = job.klingProvider === 'piapi' ? 0.33 : COST_PER_CALL['kling-clip'];
+        cost += clipCount * clipCost;
+      }
+    }
+
+    return cost;
+  }
+
+  async function runSelected() {
+    if (!apiKey && !localStorage.getItem('stori_key_paid')) {
+      toast('Enter an API key first', 'error'); return;
+    }
+    const toRun = jobs.filter(j => selectedJobIds.has(j.id) && (j.status === 'pending' || j.status === 'error'));
+    if (!toRun.length) { toast('No pending selected jobs', 'error'); return; }
+
+    const concurrency = parseInt(document.getElementById('concurrency').value) || 2;
+    const progressWrap = document.getElementById('queue-progress');
+    const bar = document.getElementById('queue-bar');
+    const label = document.getElementById('queue-label');
+    progressWrap.classList.remove('hidden');
+
+    const pauseBtn = document.getElementById('btn-pause');
+    if (pauseBtn) { pauseBtn.disabled = false; pauseBtn.style.display = ''; }
+
+    let completed = 0, idx = 0;
+    const total = toRun.length;
+    const updateP = () => {
+      bar.style.width = Math.round((completed / total) * 100) + '%';
+      label.textContent = `${completed} / ${total} selected complete`;
+    };
+    updateP();
+
+    async function worker() {
+      while (idx < toRun.length) {
+        await waitIfPaused();
+        const job = toRun[idx++];
+        await runJob(job);
+        completed++; updateP();
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, toRun.length) }, worker));
+    progressWrap.classList.add('hidden');
+    if (pauseBtn) { pauseBtn.style.display = 'none'; pauseBtn.disabled = true; }
+    const resumeBtn = document.getElementById('btn-resume');
+    if (resumeBtn) { resumeBtn.style.display = 'none'; }
+    isPaused = false; _resumeCallback = null;
+    toast(`Done — ${completed} selected jobs processed`, 'success');
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 8 — REEL EDITOR BRIDGE
+  // ═══════════════════════════════════════════════
+
+  // ── IndexedDB helpers (no size limit, works cross-tab same-origin) ──
+  function idbSave(key, data) {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('stori_db', 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+      req.onsuccess = e => {
+        const db = e.target.result;
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(data, key);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function openInReelEditor(job) {
+    if (job.status !== 'done' || !job.audioBase64 || !job.scenes?.length) {
+      toast('Job must be fully complete (audio + images) to open in Reel editor', 'error'); return;
+    }
+    // Format to match loadReelProject() in the main app's js/20-reels-creator.js
+    const projectData = {
+      platform:      job.platform,
+      duration:      job.duration,
+      subtitleStyle: 'highlight',
+      transition:    job.transition || 'whip-pan',
+      audio: { data: job.audioBase64 },
+      multiResults: [{
+        audioData:        job.audioBase64,
+        videoStart:       0,
+        videoEnd:         job.duration,
+        audioLang:        job.langCode || 'en',
+        subtitleLang:     job.langCode || 'en',
+        audioLangLabel:   job.langLabel || 'English',
+        subtitleLangLabel: job.langLabel || 'English',
+        segmentIndex:     0,
+        settings: {
+          subtitleStyle: 'highlight', transition: job.transition || 'whip-pan',
+          subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',
+          subSize: 4, subPosition: 'bottom',
+        },
+        words:  job.words || [],
+        scenes: job.scenes.map(s => ({
+          startTime:  s.startTime,
+          endTime:    s.endTime,
+          duration:   s.duration,
+          text:       s.sceneText,   // main app uses 'text', not 'sceneText'
+          words:      s.words || [],
+          imgDataUrl: s.imgDataUrl || null,
+          prompt:     s.prompt || s.sceneDescription,
+        })),
+      }],
+    };
+    try {
+      await idbSave('stori_pipeline_job', projectData);
+      window.open('../index.html#reel', '_blank');
+      toast('Opening Stori Reel editor…', 'info');
+    } catch (e) {
+      toast('Failed to transfer data: ' + e.message, 'error');
+    }
+  }
+
+  // ─── Job preview modal ──────────────────────────
+
+  function openJobPreview(job) {
+    if (!['done-script','done-audio','done'].includes(job.status) && job.status !== 'error') return;
+    const overlay = document.getElementById('job-preview-overlay');
+    const titleEl = document.getElementById('preview-modal-title');
+    const bodyEl  = document.getElementById('preview-modal-body');
+    if (!overlay || !titleEl || !bodyEl) return;
+
+    titleEl.textContent = job.input.slice(0, 80) + (job.input.length > 80 ? '…' : '');
+
+    const hasAudio  = job.audioBase64 && job.duration;
+    const hasImages = job.scenes?.some(s => s.imgDataUrl);
+    const hasVideos = job.scenes?.some(s => s.videoBlobUrl);
+    const hasVisuals = hasImages || hasVideos;
+
+    let html = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+        ${job.langFlag} ${job.langLabel} · ${job.channel} · ${job.platform} · Style: <b style="color:var(--accent-2);">${escHtml(job.autoStyle?.name || '—')}</b>
+        ${job.duration ? `· ${job.duration.toFixed(1)}s` : ''}
+        ${job.videoMode === 'animated' ? '· 🎬 Animated' : ''}
+        · <span class="cost-badge">~$${calculateJobCost(job).toFixed(3)}</span>
+      </div>
+    `;
+
+    if (job.autoStyle?.reason) {
+      html += `<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:12px;">${escHtml(job.autoStyle.reason)}</div>`;
+    }
+
+    // Canvas video player (shows scenes timed to audio)
+    if (hasAudio && hasVisuals) {
+      html += `<div id="preview-player-wrap" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:14px;">
+        <!-- Phone shell -->
+        <div style="position:relative;width:406px;background:linear-gradient(160deg,#2e2e2e,#1a1a1a);border-radius:50px;padding:14px 8px 18px;box-shadow:inset 0 0 0 1.5px #444,inset 0 0 0 3px #111,0 0 0 1px #0a0a0a,0 24px 60px rgba(0,0,0,0.7);">
+          <!-- side buttons -->
+          <div style="position:absolute;left:-3px;top:108px;width:3px;height:32px;background:#2a2a2a;border-radius:2px 0 0 2px;"></div>
+          <div style="position:absolute;left:-3px;top:152px;width:3px;height:60px;background:#2a2a2a;border-radius:2px 0 0 2px;"></div>
+          <div style="position:absolute;left:-3px;top:224px;width:3px;height:60px;background:#2a2a2a;border-radius:2px 0 0 2px;"></div>
+          <div style="position:absolute;right:-3px;top:160px;width:3px;height:80px;background:#2a2a2a;border-radius:0 2px 2px 0;"></div>
+          <!-- screen -->
+          <div style="position:relative;width:390px;height:693px;overflow:hidden;border-radius:40px;background:#000;">
+            <!-- status bar -->
+            <div style="position:absolute;top:0;left:0;right:0;height:44px;z-index:10;pointer-events:none;display:flex;align-items:flex-start;justify-content:space-between;padding:14px 22px 0;">
+              <span style="font-size:12px;font-weight:700;color:#fff;letter-spacing:0.2px;">9:41</span>
+              <!-- dynamic island -->
+              <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);width:120px;height:34px;background:#000;border-radius:20px;"></div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <!-- signal -->
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="4" width="3" height="8" rx="1" opacity="0.4"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1" opacity="0.6"/><rect x="9" y="1" width="3" height="11" rx="1" opacity="0.8"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <!-- wifi -->
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="white"><path d="M8 9a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/><path d="M3.5 6C5 4.3 6.4 3.5 8 3.5s3 .8 4.5 2.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.7" stroke-linecap="round"/><path d="M1 3.5C3.2 1.3 5.5 0 8 0s4.8 1.3 7 3.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.4" stroke-linecap="round"/></svg>
+                <!-- battery -->
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="22" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M24 4v4a2 2 0 000-4z" fill="white" fill-opacity="0.5"/></svg>
+              </div>
+            </div>
+            <!-- video canvas -->
+            <canvas id="preview-canvas" width="390" height="693" style="display:block;width:390px;height:693px;"></canvas>
+            <!-- subtitle overlay -->
+            <div id="preview-subtitle" style="position:absolute;bottom:56px;left:0;right:0;text-align:center;font-size:15px;font-weight:700;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.95),0 0 12px rgba(0,0,0,0.6);padding:0 22px;pointer-events:none;line-height:1.5;"></div>
+            <!-- home indicator -->
+            <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;background:rgba(255,255,255,0.25);border-radius:3px;pointer-events:none;"></div>
+          </div>
+        </div>
+        <!-- transport controls -->
+        <div style="display:flex;align-items:center;gap:14px;width:406px;">
+          <button id="preview-play-btn" style="background:var(--accent);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">▶</button>
+          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;position:relative;cursor:pointer;" id="preview-seek">
+            <div id="preview-progress" style="height:100%;background:var(--accent);border-radius:2px;width:0%;pointer-events:none;"></div>
+          </div>
+          <span id="preview-time" style="font-size:12px;color:var(--text-muted);flex-shrink:0;min-width:32px;text-align:right;">0s</span>
+        </div>
+      </div>`;
+    } else if (hasAudio) {
+      html += `<div style="margin-bottom:12px;">
+        <audio controls style="width:100%;height:36px;" src="data:audio/wav;base64,${job.audioBase64}"></audio>
+      </div>`;
+    }
+
+    // Scene text list
+    if (job.scenes?.length) {
+      html += `<div style="max-height:200px;overflow-y:auto;">`;
+      job.scenes.forEach((s, i) => {
+        const dur = s.duration ? `${s.duration.toFixed(1)}s` : '';
+        html += `<div style="border-left:2px solid var(--accent);padding:6px 10px;margin-bottom:6px;background:var(--bg-input);border-radius:0 4px 4px 0;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Scene ${i+1} ${dur ? `· ${dur}` : ''}</div>
+          <div style="font-size:12px;">${escHtml(s.sceneText || '')}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Action buttons
+    html += `<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">`;
+    if (job.status === 'done' && job.audioBase64) {
+      html += `<button class="btn-pri" onclick="openInReelEditor(jobs.find(j=>j.id===${job.id}));closeJobPreview();">🎬 Open in Reel Editor</button>`;
+      html += `<button class="btn-sm" onclick="exportJob(jobs.find(j=>j.id===${job.id}));">⬇ Export Video</button>`;
+    }
+    html += `<button class="btn-sm" onclick="runJob(jobs.find(j=>j.id===${job.id}));closeJobPreview();">↺ Re-run Job</button>`;
+    html += `</div>`;
+
+    bodyEl.innerHTML = html;
+    overlay.classList.remove('hidden');
+
+    // Wire up canvas video player
+    if (hasAudio && hasVisuals) {
+      initPreviewPlayer(job);
+    }
+  }
+
+  let _previewPlayer = null; // track active player so we can stop on close
+
+  async function initPreviewPlayer(job) {
+    const canvas  = document.getElementById('preview-canvas');
+    const playBtn = document.getElementById('preview-play-btn');
+    const progressEl = document.getElementById('preview-progress');
+    const timeEl     = document.getElementById('preview-time');
+    const subEl      = document.getElementById('preview-subtitle');
+    if (!canvas || !playBtn) return;
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // Pre-load scene media (video clips for animated, images for illustrated)
+    const isAnimatedJob = job.videoMode === 'animated';
+    const previewMedia = await Promise.all(job.scenes.map(s => {
+      if (isAnimatedJob && s.videoBlobUrl) {
+        return new Promise(res => {
+          const video = document.createElement('video');
+          video.muted = true; video.preload = 'auto'; video.playsInline = true;
+          const done = () => res({ type: 'video', el: video });
+          video.onloadeddata = done;
+          video.oncanplay = done;
+          video.onerror = () => res({ type: 'image', el: (() => { const i = new Image(); i.src = s.imgDataUrl; return i; })() });
+          video.src = s.videoBlobUrl;
+          video.load();
+          setTimeout(() => res({ type: 'video', el: video }), 3000);
+        });
+      }
+      if (s.imgDataUrl) {
+        return new Promise(res => {
+          const img = new Image();
+          img.onload = () => res({ type: 'image', el: img });
+          img.onerror = () => res(null);
+          img.src = s.imgDataUrl;
+        });
+      }
+      return Promise.resolve(null);
+    }));
+    const imgs = previewMedia.map(m => m?.type === 'image' ? m.el : null);
+    let _lastPreviewSceneIdx = -1;
+
+    let playing = false, startedAt = 0, pausedAt = 0;
+    let audioSrc = null;
+    const actx = getAudioCtx();
+    let audioBuffer = job.audioBuffer;
+
+    if (!audioBuffer && job.audioBase64) {
+      try {
+        const r = await decodeBase64Audio(job.audioBase64, 'audio/wav');
+        audioBuffer = r.audioBuffer;
+        job.audioBuffer = audioBuffer;
+      } catch(e) { console.warn('preview audio decode failed', e); }
+    }
+
+    function drawFrame(t) {
+      const scene = job.scenes.findLast(s => s.startTime <= t) || job.scenes[0];
+      const si    = job.scenes.indexOf(scene);
+      const media = previewMedia[si];
+      const sceneDur = (scene?.endTime || job.duration) - (scene?.startTime || 0);
+      const lifeP    = sceneDur > 0 ? Math.min(1, (t - (scene?.startTime || 0)) / sceneDur) : 0;
+
+      // Handle video scene transitions
+      if (isAnimatedJob && si !== _lastPreviewSceneIdx) {
+        if (_lastPreviewSceneIdx >= 0 && previewMedia[_lastPreviewSceneIdx]?.type === 'video') {
+          try { previewMedia[_lastPreviewSceneIdx].el.pause(); } catch {}
+        }
+        if (media?.type === 'video') {
+          media.el.currentTime = 0;
+          if (playing) media.el.play().catch(() => {});
+        }
+        _lastPreviewSceneIdx = si;
+      }
+
+      ctx.clearRect(0, 0, W, H);
+      if (media?.type === 'video') {
+        ctx.drawImage(media.el, 0, 0, W, H);
+      } else if (media?.type === 'image') {
+        drawSceneImage(ctx, media.el, si, lifeP, W, H);
+      } else {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, W, H);
+      }
+      // Subtitle
+      // Preview subtitle — respects subStyle and subLang settings
+      if (subEl) {
+        if (job.subStyle === 'none') {
+          subEl.textContent = '';
+        } else {
+          const isTranslated = job.subLang && job.subLang !== 'original' && job.subLang !== job.langCode;
+          const text = isTranslated
+            ? (scene?.subText || scene?.sceneText || '')
+            : (scene?.sceneText || '');
+          subEl.textContent = text.slice(0, 80);
+          subEl.style.bottom = job.subPosition === 'top' ? 'auto' : '16px';
+          subEl.style.top    = job.subPosition === 'top' ? '16px'  : 'auto';
+          subEl.style.color  = job.subColor || '#fff';
+        }
+      }
+      // Progress + time
+      const frac = Math.min(t / job.duration, 1);
+      if (progressEl) progressEl.style.width = (frac * 100) + '%';
+      if (timeEl) timeEl.textContent = Math.floor(t) + 's';
+    }
+
+    // Draw first frame immediately
+    drawFrame(pausedAt);
+
+    let rafId = null;
+    function renderLoop() {
+      if (!playing) return;
+      const t = pausedAt + (actx.currentTime - startedAt);
+      if (t >= job.duration) {
+        pausedAt = 0;
+        playing = false;
+        playBtn.textContent = '▶';
+        if (audioSrc) { try { audioSrc.stop(); } catch {} audioSrc = null; }
+        // Pause any playing video clips
+        previewMedia.forEach(m => { if (m?.type === 'video') try { m.el.pause(); } catch {} });
+        _lastPreviewSceneIdx = -1;
+        drawFrame(0);
+        return;
+      }
+      drawFrame(t);
+      rafId = requestAnimationFrame(renderLoop);
+    }
+
+    function play() {
+      if (!audioBuffer) return;
+      if (actx.state === 'suspended') actx.resume();
+      audioSrc = actx.createBufferSource();
+      audioSrc.buffer = audioBuffer;
+      audioSrc.connect(actx.destination);
+      startedAt = actx.currentTime;
+      audioSrc.start(0, pausedAt);
+      playing = true;
+      playBtn.textContent = '⏸';
+      renderLoop();
+    }
+
+    function pause() {
+      pausedAt = pausedAt + (actx.currentTime - startedAt);
+      playing = false;
+      playBtn.textContent = '▶';
+      if (audioSrc) { try { audioSrc.stop(); } catch {} audioSrc = null; }
+      previewMedia.forEach(m => { if (m?.type === 'video') try { m.el.pause(); } catch {} });
+      cancelAnimationFrame(rafId);
+    }
+
+    playBtn.onclick = () => { if (playing) pause(); else play(); };
+
+    // Seek bar
+    const seekEl = document.getElementById('preview-seek');
+    if (seekEl) {
+      seekEl.onclick = e => {
+        const rect = seekEl.getBoundingClientRect();
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (playing) pause();
+        pausedAt = frac * job.duration;
+        drawFrame(pausedAt);
+      };
+    }
+
+    _previewPlayer = { pause };
+  }
+
+  function closeJobPreview() {
+    if (_previewPlayer) { try { _previewPlayer.pause(); } catch {} _previewPlayer = null; }
+    document.getElementById('job-preview-overlay').classList.add('hidden');
+  }
+
+  // ═══════════════════════════════════════════════
+  // PHASE 9 — CANVAS + MEDIARECORDER EXPORT
+  // ═══════════════════════════════════════════════
+
+  // Cover-fit: fills canvas, centred — identical to main app js/09-transitions.js drawCoverFit.
+  // Uses destination-position approach (dx/dy can be negative) so canvas clips naturally.
+  function drawCoverFit(ctx, img, cw, ch) {
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const ir = iw / ih, cr = cw / ch;
+    let dw, dh, dx, dy;
+    if (ir > cr) { dh = ch; dw = ch * ir; dx = (cw - dw) / 2; dy = 0; }
+    else         { dw = cw; dh = cw / ir; dx = 0; dy = (ch - dh) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+
+  // Motion presets — cycles through scenes, matches main app js/09-transitions.js applyMotionTransform.
+  // Applied as a canvas coordinate transform BEFORE drawCoverFit.
+  const MOTION_CYCLE = ['slow-zoom-in', 'ken-burns', 'pan-right', 'slow-zoom-out', 'pan-left', 'ken-burns'];
+
+  function applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch) {
+    const motion = MOTION_CYCLE[sceneIdx % MOTION_CYCLE.length];
+    if (motion === 'ken-burns') {
+      const seed  = sceneIdx % 4;
+      const scale = 1.0 + 0.15 * lifeProgress;
+      const panX  = (seed < 2 ? 1 : -1) * lifeProgress * cw * 0.05;
+      const panY  = (seed % 2 === 0 ? 1 : -1) * lifeProgress * ch * 0.05;
+      ctx.translate(cw / 2 + panX, ch / 2 + panY);
+      ctx.scale(scale, scale);
+      ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'slow-zoom-in') {
+      const scale = 1.0 + 0.10 * lifeProgress;
+      ctx.translate(cw / 2, ch / 2); ctx.scale(scale, scale); ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'slow-zoom-out') {
+      const scale = 1.10 - 0.10 * lifeProgress;
+      ctx.translate(cw / 2, ch / 2); ctx.scale(scale, scale); ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'pan-left') {
+      ctx.translate(cw / 2 - lifeProgress * cw * 0.08, ch / 2);
+      ctx.scale(1.10, 1.10); ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'pan-right') {
+      ctx.translate(cw / 2 + lifeProgress * cw * 0.08, ch / 2);
+      ctx.scale(1.10, 1.10); ctx.translate(-cw / 2, -ch / 2);
+    }
+  }
+
+  // Draw a scene image with motion onto ctx. Matches main app pattern:
+  //   applyMotionTransform → drawCoverFit
+  function drawSceneImage(ctx, img, sceneIdx, lifeProgress, cw, ch) {
+    if (!img || !img.naturalWidth) return;
+    ctx.save();
+    applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch);
+    drawCoverFit(ctx, img, cw, ch);
+    ctx.restore();
+  }
+
+  // Full subtitle renderer — matches main app's renderReelSubtitle in js/07-text-renderer.js.
+  // Supports: highlight | word-by-word | bold-center | karaoke | none.
+  // Supports translated subtitles: when job.subLang !== 'original', uses scene.subText.
+  function renderSubtitle(ctx, w, h, currentTime, job) {
+    const style    = job.subStyle    || 'highlight';
+    const backdrop = job.subBackdrop || 'dark';
+    const sizeFactor = (job.subSize || 4) / 100;
+    const pos      = job.subPosition || 'bottom';
+    const color    = job.subColor    || '#ffffff';
+    const outline  = job.subOutline  || '#000000';
+    const accentColor = '#a078ff'; // active-word accent (same as main app)
+
+    if (style === 'none') return;
+
+    const fontSize = Math.round(w * sizeFactor);
+    const font     = `700 ${fontSize}px system-ui,-apple-system,sans-serif`;
+    const yFrac    = pos === 'top' ? 0.12 : pos === 'center' ? 0.52 : 0.85;
+    const y        = Math.round(h * yFrac);
+    const maxWidth = w * 0.9;
+    const words    = job.words || [];
+
+    ctx.save();
+    ctx.font = font;
+    ctx.textBaseline = 'bottom';
+
+    function drawBackdrop(bx, bY, bw, bh) {
+      if (backdrop === 'none') return;
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#000';
+      const safeBw = Math.min(bw, maxWidth + 32);
+      const safeBx = Math.max(0, w / 2 - safeBw / 2);
+      ctx.fillRect(safeBx, bY, safeBw, bh);
+      ctx.globalAlpha = 1;
+    }
+    function drawOutlinedText(text, tx, ty) {
+      if (outline && outline !== 'transparent') {
+        ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+        ctx.strokeText(text, tx, ty);
+      }
+      ctx.fillText(text, tx, ty);
+    }
+
+    // ── Translated subtitle: use scene.subText, show for scene duration ──
+    const isTranslated = job.subLang && job.subLang !== 'original' && job.subLang !== job.langCode;
+    if (isTranslated && job.scenes?.length) {
+      const scene = [...job.scenes].reverse().find(s => (s.startTime || 0) <= currentTime);
+      const text = scene?.subText || scene?.sceneText || '';
+      if (!text) { ctx.restore(); return; }
+      ctx.textAlign = 'center';
+      ctx.font = font;
+      const tw = ctx.measureText(text).width;
+      drawBackdrop(w/2 - tw/2 - 12, y - fontSize - 4, tw + 24, fontSize + 16);
+      ctx.fillStyle = color;
+      drawOutlinedText(text, w / 2, y);
+      ctx.restore();
+      return;
+    }
+
+    if (!words.length) { ctx.restore(); return; }
+
+    // Find current word index
+    let curIdx = words.findIndex(wt => currentTime >= wt.start && currentTime < wt.end);
+    if (curIdx < 0) curIdx = [...words].reverse().findIndex(wt => wt.start <= currentTime);
+    if (curIdx < 0) curIdx = words.length - 1 - curIdx; // adjust reverse index
+    // Safe clamp
+    const idx = curIdx < 0 ? -1 : curIdx;
+
+    if (style === 'word-by-word') {
+      if (idx < 0) { ctx.restore(); return; }
+      const chunk = words.slice(idx, idx + 2);
+      const text = chunk.map(wt => wt.word).join(' ');
+      ctx.textAlign = 'center';
+      const m = ctx.measureText(text);
+      drawBackdrop(w/2 - m.width/2 - 14, y - fontSize - 4, m.width + 28, fontSize + 16);
+      ctx.fillStyle = color;
+      drawOutlinedText(text, w / 2, y);
+
+    } else if (style === 'highlight') {
+      // 5-word window around current word; active word in accent color
+      const start = Math.max(0, idx < 0 ? 0 : idx - 2);
+      const seg   = words.slice(start, start + 5);
+      if (!seg.length) { ctx.restore(); return; }
+      const sentence = seg.map(wt => wt.word).join(' ');
+      const smFont   = `600 ${Math.round(fontSize * 0.75)}px system-ui,sans-serif`;
+      ctx.font = smFont;
+      const metrics = ctx.measureText(sentence);
+      drawBackdrop(w/2 - metrics.width/2 - 12, y - fontSize * 0.75 - 4, metrics.width + 24, fontSize * 0.75 + 16);
+      let xPos = w / 2 - metrics.width / 2;
+      for (const wt of seg) {
+        const isActive = currentTime >= wt.start && currentTime < wt.end;
+        ctx.fillStyle = isActive ? accentColor : color;
+        ctx.textAlign = 'left';
+        const wStr = wt.word + ' ';
+        drawOutlinedText(wStr, xPos, y);
+        xPos += ctx.measureText(wStr).width;
+      }
+
+    } else if (style === 'karaoke') {
+      const visible = words.filter(wt => currentTime >= wt.start).slice(-4);
+      if (!visible.length) { ctx.restore(); return; }
+      const text = visible.map(wt => wt.word).join(' ');
+      const kFont = `600 ${Math.round(fontSize * 0.8)}px system-ui,sans-serif`;
+      ctx.font = kFont;
+      ctx.textAlign = 'center';
+      const m = ctx.measureText(text);
+      drawBackdrop(w/2 - m.width/2 - 12, y - fontSize * 0.8 - 4, m.width + 24, fontSize * 0.8 + 16);
+      ctx.fillStyle = color;
+      drawOutlinedText(text, w / 2, y);
+
+    } else if (style === 'bold-center') {
+      if (idx < 0) { ctx.restore(); return; }
+      const groupStart = Math.floor(idx / 3) * 3;
+      const group = words.slice(groupStart, groupStart + 3);
+      if (!group.length) { ctx.restore(); return; }
+      ctx.font = font; ctx.textAlign = 'center';
+      const groupText = group.map(wt => wt.word).join(' ');
+      const m = ctx.measureText(groupText);
+      drawBackdrop(w/2 - m.width/2 - 16, y - fontSize - 6, m.width + 32, fontSize + 20);
+      let xPos = w / 2 - m.width / 2;
+      ctx.textAlign = 'left';
+      for (const wt of group) {
+        const isCurrent = currentTime >= wt.start && currentTime < wt.end;
+        ctx.fillStyle = isCurrent ? accentColor : color;
+        const wText = wt === group[group.length - 1] ? wt.word : wt.word + ' ';
+        drawOutlinedText(wText, xPos, y);
+        xPos += ctx.measureText(wText).width;
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // Translate all scene texts to job.subLang using Gemini 2.5 Flash.
+  // Stores result in scene.subText. Called from runJob when subLang !== 'original'.
+  async function translateSubtitles(job) {
+    if (!job.subLang || job.subLang === 'original' || job.subLang === job.langCode) return;
+    const key = getGeminiKey();
+    const langEntry = SUB_LANGUAGES.find(l => l[0] === job.subLang);
+    const langName  = langEntry ? langEntry[1] : job.subLang;
+    const lines     = job.scenes.map((s, i) => `${i + 1}. ${s.sceneText}`).join('\n');
+    const prompt    = `Translate these scene captions to ${langName}. Keep each translation very concise (max 10 words). Return ONLY the translated captions, numbered exactly as given, one per line.\n\n${lines}`;
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }
+      );
+      const data = await resp.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      text.split('\n').forEach(line => {
+        const m = line.match(/^(\d+)\.\s*(.+)/);
+        if (!m) return;
+        const idx = parseInt(m[1]) - 1;
+        if (job.scenes[idx]) job.scenes[idx].subText = m[2].trim();
+      });
+    } catch (e) {
+      console.warn('[translateSubtitles] failed:', e.message);
+    }
+  }
+
+  function showExportOverlay(job) {
+    const overlay = document.getElementById('export-overlay');
+    if (!overlay) return;
+    const titleEl = document.getElementById('export-job-title');
+    if (titleEl) titleEl.textContent = job.input.slice(0, 60) + (job.input.length > 60 ? '…' : '');
+    const bar = document.getElementById('export-bar');
+    if (bar) bar.style.width = '0%';
+    const lbl = document.getElementById('export-label');
+    if (lbl) lbl.textContent = 'Preparing…';
+    overlay.classList.remove('hidden');
+  }
+
+  function hideExportOverlay() {
+    const overlay = document.getElementById('export-overlay');
+    if (overlay) overlay.classList.add('hidden');
+  }
+
+  async function exportJob(job) {
+    if (job.status !== 'done') {
+      toast('Job must be complete before export', 'error'); return;
+    }
+
+    // Restore audio buffer if loaded from a saved project file
+    if (!job.audioBuffer && job.audioBase64) {
+      try {
+        const { audioBuffer } = await decodeBase64Audio(job.audioBase64, 'audio/wav');
+        job.audioBuffer = audioBuffer;
+        job.duration = audioBuffer.duration;
+      } catch(e) {
+        toast('Audio decode failed: ' + e.message, 'error'); return;
+      }
+    }
+    if (!job.audioBuffer) {
+      toast('No audio — re-run the job first', 'error'); return;
+    }
+
+    const { w, h } = REEL_DIMS[job.platform] || REEL_DIMS.youtube;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // Pre-load scene media (video clips for animated, images for illustrated)
+    const isAnimated = job.videoMode === 'animated';
+    const mediaEls = await Promise.all(job.scenes.map(scene => {
+      if (isAnimated && scene.videoBlobUrl) {
+        return new Promise(res => {
+          const video = document.createElement('video');
+          video.muted = true; video.preload = 'auto'; video.playsInline = true;
+          const done = () => res({ type: 'video', el: video });
+          video.onloadeddata = done;
+          video.oncanplay = done;
+          video.onerror = () => res({ type: 'image', el: (() => { const i = new Image(); i.src = scene.imgDataUrl; return i; })() });
+          video.src = scene.videoBlobUrl;
+          video.load();
+          setTimeout(() => res({ type: 'video', el: video }), 3000);
+        });
+      }
+      if (scene.imgDataUrl) {
+        return new Promise(res => {
+          const img = new Image();
+          img.onload = () => res({ type: 'image', el: img });
+          img.onerror = () => res(null);
+          img.src = scene.imgDataUrl;
+        });
+      }
+      return Promise.resolve(null);
+    }));
+    // Compat: imgEls array for existing code paths (end card, subtitles etc.)
+    const imgEls = mediaEls.map(m => m?.type === 'image' ? m.el : null);
+
+    // Web Audio → MediaStreamDestination
+    const actx = getAudioCtx();
+    if (actx.state === 'suspended') await actx.resume();
+    const dest = actx.createMediaStreamDestination();
+    const source = actx.createBufferSource();
+    source.buffer = job.audioBuffer;
+    source.connect(dest);
+
+    const endCardDur = job.endCard ? 5 : 0;
+    const introDur   = job.intro ? 2.5 : 0;
+    const totalDuration = job.duration + endCardDur;
+
+    const videoStream = canvas.captureStream(30);
+    const combined = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...dest.stream.getAudioTracks(),
+    ]);
+
+    // Try MP4 first (Safari/iOS supports it natively), fall back to WebM
+    function resolveMime() {
+      if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) return { mime: 'video/mp4;codecs=avc1,mp4a.40.2', ext: 'mp4' };
+      if (MediaRecorder.isTypeSupported('video/mp4')) return { mime: 'video/mp4', ext: 'mp4' };
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) return { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' };
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) return { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' };
+      return { mime: 'video/webm', ext: 'webm' };
+    }
+    const { mime: mimeType, ext: fileExt } = resolveMime();
+
+    const chunks = [];
+    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 4_000_000 });
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+    showExportOverlay(job);
+
+    return new Promise(resolve => {
+      let cancelled = false;
+      let recStopped = false;
+
+      function stopAll() {
+        if (recStopped) return; recStopped = true;
+        try { source.stop(); } catch {}
+        try { recorder.stop(); } catch {}
+      }
+
+      document.getElementById('btn-cancel-export').onclick = () => {
+        cancelled = true; stopAll(); hideExportOverlay();
+        toast('Export cancelled', ''); resolve();
+      };
+
+      recorder.onstop = () => {
+        hideExportOverlay();
+        if (cancelled) { resolve(); return; }
+        const slug = job.input.slice(0, 30).replace(/[^\w]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'video';
+        const filename = `${job.channel}-${job.langCode}-${slug}.${fileExt}`;
+        const blob = new Blob(chunks, { type: mimeType });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        toast(`⬇ ${filename}`, 'success');
+        resolve();
+      };
+
+      recorder.start(200);
+      source.start(actx.currentTime);
+      const t0 = performance.now();
+      let frameTimer = null;
+      let _lastExportSceneIdx = -1; // track scene changes for video playback
+
+      function renderFrame() {
+        if (cancelled) { clearInterval(frameTimer); return; }
+        const elapsed = (performance.now() - t0) / 1000;
+
+        // Update progress overlay
+        const pct = Math.min(100, Math.round((elapsed / totalDuration) * 100));
+        const bar = document.getElementById('export-bar');
+        const lbl = document.getElementById('export-label');
+        if (bar) bar.style.width = pct + '%';
+        if (lbl) lbl.textContent = `${pct}% · ${Math.round(elapsed)}s / ${Math.round(totalDuration)}s`;
+
+        if (elapsed >= totalDuration + 0.2) { clearInterval(frameTimer); stopAll(); return; }
+
+        // ── Draw frame ──
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+
+        const audioTime = Math.min(elapsed, job.duration);
+
+        // Find current scene index
+        let sceneIdx = 0;
+        for (let i = job.scenes.length - 1; i >= 0; i--) {
+          if ((job.scenes[i].startTime || 0) <= audioTime) { sceneIdx = i; break; }
+        }
+        const curMedia  = mediaEls[sceneIdx];
+        const prevMedia = sceneIdx > 0 ? mediaEls[sceneIdx - 1] : null;
+        const sceneElapsed = audioTime - (job.scenes[sceneIdx]?.startTime || 0);
+        const transDur = 0.35;
+
+        const curScene = job.scenes[sceneIdx];
+        const sceneDur = (curScene?.endTime || job.duration) - (curScene?.startTime || 0);
+        const lifeProg = sceneDur > 0 ? Math.min(1, sceneElapsed / sceneDur) : 0;
+
+        // Handle video scene transitions — start/pause videos on scene change
+        if (isAnimated && sceneIdx !== _lastExportSceneIdx) {
+          if (prevMedia?.type === 'video') try { prevMedia.el.pause(); } catch {}
+          if (curMedia?.type === 'video') {
+            curMedia.el.currentTime = 0;
+            curMedia.el.play().catch(() => {});
+          }
+          _lastExportSceneIdx = sceneIdx;
+        }
+
+        // Draw current frame — video or image
+        function drawMedia(media, si, alpha) {
+          if (!media) return;
+          if (alpha < 1) ctx.globalAlpha = alpha;
+          if (media.type === 'video') {
+            ctx.drawImage(media.el, 0, 0, w, h);
+          } else {
+            drawSceneImage(ctx, media.el, si, lifeProg, w, h);
+          }
+          if (alpha < 1) ctx.globalAlpha = 1;
+        }
+
+        if (sceneElapsed < transDur && prevMedia) {
+          drawMedia(prevMedia, sceneIdx - 1, 1);
+          drawMedia(curMedia, sceneIdx, Math.min(1, sceneElapsed / transDur));
+        } else {
+          drawMedia(curMedia, sceneIdx, 1);
+        }
+
+        // End card
+        if (job.endCard && elapsed >= job.duration) {
+          const ct = elapsed - job.duration;
+          const bgAlpha = Math.min(1, ct * 2.5);
+          ctx.globalAlpha = bgAlpha;
+          const grad = ctx.createLinearGradient(0, 0, 0, h);
+          grad.addColorStop(0, '#1a0a2e'); grad.addColorStop(1, '#0a0a15');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+
+          const ta = Math.min(1, ct * 1.5);
+          ctx.globalAlpha = ta;
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.round(w * 0.09)}px system-ui,sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+          ctx.fillText('Stori', w / 2, Math.round(h * 0.42));
+          ctx.fillStyle = '#a855f7';
+          ctx.font = `${Math.round(w * 0.048)}px system-ui,sans-serif`;
+          ctx.fillText('AI Story Videos', w / 2, Math.round(h * 0.50));
+          ctx.fillStyle = '#7c3aed';
+          ctx.font = `bold ${Math.round(w * 0.042)}px system-ui,sans-serif`;
+          ctx.fillText('Try free → stori.app', w / 2, Math.round(h * 0.58));
+          ctx.globalAlpha = 1;
+        } else {
+          // Subtitles
+          renderSubtitle(ctx, w, h, audioTime, job);
+
+          // Intro card overlay (0 to introDur)
+          if (job.intro && elapsed < introDur) {
+            const t = elapsed / introDur;
+            const a = t < 0.2 ? t / 0.2 : t > 0.8 ? (1 - t) / 0.2 : 1;
+            ctx.globalAlpha = a * 0.82;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+            ctx.globalAlpha = a;
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.round(w * 0.07)}px system-ui,sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('Made with Stori', w / 2, h / 2);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        // Watermark
+        if (job.watermark) {
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${Math.round(w * 0.028)}px system-ui,sans-serif`;
+          ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+          ctx.fillText('Stori', w - 18, h - 18);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Use setInterval so it keeps running even if tab is unfocused
+      frameTimer = setInterval(renderFrame, Math.round(1000 / 30));
+    });
+  }
+
+  async function exportAll() {
+    const done = jobs.filter(j => j.status === 'done');
+    if (!done.length) { toast('No completed jobs to export', 'error'); return; }
+    toast(`Exporting ${done.length} videos sequentially…`, 'info');
+    for (const job of done) {
+      await exportJob(job);
+      // Small gap between exports
+      await new Promise(r => setTimeout(r, 600));
+    }
+    toast(`All ${done.length} exports complete`, 'success');
+  }
+
+  // ═══════════════════════════════════════════════
+  // SAVE / LOAD PROJECT
+  // ═══════════════════════════════════════════════
+
+  function bindProjectSaveLoad() {
+    document.getElementById('btn-save-project').addEventListener('click', () => {
+      const data = { jobs, nextJobId, savedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(blob),
+        download: 'stori-pipeline-' + new Date().toISOString().slice(0, 10) + '.json',
+      });
+      a.click(); URL.revokeObjectURL(a.href);
+      toast('Project saved', 'success');
+    });
+
+    document.getElementById('btn-load-project').addEventListener('click', () => document.getElementById('load-project-input').click());
+
+    document.getElementById('load-project-input').addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          jobs = data.jobs || [];
+          nextJobId = data.nextJobId || jobs.length + 1;
+          renderJobs(); updateQueueControls();
+          toast('Loaded ' + jobs.length + ' jobs', 'success');
+        } catch { toast('Invalid project file', 'error'); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  // UTILS
+  // ═══════════════════════════════════════════════
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let _toastTimer;
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'show ' + type;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  }
+
+  init();
+  </script>
+</body>
+</html>
