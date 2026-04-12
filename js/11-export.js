@@ -47,21 +47,15 @@
 
     // Show export settings panel
     btnExportVideo.addEventListener('click', () => {
+      console.log('[Export] clicked. buffer:', !!currentBuffer, 'photos:', photoItems.length, 'texts:', textItems.length, 'videos:', videoTimelineItems.length);
       if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) {
+        console.log('[Export] blocked — no content');
         setStatus('Add at least one photo, video, or text to export'); return;
       }
-      exportSettingsPanel.style.display = exportSettingsPanel.style.display === 'none' ? '' : 'none';
-      // Gate quality and format options for free tier
-      if (exportQualitySel) {
-        Array.from(exportQualitySel.options).forEach(opt => {
-          if (opt.value !== 'standard') opt.disabled = isFree();
-        });
-      }
-      if (exportFormatSel) {
-        Array.from(exportFormatSel.options).forEach(opt => {
-          if (opt.value !== 'auto') opt.disabled = isFree();
-        });
-      }
+      exportSettingsPanel.classList.remove('hidden');
+      const isVisible = getComputedStyle(exportSettingsPanel).display !== 'none';
+      exportSettingsPanel.style.display = isVisible ? 'none' : '';
+      if (!isVisible) exportSettingsPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       // Show/hide Export All Languages button
       const eab = $('export-all-langs');
       if (eab) eab.style.display = (editorLanguageTracks && editorLanguageTracks.length > 0) ? '' : 'none';
@@ -72,22 +66,11 @@
     });
 
     exportStartBtn.addEventListener('click', async () => {
-      // Duration gate
-      const maxSeconds = isFree() ? 60 : 1800;
-      if (currentBuffer && currentBuffer.duration > maxSeconds) {
-        const limitStr = isFree() ? '1 minute' : '30 minutes';
-        setStatus(`Your plan supports up to ${limitStr} exports. ${isFree() ? 'Upgrade to Pro for up to 30 minutes.' : 'Trim your audio to export.'}`);
-        return;
-      }
       exportSettingsPanel.style.display = 'none';
 
       let quality = exportQualitySel.value;
-      // Quality cap for free tier
-      if (isFree()) quality = 'standard';
       const fps = parseInt(exportFpsSel.value);
       let format = exportFormatSel.value;
-      // Format restriction for free tier
-      if (isFree() && format !== 'auto') format = 'auto'; // force WebM
       const resolved = resolveMime(format);
       if (!resolved) {
         setStatus(`${format.toUpperCase()} is not supported in this browser`); return;
@@ -174,19 +157,8 @@
             renderTextOverlays(ctx, ew, eh, elapsed, sortedSubs);
           }
           if (fr.applied) ctx.restore();
+          if (typeof _renderReelExtras === 'function') _renderReelExtras(ctx, exportW, exportH, elapsed);
           renderLogo(ctx, exportW, exportH);
-          // Watermark for free tier
-          if (isFree()) {
-            ctx.save();
-            ctx.globalAlpha = 0.5;
-            ctx.font = '600 20px Poppins, sans-serif';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'right';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 4;
-            ctx.fillText('Made with Stori', exportW - 16, exportH - 16);
-            ctx.restore();
-          }
           if (elapsed >= currentBuffer.duration) {
             stopped = true;
             timerWorker.postMessage('stop');
@@ -228,13 +200,22 @@
         const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
         const videoBitrate = Math.round(baseBitrate(exportH) * QUALITY_PRESETS[quality].bitrateMultiplier);
 
-        // Build list: original + all language tracks
+        // Build list: original + all language tracks (with scaled timings)
+        const origPhotos = window._editorOriginalPhotos || sorted.map(p => ({ startTime: p.startTime, duration: p.duration }));
         const tracksToExport = [
-          { label: 'original', buffer: editorOriginalBuffer, subtitles: editorOriginalSubtitles },
+          { label: 'original', buffer: editorOriginalBuffer, subtitles: editorOriginalSubtitles, photoTimings: origPhotos },
           ...editorLanguageTracks.map(t => ({
             label: t.langCode,
             buffer: t.audioBuffer,
-            subtitles: t.subtitleTexts ? editorOriginalSubtitles.map((s, i) => ({ ...s, text: t.subtitleTexts[i] || s.text })) : editorOriginalSubtitles,
+            subtitles: t.subtitleTexts
+              ? editorOriginalSubtitles.map((s, i) => ({
+                  ...s,
+                  text: t.subtitleTexts[i] || s.text,
+                  startTime: t.subtitleTimings?.[i]?.startTime ?? s.startTime,
+                  duration: t.subtitleTimings?.[i]?.duration ?? s.duration,
+                }))
+              : editorOriginalSubtitles,
+            photoTimings: t.photoTimings || origPhotos,
           }))
         ];
 
@@ -269,6 +250,10 @@
             const done = new Promise(r => { recorder.onstop = r; });
 
             const trackSortedTexts = track.subtitles ? [...track.subtitles].sort((a, b) => a.startTime - b.startTime) : sortedTexts;
+            // Build photo list with per-language timings
+            const trackSorted = track.photoTimings
+              ? sorted.map((p, i) => ({ ...p, startTime: track.photoTimings[i]?.startTime ?? p.startTime, duration: track.photoTimings[i]?.duration ?? p.duration }))
+              : sorted;
 
             const timerWorker = new Worker(URL.createObjectURL(new Blob([
               `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
@@ -287,12 +272,13 @@
               const frL = applyFrame(ctx, exportW, exportH);
               if (frL.applied) { ctx.save(); ctx.beginPath(); ctx.rect(frL.x, frL.y, frL.w, frL.h); ctx.clip(); ctx.translate(frL.x, frL.y); }
               const ewL = frL.applied ? frL.w : exportW, ehL = frL.applied ? frL.h : exportH;
-              const bgML = renderBgVideoBefore(ctx, ewL, ehL, elapsed, sorted);
-              if (bgML !== 'skip-images') renderTimelineFrame(ctx, ewL, ehL, elapsed, sorted);
-              renderBgVideoAfter(ctx, ewL, ehL, elapsed, sorted, bgML);
+              const bgML = renderBgVideoBefore(ctx, ewL, ehL, elapsed, trackSorted);
+              if (bgML !== 'skip-images') renderTimelineFrame(ctx, ewL, ehL, elapsed, trackSorted);
+              renderBgVideoAfter(ctx, ewL, ehL, elapsed, trackSorted, bgML);
               renderPiP(ctx, ewL, ehL, elapsed);
               renderTextOverlays(ctx, ewL, ehL, elapsed, trackSortedTexts);
               if (frL.applied) ctx.restore();
+              if (typeof _renderReelExtras === 'function') _renderReelExtras(ctx, exportW, exportH, elapsed);
               renderLogo(ctx, exportW, exportH);
               if (elapsed >= track.buffer.duration) {
                 stopped = true;
@@ -317,5 +303,18 @@
 
         setStatus(`Exported ${tracksToExport.length} videos (all languages)`);
         exportProgress.classList.remove('visible');
+      });
+    }
+
+    // Action-bar Export All button — click opens settings panel then triggers the export-all-langs inside it
+    const btnExportAllAction = $('btn-export-all-langs');
+    if (btnExportAllAction) {
+      btnExportAllAction.addEventListener('click', () => {
+        // Show settings panel first so user can pick quality/format, then click Export All inside
+        exportSettingsPanel.classList.remove('hidden');
+        exportSettingsPanel.style.display = '';
+        const eab = $('export-all-langs');
+        if (eab) eab.style.display = '';
+        exportSettingsPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     }

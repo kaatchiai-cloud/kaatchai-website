@@ -9,10 +9,19 @@ const reelStepPresets = $('reel-step-presets');
 const reelStepEditor = $('reel-step-editor');
 const reelStepActions = $('reel-step-actions');
 
+function renumberReelSteps() {
+  let num = 1;
+  reelPage.querySelectorAll('.reel-step').forEach(el => {
+    if (el.classList.contains('hidden') || el.style.display === 'none') return;
+    const numEl = el.querySelector('.step-num');
+    if (numEl) numEl.textContent = num++;
+  });
+}
+
 function showReelEditorStep() {
   reelStepEditor.classList.remove('hidden');
   if (reelStepActions) reelStepActions.classList.remove('hidden');
-  autoPickBgm();
+  renumberReelSteps();
 }
 
 // Input mode
@@ -80,6 +89,18 @@ let reelFrameTemplate = 'none'; // none | bottom-strip | top-bar | corner-tag | 
 let reelFrameText = '';
 let reelFrameBgColor = '#000000';
 let reelFrameTextColor = '#ffffff';
+// Overlay presets timeline items
+let reelOverlayItems = []; // [{id, type, startTime, duration, params}]
+let nextOverlayId = 1;
+
+const REEL_OVERLAY_PRESETS = {
+  'subscribe': { label: '🔴 Subscribe', defaultDuration: 3, defaultParams: { text: 'Subscribe', color: '#ff0000', textColor: '#ffffff' } },
+  'follow':    { label: '💜 Follow',    defaultDuration: 3, defaultParams: { text: 'Follow',    color: '#a855f7', textColor: '#ffffff' } },
+  'lower-third': { label: '📛 Lower Third', defaultDuration: 4, defaultParams: { name: 'Your Name', title: 'Your Title', color: '#000000', textColor: '#ffffff' } },
+  'cta-arrow': { label: '👇 CTA Arrow', defaultDuration: 3, defaultParams: { text: 'Link in Bio', color: '#ffffff' } },
+  'fade-title': { label: '✨ Title Card', defaultDuration: 3, defaultParams: { text: 'Your Title', color: '#ffffff' } },
+};
+
 let reelSegments = []; // [{start, end, thumbDataUrl}] — each becomes a separate reel
 let reelOriginalAudioBuffer = null; // preserve full audio for multi-segment extraction
 let reelPendingScenes = null; // scenes awaiting image generation (audio/text mode)
@@ -137,7 +158,7 @@ function getReelFreeKey() {
 function getReelPaidKey() {
   return localStorage.getItem('stori_key_paid') || (reelApiKeyPaidEl ? reelApiKeyPaidEl.value.trim() : '');
 }
-function getReelApiKey() { return getReelPaidKey(); }
+function getReelApiKey() { return getReelPaidKey() || getReelFreeKey(); }
 function getReelImageKey() { return getReelPaidKey() || getReelFreeKey(); }
 
 if (btnReelSaveKeyFree) btnReelSaveKeyFree.addEventListener('click', () => {
@@ -153,6 +174,21 @@ if (btnReelSaveKeyPaid) btnReelSaveKeyPaid.addEventListener('click', () => {
   localStorage.setItem('stori_key_paid', key);
   reelKeyStatusPaid.textContent = '✓ Saved';
   reelKeyStatusPaid.style.color = '#10b981';
+  updateReelKeyInline();
+});
+
+// Reel API key bar toggle + inline status
+function updateReelKeyInline() {
+  const el = $('reel-key-status-inline');
+  if (!el) return;
+  const key = getReelApiKey();
+  el.textContent = key ? '🔑 Key saved' : '🔑 No key';
+  el.style.color = key ? '#10b981' : '';
+}
+const btnReelToggleKey = $('btn-reel-toggle-key');
+if (btnReelToggleKey) btnReelToggleKey.addEventListener('click', () => {
+  const expand = $('reel-key-expand');
+  if (expand) expand.style.display = expand.style.display === 'none' ? 'flex' : 'none';
 });
 
 let reelEditMode = 'subtitles'; // subtitles | auto-cut
@@ -165,7 +201,9 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
   const savedFree = localStorage.getItem('stori_key_free');
   const savedPaid = localStorage.getItem('stori_key_paid');
   if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
-  if (savedPaid && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedPaid; reelKeyStatusPaid.textContent = '✓ Saved'; reelKeyStatusPaid.style.color = '#10b981'; }
+  const savedKey = savedPaid || savedFree;
+  if (savedKey && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedKey; }
+  updateReelKeyInline();
   // Populate style dropdown from STYLE_PRESETS
   if (reelStyleEl && reelStyleEl.options.length <= 1) {
     reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
@@ -189,6 +227,8 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
   reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
   if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
   updateReelFrameControls();
+  reelOverlayItems = []; nextOverlayId = 1;
+  renderOverlayChips();
   stopReelPreview();
 });
 
@@ -228,6 +268,7 @@ setReelInputMode(reelInputMode);
 function showReelPresets() {
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
   initReelTemplateUI();
+  renumberReelSteps();
 }
 
 let _reelTemplateUIInit = false;
@@ -392,6 +433,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
   const file = reelAudioInput.files[0];
   if (!file) return;
   reelAudioInput.value = '';
+  if (reelGenerateStatus) reelGenerateStatus.textContent = '';
   try {
     showPageLoader('Decoding audio...');
     const arrayBuf = await file.arrayBuffer();
@@ -415,6 +457,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
   const file = reelVideoInput.files[0];
   if (!file) return;
   reelVideoInput.value = '';
+  if (reelGenerateStatus) reelGenerateStatus.textContent = '';
   showPageLoader('Loading video...');
   try {
     const blobUrl = URL.createObjectURL(file);
@@ -683,14 +726,12 @@ function renderReelJobCards() {
         ${vj.status === 'done' ? '<span style="color:#10b981;font-size:0.7rem;">✓</span>' : vj.status === 'error' ? `<span style="color:#ef4444;font-size:0.7rem;">✗</span>` : ''}
         <button class="btn-xs var-job-remove" data-vid="${vj.id}" style="margin-left:auto;">✕</button>
       </div>`).join('');
-    return `<div class="reel-seg-card" data-jid="${job.id}" style="padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;">
+    return `<div class="reel-seg-card" data-jid="${job.id}" style="padding:8px 28px 8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;position:relative;">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:0.8rem;font-weight:600;flex:1;">Segment ${si + 1}: ${fmtShort(job.segStart)} – ${fmtShort(job.segEnd)} (${(job.segEnd - job.segStart).toFixed(0)}s)</span>
         <span style="font-size:0.7rem;">${statusBadge}</span>
-        <button class="btn-xs job-add-var" data-jid="${job.id}">+ Variation</button>
-        <button class="btn-xs reel-seg-remove" data-jid="${job.id}">✕</button>
       </div>
-      ${varHtml}
+      <button class="btn-xs reel-seg-remove" data-jid="${job.id}" style="position:absolute;top:8px;right:6px;padding:2px 5px;font-size:0.65rem;">✕</button>
     </div>`;
   }).join('')}</div>`;
 
@@ -824,26 +865,17 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       segments = clampSegments(segments, 6, 9);
 
       const words = [];
-      let hasWordTimestamps = false;
+      // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
+      // Distribute each segment's words evenly across the segment's confirmed time window.
       for (const s of segments) {
-        if (s.words && s.words.length > 1) {
-          words.push(...s.words);
-          hasWordTimestamps = true;
-        }
-      }
-      // If API didn't return word timestamps, generate from segment text
-      if (!hasWordTimestamps) {
-        words.length = 0;
-        for (const s of segments) {
-          const text = s.text || '';
-          const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
-          if (wds.length === 0) continue;
-          const sStart = s.startTime || 0;
-          const sEnd = s.endTime || segAudio.duration;
-          const sDur = Math.max(0.1, sEnd - sStart);
-          const wDur = sDur / wds.length;
-          wds.forEach((w, wi) => { words.push({ word: w, start: sStart + wi * wDur, end: sStart + (wi + 1) * wDur }); });
-        }
+        const text = s.text || '';
+        const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+        if (wds.length === 0) continue;
+        const sStart = s.startTime || 0;
+        const sEnd = s.endTime || segAudio.duration;
+        const sDur = Math.max(0.1, sEnd - sStart);
+        const wDur = sDur / wds.length;
+        wds.forEach((w, wi) => { words.push({ word: w, start: sStart + wi * wDur, end: sStart + (wi + 1) * wDur }); });
       }
       // Final fallback: if still no words, create from all segment texts
       if (words.length === 0 && segments.length > 0) {
@@ -1118,29 +1150,21 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     let segments = parseGeminiJson(transcribeText);
     segments = clampSegments(segments, 6, 9);
 
-    // Collect all words for subtitle rendering
+    // Collect all words for subtitle rendering.
+    // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
+    // Distribute each segment's words evenly across the segment's confirmed time window.
     reelWords = [];
-    let singleHasWordTimestamps = false;
     for (const seg of segments) {
-      if (seg.words && seg.words.length > 1) {
-        reelWords.push(...seg.words);
-        singleHasWordTimestamps = true;
-      }
-    }
-    if (!singleHasWordTimestamps) {
-      reelWords = [];
-      for (const seg of segments) {
-        const text = seg.text || '';
-        const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
-        if (wds.length === 0) continue;
-        const sStart = seg.startTime || 0;
-        const sEnd = seg.endTime || reelAudioBuffer.duration;
-        const sDur = Math.max(0.1, sEnd - sStart);
-        const wDur = sDur / wds.length;
-        wds.forEach((w, i) => {
-          reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
-        });
-      }
+      const text = seg.text || '';
+      const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+      if (wds.length === 0) continue;
+      const sStart = seg.startTime || 0;
+      const sEnd = seg.endTime || reelAudioBuffer.duration;
+      const sDur = Math.max(0.1, sEnd - sStart);
+      const wDur = sDur / wds.length;
+      wds.forEach((w, i) => {
+        reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
+      });
     }
     // Final fallback: if still no words, create from all segment texts
     if (reelWords.length === 0 && segments.length > 0) {
@@ -1207,6 +1231,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const origText = reelWords?.map(w => w.word).join(' ') || '';
 
     for (const v of reelVariationRows) {
+     try {
       const isOrigAudio = v.audio === 'original';
       const isOrigSub = v.subtitle === 'original';
 
@@ -1303,6 +1328,95 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         segmentIndex: 0,
         settings: { ...origReel.settings },
       });
+     } catch(e) {
+      console.warn('[ReelGen] Variation failed, retrying:', v.audio, v.subtitle, e.message);
+      // Auto-retry once
+      try {
+        const isOrigAudio2 = v.audio === 'original';
+        const isOrigSub2 = v.subtitle === 'original';
+        let subWords2 = origReel.words;
+        if (!isOrigSub2 && origText) {
+          const cKey2 = `sub_${v.subtitle}`;
+          if (!translationCache[cKey2]) {
+            const transBody2 = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const transData2 = await callGeminiAPI(getTranscriptionModels(), transBody2, key);
+            trackCost('textGeneration', 1);
+            translationCache[cKey2] = transData2.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          }
+          if (translationCache[cKey2]) {
+            const tw = translationCache[cKey2].split(/\s+/);
+            const td = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+            const wd = td / Math.max(1, tw.length);
+            const st2 = origReel.words.length > 0 ? origReel.words[0].start : 0;
+            subWords2 = tw.map((w, i) => ({ word: w, start: st2 + i * wd, end: st2 + (i + 1) * wd }));
+          }
+        }
+        let audioBuffer2 = origReel.audioBuffer;
+        if (!isOrigAudio2 && origText) {
+          const tKey2 = `tts_${v.audio}`;
+          if (!ttsCache[tKey2]) {
+            const ttsCKey2 = `sub_${v.audio}`;
+            let ttsText2 = translationCache[ttsCKey2];
+            if (!ttsText2) {
+              const tb = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.audio]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+              const td2 = await callGeminiAPI(getTranscriptionModels(), tb, key);
+              trackCost('textGeneration', 1);
+              ttsText2 = td2.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+              translationCache[ttsCKey2] = ttsText2;
+            }
+            if (ttsText2) {
+              const ttsModels2 = getTTSModels();
+              const ttsResp2 = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels2[0]}:generateContent?key=${key}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ contents: [{ parts: [{ text: ttsText2 }] }],
+                    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+                  })
+                }
+              );
+              if (ttsResp2.ok) {
+                const ttsData2 = await ttsResp2.json();
+                const part2 = ttsData2.candidates?.[0]?.content?.parts?.[0];
+                if (part2?.inlineData?.data) {
+                  const decoded2 = await decodeBase64Audio(part2.inlineData.data, part2.inlineData.mimeType || 'audio/wav');
+                  ttsCache[tKey2] = decoded2.audioBuffer;
+                  trackCost('ttsPerLang', 1);
+                }
+              }
+            }
+          }
+          if (ttsCache[tKey2]) {
+            audioBuffer2 = ttsCache[tKey2];
+            const targetDur2 = origReel.audioBuffer.duration;
+            if (Math.abs(audioBuffer2.duration - targetDur2) > 0.5) {
+              const rate2 = audioBuffer2.duration / targetDur2;
+              const oc = new OfflineAudioContext(audioBuffer2.numberOfChannels, Math.round(targetDur2 * audioBuffer2.sampleRate), audioBuffer2.sampleRate);
+              const src2 = oc.createBufferSource(); src2.buffer = audioBuffer2; src2.playbackRate.value = rate2; src2.connect(oc.destination); src2.start();
+              audioBuffer2 = await oc.startRendering();
+              ttsCache[tKey2] = audioBuffer2;
+            }
+          }
+        }
+        singleResults.push({
+          audioBuffer: audioBuffer2, scenes: origReel.scenes, words: subWords2,
+          videoStart: 0, videoEnd: audioBuffer2.duration,
+          audioLang: v.audio, subtitleLang: v.subtitle,
+          audioLangLabel: REEL_LANG_OPTIONS[v.audio],
+          subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
+          segmentIndex: 0, settings: { ...origReel.settings },
+        });
+      } catch(e2) {
+        console.error('[ReelGen] Variation retry also failed:', v, e2);
+        singleResults.push({
+          audioBuffer: origReel.audioBuffer, scenes: origReel.scenes, words: origReel.words,
+          videoStart: 0, videoEnd: origReel.audioBuffer.duration,
+          audioLang: v.audio, subtitleLang: v.subtitle,
+          audioLangLabel: REEL_LANG_OPTIONS[v.audio] + ' (failed)',
+          subtitleLangLabel: REEL_LANG_OPTIONS[v.subtitle],
+          segmentIndex: 0, settings: { ...origReel.settings },
+        });
+      }
+     }
     }
 
     window._reelMultiResults = singleResults;
@@ -1362,7 +1476,14 @@ function drawReelSceneFrame(ctx, cw, ch, elapsed, scenes) {
   if (filtered.length === 0) return;
   // Find current scene
   let curIdx = filtered.findIndex(s => elapsed >= s.startTime && elapsed < s.endTime);
-  if (curIdx < 0) curIdx = elapsed >= filtered[filtered.length - 1].endTime ? filtered.length - 1 : 0;
+  if (curIdx < 0) {
+    if (elapsed >= filtered[filtered.length - 1].endTime) {
+      curIdx = filtered.length - 1;
+    } else {
+      // FP boundary miss — pick last scene whose startTime <= elapsed
+      curIdx = filtered.reduce((best, s, i) => s.startTime <= elapsed ? i : best, 0);
+    }
+  }
   const cur = filtered[curIdx];
   if (!cur._img) { cur._img = new Image(); cur._img.src = cur.imgDataUrl; }
   const td = curIdx === 0 ? 0 : (cur.transDur || 0);
@@ -1441,6 +1562,8 @@ function renderAllReelPreviews() {
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.gap = '20px';
+  container.style.maxWidth = '100%';
+  container.style.overflow = 'hidden';
 
   const platform = REEL_PLATFORMS[reelPlatform];
   const cw = platform.width;
@@ -1500,33 +1623,53 @@ function renderAllReelPreviews() {
         <option value="custom" ${viewport === 'custom' ? 'selected' : ''}>Custom</option>
       </select></label>
       <label class="form-label ${viewport !== 'custom' ? 'hidden' : ''} rc-vpx-label" data-ri="${i}">Pan: <input type="range" class="rc-vpx" data-ri="${i}" min="0" max="100" value="${vpx}" style="width:60px;"></label>` : ''}
-      <button class="btn-xs rc-export" data-ri="${i}">⬇ Export</button>`;
+      <div style="display:flex; gap:8px; align-items:center; margin-top:4px; padding-top:6px; border-top:1px solid var(--border);">
+        <label class="form-label">Music: <select id="reel-bgm-preset-${i}" class="rc-bgm" data-ri="${i}">
+          <option value="none">None</option><option value="upbeat">Upbeat</option><option value="calm">Calm</option>
+          <option value="cinematic">Cinematic</option><option value="corporate">Corporate</option><option value="playful">Playful</option>
+          <option value="custom">Custom</option>
+        </select></label>
+        <label class="form-label">Vol: <input type="range" class="rc-bgm-vol" data-ri="${i}" min="0" max="100" value="50" style="width:50px;"><span class="rc-bgm-vol-label">50%</span></label>
+        <label class="form-label">Frame: <select id="reel-frame-${i}" class="rc-frame" data-ri="${i}">
+          <option value="none">None</option><option value="bottom-strip">Bottom Strip</option><option value="top-bar">Top Bar</option>
+          <option value="corner-tag">Corner Tag</option><option value="full-border">Full Border</option>
+        </select></label>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <label class="form-label">Overlays:</label>
+        <button class="btn-xs" data-overlay="subscribe">🔴 Subscribe</button>
+        <button class="btn-xs" data-overlay="follow">💜 Follow</button>
+        <button class="btn-xs" data-overlay="lower-third">📛 Lower Third</button>
+        <button class="btn-xs" data-overlay="cta-arrow">👇 CTA</button>
+        <button class="btn-xs" data-overlay="fade-title">✨ Title</button>
+      </div>
+      <div id="reel-overlay-chips" style="display:none; flex-wrap:wrap; gap:4px; max-width:100%; overflow:hidden; box-sizing:border-box;"></div>`;
   }
 
   container.innerHTML = results.map((r, i) => {
     const audioLabel = r.audioLangLabel || 'Original';
     const subLabel = r.subtitleLangLabel || 'Original';
+    const isFailed = audioLabel.includes('(failed)');
     return `
-    <div class="reel-preview-section" data-ri="${i}" style="border:1px solid var(--border); border-radius:var(--radius); padding:16px; background:var(--bg-secondary); text-align:center;">
-      <div style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span></div>
-      <div style="display:inline-block;">
-        <div class="reel-canvas-wrap" style="width:300px; margin:0 auto;">
-          <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
-        </div>
-        <div style="width:300px; margin:6px auto 0;">
-          <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+    <div class="reel-preview-section" data-ri="${i}" style="border:1px solid ${isFailed ? 'var(--red)' : 'var(--border)'}; border-radius:var(--radius); padding:16px; background:var(--bg-secondary); width:100%; box-sizing:border-box; overflow:hidden;">
+      <div style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span>${isFailed ? ` <button class="btn-xs reel-retry-var" data-ri="${i}" style="margin-left:8px; color:var(--red);">🔄 Retry</button>` : ''}</div>
+      <div style="display:flex; gap:16px; align-items:flex-start; overflow:hidden;">
+        <!-- Left: Canvas + seek -->
+        <div style="flex-shrink:0;">
+          <div class="reel-canvas-wrap" style="width:300px;">
+            <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px; margin-top:6px; width:300px;">
+            <button class="btn-xs reel-mp-play" data-ri="${i}" title="Play/Pause">▶</button>
+            <button class="btn-xs reel-mp-stop" data-ri="${i}" title="Stop">⏹</button>
             <input type="range" class="reel-mp-scrub" data-ri="${i}" min="0" max="1000" value="0" style="flex:1; height:3px;">
             <span class="reel-mp-time text-2xs text-muted" data-ri="${i}">0:00</span>
           </div>
-          <div style="display:flex; gap:4px; justify-content:center;">
-            <button class="btn-xs reel-mp-play" data-ri="${i}">▶</button>
-            <button class="btn-xs reel-mp-pause" data-ri="${i}">⏸</button>
-            <button class="btn-xs reel-mp-stop" data-ri="${i}">⏹</button>
-          </div>
         </div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px; font-size:0.72rem; margin-top:12px; align-items:center;">
-        ${buildControlsHtml(i, r)}
+        <!-- Right: Controls -->
+        <div style="flex:1; min-width:0; overflow-x:hidden; display:flex; flex-direction:column; gap:6px; font-size:0.72rem;">
+          ${buildControlsHtml(i, r)}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1586,17 +1729,30 @@ function renderAllReelPreviews() {
     });
   });
 
-  // Per-preview playback
+  // Per-preview playback — stop any previously playing audio from old render
+  if (window._reelMpState) {
+    Object.keys(window._reelMpState).forEach(k => {
+      const st = window._reelMpState[k];
+      if (st.source) { try { st.source.stop(); } catch(e) {} }
+      if (st.bgmSource) { try { st.bgmSource.stop(); } catch(e) {} }
+      if (st.animId) cancelAnimationFrame(st.animId);
+    });
+  }
+  if (reelBgmAudioEl) { try { reelBgmAudioEl.pause(); } catch(e) {} }
   const mpState = {}; // idx → { source, startedAt, playing, animId }
+  window._reelMpState = mpState;
   container.querySelectorAll('.reel-mp-play').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.ri);
       const r = results[idx];
       if (!r || !r.audioBuffer) return;
+      // Toggle: if this one is playing, pause it
+      if (mpState[idx]?.playing) { pauseMp(idx); btn.textContent = '▶'; return; }
       // Stop any other playing preview
-      Object.keys(mpState).forEach(k => { if (mpState[k].playing) stopMp(parseInt(k), true); });
-      // Start playback
+      Object.keys(mpState).forEach(k => { if (mpState[k].playing) { pauseMp(parseInt(k)); const ob = container.querySelector(`.reel-mp-play[data-ri="${k}"]`); if (ob) ob.textContent = '▶'; } });
+      // Resume or start playback
+      const resumeOffset = mpState[idx]?.pausedAt || 0;
       // Ensure all scene images are loaded before starting playback
       if (r.scenes) {
         const unloaded = r.scenes.filter(s => s.imgDataUrl && (!s._img || s._img.naturalWidth === 0));
@@ -1613,22 +1769,27 @@ function renderAllReelPreviews() {
       const source = ctx.createBufferSource();
       source.buffer = r.audioBuffer;
       source.connect(ctx.destination);
-      const startedAt = ctx.currentTime;
-      source.start(startedAt);
+      const startedAt = ctx.currentTime - resumeOffset;
+      source.start(0, resumeOffset);
       let bgmPreviewSource = null;
       if (reelBgmBuffer) {
         bgmPreviewSource = ctx.createBufferSource();
         bgmPreviewSource.buffer = reelBgmBuffer;
         bgmPreviewSource.loop = true;
-        const bgmGain = ctx.createGain(); bgmGain.gain.value = 0.3;
+        const bgmGain = ctx.createGain(); bgmGain.gain.value = reelBgmVolume;
         bgmPreviewSource.connect(bgmGain); bgmGain.connect(ctx.destination);
-        bgmPreviewSource.start(startedAt);
+        bgmPreviewSource.start(0, resumeOffset);
+        console.log('[BGM] Playing buffer, offset:', resumeOffset, 'gain:', reelBgmVolume);
+      } else if (reelBgmAudioEl) {
+        reelBgmAudioEl.currentTime = resumeOffset;
+        reelBgmAudioEl.play().catch(() => {});
       }
-      mpState[idx] = { source, bgmSource: bgmPreviewSource, startedAt, playing: true, animId: null };
+      mpState[idx] = { source, bgmSource: bgmPreviewSource, startedAt, playing: true, animId: null, pausedAt: 0 };
+      btn.textContent = '⏸';
       // Start video playback in sync
       if (reelVideoEl && reelVideoEl.videoWidth > 0) {
         const seg = r.segments?.[0];
-        reelVideoEl.currentTime = seg?.startTime || 0;
+        reelVideoEl.currentTime = (seg?.startTime || 0) + resumeOffset;
         reelVideoEl.play().catch(() => {});
       }
       // Animate canvas + scrub
@@ -1663,6 +1824,7 @@ function renderAllReelPreviews() {
           }
           reelSubColor = savedColor; reelSubOutline = savedOutline; reelSubBackdrop = savedBackdrop; reelSubSize = savedSize; reelSubPosition = savedPos;
           drawReelFrame(drawCtx, cw, ch);
+          drawReelOverlays(drawCtx, cw, ch, elapsed);
         }
         mpState[idx].animId = requestAnimationFrame(tick);
       }
@@ -1671,12 +1833,29 @@ function renderAllReelPreviews() {
     });
   });
 
+  function pauseMp(idx) {
+    const st = mpState[idx];
+    if (!st || !st.playing) return;
+    const elapsed = ensureAudioCtx().currentTime - st.startedAt;
+    st.playing = false;
+    st.pausedAt = elapsed;
+    if (st.source) { try { st.source.stop(); } catch(e) {} }
+    if (st.bgmSource) { try { st.bgmSource.stop(); } catch(e) {} }
+    if (reelBgmAudioEl) { try { reelBgmAudioEl.pause(); } catch(e) {} }
+    if (st.animId) cancelAnimationFrame(st.animId);
+    if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
+  }
+
   function stopMp(idx, resetScrub) {
     const st = mpState[idx];
     if (!st) return;
     st.playing = false;
     if (st.source) { try { st.source.stop(); } catch(e) {} }
     if (st.bgmSource) { try { st.bgmSource.stop(); } catch(e) {} }
+    if (reelBgmAudioEl) { try { reelBgmAudioEl.pause(); } catch(e) {} }
+    // Reset play button to ▶
+    const playBtn = container.querySelector(`.reel-mp-play[data-ri="${idx}"]`);
+    if (playBtn) playBtn.textContent = '▶';
     if (st.animId) cancelAnimationFrame(st.animId);
     if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
     if (resetScrub) {
@@ -1714,6 +1893,7 @@ function renderAllReelPreviews() {
         const subStyle = r.settings?.subtitleStyle || reelSubtitleStyle;
         if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, midTime, r.words, subStyle);
         drawReelFrame(drawCtx, cw, ch);
+        drawReelOverlays(drawCtx, cw, ch, midTime);
       }
     });
   });
@@ -1754,6 +1934,7 @@ function renderAllReelPreviews() {
           if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, t, r.words, subStyle);
           reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP;
           drawReelFrame(drawCtx, cw, ch);
+          drawReelOverlays(drawCtx, cw, ch, t);
         };
         if (reelVideoEl && reelVideoEl.videoWidth > 0) {
           reelVideoEl.currentTime = (r.videoStart || 0) + t;
@@ -1814,6 +1995,7 @@ function renderAllReelPreviews() {
           if (subStyle3 !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle3);
           reelSubColor = sC2; reelSubOutline = sO2; reelSubBackdrop = sB2; reelSubSize = sSz2; reelSubPosition = sP2;
           drawReelFrame(drawCtx, cw, ch);
+          drawReelOverlays(drawCtx, cw, ch, elapsed);
         }
         mpState[idx].animId = requestAnimationFrame(tickFromSeek);
       }
@@ -1833,6 +2015,18 @@ function renderAllReelPreviews() {
     if (key === 'transition' && r.scenes) {
       const preset = REEL_TRANSITIONS[el.value] || REEL_TRANSITIONS['whip-pan'];
       r.scenes.forEach(s => { s.transition = preset.transition; s.transDur = preset.transDur; s.motion = preset.motion; });
+    }
+    // Sync subtitle settings to editor global
+    if (['subtitleStyle','subColor','subOutline','subBackdrop','subSize','subPosition'].includes(key)) {
+      window._editorReelSubtitle = {
+        words: window._editorReelSubtitle?.words || reelWords,
+        style: r.settings.subtitleStyle || reelSubtitleStyle,
+        subSize: r.settings.subSize || reelSubSize,
+        subPosition: r.settings.subPosition || reelSubPosition,
+        subColor: r.settings.subColor || reelSubColor,
+        subOutline: r.settings.subOutline || reelSubOutline,
+        subBackdrop: r.settings.subBackdrop || reelSubBackdrop,
+      };
     }
   }
   container.querySelectorAll('.rc-transition').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'transition')));
@@ -1873,6 +2067,122 @@ function renderAllReelPreviews() {
     });
   });
   container.querySelectorAll('.rc-vpx').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'viewportX', v => parseInt(v))));
+  // BGM select in per-reel controls
+  const bgmEls = container.querySelectorAll('.rc-bgm');
+  console.log('[BGM] Wiring', bgmEls.length, 'BGM selects');
+  bgmEls.forEach(el => {
+    el.addEventListener('change', async () => {
+      const mood = el.value;
+      console.log('[BGM] Selected:', mood);
+      if (mood === 'none') { reelBgmBuffer = null; if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; } return; }
+      if (mood === 'custom') { reelBgmBuffer = null; const inp = $('reel-bgm-input'); if (inp) inp.click(); return; }
+      await loadBgmPreset(mood);
+      console.log('[BGM] Loaded. buffer:', !!reelBgmBuffer, 'audioEl:', !!reelBgmAudioEl);
+    });
+  });
+  // BGM volume slider
+  container.querySelectorAll('.rc-bgm-vol').forEach(el => {
+    el.addEventListener('input', () => {
+      reelBgmVolume = parseInt(el.value) / 100;
+      const label = el.parentElement.querySelector('.rc-bgm-vol-label');
+      if (label) label.textContent = el.value + '%';
+    });
+  });
+  // Overlay buttons in per-reel controls
+  container.querySelectorAll('[data-overlay]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      insertReelOverlay(btn.dataset.overlay);
+    });
+  });
+  // Frame select in per-reel controls
+  container.querySelectorAll('.rc-frame').forEach(el => {
+    el.addEventListener('change', () => {
+      reelFrameTemplate = el.value;
+      window._editorReelFrame = { template: reelFrameTemplate, text: reelFrameText, bgColor: reelFrameBgColor, textColor: reelFrameTextColor, opacity: reelFrameOpacity, imgEl: reelFrameImgEl, imgSrc: reelFrameImgSrc };
+      renderReelFrame(0);
+    });
+  });
+  // Retry failed variation
+  container.querySelectorAll('.reel-retry-var').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.ri);
+      const r = results[idx];
+      if (!r) return;
+      const key = getReelApiKey();
+      if (!key) { setStatus('API key required'); return; }
+      const origReel = results[0] || r;
+      const origText = origReel.words?.map(w => w.word).join(' ') || '';
+      const audioLang = r.audioLang || 'original';
+      const subtitleLang = r.subtitleLang || 'original';
+      btn.textContent = '⏳ Retrying...'; btn.disabled = true;
+      try {
+        // Subtitle
+        let subWords = origReel.words;
+        if (subtitleLang !== 'original' && origText) {
+          const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[subtitleLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+          const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
+          trackCost('textGeneration', 1);
+          const transText = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (transText) {
+            const tw = transText.split(/\s+/);
+            const td = origReel.words.length > 0 ? origReel.words[origReel.words.length - 1].end - origReel.words[0].start : 0;
+            const wd = td / Math.max(1, tw.length);
+            const st = origReel.words.length > 0 ? origReel.words[0].start : 0;
+            subWords = tw.map((w, i) => ({ word: w, start: st + i * wd, end: st + (i + 1) * wd }));
+          }
+        }
+        // Audio
+        let audioBuffer = origReel.audioBuffer;
+        if (audioLang !== 'original' && origText) {
+          let ttsText = origText;
+          if (audioLang !== 'en') {
+            const tb = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[audioLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
+            const td2 = await callGeminiAPI(getTranscriptionModels(), tb, key);
+            trackCost('textGeneration', 1);
+            ttsText = td2.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || origText;
+          }
+          const ttsModels = getTTSModels();
+          const ttsResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: ttsText }] }],
+                generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
+              })
+            }
+          );
+          if (ttsResp.ok) {
+            const ttsData = await ttsResp.json();
+            const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+            if (part?.inlineData?.data) {
+              const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
+              audioBuffer = decoded.audioBuffer;
+              trackCost('ttsPerLang', 1);
+              const targetDur = origReel.audioBuffer.duration;
+              if (Math.abs(audioBuffer.duration - targetDur) > 0.5) {
+                const rate = audioBuffer.duration / targetDur;
+                const oc = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
+                const src = oc.createBufferSource(); src.buffer = audioBuffer; src.playbackRate.value = rate; src.connect(oc.destination); src.start();
+                audioBuffer = await oc.startRendering();
+              }
+            }
+          }
+        }
+        // Update result in place
+        r.audioBuffer = audioBuffer; r.words = subWords;
+        r.audioLangLabel = REEL_LANG_OPTIONS[audioLang];
+        r.subtitleLangLabel = REEL_LANG_OPTIONS[subtitleLang];
+        window._reelMultiResults[idx] = r;
+        renderAllReelPreviews();
+        renderOverlayChips();
+        setStatus(`Reel ${idx + 1} retry succeeded`);
+      } catch(e) {
+        console.error('[RetryVar] Failed:', e);
+        btn.textContent = '🔄 Retry'; btn.disabled = false;
+        setStatus(`Retry failed: ${e.message}`);
+      }
+    });
+  });
   // Export single reel
   container.querySelectorAll('.rc-export').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2232,7 +2542,7 @@ async function reelGenerateSceneImage(idx) {
     scene.imgDataUrl = imgDataUrl;
     scene._img = null; // reset so preview reloads new image
     scene.status = 'done';
-    trackCost('imageGenFast', 1);
+    trackCost('imageGen', 1);
     reelUpdateSceneCardImage(idx);
     reelUpdateSceneCardStatus(idx);
     // Update preview canvas if visible
@@ -2319,7 +2629,7 @@ async function reelRunImageGeneration(scenesToGen) {
       if (btnGenImages) btnGenImages.disabled = false;
       return;
     } catch(gridErr) {
-      console.warn('[Grid] Pro grid failed, trying 3.1 Flash 2K grid:', gridErr.message);
+      console.error('[Grid] Pro grid failed:', gridErr.message);
       if (labelEl) labelEl.textContent = 'Pro failed, trying 3.1 Flash 2K grid...';
       try {
         // Fallback 1: gemini-3.1-flash-image-preview at 2K → upscale 2K→4K
@@ -2338,7 +2648,7 @@ async function reelRunImageGeneration(scenesToGen) {
         if (btnGenImages) btnGenImages.disabled = false;
         return;
       } catch(fb1Err) {
-        console.warn('[Grid] 3.1 Flash grid failed, trying 2.5 Flash 1K grid:', fb1Err.message);
+        console.error('[Grid] 3.1 Flash grid failed:', fb1Err.message);
         if (labelEl) labelEl.textContent = '3.1 Flash failed, trying 2.5 Flash 1K grid...';
         try {
           // Fallback 2: gemini-2.5-flash-image at 1K → upscale 1K→2K
@@ -2349,7 +2659,7 @@ async function reelRunImageGeneration(scenesToGen) {
             scene.imgDataUrl = fbCells2[gi]; scene._img = null; scene.status = 'done';
             reelUpdateSceneCardImage(idx); reelUpdateSceneCardStatus(idx);
           }
-          trackCost('imageGenFast', 1);
+          trackCost('imageGen', 1);
           reelGenImagesRunning = false;
           if (btnPause) btnPause.style.display = 'none';
           if (barEl) barEl.style.width = '100%';
@@ -2357,7 +2667,7 @@ async function reelRunImageGeneration(scenesToGen) {
           if (btnGenImages) btnGenImages.disabled = false;
           return;
         } catch(fb2Err) {
-          console.warn('[Grid] All grid attempts failed, falling back to individual:', fb2Err.message);
+          console.error('[Grid] All grid attempts failed, falling back to individual:', fb2Err.message);
           if (labelEl) labelEl.textContent = 'All grids failed, generating individually...';
         }
       }
@@ -2692,6 +3002,7 @@ function renderReelFrame(time) {
         }
         drawReelSubtitles(ctx, platform, t);
         drawReelFrame(ctx, platform.width, platform.height);
+        drawReelOverlays(ctx, platform.width, platform.height, t);
       };
       drawIt();
       // Also draw again after seek completes for accuracy
@@ -2706,13 +3017,16 @@ function renderReelFrame(time) {
       }
       drawReelSubtitles(ctx, platform, t);
       drawReelFrame(ctx, platform.width, platform.height);
+      drawReelOverlays(ctx, platform.width, platform.height, t);
     } else {
       drawReelSubtitles(ctx, platform, t);
       drawReelFrame(ctx, platform.width, platform.height);
+      drawReelOverlays(ctx, platform.width, platform.height, t);
     }
   } else {
     drawReelSubtitles(ctx, platform, t);
     drawReelFrame(ctx, platform.width, platform.height);
+    drawReelOverlays(ctx, platform.width, platform.height, t);
   }
 }
 
@@ -2795,6 +3109,120 @@ function drawReelFrame(ctx, cw, ch) {
     }
   }
   ctx.restore();
+}
+
+// ── Overlay Presets Renderer ──
+function drawReelOverlays(ctx, cw, ch, currentTime) {
+  if (!reelOverlayItems.length) return;
+  for (const item of reelOverlayItems) {
+    const elapsed = currentTime - item.startTime;
+    if (elapsed < 0 || elapsed > item.duration) continue;
+    const progress = elapsed / item.duration; // 0→1
+    // Entry (first 20%) and exit (last 20%) animation fraction
+    const fadeIn  = Math.min(1, progress / 0.2);
+    const fadeOut = Math.min(1, (1 - progress) / 0.2);
+    const alpha   = Math.min(fadeIn, fadeOut);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const p = item.params || {};
+
+    if (item.type === 'subscribe' || item.type === 'follow') {
+      // Animated pill button with bounce-in
+      const bounce = elapsed < item.duration * 0.2
+        ? easeOutBounce(elapsed / (item.duration * 0.2))
+        : 1;
+      const btnW = Math.round(cw * 0.55);
+      const btnH = Math.round(ch * 0.065);
+      const bx   = (cw - btnW) / 2;
+      const by   = ch * 0.72 - btnH * (1 - bounce) * 0.5;
+      const r    = btnH / 2;
+      ctx.save();
+      // Subtle drop shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur  = Math.round(cw * 0.015);
+      ctx.fillStyle   = p.color || '#ff0000';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, btnW, btnH, r);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Bell icon + text
+      const fs = Math.round(btnH * 0.44);
+      ctx.font = `700 ${fs}px Poppins, sans-serif`;
+      ctx.fillStyle   = p.textColor || '#ffffff';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      const icon = item.type === 'subscribe' ? '🔔 ' : '➕ ';
+      ctx.fillText(icon + (p.text || 'Subscribe'), cw / 2, by + btnH / 2);
+      ctx.restore();
+
+    } else if (item.type === 'lower-third') {
+      // Slide-up lower third bar
+      const barH  = Math.round(ch * 0.13);
+      const slideY = ch * 0.78 + barH * (1 - Math.min(1, elapsed / (item.duration * 0.15)));
+      ctx.fillStyle = p.color || 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, slideY, cw, barH);
+      // Accent stripe
+      ctx.fillStyle = '#a855f7';
+      ctx.fillRect(0, slideY, Math.round(cw * 0.012), barH);
+      const nameFs  = Math.round(barH * 0.38);
+      const titleFs = Math.round(barH * 0.28);
+      ctx.fillStyle   = p.textColor || '#ffffff';
+      ctx.textAlign   = 'left';
+      ctx.textBaseline = 'top';
+      ctx.font = `700 ${nameFs}px Poppins, sans-serif`;
+      ctx.fillText(p.name || 'Your Name', Math.round(cw * 0.04), slideY + barH * 0.1);
+      ctx.font = `400 ${titleFs}px Poppins, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(p.title || '', Math.round(cw * 0.04), slideY + barH * 0.52);
+
+    } else if (item.type === 'cta-arrow') {
+      // Bouncing arrow + text at bottom center
+      const bounce2 = Math.sin(elapsed * Math.PI * 2.5) * 0.04 * ch;
+      const arrowY  = ch * 0.86 + bounce2;
+      const fs2     = Math.round(cw * 0.06);
+      ctx.font = `700 ${fs2}px Poppins, sans-serif`;
+      ctx.fillStyle   = p.color || '#ffffff';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      // Text above arrow
+      ctx.fillText(p.text || 'Link in Bio', cw / 2, arrowY - fs2 * 1.1);
+      // Arrow
+      const arrFs = Math.round(cw * 0.1);
+      ctx.font = `${arrFs}px sans-serif`;
+      ctx.fillText('↓', cw / 2, arrowY + arrFs * 0.3);
+
+    } else if (item.type === 'fade-title') {
+      // Centered title card with semi-transparent bg
+      const fs3   = Math.round(cw * 0.072);
+      const lines = (p.text || 'Your Title').split('\n');
+      const lineH = fs3 * 1.35;
+      const totalH = lines.length * lineH;
+      const bgPad = fs3 * 0.6;
+      const bgW   = cw * 0.88;
+      const bgH   = totalH + bgPad * 2;
+      const bgX   = (cw - bgW) / 2;
+      const bgY   = ch * 0.5 - bgH / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      try { ctx.beginPath(); ctx.roundRect(bgX, bgY, bgW, bgH, fs3 * 0.3); ctx.fill(); }
+      catch(e) { ctx.fillRect(bgX, bgY, bgW, bgH); }
+      ctx.font = `700 ${fs3}px Poppins, sans-serif`;
+      ctx.fillStyle   = p.color || '#ffffff';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, cw / 2, bgY + bgPad + lineH * i + lineH / 2);
+      });
+    }
+    ctx.restore();
+  }
+}
+
+function easeOutBounce(t) {
+  const n1 = 7.5625, d1 = 2.75;
+  if (t < 1/d1)       return n1 * t * t;
+  if (t < 2/d1)       return n1 * (t -= 1.5/d1) * t + 0.75;
+  if (t < 2.5/d1)     return n1 * (t -= 2.25/d1) * t + 0.9375;
+  return n1 * (t -= 2.625/d1) * t + 0.984375;
 }
 
 // ── Playback ──
@@ -3034,10 +3462,10 @@ function updateVariationCount() {
   const segCount = Math.max(1, reelSegments.length);
   const varCount = reelVariationRows.length;
   const total = segCount * varCount;
-  const countEl = $('reel-variation-count');
-  if (countEl) {
-    countEl.textContent = segCount > 1 ? `(${segCount} segments × ${varCount} = ${total} reels)` : `(${varCount} reel${varCount > 1 ? 's' : ''})`;
-  }
+  const countSpan = $('reel-btn-count');
+  const suffixSpan = $('reel-btn-suffix');
+  if (countSpan) countSpan.textContent = `(${total})`;
+  if (suffixSpan) suffixSpan.textContent = total !== 1 ? 's' : '';
 }
 
 const btnAddVariation = $('btn-add-variation');
@@ -3106,6 +3534,14 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       })) : [],
       words: reelWords,
       variationRows: reelVariationRows,
+      frameTemplate: reelFrameTemplate,
+      frameText: reelFrameText,
+      frameBgColor: reelFrameBgColor,
+      frameTextColor: reelFrameTextColor,
+      frameOpacity: reelFrameOpacity,
+      frameImgSrc: reelFrameImgSrc || '',
+      overlayItems: reelOverlayItems.map(o => ({ id: o.id, type: o.type, startTime: o.startTime, duration: o.duration, params: o.params })),
+      bgmVolume: reelBgmVolume,
       multiResults: window._reelMultiResults ? await Promise.all(window._reelMultiResults.map(async r => {
         let audioData = null;
         if (r.audioBuffer) {
@@ -3166,16 +3602,47 @@ const BGM_PRESETS = {
   playful:   { label: 'Playful',   src: 'audio/bgm/playful.mp3' },
 };
 
+// BGM audio element for file:// compatible playback
+let reelBgmAudioEl = null;
+let reelBgmVolume = 0.5;
+
 async function loadBgmPreset(mood) {
-  if (!mood || mood === 'none' || mood === 'custom') { reelBgmBuffer = null; return; }
+  if (!mood || mood === 'none' || mood === 'custom') {
+    reelBgmBuffer = null;
+    if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; }
+    return;
+  }
   const preset = BGM_PRESETS[mood];
   if (!preset) return;
+
+  // Try fetch → AudioBuffer (works on http://)
   try {
     const resp = await fetch(preset.src);
     if (!resp.ok) throw new Error('Not found');
     const arrayBuf = await resp.arrayBuffer();
     reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
-  } catch(e) { console.warn('[BGM] Could not load preset:', mood, e); }
+    reelBgmAudioEl = null; // don't need audio element if buffer works
+    return;
+  } catch(e) { /* fetch failed — try audio element fallback */ }
+
+  // Fallback: use <audio> element (works on file://)
+  try {
+    reelBgmBuffer = null;
+    const audio = new Audio();
+    audio.src = preset.src;
+    audio.loop = true;
+    audio.volume = 0.3;
+    await new Promise((resolve, reject) => {
+      audio.oncanplaythrough = resolve;
+      audio.onerror = reject;
+      setTimeout(reject, 5000); // timeout after 5s
+    });
+    reelBgmAudioEl = audio;
+    console.log('[BGM] Loaded via audio element (file:// mode):', mood);
+  } catch(e) {
+    console.warn('[BGM] Could not load preset:', mood, e);
+    reelBgmAudioEl = null;
+  }
 }
 
 async function autoPickBgm() {
@@ -3291,6 +3758,71 @@ if (reelFrameOpacityEl) reelFrameOpacityEl.addEventListener('input', () => {
   renderReelFrame(0);
 });
 
+// ── Overlay Preset UI ──
+function renderOverlayChips() {
+  const container = $('reel-overlay-chips');
+  if (!container) return;
+  if (!reelOverlayItems.length) { container.style.display = 'none'; return; }
+  container.style.display = 'flex';
+  const totalDur = reelAudioBuffer ? reelAudioBuffer.duration : (reelScenes?.at(-1)?.endTime || 60);
+  container.innerHTML = reelOverlayItems.map(item => {
+    const def = REEL_OVERLAY_PRESETS[item.type];
+    const label = def ? def.label : item.type;
+    const endTime = (item.startTime + item.duration).toFixed(1);
+    return `<span class="reel-overlay-chip" data-oid="${item.id}" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;margin:1px;flex-shrink:1;min-width:0;">
+      ${label}
+      <input type="number" class="ov-start" data-oid="${item.id}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="ov-end" data-oid="${item.id}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;" title="End">s
+      <button onclick="deleteReelOverlay(${item.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
+    </span>`;
+  }).join('');
+  // Wire start/end inputs
+  container.querySelectorAll('.ov-start').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.startTime = Math.max(0, parseFloat(inp.value) || 0); renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-end').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { const end = Math.max(ov.startTime + 0.5, parseFloat(inp.value) || 0); ov.duration = end - ov.startTime; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+}
+
+function deleteReelOverlay(id) {
+  reelOverlayItems = reelOverlayItems.filter(o => o.id !== id);
+  window._editorReelOverlays = reelOverlayItems.map(o => ({ ...o }));
+  renderOverlayChips();
+  renderReelFrame(0);
+}
+
+function insertReelOverlay(type) {
+  const def = REEL_OVERLAY_PRESETS[type];
+  if (!def) return;
+  // Default start: 10% into the reel duration, or 0 if unknown
+  const totalDur = reelAudioBuffer ? reelAudioBuffer.duration : (reelScenes?.at(-1)?.endTime || 60);
+  const startTime = parseFloat((totalDur * 0.1).toFixed(1));
+  reelOverlayItems.push({
+    id: nextOverlayId++,
+    type,
+    startTime,
+    duration: def.defaultDuration,
+    params: { ...def.defaultParams },
+  });
+  window._editorReelOverlays = reelOverlayItems.map(o => ({ ...o }));
+  renderOverlayChips();
+  renderReelFrame(startTime + 0.5);
+}
+
+// Bind overlay palette buttons
+document.querySelectorAll('[data-overlay]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    insertReelOverlay(btn.dataset.overlay);
+  });
+});
+
 // ── Export ──
 async function exportSingleReel() {
   if (!reelAudioBuffer || !reelScenes) return;
@@ -3399,12 +3931,7 @@ async function exportSingleReel() {
       }
       reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
       drawReelFrame(ctx, platform.width, platform.height);
-      if (isFree()) {
-        ctx.save(); ctx.globalAlpha = 0.5;
-        ctx.font = '600 20px Poppins, sans-serif'; ctx.fillStyle = '#fff';
-        ctx.textAlign = 'right'; ctx.fillText('Made with Stori', platform.width - 16, platform.height - 16);
-        ctx.restore();
-      }
+      drawReelOverlays(ctx, platform.width, platform.height, elapsed);
     };
     timerWorker.postMessage('start');
     await done;
@@ -3508,8 +4035,33 @@ async function openReelInFullEditor() {
     }
   }
 
-  // Transfer BGM
-  if (reelBgmBuffer) bgmBuffer = reelBgmBuffer;
+  // Transfer BGM + volume
+  console.log('[ToEditor] BGM buffer:', !!reelBgmBuffer, 'audioEl:', !!reelBgmAudioEl, 'volume:', reelBgmVolume);
+  if (reelBgmBuffer) {
+    bgmBuffer = reelBgmBuffer; bgmVolume = reelBgmVolume;
+    const bgmVol = $('bgm-volume'); if (bgmVol) bgmVol.value = Math.round(bgmVolume * 100);
+    const bgmVolLbl = $('bgm-volume-label'); if (bgmVolLbl) bgmVolLbl.textContent = Math.round(bgmVolume * 100) + '%';
+    const bgmNm = $('bgm-name'); if (bgmNm) bgmNm.textContent = `BGM (${fmtShort(bgmBuffer.duration)})`;
+    const bgmSec = $('bgm-section'); if (bgmSec) { bgmSec.style.display = ''; console.log('[ToEditor] BGM section shown'); }
+  } else if (reelBgmAudioEl) {
+    // BGM loaded via audio element (file:// fallback) — can't transfer buffer, but show info
+    console.log('[ToEditor] BGM only as audio element, no buffer to transfer');
+  }
+
+  // Transfer frame settings
+  window._editorReelFrame = {
+    template: reelFrameTemplate,
+    text: reelFrameText,
+    bgColor: reelFrameBgColor,
+    textColor: reelFrameTextColor,
+    opacity: reelFrameOpacity,
+    imgEl: reelFrameImgEl,
+    imgSrc: reelFrameImgSrc,
+  };
+
+  // Transfer overlay items
+  window._editorReelOverlays = reelOverlayItems.map(o => ({ ...o }));
+  console.log('[ToEditor] overlays:', reelOverlayItems.length, 'frame:', reelFrameTemplate, 'subtitle:', window._editorReelSubtitle?.style, 'subColor:', reelSubColor);
 
   // Transfer audio language tracks
   if (reelAudioTracks && reelAudioTracks.length > 0) {
@@ -3523,8 +4075,17 @@ async function openReelInFullEditor() {
     editorOriginalSubtitles = subtitleItems.map(s => ({ ...s }));
   }
 
-  // Set image size
-  if (createImageSize) createImageSize.value = `${platform.width}x${platform.height}`;
+  // Set image size — add option if not present
+  if (createImageSize) {
+    const sizeVal = `${platform.width}x${platform.height}`;
+    if (!createImageSize.querySelector(`option[value="${sizeVal}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = sizeVal;
+      opt.textContent = `${platform.width}×${platform.height} — ${platform.width}:${platform.height}`;
+      createImageSize.appendChild(opt);
+    }
+    createImageSize.value = sizeVal;
+  }
   // Set video mode since reel is video-based
   if (videoTimelineItems.length > 0) bgVideoMode = 'video-only';
   // Store reel properties for editor preview
@@ -3572,6 +4133,7 @@ async function openReelInFullEditor() {
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
   if (typeof showInlinePreview === 'function') showInlinePreview();
+  if (typeof window._showReelPropsPanel === 'function') window._showReelPropsPanel();
   if (typeof setupEditorLanguageSelector === 'function' && editorLanguageTracks.length > 0) setupEditorLanguageSelector();
   const items = photoItems.length + videoTimelineItems.length;
   setStatus(`Reel transferred to editor: ${items} items, ${subtitleItems.length} subtitles`);
@@ -3671,6 +4233,16 @@ async function loadReelProject(project) {
   // Navigate to reel page
   navigateTo('reel');
   reelMode = true;
+  // Load saved key into input + update inline status
+  const savedKey = localStorage.getItem('stori_key_paid') || localStorage.getItem('stori_key_free');
+  if (savedKey && reelApiKeyPaidEl) reelApiKeyPaidEl.value = savedKey;
+  updateReelKeyInline();
+  // Populate style dropdown
+  if (reelStyleEl && reelStyleEl.options.length <= 1) {
+    reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
+      `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
+    ).join('');
+  }
 
   // Restore settings
   reelPlatform = project.platform || 'instagram';
@@ -3763,6 +4335,31 @@ async function loadReelProject(project) {
     }
     return Promise.all(promises);
   }
+
+  // Restore frame, overlays, BGM volume
+  reelFrameTemplate = project.frameTemplate || 'none';
+  reelFrameText = project.frameText || '';
+  reelFrameBgColor = project.frameBgColor || '#000000';
+  reelFrameTextColor = project.frameTextColor || '#ffffff';
+  reelFrameOpacity = project.frameOpacity ?? 1.0;
+  if (project.frameImgSrc) {
+    const fImg = new Image();
+    fImg.onload = () => { reelFrameImgEl = fImg; };
+    fImg.src = project.frameImgSrc;
+    reelFrameImgSrc = project.frameImgSrc;
+  }
+  if (project.overlayItems && project.overlayItems.length > 0) {
+    reelOverlayItems = project.overlayItems.map(o => ({ ...o }));
+    nextOverlayId = Math.max(...reelOverlayItems.map(o => o.id), 0) + 1;
+  } else {
+    reelOverlayItems = [];
+    nextOverlayId = 1;
+  }
+  if (project.bgmVolume != null) reelBgmVolume = project.bgmVolume;
+  // Sync to editor globals
+  window._editorReelFrame = { template: reelFrameTemplate, text: reelFrameText, bgColor: reelFrameBgColor, textColor: reelFrameTextColor, opacity: reelFrameOpacity, imgEl: reelFrameImgEl, imgSrc: reelFrameImgSrc };
+  window._editorReelOverlays = reelOverlayItems.map(o => ({ ...o }));
+  window._editorReelSubtitle = { words: reelWords, style: reelSubtitleStyle, subSize: reelSubSize, subPosition: reelSubPosition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop };
 
   // Restore variation rows
   if (project.variationRows) reelVariationRows = project.variationRows;
@@ -3885,6 +4482,7 @@ async function loadReelProject(project) {
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
+    renderOverlayChips();
   }
 
   // Status

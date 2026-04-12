@@ -206,13 +206,14 @@ createSilThreshold.addEventListener('input', () => {
   createSilThresholdVal.textContent = createSilThreshold.value + ' dB';
 });
 
-// Always detect against ORIGINAL audio so user can re-adjust settings
+// Detect silence against current working audio (preserves prior edits like trim/delete)
 btnCreateSilDetect.addEventListener('click', () => {
-  if (!createOriginalBuffer) return;
+  const buf = createAudioBuffer || createOriginalBuffer;
+  if (!buf) return;
   const threshDb = parseFloat(createSilThreshold.value);
   const minDur = parseFloat(createSilMinDur.value);
   const mode = createSilMethod.value;
-  createDetectedRegions = detectSilence(createOriginalBuffer, threshDb, minDur, mode);
+  createDetectedRegions = detectSilence(buf, threshDb, minDur, mode);
 
   if (createDetectedRegions.length === 0) {
     createSilInfo.textContent = 'No silent regions found. Try adjusting threshold.';
@@ -225,10 +226,10 @@ btnCreateSilDetect.addEventListener('click', () => {
     createSilInfo.style.color = '#f59e0b';
     btnCreateSilApply.disabled = false;
 
-    // Render visual against original duration
+    // Render visual against current audio duration
     createSilVisual.innerHTML = '';
     createSilVisual.style.display = 'block';
-    const dur = createOriginalBuffer.duration;
+    const dur = buf.duration;
     for (const r of createDetectedRegions) {
       const el = document.createElement('div');
       el.style.cssText = `position:absolute; top:0; height:100%; background:rgba(239,68,68,0.5); border-radius:2px;`;
@@ -240,16 +241,17 @@ btnCreateSilDetect.addEventListener('click', () => {
   }
 });
 
-// Always apply against ORIGINAL audio — user can re-detect with new settings and re-apply
+// Apply silence removal against current working audio
 btnCreateSilApply.addEventListener('click', () => {
-  if (!createOriginalBuffer || createDetectedRegions.length === 0) return;
-  const filtered = removeSilentRegions(createOriginalBuffer, createDetectedRegions);
+  const buf = createAudioBuffer || createOriginalBuffer;
+  if (!buf || createDetectedRegions.length === 0) return;
+  const filtered = removeSilentRegions(buf, createDetectedRegions);
   if (!filtered) {
     createSilInfo.textContent = 'Cannot remove — would delete all audio!';
     createSilInfo.style.color = '#ef4444';
     return;
   }
-  const removed = createOriginalBuffer.duration - filtered.duration;
+  const removed = buf.duration - filtered.duration;
   createAudioBuffer = filtered;
 
   createSilInfo.textContent = `✓ Removed ${removed.toFixed(1)}s of silence. Adjust settings and re-detect to try different values.`;
@@ -346,11 +348,6 @@ createGcloudTtsKey.addEventListener('blur', () => {
 });
 
 function setCreateInputMode(mode) {
-  // Gate podcast mode for free tier
-  if (mode === 'video' && isFree()) {
-    showUpgradePrompt('Podcast pipeline with chapters and PiP is a Pro feature.');
-    return;
-  }
   createInputMode = mode === 'video' ? 'podcast' : mode; // video tab = podcast mode
   createModeVoice.classList.toggle('active', mode === 'voice');
   createModeVideo.classList.toggle('active', mode === 'video');
@@ -358,9 +355,6 @@ function setCreateInputMode(mode) {
   createVoiceSection.classList.toggle('hidden', mode !== 'voice');
   createVideoSection.classList.toggle('hidden', mode !== 'video');
   createTextSection.classList.toggle('hidden', mode !== 'text');
-  // Show lock icon on podcast tab for free tier
-  if (isFree()) createModeVideo.innerHTML = '🔒 Podcast';
-  else createModeVideo.innerHTML = '🎙️ Podcast';
   updateCreateButtons();
   updateStepStates();
   // Auto-filter templates: podcast tab → show podcast category, others → show all
@@ -878,74 +872,70 @@ function parseGeminiJson(text) {
   throw new Error('Could not parse Gemini response as JSON. Raw response: ' + s.slice(0, 200));
 }
 
-// Step state indicators (#7 + #9)
+// Progressive disclosure: show each step only after previous is complete
 function updateStepStates() {
-  const steps = createPage.querySelectorAll('.create-step');
-  const hasKey = !!(getFreeKey() || getPaidKey());
+  const hasKey = !!getApiKey();
   const hasAudio = !!createAudioBuffer;
+  const hasTemplate = !!selectedTemplate;
   const hasTranscript = !!createTranscript;
   const hasScenes = createScenes && createScenes.length > 0;
   const hasImages = hasScenes && createScenes.some(s => s.imgDataUrl);
-
-  // steps[0] = Step 1: API Key
-  steps[0].classList.toggle('step-done', hasKey);
-  // steps[1] = Step 2: Input (Voice/Text)
-  steps[1].classList.toggle('step-done', hasAudio);
-  // steps[2] = Step 3: Output Size (no state tracking)
-  // steps[3] = Step 4: Transcribe / Storyboard generation
-  if (steps[3]) {
-    steps[3].classList.toggle('step-done', hasTranscript);
-    steps[3].classList.toggle('step-active', hasKey && hasAudio && !hasTranscript);
-  }
+  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
   const hasChapters = createChapters && createChapters.length > 0;
   const isPodcast = createInputMode === 'podcast';
 
-  // steps[4] = Step 5: Chapter Splitting (podcast only)
-  if (steps[4]) {
-    if (isPodcast) {
-      steps[4].classList.toggle('step-done', hasChapters);
-      steps[4].classList.toggle('step-active', hasTranscript && !hasChapters);
-    } else {
-      steps[4].style.display = 'none';
+  // Helper: show/hide step by ID
+  function showStep(id, show) {
+    const el = $(id);
+    if (el) el.style.display = show ? '' : 'none';
+  }
+  function markStep(id, done, active) {
+    const el = $(id);
+    if (el) {
+      el.classList.toggle('step-done', !!done);
+      el.classList.toggle('step-active', !!active);
     }
   }
-  // steps[5] = Step 6: Storyboard
-  if (steps[5]) {
-    steps[5].classList.toggle('step-done', hasScenes);
-    steps[5].classList.toggle('step-active', hasTranscript && !hasScenes);
-  }
-  // steps[6] = Step 7: Visual References (optional, shown after scenes exist)
-  if (steps[6]) {
-    if (hasScenes) {
-      steps[6].style.display = '';
-      renderSceneAssignments();
-    } else {
-      steps[6].style.display = 'none';
-    }
-  }
-  // steps[7] = Step 8: Generate Images
-  const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
-  if (steps[7]) {
-    steps[7].classList.toggle('step-done', allImagesDone);
-    steps[7].classList.toggle('step-active', hasScenes && !allImagesDone);
-  }
-  // steps[8] = Step 9: Multi-Language (Pro only, unlocked after images)
-  if (steps[8]) {
-    if (hasImages && isPro()) {
-      steps[8].style.display = '';
-      renderPrimaryAudioCard();
-      steps[8].classList.toggle('step-active', true);
-    } else {
-      steps[8].style.display = 'none';
-    }
-  }
-  // steps[9] = Step 10: Send to Editor
-  if (steps[9]) {
-    if (hasImages) {
-      steps[9].style.display = '';
-    }
-    steps[9].classList.toggle('step-active', hasImages);
-  }
+
+  // Step 1: Input & Template — always visible
+  markStep('create-input-step', hasAudio && hasTemplate, !hasAudio || !hasTemplate);
+
+  // Step 2: Transcribe — show when audio + template ready
+  showStep('create-transcribe-step', hasKey && hasAudio && hasTemplate);
+  markStep('create-transcribe-step', hasTranscript, hasAudio && !hasTranscript);
+
+  // Step 3: Chapter Splitting — podcast only, after transcript
+  showStep('create-chapter-step', isPodcast && hasTranscript);
+  if (isPodcast) markStep('create-chapter-step', hasChapters, hasTranscript && !hasChapters);
+
+  // Step 4: Storyboard — after transcript (and chapters if podcast)
+  const storyboardReady = isPodcast ? (hasTranscript && hasChapters) : hasTranscript;
+  showStep('create-storyboard-step', storyboardReady);
+  markStep('create-storyboard-step', hasScenes, storyboardReady && !hasScenes);
+
+  // Step 5: Visual References — after scenes exist
+  showStep('create-references-step', hasScenes);
+  if (hasScenes && typeof renderSceneAssignments === 'function') renderSceneAssignments();
+
+  // Step 6: Generate Images — after scenes exist
+  showStep('create-generate-step', hasScenes);
+  markStep('create-generate-step', allImagesDone, hasScenes && !allImagesDone);
+
+  // Step 7: Multi-Language — after images generated
+  showStep('create-language-step', hasImages);
+  if (hasImages && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+
+  // Step 8: Send to Editor — after images generated
+  showStep('create-send-step', hasImages);
+  markStep('create-send-step', false, hasImages);
+
+  // Renumber visible steps dynamically
+  let stepNum = 1;
+  createPage.querySelectorAll('.create-step').forEach(el => {
+    if (el.style.display === 'none') return;
+    const numEl = el.querySelector('.step-num');
+    if (numEl) numEl.textContent = stepNum++;
+  });
 }
 
 // Auto-save create state to localStorage (#4)
@@ -1135,52 +1125,58 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
             }],
           };
 
-      const data = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
+      const totalDur = createAudioBuffer.duration;
+      const maxSegDur = getSegmentDuration().max;
 
+      createTranscribeLabel.textContent = 'Transcribing with Gemini...';
+      const data = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
       createTranscribeBar.style.width = '80%';
-      createTranscribeLabel.textContent = 'Processing response...';
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('No transcription returned from Gemini');
 
       segments = parseGeminiJson(text);
-
       if (!Array.isArray(segments) || segments.length === 0) {
         throw new Error('Invalid response format — expected JSON array of segments');
       }
 
-      // Post-process: fix gaps and ensure full coverage
+      createTranscribeLabel.textContent = 'Processing response...';
+
+      // Post-process: clamp, split long segments, fill small gaps, extend to end
       segments.sort((a, b) => a.startTime - b.startTime);
-      const totalDur = createAudioBuffer.duration;
+      segments = segments.filter(s => s.startTime < totalDur);
+      segments.forEach(s => { if (s.endTime > totalDur) s.endTime = totalDur; });
       const fixed = [];
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
         const expectedStart = fixed.length > 0 ? fixed[fixed.length - 1].endTime : 0;
-        if (seg.startTime > expectedStart + 1) {
-          fixed.push({ startTime: expectedStart, endTime: seg.startTime, text: '[continued]', sceneDescription: seg.sceneDescription || 'Abstract visual transition with gentle colors and flowing shapes' });
-          console.log(`[storyboard] Filled gap: ${expectedStart.toFixed(1)}s – ${seg.startTime.toFixed(1)}s`);
+        if (expectedStart >= totalDur) break;
+        // Fill small gaps with previous segment's description (not generic)
+        const gapEnd = Math.min(seg.startTime, totalDur);
+        if (gapEnd > expectedStart + 1) {
+          const prevDesc = fixed.length > 0 ? fixed[fixed.length - 1].sceneDescription : seg.sceneDescription;
+          fixed.push({ startTime: expectedStart, endTime: gapEnd, text: '[continued]', sceneDescription: prevDesc || seg.sceneDescription || '' });
+          console.log(`[storyboard] Filled gap: ${expectedStart.toFixed(1)}s – ${gapEnd.toFixed(1)}s`);
         }
         seg.startTime = fixed.length > 0 ? fixed[fixed.length - 1].endTime : 0;
-        if (seg.endTime - seg.startTime > 15) seg.endTime = seg.startTime + 15;
+        seg.endTime = Math.min(seg.endTime, totalDur);
+        // Split long segments instead of truncating
+        if (seg.endTime - seg.startTime > maxSegDur) {
+          const segDur = seg.endTime - seg.startTime;
+          const parts = Math.ceil(segDur / maxSegDur);
+          const partDur = segDur / parts;
+          for (let p = 0; p < parts; p++) {
+            fixed.push({ startTime: seg.startTime + p * partDur, endTime: seg.startTime + (p + 1) * partDur, text: p === 0 ? seg.text : '[continued]', sceneDescription: seg.sceneDescription || '' });
+          }
+          continue;
+        }
+        if (seg.endTime <= seg.startTime) continue;
         fixed.push(seg);
       }
+      // Extend last segment to cover remaining time (no filler chunks)
       if (fixed.length > 0 && fixed[fixed.length - 1].endTime < totalDur - 0.5) {
-        const last = fixed[fixed.length - 1];
-        if (createInputMode === 'podcast') {
-          // Podcast: just extend last segment to cover remaining (no [continued] padding)
-          last.endTime = totalDur;
-          console.log(`[storyboard] Extended last segment to ${totalDur.toFixed(1)}s (podcast mode)`);
-        } else if (totalDur - last.endTime <= 15) {
-          last.endTime = totalDur;
-        } else {
-          let t = last.endTime;
-          while (t < totalDur - 0.5) {
-            const end = Math.min(t + 10, totalDur);
-            fixed.push({ startTime: t, endTime: end, text: '[continued]', sceneDescription: last.sceneDescription || 'Abstract visual with gentle colors' });
-            t = end;
-          }
-        }
-        console.log(`[storyboard] Extended coverage to ${totalDur.toFixed(1)}s`);
+        fixed[fixed.length - 1].endTime = totalDur;
+        console.log(`[storyboard] Extended last segment to ${totalDur.toFixed(1)}s`);
       }
       segments = fixed;
     }
@@ -1195,12 +1191,7 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
     createTranscriptOutput.classList.add('visible');
 
     if (createInputMode === 'podcast') {
-      // Podcast mode: show chapter step, don't build scenes yet
-      createChapterStep.style.display = 'block';
-      createStoryboardStep.style.display = 'none';
-      createGenerateStep.style.display = 'none';
-      createLanguageStep.style.display = 'none';
-      createSendStep.style.display = 'none';
+      // Podcast mode: show chapter step, don't build scenes yet (handled by updateStepStates)
     } else {
       // Audio/Text mode: build scenes directly from segments (existing flow)
       createScenes = segments.map(s => ({
@@ -1213,10 +1204,6 @@ Important: sceneDescription should be a vivid, specific image generation prompt 
         status: 'pending',
       }));
       renderStoryboard();
-      createStoryboardStep.style.display = 'block';
-      createGenerateStep.style.display = 'block';
-      createLanguageStep.style.display = 'none';
-      createSendStep.style.display = 'none';
     }
     btnCreateSaveEarly.style.display = '';
 
@@ -1578,10 +1565,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
       }
     }
 
-    // Show storyboard + generate steps
     renderStoryboard();
-    createStoryboardStep.style.display = 'block';
-    createGenerateStep.style.display = 'block';
     updateCreateButtons();
     updateStepStates();
     autoSaveCreateState();
@@ -1859,9 +1843,9 @@ btnCreateRegeneratePrompts.addEventListener('click', async () => {
 
 // Scene Cards
 function getSelectedImageSize() {
-  const val = createImageSize.value; // e.g. "1280x720"
+  const val = createImageSize.value || '1280x720';
   const [w, h] = val.split('x').map(Number);
-  return { width: w, height: h, ratio: `${w}/${h}` };
+  return { width: w || 1280, height: h || 720, ratio: `${w || 1280}/${h || 720}` };
 }
 
 function renderSceneCard(scene, idx, ratio) {
@@ -2243,32 +2227,39 @@ async function generateGridImage(prompts, key, stylePrompt, modelOverride, forma
     };
   }
 
+  console.log('[GridImg] generationConfig:', JSON.stringify(bodyObj.generationConfig));
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
     const model = modelOverride || 'gemini-3-pro-image-preview';
+    console.log(`[GridImg] attempt ${attempt + 1}, model: ${model}`);
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(bodyObj) }
     );
+    console.log(`[GridImg] response status: ${resp.status}`);
     if (!resp.ok) {
       if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) continue;
       const err = await resp.json().catch(() => ({}));
+      console.error('[GridImg] error:', err.error?.message || `HTTP ${resp.status}`);
       throw new Error(err.error?.message || `Grid image error ${resp.status}`);
     }
     const data = await resp.json();
     const resParts = data.candidates?.[0]?.content?.parts || [];
+    console.log(`[GridImg] parts returned: ${resParts.length}, hasImage: ${resParts.some(p => p.inlineData)}`);
     for (const part of resParts) {
       if (part.inlineData) {
+        console.log('[GridImg] success, mimeType:', part.inlineData.mimeType);
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
+    console.warn('[GridImg] no image in response, parts:', resParts.map(p => Object.keys(p)));
   }
   throw new Error('Grid image generation failed after 2 attempts');
 }
 
 // Crops individual cells from a grid image
 function cropGridCells(gridDataUrl, rows, cols, sceneCount) {
-  const trimPct = 0.10; // 10% edge trim to avoid bleed (model draws ~5-10% past cell boundaries)
+  const trimPct = 0.02; // 2% edge trim to avoid bleed
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -2426,10 +2417,10 @@ async function generateSceneImage(idx) {
         throw e;
       }
     }
-    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Free tier may not support image generation — try adding a paid tier key.');
+    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
-    trackCost(isPaidTier() ? 'imageGenQuality' : 'imageGenFast', 1);
+    trackCost('imageGen', 1);
     updateSceneCardImage(idx);
     updateSceneCardStatus(idx);
     autoSaveCreateState();
@@ -2532,7 +2523,7 @@ async function runImageGeneration(scenesToGen) {
   createGenerateLabel.style.color = '';
 
   const { width, height } = getSelectedImageSize();
-  const isFree = !isPaidTier();
+  const applyRateLimit = true; // rate-limit wait for API (2 images/min)
 
   // Partition: scenes with reference images go individual; rest go grid
   const refScenes = scenesToGen.filter(s =>
@@ -2615,7 +2606,7 @@ async function runImageGeneration(scenesToGen) {
     const gridModels = [
       { model: undefined, costKey: 'gridGen2K' },
       { model: 'gemini-3.1-flash-image-preview', costKey: 'gridGen2K' },
-      { model: 'gemini-2.5-flash-image', costKey: 'imageGenFast' },
+      { model: 'gemini-2.5-flash-image', costKey: 'imageGen' },
     ];
 
     for (const { model, costKey } of gridModels) {
@@ -2656,9 +2647,9 @@ async function runImageGeneration(scenesToGen) {
       for (const scene of batch) {
         if (!generateRunning) break;
         await generateSceneImage(createScenes.indexOf(scene));
-        if (isFree) {
+        if (applyRateLimit) {
           for (let wait = 30; wait > 0; wait--) {
-            createGenerateLabel.textContent = `Scene done. Next in ${wait}s (free tier)...`;
+            createGenerateLabel.textContent = `Scene done. Next in ${wait}s (rate limit)...`;
             await new Promise(r => setTimeout(r, 1000));
             if (!generateRunning) break;
           }
@@ -2671,9 +2662,9 @@ async function runImageGeneration(scenesToGen) {
     createGenerateBar.style.width = `${Math.round((completedUnits / totalUnits) * 100)}%`;
 
     // Free tier: wait 30s between batches (not per-image)
-    if (isFree && (b < gridBatches.length - 1 || individualScenes.length > 0)) {
+    if (applyRateLimit && (b < gridBatches.length - 1 || individualScenes.length > 0)) {
       for (let wait = 30; wait > 0; wait--) {
-        createGenerateLabel.textContent = `Batch ${b + 1} done. Next in ${wait}s (free tier: 2 images/min)...`;
+        createGenerateLabel.textContent = `Batch ${b + 1} done. Next in ${wait}s (rate limit: ~2 images/min)...`;
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }
@@ -2687,9 +2678,7 @@ async function runImageGeneration(scenesToGen) {
 
     const scene = individualScenes[i];
     const idx = createScenes.indexOf(scene);
-    createGenerateLabel.textContent = isFree
-      ? `Generating image ${i + 1}/${individualScenes.length} (individual, free tier — slower)...`
-      : `Generating image ${i + 1}/${individualScenes.length} (individual)...`;
+    createGenerateLabel.textContent = `Generating image ${i + 1}/${individualScenes.length} (individual)...`;
     createGenerateBar.style.width = `${Math.round((completedUnits / totalUnits) * 100)}%`;
 
     await generateSceneImage(idx);
@@ -2697,9 +2686,9 @@ async function runImageGeneration(scenesToGen) {
     completedUnits++;
 
     // Free tier: wait 30s between images
-    if (isFree && i < individualScenes.length - 1) {
+    if (applyRateLimit && i < individualScenes.length - 1) {
       for (let wait = 30; wait > 0; wait--) {
-        createGenerateLabel.textContent = `Image ${i + 1} done. Next in ${wait}s (free tier: 2 images/min)...`;
+        createGenerateLabel.textContent = `Image ${i + 1} done. Next in ${wait}s (rate limit: ~2 images/min)...`;
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }

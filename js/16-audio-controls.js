@@ -22,7 +22,6 @@
     const btnAddBgm = $('btn-add-bgm');
 
     btnAddBgm.addEventListener('click', () => {
-      if (isFree()) { showUpgradePrompt('Upgrade to Pro to add background music.'); return; }
       bgmInputEl.click();
     });
     bgmInputEl.addEventListener('change', async () => {
@@ -66,7 +65,6 @@
     const btnAddPip = $('btn-add-pip');
 
     btnAddPip.addEventListener('click', () => {
-      if (isFree()) { showUpgradePrompt('Upgrade to Pro to add Picture-in-Picture speaker overlay.'); return; }
       pipInputEl.click();
     });
     pipInputEl.addEventListener('change', async () => {

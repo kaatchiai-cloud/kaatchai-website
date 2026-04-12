@@ -11,7 +11,9 @@
       wavesurfer.on('timeupdate', t => currentTimeEl.textContent = fmt(t));
       wavesurfer.on('decode', () => durationEl.textContent = fmt(wavesurfer.getDuration()));
       wavesurfer.on('play', () => { btnPlay.innerHTML = '&#10074;&#10074; Pause'; updatePlayhead(); });
-      wavesurfer.on('pause', () => btnPlay.innerHTML = '&#9654; Play');
+      wavesurfer.on('pause', () => { btnPlay.innerHTML = '&#9654; Play'; updatePlayhead(); });
+      wavesurfer.on('seek', () => updatePlayhead());
+      wavesurfer.on('ready', () => updatePlayhead());
       regions.enableDragSelection({ color: 'rgba(108,99,255,0.25)' });
       regions.on('region-created', r => { regions.getRegions().forEach(x => { if (x.id !== r.id) x.remove(); }); activeRegion = r; updateRB(); });
       regions.on('region-updated', () => updateRB());

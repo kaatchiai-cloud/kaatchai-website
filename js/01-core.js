@@ -152,25 +152,18 @@ const MOTIONS = {
   'pan-down': 'Pan Down',
 };
 
-// ── Plan Gating ──
-const PLAN_FREE = 'free';
-const PLAN_PRO = 'pro';
-let currentPlan = PLAN_PRO;
+// ── Plan (single tier — stubs kept for compatibility) ──
 function isPro() { return true; }
 function isFree() { return false; }
-
-const FREE_TEMPLATES = ['blank', 'bedtime-story', 'youtube-video', 'explainer'];
-const FREE_STYLES = ['watercolor', 'cinematic', 'digital-art', 'photorealistic', 'minimalist'];
-const FREE_SIZES = ['1280x720', '1080x1080'];
-const FREE_TRANSITIONS = ['none', 'fade'];
-
+function showUpgradePrompt() {}
+function hideUpgradePrompt() {}
+function applyEditorPlanGating() {}
 
 // ── Cost Estimation ──
 const COST_ESTIMATES = {
   transcription: 0.003,      // per 5 min audio
   textGeneration: 0.001,     // per call (scene descriptions, translation)
-  imageGenFast: 0.039,       // per image (fast/free tier)
-  imageGenQuality: 0.08,     // per image (quality tier)
+  imageGen: 0.039,           // per image
   tts: 0.003,                // per 5 min TTS
   ttsPerLang: 0.02,          // per language track (translate + TTS)
   visionDescribe: 0.002,     // per image description (auto-describe)
@@ -209,39 +202,11 @@ function estimateCost(type, count) {
   return (unitCost * (count || 1)).toFixed(3);
 }
 
-// Upgrade prompt
-function showUpgradePrompt(msg) {
-  const modal = $('upgrade-modal');
-  const msgEl = $('upgrade-message');
-  if (modal && msgEl) {
-    msgEl.textContent = msg;
-    modal.classList.add('visible');
-  }
-}
-function hideUpgradePrompt() {
-  const modal = $('upgrade-modal');
-  if (modal) modal.classList.remove('visible');
-}
-
 // Load library slots when editor opens
 function loadEditorLibrary() {
   if (typeof renderLibrarySlots === 'function') renderLibrarySlots();
 }
 
-// Apply editor plan gating (called when editor opens)
-function applyEditorPlanGating() {
-  // Series inputs
-  const seriesEl = $('series-name');
-  const epEl = $('episode-number');
-  if (seriesEl) seriesEl.style.display = isFree() ? 'none' : '';
-  if (epEl) epEl.style.display = isFree() ? 'none' : '';
-  // BGM section label
-  const bgmBtn = $('btn-add-bgm');
-  if (bgmBtn && isFree()) bgmBtn.title = 'Pro feature';
-  // PiP section label
-  const pipBtn = $('btn-add-pip');
-  if (pipBtn && isFree()) pipBtn.title = 'Pro feature';
-}
 
 // ── Helpers ──
 function fmt(s) { return `${Math.floor(s/60)}:${(s%60).toFixed(3).padStart(6,'0')}`; }
@@ -261,6 +226,23 @@ function setStatus(m, loading) {
     if (reelStatus) reelStatus.textContent = m;
   }
 }
+// Toast notification (top-center, auto-dismiss)
+function showSaveToast(msg, isError) {
+  let toast = $('save-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'save-toast';
+    toast.style.cssText = 'position:fixed; top:80px; left:50%; transform:translateX(-50%); padding:10px 24px; border-radius:8px; font-size:0.85rem; font-weight:600; z-index:9999; opacity:0; transition:opacity 0.3s; pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = isError ? '#ef4444' : '#10b981';
+  toast.style.color = '#fff';
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
 function showPageLoader(msg) {
   const loader = $('page-loader');
   if (!loader) return;
@@ -281,6 +263,11 @@ let currentView = 'home'; // home | editor | create | reel
 function navigateTo(view, pushHistory) {
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
+  }
+  // Clear reel status bar when leaving reel page
+  if (currentView === 'reel' && view !== 'reel') {
+    const reelStatus = $('reel-generate-status');
+    if (reelStatus) reelStatus.textContent = '';
   }
   currentView = view;
   // Hide all views

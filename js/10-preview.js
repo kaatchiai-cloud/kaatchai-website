@@ -1,12 +1,40 @@
     // ── Preview (inline + fullscreen) ──
+    function _renderReelExtras(ctx, cw, ch, t) {
+      try {
+        // Draw reel frame overlay if transferred from reel creator
+        if (window._editorReelFrame && window._editorReelFrame.template !== 'none' && typeof drawReelFrame === 'function') {
+          const saved = { t: reelFrameTemplate, txt: reelFrameText, bg: reelFrameBgColor, tc: reelFrameTextColor, op: reelFrameOpacity, img: reelFrameImgEl };
+          reelFrameTemplate = window._editorReelFrame.template;
+          reelFrameText = window._editorReelFrame.text;
+          reelFrameBgColor = window._editorReelFrame.bgColor;
+          reelFrameTextColor = window._editorReelFrame.textColor;
+          reelFrameOpacity = window._editorReelFrame.opacity;
+          reelFrameImgEl = window._editorReelFrame.imgEl;
+          drawReelFrame(ctx, cw, ch);
+          reelFrameTemplate = saved.t; reelFrameText = saved.txt; reelFrameBgColor = saved.bg;
+          reelFrameTextColor = saved.tc; reelFrameOpacity = saved.op; reelFrameImgEl = saved.img;
+        }
+        // Draw reel overlays if transferred from reel creator
+        if (window._editorReelOverlays && window._editorReelOverlays.length > 0 && typeof drawReelOverlays === 'function') {
+          const savedItems = reelOverlayItems;
+          reelOverlayItems = window._editorReelOverlays;
+          drawReelOverlays(ctx, cw, ch, t);
+          reelOverlayItems = savedItems;
+        }
+      } catch(e) { console.warn('[ReelExtras] error:', e); }
+    }
     function _renderReelOrStdSubs(ctx, cw, ch, t, sortedSubs) {
-      if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
-        const rs = window._editorReelSubtitle;
-        const prevSize = reelSubSize, prevPos = reelSubPosition, prevColor = reelSubColor, prevOutline = reelSubOutline, prevBackdrop = reelSubBackdrop;
-        reelSubSize = rs.subSize; reelSubPosition = rs.subPosition; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline; reelSubBackdrop = rs.subBackdrop;
-        renderReelSubtitle(ctx, cw, ch, t, rs.words, rs.style);
-        reelSubSize = prevSize; reelSubPosition = prevPos; reelSubColor = prevColor; reelSubOutline = prevOutline; reelSubBackdrop = prevBackdrop;
-      } else {
+      try {
+        if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
+          const rs = window._editorReelSubtitle;
+          const prevSize = reelSubSize, prevPos = reelSubPosition, prevColor = reelSubColor, prevOutline = reelSubOutline, prevBackdrop = reelSubBackdrop;
+          reelSubSize = rs.subSize; reelSubPosition = rs.subPosition; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline; reelSubBackdrop = rs.subBackdrop;
+          renderReelSubtitle(ctx, cw, ch, t, rs.words, rs.style);
+          reelSubSize = prevSize; reelSubPosition = prevPos; reelSubColor = prevColor; reelSubOutline = prevOutline; reelSubBackdrop = prevBackdrop;
+        } else {
+          renderTextOverlays(ctx, cw, ch, t, sortedSubs);
+        }
+      } catch(e) {
         renderTextOverlays(ctx, cw, ch, t, sortedSubs);
       }
     }
@@ -82,6 +110,7 @@
       renderTextOverlays(ctx, cw, ch, t, sortedTexts);
       _renderReelOrStdSubs(ctx, cw, ch, t, sortedSubs);
       if (fr.applied) ctx.restore();
+      _renderReelExtras(ctx, width, height, t);
       renderLogo(ctx, width, height);
       ctx.restore();
     }
@@ -230,6 +259,7 @@
         renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedTexts);
         _renderReelOrStdSubs(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
         if (fr1.applied) previewCtx.restore();
+        _renderReelExtras(previewCtx, previewCW, previewCH, elapsed);
         renderLogo(previewCtx, previewCW, previewCH);
         previewCtx.restore();
       } else {
@@ -243,6 +273,7 @@
         renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedTexts);
         _renderReelOrStdSubs(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
         if (fr2.applied) previewCtx.restore();
+        _renderReelExtras(previewCtx, previewCW, previewCH, elapsed);
         renderLogo(previewCtx, previewCW, previewCH);
       }
     }
@@ -279,7 +310,7 @@
       }
       elapsed = Math.max(0, Math.min(elapsed, currentBuffer.duration));
 
-      renderPreviewFrame(elapsed);
+      try { renderPreviewFrame(elapsed); } catch(e) { console.error('[Preview] render error:', e); }
       updatePreviewUI(elapsed);
 
       if (elapsed >= currentBuffer.duration && previewPlaying) {
@@ -374,3 +405,127 @@
       }
     });
     inlinePreviewObserver.observe(timelineContainer, { childList: true, subtree: true });
+
+    // ── Reel Properties Editor Panel ──
+    try {
+    const reelPropsPanel = $('reel-editor-props');
+    const editorOverlayChips = $('editor-overlay-chips');
+
+    function showReelPropsPanel() {
+      console.log('[ReelProps] show called, panel:', !!reelPropsPanel, 'subtitle:', !!window._editorReelSubtitle, 'overlays:', window._editorReelOverlays?.length, 'chipsEl:', !!editorOverlayChips);
+      if (!reelPropsPanel) return;
+      const rs = window._editorReelSubtitle;
+      if (!rs && (!window._editorReelOverlays || window._editorReelOverlays.length === 0)) return;
+      reelPropsPanel.style.display = '';
+      if (rs) {
+        const el = (id) => $(id);
+        const ss = el('rep-sub-style'); if (ss) ss.value = rs.style || 'highlight';
+        const sc = el('rep-sub-color'); if (sc) sc.value = rs.subColor || '#ffffff';
+        const so = el('rep-sub-outline'); if (so) so.value = rs.subOutline || '#000000';
+        const sb = el('rep-sub-backdrop'); if (sb) sb.value = rs.subBackdrop || 'dark';
+        const sz = el('rep-sub-size'); if (sz) sz.value = rs.subSize || 4;
+        const szl = el('rep-sub-size-label'); if (szl) szl.textContent = rs.subSize || 4;
+        const sp = el('rep-sub-pos'); if (sp) sp.value = rs.subPosition || 'bottom';
+      }
+      renderEditorOverlayChips();
+    }
+
+    function renderEditorOverlayChips() {
+      if (!editorOverlayChips) return;
+      const items = window._editorReelOverlays || [];
+      if (!items.length) { editorOverlayChips.style.display = 'none'; return; }
+      editorOverlayChips.style.display = 'flex';
+      const totalDur = currentBuffer ? currentBuffer.duration : 60;
+      editorOverlayChips.innerHTML = items.map((item, i) => {
+        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[item.type] : null;
+        const label = def ? def.label : item.type;
+        const endTime = (item.startTime + item.duration).toFixed(1);
+        return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:1;min-width:0;">
+          ${label}
+          <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;">–<input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;">s
+          <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
+        </span>`;
+      }).join('');
+      // Wire events
+      editorOverlayChips.querySelectorAll('.eov-start').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const idx = parseInt(inp.dataset.idx);
+          if (window._editorReelOverlays[idx]) {
+            window._editorReelOverlays[idx].startTime = Math.max(0, parseFloat(inp.value) || 0);
+            if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
+          }
+        });
+      });
+      editorOverlayChips.querySelectorAll('.eov-end').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const idx = parseInt(inp.dataset.idx);
+          const ov = window._editorReelOverlays[idx];
+          if (ov) {
+            const end = Math.max(ov.startTime + 0.5, parseFloat(inp.value) || 0);
+            ov.duration = end - ov.startTime;
+            if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
+          }
+        });
+      });
+      editorOverlayChips.querySelectorAll('.eov-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          window._editorReelOverlays.splice(idx, 1);
+          if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
+          renderEditorOverlayChips();
+        });
+      });
+    }
+
+    // Subtitle property controls
+    ['rep-sub-style','rep-sub-color','rep-sub-outline','rep-sub-backdrop','rep-sub-size','rep-sub-pos'].forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      const evt = (el.type === 'range' || el.type === 'color') ? 'input' : 'change';
+      el.addEventListener(evt, () => {
+        if (!window._editorReelSubtitle) return;
+        const rs = window._editorReelSubtitle;
+        rs.style = $('rep-sub-style')?.value || rs.style;
+        rs.subColor = $('rep-sub-color')?.value || rs.subColor;
+        rs.subOutline = $('rep-sub-outline')?.value || rs.subOutline;
+        rs.subBackdrop = $('rep-sub-backdrop')?.value || rs.subBackdrop;
+        rs.subSize = parseFloat($('rep-sub-size')?.value) || rs.subSize;
+        rs.subPosition = $('rep-sub-pos')?.value || rs.subPosition;
+        const szl = $('rep-sub-size-label');
+        if (szl) szl.textContent = $('rep-sub-size')?.value;
+        // Sync to reel globals
+        if (typeof reelSubtitleStyle !== 'undefined') {
+          reelSubtitleStyle = rs.style; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline;
+          reelSubBackdrop = rs.subBackdrop; reelSubSize = rs.subSize; reelSubPosition = rs.subPosition;
+        }
+        // Re-render inline preview
+        if (!previewPlaying) {
+          const t = (inlineScrub.value / 1000) * (currentBuffer?.duration || 1);
+          renderInlineFrame(t);
+        }
+      });
+    });
+
+    // Overlay add buttons
+    document.querySelectorAll('[data-editor-overlay]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!window._editorReelOverlays) window._editorReelOverlays = [];
+        const type = btn.dataset.editorOverlay;
+        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[type] : null;
+        if (!def) return;
+        const totalDur = currentBuffer ? currentBuffer.duration : 60;
+        const startTime = parseFloat((totalDur * 0.1).toFixed(1));
+        window._editorReelOverlays.push({
+          id: Date.now(), type, startTime, duration: def.defaultDuration, params: { ...def.defaultParams },
+        });
+        if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
+        renderEditorOverlayChips();
+        // Show panel if hidden
+        if (reelPropsPanel) reelPropsPanel.style.display = '';
+      });
+    });
+
+    // Expose for external callers (openReelInFullEditor, loadProject)
+    console.log('[Preview] Registering _showReelPropsPanel');
+    window._showReelPropsPanel = showReelPropsPanel;
+    } catch(e) { console.error('[Preview] Reel props init error:', e); window._showReelPropsPanel = function(){}; }

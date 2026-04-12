@@ -21,19 +21,50 @@ const btnGenerateLanguages = $('btn-generate-languages');
 const languageStatus = $('language-status');
 const languageResults = $('language-results');
 
-// Populate language checkboxes
+// Populate language add buttons (+ icon per language)
+let pendingLanguages = new Set(); // langCodes added but not yet generated
+
+function updateLangButtons() {
+  const hasPending = pendingLanguages.size > 0;
+  btnGenerateLanguages.disabled = !hasPending;
+  // Disable Send to Editor when there are pending (ungenerated) languages
+  if (btnCreateSendEditor) btnCreateSendEditor.disabled = hasPending || !createScenes?.some(s => s.imgDataUrl);
+}
+
+function addLanguageToQueue(langCode) {
+  if (pendingLanguages.has(langCode)) return;
+  const lang = SUPPORTED_LANGUAGES.find(l => l.code === langCode);
+  if (!lang) return;
+  pendingLanguages.add(langCode);
+  // Show a pending card with voice + subtitle selects
+  renderLanguageCard(lang, 'pending', 'Ready to generate');
+  // Hide the add button
+  const addBtn = $(`lang-add-${langCode}`);
+  if (addBtn) addBtn.style.display = 'none';
+  updateLangButtons();
+}
+
+function removeLanguageFromQueue(langCode) {
+  pendingLanguages.delete(langCode);
+  // Remove pending card
+  const card = $(`lang-card-${langCode}`);
+  if (card) card.remove();
+  // Also remove from languageTracks if it was generated
+  languageTracks = languageTracks.filter(t => t.langCode !== langCode);
+  // Show the add button again
+  const addBtn = $(`lang-add-${langCode}`);
+  if (addBtn) addBtn.style.display = '';
+  updateLangButtons();
+}
+
 for (const lang of SUPPORTED_LANGUAGES) {
-  const label = document.createElement('label');
-  label.style.cssText = 'font-size:0.75rem; display:flex; align-items:center; gap:4px; cursor:pointer; padding:4px 10px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:6px;';
-  label.innerHTML = `<input type="checkbox" id="lang-check-${lang.code}"> ${lang.flag} ${lang.name}`;
-  label.querySelector('input').addEventListener('change', () => {
-    const anyChecked = SUPPORTED_LANGUAGES.some(l => {
-      const cb = $(`lang-check-${l.code}`);
-      return cb && cb.checked;
-    });
-    btnGenerateLanguages.disabled = !anyChecked;
-  });
-  languageCheckboxes.appendChild(label);
+  const btn = document.createElement('button');
+  btn.className = 'btn-xs';
+  btn.id = `lang-add-${lang.code}`;
+  btn.style.cssText = 'cursor:pointer; padding:4px 10px; font-size:0.75rem;';
+  btn.innerHTML = `+ ${lang.flag} ${lang.name}`;
+  btn.addEventListener('click', () => addLanguageToQueue(lang.code));
+  languageCheckboxes.appendChild(btn);
 }
 
 async function translateText(text, targetLang, apiKey) {
@@ -114,12 +145,46 @@ function buildSubtitleSelect(langCode, langName) {
   </label>`;
 }
 
+const TTS_VOICES = [
+  { id: 'Kore', label: 'Kore — Firm', cat: 'narration' },
+  { id: 'Charon', label: 'Charon — Informative', cat: 'narration' },
+  { id: 'Fenrir', label: 'Fenrir — Storytelling', cat: 'narration' },
+  { id: 'Callirrhoe', label: 'Callirrhoe — Calm', cat: 'narration' },
+  { id: 'Puck', label: 'Puck — Upbeat', cat: 'casual' },
+  { id: 'Zephyr', label: 'Zephyr — Bright', cat: 'casual' },
+  { id: 'Leda', label: 'Leda — Youthful', cat: 'casual' },
+  { id: 'Aoede', label: 'Aoede — Breezy', cat: 'casual' },
+  { id: 'Orus', label: 'Orus — Corporate', cat: 'formal' },
+  { id: 'Autonoe', label: 'Autonoe — Presentations', cat: 'formal' },
+];
+
+function buildVoiceSelect(langCode) {
+  const cats = { narration: '🎙️ Narration', casual: '🎵 Casual', formal: '💼 Formal' };
+  let options = '';
+  for (const [catId, catLabel] of Object.entries(cats)) {
+    options += `<optgroup label="${catLabel}">`;
+    for (const v of TTS_VOICES.filter(v => v.cat === catId)) {
+      options += `<option value="${v.id}" ${v.id === 'Kore' ? 'selected' : ''}>${v.label}</option>`;
+    }
+    options += '</optgroup>';
+  }
+  return `<label style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center; gap:3px;">
+    Voice:
+    <select class="lang-voice-select" data-lang="${langCode}" style="font-size:0.65rem; padding:2px 4px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text-primary);">
+      ${options}
+    </select>
+  </label>`;
+}
+
 // Generate subtitles for a specific audio track based on selected subtitle language
 // Stores in createGeneratedSubtitles map: langCode → subtitleItems array
 let createGeneratedSubtitles = new Map();
-let langGenerating = false; // true during language/subtitle generation // langCode → [{text, startTime, duration, ...}]
+let createSubtitleSelections = {}; // trackId → selected subtitle langCode (e.g. {primary: 'en', en: 'ta'})
+let createVoiceSelections = {}; // langCode → selected voice name (e.g. {en: 'Fenrir', hi: 'Charon'})
+let langGenerating = false;
 
 async function generateSubtitlesForTrack(trackId, subtitleLang) {
+  createSubtitleSelections[trackId] = subtitleLang;
   if (subtitleLang === 'none') {
     createGeneratedSubtitles.delete(trackId);
     updateSubtitlePreviewCount();
@@ -211,9 +276,9 @@ function updateSubtitlePreviewCount() {
   const statusEl = $('language-status');
   if (statusEl) {
     const doneCount = languageTracks.filter(t => t.status === 'done').length;
-    if (total > 0) {
-      const trackCount = createGeneratedSubtitles.size;
-      statusEl.textContent = `${doneCount} voice(s) · ${total} subtitles ready (${trackCount} track${trackCount > 1 ? 's' : ''})`;
+    const trackCount = createGeneratedSubtitles.size;
+    if (trackCount > 0) {
+      statusEl.textContent = `${doneCount} voice(s) · ${trackCount} subtitle track${trackCount > 1 ? 's' : ''} ready`;
       statusEl.style.color = '#10b981';
     } else if (doneCount > 0) {
       statusEl.textContent = `${doneCount} voice(s) ready · No subtitles selected`;
@@ -242,6 +307,8 @@ function renderPrimaryAudioCard() {
   container.querySelector('.lang-stop-btn').addEventListener('click', stopLangPlayer);
   const subSelect = container.querySelector('.lang-sub-select');
   if (subSelect) {
+    // Restore previous selection
+    if (createSubtitleSelections['primary']) subSelect.value = createSubtitleSelections['primary'];
     subSelect.addEventListener('change', () => {
       generateSubtitlesForTrack('primary', subSelect.value);
     });
@@ -258,28 +325,56 @@ function renderLanguageCard(lang, status, detail) {
   }
   card.className = `language-card ${status === 'done' ? 'done' : status === 'error' ? 'error' : ''}`;
   const track = languageTracks.find(t => t.langCode === lang.code);
-  const controls = (status === 'done' && track) ? buildAudioControls(lang.code) : '';
-  const subSelect = (status === 'done') ? buildSubtitleSelect(lang.code, lang.name) : '';
+  const controls = buildAudioControls(lang.code);
+  const subSelect = (status === 'done' || status === 'pending') ? buildSubtitleSelect(lang.code, lang.name) : '';
+  const voiceSelect = buildVoiceSelect(lang.code);
+  const removeBtn = (status === 'pending' || status === 'done' || status === 'error')
+    ? `<button class="lang-remove-btn" data-lang="${lang.code}" style="background:none; border:none; color:var(--red); cursor:pointer; font-size:0.8rem; padding:0 4px;" title="Remove">✕</button>`
+    : '';
   card.innerHTML = `
+    ${removeBtn}
     <span class="lang-name">${lang.flag} ${lang.name}</span>
     <span class="lang-status">${detail || status}</span>
+    ${voiceSelect}
     ${subSelect}
     ${controls}
   `;
+  // Remove button
+  const rmBtn = card.querySelector('.lang-remove-btn');
+  if (rmBtn) rmBtn.addEventListener('click', () => removeLanguageFromQueue(lang.code));
+  // Voice select
+  const voiceEl = card.querySelector('.lang-voice-select');
+  if (voiceEl) {
+    const savedVoice = createVoiceSelections[lang.code] || (track && track.voiceName) || 'Kore';
+    voiceEl.value = savedVoice;
+    voiceEl.addEventListener('change', () => {
+      createVoiceSelections[lang.code] = voiceEl.value;
+      if (track) track.voiceName = voiceEl.value;
+    });
+  }
+  // Subtitle select — for pending and done cards
+  const subEl = card.querySelector('.lang-sub-select');
+  if (subEl) {
+    const savedSub = createSubtitleSelections[lang.code] || (track ? track.subtitleLang : null) || 'none';
+    subEl.value = savedSub;
+    subEl.addEventListener('change', () => {
+      createSubtitleSelections[lang.code] = subEl.value;
+      if (track) { track.subtitleLang = subEl.value; generateSubtitlesForTrack(lang.code, subEl.value); }
+    });
+  }
+  const playBtn = card.querySelector('.lang-play-btn');
+  const stopBtn = card.querySelector('.lang-stop-btn');
   if (status === 'done' && track) {
-    card.querySelector('.lang-play-btn').addEventListener('click', (e) => {
+    if (playBtn) playBtn.addEventListener('click', (e) => {
       if (langPlayerPlaying && langPlayerSource) { stopLangPlayer(); return; }
       playLangAudio(track.audioBuffer, e.target);
     });
-    card.querySelector('.lang-stop-btn').addEventListener('click', stopLangPlayer);
-    const subEl = card.querySelector('.lang-sub-select');
-    if (subEl) {
-      subEl.value = track.subtitleLang || 'none';
-      subEl.addEventListener('change', () => {
-        track.subtitleLang = subEl.value;
-        generateSubtitlesForTrack(lang.code, subEl.value);
-      });
-    }
+    if (stopBtn) stopBtn.addEventListener('click', stopLangPlayer);
+    pendingLanguages.delete(lang.code);
+    updateLangButtons();
+  } else {
+    if (playBtn) playBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
   }
 }
 
@@ -288,10 +383,8 @@ btnGenerateLanguages.addEventListener('click', async () => {
   if (!key) { languageStatus.textContent = 'Enter Gemini API key first'; return; }
   if (!createScenes || createScenes.length === 0) return;
 
-  const selectedLangs = SUPPORTED_LANGUAGES.filter(l => {
-    const cb = $(`lang-check-${l.code}`);
-    return cb && cb.checked;
-  });
+  // Generate for pending (added but not yet generated) languages
+  const selectedLangs = SUPPORTED_LANGUAGES.filter(l => pendingLanguages.has(l.code));
   if (selectedLangs.length === 0) return;
 
   btnGenerateLanguages.disabled = true;
@@ -299,16 +392,24 @@ btnGenerateLanguages.addEventListener('click', async () => {
   updateCreateButtons();
   const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
 
+  // Capture voice selections BEFORE re-rendering cards
+  const voiceSelections = {};
   for (const lang of selectedLangs) {
+    const voiceEl = document.querySelector(`.lang-voice-select[data-lang="${lang.code}"]`);
+    voiceSelections[lang.code] = voiceEl ? voiceEl.value : 'Kore';
+  }
+
+  for (const lang of selectedLangs) {
+    const voiceName = voiceSelections[lang.code];
     try {
       renderLanguageCard(lang, 'working', 'Translating...');
       const translated = await translateText(fullText, lang.name, key);
 
-      renderLanguageCard(lang, 'working', 'Generating voice...');
+      renderLanguageCard(lang, 'working', `Generating voice (${voiceName})...`);
       let audioBuffer;
       try {
         // Try full text first
-        const ttsResult = await generateTTSGemini(translated, 'Kore', key);
+        const ttsResult = await generateTTSGemini(translated, voiceName, key);
         ({ audioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType));
       } catch(ttsErr) {
         // Full text failed — chunk by ~3 min segments based on sentence boundaries
@@ -333,7 +434,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
         const chunkBuffers = [];
         for (let c = 0; c < chunks.length; c++) {
           renderLanguageCard(lang, 'working', `Generating chunk ${c + 1}/${chunks.length}...`);
-          const chunkResult = await generateTTSGemini(chunks[c], 'Kore', key);
+          const chunkResult = await generateTTSGemini(chunks[c], voiceName, key);
           const { audioBuffer: chunkBuf } = await decodeBase64Audio(chunkResult.base64, chunkResult.mimeType);
           chunkBuffers.push(chunkBuf);
         }
@@ -353,11 +454,12 @@ btnGenerateLanguages.addEventListener('click', async () => {
         audioBuffer = merged;
       }
 
-      // Match duration to original audio by resampling
+      // Gently match duration — cap at 1.15x to preserve natural speech
       const targetDur = createAudioBuffer ? createAudioBuffer.duration : audioBuffer.duration;
-      if (Math.abs(audioBuffer.duration - targetDur) > 1) {
+      const rate = audioBuffer.duration / targetDur;
+      if (rate > 1.02 && rate <= 1.15) {
+        // Small difference — safe to resample
         renderLanguageCard(lang, 'working', 'Matching duration...');
-        const rate = audioBuffer.duration / targetDur;
         const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, Math.round(targetDur * audioBuffer.sampleRate), audioBuffer.sampleRate);
         const src = offlineCtx.createBufferSource();
         src.buffer = audioBuffer;
@@ -365,6 +467,9 @@ btnGenerateLanguages.addEventListener('click', async () => {
         src.connect(offlineCtx.destination);
         src.start();
         audioBuffer = await offlineCtx.startRendering();
+      } else if (rate > 1.15) {
+        // Too fast — keep natural duration, don't distort
+        console.log(`[TTS] ${lang.name}: skipping duration match (${rate.toFixed(2)}x would distort speech)`);
       }
 
       // Remove existing track for this language if re-generating
@@ -374,22 +479,46 @@ btnGenerateLanguages.addEventListener('click', async () => {
         langCode: lang.code,
         audioBuffer,
         translatedText: translated,
-        subtitleLang: 'none', // default: no subtitle
+        voiceName,
+        subtitleLang: 'none',
         status: 'done'
       });
       trackCost('ttsPerLang', 1);
       renderLanguageCard(lang, 'done', `Done (${fmtShort(audioBuffer.duration)})`);
     } catch(e) {
-      renderLanguageCard(lang, 'error', friendlyApiError(e.message));
       console.error(`Language ${lang.name} error:`, e);
+      // Retry once
+      try {
+        renderLanguageCard(lang, 'working', 'Retrying...');
+        const retryVoiceEl = document.querySelector(`.lang-voice-select[data-lang="${lang.code}"]`);
+        const retryVoice = retryVoiceEl ? retryVoiceEl.value : 'Kore';
+        const retranslated = await translateText(fullText, lang.name, key);
+        const retryResult = await generateTTSGemini(retranslated, retryVoice, key);
+        const { audioBuffer: retryBuf } = await decodeBase64Audio(retryResult.base64, retryResult.mimeType);
+        languageTracks = languageTracks.filter(t => t.langCode !== lang.code);
+        languageTracks.push({ lang: lang.name, langCode: lang.code, audioBuffer: retryBuf, translatedText: retranslated, voiceName: retryVoice, subtitleLang: 'none', status: 'done' });
+        trackCost('ttsPerLang', 1);
+        renderLanguageCard(lang, 'done', `Done (${fmtShort(retryBuf.duration)})`);
+      } catch(e2) {
+        renderLanguageCard(lang, 'error', `Failed after 2 attempts: ${friendlyApiError(e2.message)}`);
+        pendingLanguages.delete(lang.code); // stop blocking send-to-editor
+      }
     }
   }
 
   btnGenerateLanguages.disabled = false;
   langGenerating = false;
   updateCreateButtons();
+  updateLangButtons();
   const doneTracks = languageTracks.filter(t => t.status === 'done');
-  languageStatus.textContent = `${doneTracks.length} language track(s) ready — will be available in the editor`;
+  const failedCount = selectedLangs.length - doneTracks.filter(t => selectedLangs.some(l => l.code === t.langCode)).length;
+  if (failedCount > 0) {
+    languageStatus.textContent = `${doneTracks.length} track(s) ready · ${failedCount} failed`;
+    languageStatus.style.color = '#f59e0b';
+  } else {
+    languageStatus.textContent = `${doneTracks.length} language track(s) ready`;
+    languageStatus.style.color = '#10b981';
+  }
 });
 
 // Send to Editor
@@ -522,14 +651,21 @@ btnCreateSendEditor.addEventListener('click', async () => {
   editorOriginalBuffer = currentBuffer;
   editorOriginalSubtitles = subtitleItems.map(t => ({ ...t }));
   editorCurrentLang = 'original';
+  // Store primary subtitle language for editor card display
+  window._editorPrimarySubLang = createSubtitleSelections['primary'] || (editorOriginalSubtitles.length > 0 ? 'original' : 'none');
+  // Store original photo timings for language switching
+  window._editorOriginalPhotos = photoItems.map(p => ({ startTime: p.startTime, duration: p.duration }));
+
   editorLanguageTracks = languageTracks.filter(t => t.status === 'done').map(t => ({
     lang: t.lang,
     langCode: t.langCode,
     audioBuffer: t.audioBuffer,
     translatedText: t.translatedText,
-    subtitleLang: t.subtitleLang || 'original',
+    voiceName: createVoiceSelections[t.langCode] || t.voiceName || 'Kore',
+    subtitleLang: createSubtitleSelections[t.langCode] || t.subtitleLang || 'none',
   }));
-  // Build per-language subtitle texts (split translated text proportionally across scenes)
+  // Build per-language subtitle texts + scaled photo/subtitle timings
+  const origDur = currentBuffer.duration;
   for (const track of editorLanguageTracks) {
     const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
     const transWords = track.translatedText.split(/\s+/);
@@ -541,19 +677,69 @@ btnCreateSendEditor.addEventListener('click', async () => {
       wordIdx += sceneWordCount;
       return portion;
     });
+    // Per-scene proportional scaling based on translated word count
+    const trackDur = track.audioBuffer.duration;
+    const sceneOrigWords = createScenes.map(s => (s.text || '').split(/\s+/).filter(w => w).length || 1);
+    const sceneTransWords = track.subtitleTexts.map(t => (t || '').split(/\s+/).filter(w => w).length || 1);
+    // Compute raw per-scene duration proportional to translated word count
+    const totalTransWords = sceneTransWords.reduce((a, b) => a + b, 0);
+    const rawDurations = sceneTransWords.map(tw => (tw / totalTransWords) * trackDur);
+    // Build cumulative start times
+    const sceneTimes = [];
+    let cumStart = 0;
+    for (let i = 0; i < rawDurations.length; i++) {
+      sceneTimes.push({ startTime: cumStart, duration: rawDurations[i] });
+      cumStart += rawDurations[i];
+    }
+    // Map photo timings: each photo belongs to a scene, scale it within that scene's new time range
+    track.photoTimings = photoItems.map(p => {
+      // Find which scene this photo belongs to (by original startTime)
+      let sceneIdx = createScenes.findIndex(s => p.startTime >= s.startTime && p.startTime < s.endTime);
+      if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
+      const origScene = createScenes[sceneIdx];
+      const newScene = sceneTimes[sceneIdx];
+      if (!origScene || !newScene) return { startTime: p.startTime, duration: p.duration };
+      const origSceneDur = origScene.endTime - origScene.startTime;
+      const offsetInScene = origSceneDur > 0 ? (p.startTime - origScene.startTime) / origSceneDur : 0;
+      const durRatio = origSceneDur > 0 ? newScene.duration / origSceneDur : 1;
+      return {
+        startTime: newScene.startTime + offsetInScene * newScene.duration,
+        duration: p.duration * durRatio,
+      };
+    });
+    // Map subtitle timings the same way
+    track.subtitleTimings = editorOriginalSubtitles.map(s => {
+      let sceneIdx = createScenes.findIndex(sc => s.startTime >= sc.startTime && s.startTime < sc.endTime);
+      if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
+      const origScene = createScenes[sceneIdx];
+      const newScene = sceneTimes[sceneIdx];
+      if (!origScene || !newScene) return { startTime: s.startTime, duration: s.duration };
+      const origSceneDur = origScene.endTime - origScene.startTime;
+      const offsetInScene = origSceneDur > 0 ? (s.startTime - origScene.startTime) / origSceneDur : 0;
+      const durRatio = origSceneDur > 0 ? newScene.duration / origSceneDur : 1;
+      return {
+        startTime: newScene.startTime + offsetInScene * newScene.duration,
+        duration: s.duration * durRatio,
+      };
+    });
   }
   setupEditorLanguageSelector();
 
   // Navigate to editor
   cameFromCreate = true;
   btnBackToCreate.style.display = '';
+  // Show Export All button if multiple languages
+  const exportAllBtn = $('btn-export-all-langs');
+  if (exportAllBtn) exportAllBtn.style.display = editorLanguageTracks.length > 0 ? '' : 'none';
   navigateTo('editor');
   await refreshWaveform();
   updateAudioControls();
+  drawRuler();
   renderPhotos();
   renderTexts();
   renderSubtitles();
-  drawRuler();
+  // Re-render after layout settles to fix any positioning issues
+  requestAnimationFrame(() => { drawRuler(); renderPhotos(); renderSubtitles(); });
   const langInfo = editorLanguageTracks.length > 0 ? ` + ${editorLanguageTracks.length} language(s)` : '';
   const subInfo = subtitleItems.length > 0 ? `, ${subtitleItems.length} subtitles` : '';
   setStatus(`Content created: ${fmt(currentBuffer.duration)} audio, ${photoItems.length} photos${subInfo}${langInfo}. Edit and export!`);
@@ -565,25 +751,75 @@ btnCreateSendEditor.addEventListener('click', async () => {
 function setupEditorLanguageSelector() {
   const selectorDiv = $('editor-lang-selector');
   const selectEl = $('editor-lang-select');
-  if (!selectorDiv || !selectEl) return;
+  const cardsDiv = $('editor-lang-cards');
+  const cardsList = $('editor-lang-cards-list');
 
   if (editorLanguageTracks.length === 0) {
-    selectorDiv.style.display = 'none';
-    // Also hide "Export All Languages" button
+    if (selectorDiv) selectorDiv.style.display = 'none';
+    if (cardsDiv) cardsDiv.style.display = 'none';
     const exportAllBtn = $('export-all-langs');
     if (exportAllBtn) exportAllBtn.style.display = 'none';
     return;
   }
 
-  selectorDiv.style.display = '';
-  selectEl.innerHTML = '<option value="original">Original</option>';
-  for (const t of editorLanguageTracks) {
-    const opt = document.createElement('option');
-    opt.value = t.langCode;
-    opt.textContent = `${t.lang} (${fmtShort(t.audioBuffer.duration)})`;
-    selectEl.appendChild(opt);
+  // Populate hidden select (kept for backward compat with change handler)
+  if (selectEl) {
+    selectEl.innerHTML = '<option value="original">Original</option>';
+    for (const t of editorLanguageTracks) {
+      const opt = document.createElement('option');
+      opt.value = t.langCode;
+      opt.textContent = `${t.lang} (${fmtShort(t.audioBuffer.duration)})`;
+      selectEl.appendChild(opt);
+    }
+    selectEl.value = editorCurrentLang;
   }
-  selectEl.value = editorCurrentLang;
+
+  // Render language cards above audio track
+  if (cardsDiv && cardsList) {
+    cardsDiv.style.display = '';
+    const langFlags = { ta: '🇮🇳', hi: '🇮🇳', te: '🇮🇳', ml: '🇮🇳', en: '🇺🇸', es: '🇪🇸', fr: '🇫🇷' };
+    const origFlag = '🎙️';
+    const origDur = editorOriginalBuffer ? fmtShort(editorOriginalBuffer.duration) : '';
+    const primarySubCode = window._editorPrimarySubLang || (editorOriginalSubtitles.length > 0 ? 'original' : 'none');
+    const origSubLang = primarySubCode === 'none' ? 'None'
+      : primarySubCode === 'original' ? 'Original'
+      : (SUPPORTED_LANGUAGES.find(l => l.code === primarySubCode)?.name || primarySubCode);
+
+    let html = `<div class="editor-lang-card ${editorCurrentLang === 'original' ? 'active' : ''}" data-lang="original">
+      <span class="lang-flag">${origFlag}</span>
+      <div class="lang-info">
+        <span class="lang-name">Original</span>
+        <span class="lang-meta">🔊 ${origDur} · 💬 ${origSubLang}</span>
+      </div>
+    </div>`;
+
+    for (const t of editorLanguageTracks) {
+      const flag = langFlags[t.langCode] || '🌐';
+      const dur = fmtShort(t.audioBuffer.duration);
+      const subLang = t.subtitleLang && t.subtitleLang !== 'none'
+        ? (SUPPORTED_LANGUAGES.find(l => l.code === t.subtitleLang)?.name || t.subtitleLang)
+        : 'None';
+      html += `<div class="editor-lang-card ${editorCurrentLang === t.langCode ? 'active' : ''}" data-lang="${t.langCode}">
+        <span class="lang-flag">${flag}</span>
+        <div class="lang-info">
+          <span class="lang-name">${t.lang}</span>
+          <span class="lang-meta">🔊 ${dur} · 💬 ${subLang}</span>
+        </div>
+      </div>`;
+    }
+    cardsList.innerHTML = html;
+
+    // Click handler — switch language via the hidden select
+    cardsList.querySelectorAll('.editor-lang-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const lang = card.dataset.lang;
+        if (selectEl) { selectEl.value = lang; selectEl.dispatchEvent(new Event('change')); }
+        // Update active state
+        cardsList.querySelectorAll('.editor-lang-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+    });
+  }
 
   // Show "Export All Languages" button
   const exportAllBtn = $('export-all-langs');
@@ -600,26 +836,44 @@ if (editorLangSelect) {
     if (langCode === 'original') {
       currentBuffer = editorOriginalBuffer;
       subtitleItems = editorOriginalSubtitles.map(t => ({ ...t }));
+      // Restore original photo timings
+      if (window._editorOriginalPhotos) {
+        photoItems.forEach((p, i) => {
+          const orig = window._editorOriginalPhotos[i];
+          if (orig) { p.startTime = orig.startTime; p.duration = orig.duration; }
+        });
+      }
     } else {
       const track = editorLanguageTracks.find(t => t.langCode === langCode);
       if (!track) return;
       currentBuffer = track.audioBuffer;
+      // Apply scaled subtitle timings + translated text
       if (track.subtitleTexts && editorOriginalSubtitles.length > 0) {
         subtitleItems = editorOriginalSubtitles.map((t, i) => ({
           ...t,
           id: nextSubtitleId++,
           text: track.subtitleTexts[i] || t.text,
+          startTime: track.subtitleTimings?.[i]?.startTime ?? t.startTime,
+          duration: track.subtitleTimings?.[i]?.duration ?? t.duration,
         }));
+      }
+      // Apply scaled photo timings (same images, different timing)
+      if (track.photoTimings) {
+        photoItems.forEach((p, i) => {
+          const scaled = track.photoTimings[i];
+          if (scaled) { p.startTime = scaled.startTime; p.duration = scaled.duration; }
+        });
       }
     }
 
-    // Refresh subtitle timeline
+    // Refresh all timelines
     subBlockElements.clear();
     subTimelineContainer.querySelectorAll('.sub-block').forEach(el => el.remove());
     await refreshWaveform();
     updateAudioControls();
-    renderSubtitles();
     drawRuler();
+    renderPhotos();
+    renderSubtitles();
     setStatus(`Switched to ${langCode === 'original' ? 'original' : editorLanguageTracks.find(t => t.langCode === langCode)?.lang} audio`);
   });
 }
@@ -630,17 +884,12 @@ btnCreateSaveProject.addEventListener('click', async () => {
   const hadBuffer = currentBuffer;
   const hadPhotos = [...photoItems];
   const hadTexts = [...textItems];
+  const hadSubtitles = [...subtitleItems];
   const hadLangTracks = [...editorLanguageTracks];
 
   currentBuffer = createAudioBuffer;
   photoItems = [];
   textItems = [];
-  // Include language tracks in save
-  editorLanguageTracks = languageTracks.filter(t => t.status === 'done').map(t => ({
-    lang: t.lang, langCode: t.langCode,
-    audioBuffer: t.audioBuffer, translatedText: t.translatedText,
-    subtitleLang: t.subtitleLang || 'original',
-  }));
 
   // Build photo items from scenes that have images
   if (createScenes) {
@@ -656,13 +905,70 @@ btnCreateSaveProject.addEventListener('click', async () => {
     }
   }
 
+  // Build subtitle items from primary track (same as Send to Editor)
+  subtitleItems = [];
+  let saveSubId = 1;
+  const { width: saveSubW } = getSelectedImageSize();
+  const saveMaxSubWidth = Math.round(saveSubW * 0.85);
+  const primarySubs = createGeneratedSubtitles.get('primary');
+  if (primarySubs) {
+    for (const sub of primarySubs) {
+      subtitleItems.push({
+        id: saveSubId++, text: sub.text,
+        font: "'Noto Sans Tamil', sans-serif",
+        fontSize: 32, color: '#ffffff',
+        strokeColor: '#000000', strokeWidth: 2,
+        bgColor: '#000000', bgAlpha: 0.5, bold: true,
+        position: 'bot-center',
+        startTime: sub.startTime, duration: sub.duration,
+        animation: 'fade', animDur: 0.3,
+        _maxWidth: saveMaxSubWidth,
+      });
+    }
+  }
+
+  // Build language tracks with subtitleTexts + photoTimings (needed for language switching on reload)
+  editorLanguageTracks = languageTracks.filter(t => t.status === 'done').map(t => ({
+    lang: t.lang, langCode: t.langCode,
+    audioBuffer: t.audioBuffer, translatedText: t.translatedText,
+    voiceName: createVoiceSelections[t.langCode] || t.voiceName || 'Kore',
+    subtitleLang: createSubtitleSelections[t.langCode] || t.subtitleLang || 'none',
+  }));
+  // Compute subtitleTexts + photoTimings per language track (same as Send to Editor)
+  if (createScenes) {
+    for (const track of editorLanguageTracks) {
+      if (!track.translatedText || !track.audioBuffer) continue;
+      const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
+      const transWords = track.translatedText.split(/\s+/);
+      let wordIdx = 0;
+      track.subtitleTexts = createScenes.map(s => {
+        const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
+        const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
+        wordIdx += sceneWordCount;
+        return portion;
+      });
+      const trackDur = track.audioBuffer.duration;
+      const sceneTransWords = track.subtitleTexts.map(t => (t || '').split(/\s+/).filter(w => w).length || 1);
+      const totalTransWords = sceneTransWords.reduce((a, b) => a + b, 0);
+      const rawDurations = sceneTransWords.map(tw => (tw / totalTransWords) * trackDur);
+      let cumStart = 0;
+      const sceneTimes = rawDurations.map(d => { const t = { startTime: cumStart, duration: d }; cumStart += d; return t; });
+      track.photoTimings = photoItems.map(p => {
+        let sceneIdx = createScenes.findIndex(s => p.startTime >= s.startTime && p.startTime < s.endTime);
+        if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
+        return sceneTimes[sceneIdx] || { startTime: p.startTime, duration: p.duration };
+      });
+    }
+  }
+
   const showMsg = (msg) => { btnCreateSaveEarly.textContent = msg; setTimeout(() => { btnCreateSaveEarly.textContent = '💾 Save Project'; }, 3000); };
   await saveProjectToFile(createAudioBuffer, showMsg);
 
-  // Restore previous editor state if it existed
+  // Restore previous editor state
   currentBuffer = hadBuffer;
   photoItems = hadPhotos;
   textItems = hadTexts;
+  subtitleItems = hadSubtitles;
   editorLanguageTracks = hadLangTracks;
 });
 
@@ -687,12 +993,16 @@ btnBackToCreate.addEventListener('click', () => {
 
   // Restore language tracks from editor to create flow
   if (editorLanguageTracks.length > 0 && languageTracks.length === 0) {
-    languageTracks = editorLanguageTracks.map(t => ({
-      lang: t.lang, langCode: t.langCode,
-      audioBuffer: t.audioBuffer, translatedText: t.translatedText,
-      subtitleLang: t.subtitleLang || 'none',
-      status: 'done',
-    }));
+    languageTracks = editorLanguageTracks.map(t => {
+      createVoiceSelections[t.langCode] = t.voiceName || 'Kore';
+      return {
+        lang: t.lang, langCode: t.langCode,
+        audioBuffer: t.audioBuffer, translatedText: t.translatedText,
+        voiceName: t.voiceName || 'Kore',
+        subtitleLang: t.subtitleLang || 'none',
+        status: 'done',
+      };
+    });
     // Re-render language cards
     for (const t of languageTracks) {
       const langInfo = SUPPORTED_LANGUAGES.find(l => l.code === t.langCode);
@@ -713,44 +1023,25 @@ btnBackToCreate.addEventListener('click', () => {
   }
 
   if (createTranscript) {
-    // Step 3: Show transcript
     const transcriptOut = $('create-transcript-output');
-    if (transcriptOut && !transcriptOut.textContent) {
-      transcriptOut.textContent = createTranscript;
+    if (transcriptOut) {
+      transcriptOut.textContent = Array.isArray(createTranscript)
+        ? createTranscript.map(s => `[${fmt(s.startTime)} – ${fmt(s.endTime)}] ${s.text}`).join('\n\n')
+        : createTranscript;
+      transcriptOut.classList.add('visible');
     }
   }
 
   if (createScenes && createScenes.length > 0) {
-    // Show storyboard (Step 6)
-    $('create-storyboard-step').style.display = '';
     renderStoryboard();
-
-    // Show image generation (Step 7)
-    $('create-generate-step').style.display = '';
     renderCreateSceneCards();
+    if (createInputMode === 'podcast' && createChapters) renderChapterCards();
 
-    // Show chapter step if podcast mode (Step 5)
-    if (createInputMode === 'podcast' && createChapters) {
-      $('create-chapter-step').style.display = '';
-      renderChapterCards();
-    }
-
-    // Steps 8 & 9: Only show if images have been generated
-    const hasAnyImages = createScenes.some(s => s.imgDataUrl);
-    if (hasAnyImages) {
-      $('create-language-step').style.display = '';
-      renderPrimaryAudioCard();
-      $('create-send-step').style.display = '';
-    } else {
-      $('create-language-step').style.display = 'none';
-      $('create-send-step').style.display = 'none';
-    }
-
-    // Show retry button if any failed
     const failedCount = createScenes.filter(s => s.status === 'error').length;
     const btnRetry = $('btn-create-retry-failed');
     if (btnRetry) btnRetry.style.display = failedCount > 0 ? '' : 'none';
-
-    updateCreateButtons();
   }
+
+  updateCreateButtons();
+  updateStepStates();
 });

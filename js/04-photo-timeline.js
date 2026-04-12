@@ -235,11 +235,6 @@
     propTransition.addEventListener('change', () => {
       const item = getSelectedPhoto();
       if (!item) return;
-      if (isFree() && !FREE_TRANSITIONS.includes(propTransition.value)) {
-        showUpgradePrompt('Upgrade to Pro to unlock all transitions.');
-        propTransition.value = item.transition;
-        return;
-      }
       item.transition = propTransition.value; renderPhotos();
     });
     propTransDur.addEventListener('change', () => {
@@ -249,11 +244,6 @@
     propMotion.addEventListener('change', () => {
       const item = getSelectedPhoto();
       if (!item) return;
-      if (isFree() && propMotion.value !== 'none') {
-        showUpgradePrompt('Upgrade to Pro to unlock Ken Burns and motion effects.');
-        propMotion.value = 'none';
-        return;
-      }
       item.motion = propMotion.value; renderPhotos();
     });
     propInPoint.addEventListener('change', () => {

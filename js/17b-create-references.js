@@ -12,7 +12,7 @@ const btnAddEnv = $('btn-add-environment');
 let pendingRefType = null; // 'char' or 'env'
 let pendingRefCardId = null;
 
-function getMaxRefs() { return isPro() ? 3 : 1; }
+function getMaxRefs() { return 3; }
 
 function renderCharacterCards() {
   if (!charCardsEl) return;
@@ -171,7 +171,6 @@ if (envImgInput) envImgInput.addEventListener('change', () => handleRefImageUplo
 
 if (btnAddChar) btnAddChar.addEventListener('click', () => {
   if (storyCharacters.length >= getMaxRefs()) {
-    if (isFree()) showUpgradePrompt('Free plan allows 1 character reference. Upgrade to Pro for up to 3.');
     return;
   }
   storyCharacters.push({ id: nextCharId++, name: '', description: '', imgDataUrl: null, imgEl: null });
@@ -180,7 +179,6 @@ if (btnAddChar) btnAddChar.addEventListener('click', () => {
 
 if (btnAddEnv) btnAddEnv.addEventListener('click', () => {
   if (storyEnvironments.length >= getMaxRefs()) {
-    if (isFree()) showUpgradePrompt('Free plan allows 1 environment reference. Upgrade to Pro for up to 3.');
     return;
   }
   storyEnvironments.push({ id: nextEnvId++, name: '', description: '', imgDataUrl: null, imgEl: null });

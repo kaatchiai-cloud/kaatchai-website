@@ -580,6 +580,29 @@ async function saveProjectToFile(audioBuf, statusFn) {
           };
         } catch(e) { console.warn('PiP save error:', e); return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
+      // Reel subtitle style — read from editor global or reel creator globals
+      reelSubtitle: window._editorReelSubtitle || (typeof reelSubtitleStyle !== 'undefined' ? {
+        style: reelSubtitleStyle, subSize: reelSubSize, subPosition: reelSubPosition,
+        subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop,
+      } : undefined),
+      // Reel frame — read from editor global or reel creator globals
+      reelFrame: (window._editorReelFrame && window._editorReelFrame.template !== 'none') ? {
+        template: window._editorReelFrame.template, text: window._editorReelFrame.text,
+        bgColor: window._editorReelFrame.bgColor, textColor: window._editorReelFrame.textColor,
+        opacity: window._editorReelFrame.opacity, imgSrc: window._editorReelFrame.imgSrc || '',
+      } : (typeof reelFrameTemplate !== 'undefined' && reelFrameTemplate !== 'none') ? {
+        template: reelFrameTemplate, text: reelFrameText,
+        bgColor: reelFrameBgColor, textColor: reelFrameTextColor,
+        opacity: reelFrameOpacity, imgSrc: reelFrameImgSrc || '',
+      } : undefined,
+      // Reel overlays — read from editor global or reel creator globals
+      reelOverlays: (window._editorReelOverlays && window._editorReelOverlays.length > 0)
+        ? window._editorReelOverlays.map(o => ({ id: o.id, type: o.type, startTime: o.startTime, duration: o.duration, params: o.params }))
+        : (typeof reelOverlayItems !== 'undefined' && reelOverlayItems.length > 0)
+        ? reelOverlayItems.map(o => ({ id: o.id, type: o.type, startTime: o.startTime, duration: o.duration, params: o.params }))
+        : undefined,
+      // Subtitle selections
+      primarySubtitleLang: window._editorPrimarySubLang || (typeof createSubtitleSelections !== 'undefined' ? createSubtitleSelections['primary'] : undefined),
       // Language tracks
       languageTracks: editorLanguageTracks.length > 0 ? await Promise.all(editorLanguageTracks.map(async t => {
         try {
@@ -590,7 +613,10 @@ async function saveProjectToFile(audioBuf, statusFn) {
             lang: t.lang, langCode: t.langCode,
             audioData,
             translatedText: t.translatedText,
+            voiceName: t.voiceName || 'Kore',
             subtitleLang: t.subtitleLang || 'none',
+            subtitleTexts: t.subtitleTexts || undefined,
+            photoTimings: t.photoTimings || undefined,
           };
         } catch(e) { return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
@@ -615,11 +641,16 @@ async function saveProjectToFile(audioBuf, statusFn) {
       a.href = url; a.download = defaultName; a.click();
       URL.revokeObjectURL(url);
     }
-    statusFn(`Project saved (${(json.length / 1024 / 1024).toFixed(1)} MB)`);
+    const sizeStr = (json.length / 1024 / 1024).toFixed(1);
+    statusFn(`Project saved (${sizeStr} MB)`);
+    showSaveToast(`✓ Project saved (${sizeStr} MB)`);
     // Also save to gallery
     try { await saveProjectToGallery(json, defaultName.replace('.aptproj', '')); } catch(e) { console.warn('Gallery save:', e); }
   } catch (e) {
-    if (e.name !== 'AbortError') statusFn('Could not save project. Your browser may be low on storage.');
+    if (e.name !== 'AbortError') {
+      statusFn('Could not save project. Your browser may be low on storage.');
+      showSaveToast('✗ Save failed', true);
+    }
   }
 }
 
@@ -770,10 +801,19 @@ projectInput.addEventListener('change', async () => {
     }
     renderSubtitles();
 
-    // Restore image size
+    // Restore image size — add option if not present
     if (project.imageSize) {
       const sel = $('create-image-size');
-      if (sel) sel.value = project.imageSize;
+      if (sel) {
+        if (!sel.querySelector(`option[value="${project.imageSize}"]`)) {
+          const [pw, ph] = project.imageSize.split('x');
+          const opt = document.createElement('option');
+          opt.value = project.imageSize;
+          opt.textContent = `${pw}×${ph}`;
+          sel.appendChild(opt);
+        }
+        sel.value = project.imageSize;
+      }
     }
 
     // Restore export settings
@@ -817,6 +857,45 @@ projectInput.addEventListener('change', async () => {
         const opEl = $('logo-opacity'); if (opEl) opEl.value = Math.round(logoOpacity * 100);
       };
       lImg.src = project.logo.imgSrc;
+    }
+
+    // Restore reel subtitle style
+    if (project.reelSubtitle) {
+      window._editorReelSubtitle = project.reelSubtitle;
+      // Also restore reel creator globals
+      reelSubtitleStyle = project.reelSubtitle.style || 'highlight';
+      reelSubSize = project.reelSubtitle.subSize || 4;
+      reelSubPosition = project.reelSubtitle.subPosition || 'bottom';
+      reelSubColor = project.reelSubtitle.subColor || '#ffffff';
+      reelSubOutline = project.reelSubtitle.subOutline || '#000000';
+      reelSubBackdrop = project.reelSubtitle.subBackdrop || 'dark';
+    }
+    // Restore reel frame
+    if (project.reelFrame) {
+      const rf = project.reelFrame;
+      window._editorReelFrame = {
+        template: rf.template, text: rf.text,
+        bgColor: rf.bgColor, textColor: rf.textColor,
+        opacity: rf.opacity, imgEl: null, imgSrc: rf.imgSrc || '',
+      };
+      // Also restore reel creator globals
+      reelFrameTemplate = rf.template || 'none';
+      reelFrameText = rf.text || '';
+      reelFrameBgColor = rf.bgColor || '#000000';
+      reelFrameTextColor = rf.textColor || '#ffffff';
+      reelFrameOpacity = rf.opacity ?? 1.0;
+      if (rf.imgSrc) {
+        const rfImg = new Image();
+        rfImg.onload = () => { window._editorReelFrame.imgEl = rfImg; reelFrameImgEl = rfImg; };
+        rfImg.src = rf.imgSrc;
+        reelFrameImgSrc = rf.imgSrc;
+      }
+    }
+    // Restore reel overlays
+    if (project.reelOverlays && project.reelOverlays.length > 0) {
+      window._editorReelOverlays = project.reelOverlays;
+      reelOverlayItems = project.reelOverlays.map(o => ({ ...o }));
+      nextOverlayId = Math.max(...reelOverlayItems.map(o => o.id), 0) + 1;
     }
 
     // Restore create wizard state if saved
@@ -975,20 +1054,51 @@ projectInput.addEventListener('change', async () => {
           editorLanguageTracks.push({
             lang: t.lang, langCode: t.langCode,
             audioBuffer, translatedText: t.translatedText,
+            voiceName: t.voiceName || 'Kore',
             subtitleLang: t.subtitleLang || 'none',
+            subtitleTexts: t.subtitleTexts || undefined,
+            photoTimings: t.photoTimings || undefined,
           });
         } catch(e) { /* skip failed track */ }
       }
       editorOriginalBuffer = currentBuffer;
       editorOriginalSubtitles = subtitleItems.map(s => ({ ...s }));
       editorCurrentLang = 'original';
+      // Restore primary subtitle language
+      if (project.primarySubtitleLang) {
+        window._editorPrimarySubLang = project.primarySubtitleLang;
+        if (typeof createSubtitleSelections !== 'undefined') createSubtitleSelections['primary'] = project.primarySubtitleLang;
+      }
+      // Restore voice selections
+      for (const t of editorLanguageTracks) {
+        if (t.voiceName && typeof createVoiceSelections !== 'undefined') createVoiceSelections[t.langCode] = t.voiceName;
+      }
       if (typeof setupEditorLanguageSelector === 'function') setupEditorLanguageSelector();
+      const exportAllBtn = $('btn-export-all-langs');
+      if (exportAllBtn) exportAllBtn.style.display = editorLanguageTracks.length > 0 ? '' : 'none';
     }
 
-    // Show editor
+    // Show editor — ensure editor scripts are loaded first
+    console.log('[ProjectLoad] Loading editor scripts...');
+    if (typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
+      await new Promise(resolve => loadEditorScripts(resolve));
+      console.log('[ProjectLoad] Editor scripts loaded.');
+    } else {
+      console.log('[ProjectLoad] Editor scripts already loaded:', !!window._editorScriptsLoaded);
+    }
+    console.log('[ProjectLoad] Navigating to editor. Photos:', photoItems.length, 'Buffer:', !!currentBuffer);
+    console.log('[ProjectLoad] Export button:', !!$('btn-export-video'), 'btnExportVideo ref:', typeof btnExportVideo);
+    navigateTo('editor');
     await refreshWaveform();
     updateAudioControls();
-    navigateTo('editor');
+    drawRuler();
+    renderPhotos();
+    renderSubtitles();
+    renderTexts();
+    if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
+    if (typeof window._showReelPropsPanel === 'function') window._showReelPropsPanel();
+    // Re-render after layout settles
+    requestAnimationFrame(() => { drawRuler(); renderPhotos(); renderSubtitles(); });
 
     if (!project.photos || project.photos.length === 0) {
       const textInfo = textItems.length > 0 ? `, ${textItems.length} texts` : '';
@@ -1045,16 +1155,9 @@ function updateUserSection() {
     if (nameEl) nameEl.textContent = userData.name || 'User';
     if (emailEl) emailEl.textContent = userData.email || '';
     const badge = $('user-plan-badge');
-    const detail = $('user-plan-detail');
-    if (badge) {
-      badge.textContent = isPro() ? 'Pro' : 'Free';
-      badge.className = `plan-badge ${isPro() ? 'plan-pro' : 'plan-free'}`;
-    }
-    if (detail) detail.textContent = isPro() ? '$10/mo' : '';
-    const freeStatus = $('user-key-free-status');
+    if (badge) { badge.textContent = 'Stori'; badge.className = 'plan-badge plan-pro'; }
     const paidStatus = $('user-key-paid-status');
-    if (freeStatus) freeStatus.textContent = localStorage.getItem('stori_key_free') ? '✓ Set' : 'Not set';
-    if (paidStatus) paidStatus.textContent = localStorage.getItem('stori_key_paid') ? '✓ Set' : 'Not set';
+    if (paidStatus) paidStatus.textContent = (localStorage.getItem('stori_key_paid') || localStorage.getItem('stori_key_free')) ? '✓ Set' : 'Not set';
     if (typeof getGalleryCount === 'function') {
       getGalleryCount().then(count => {
         const countEl = $('user-project-count');

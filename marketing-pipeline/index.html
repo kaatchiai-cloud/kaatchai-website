@@ -3405,13 +3405,18 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         return new Promise(res => {
           const video = document.createElement('video');
           video.muted = true; video.preload = 'auto'; video.playsInline = true;
-          const done = () => res({ type: 'video', el: video });
-          video.onloadeddata = done;
-          video.oncanplay = done;
+          let resolved = false;
+          const finish = () => { if (!resolved) { resolved = true; res({ type: 'video', el: video }); } };
           video.onerror = () => res({ type: 'image', el: (() => { const i = new Image(); i.src = s.imgDataUrl; return i; })() });
+          video.oncanplay = () => {
+            // Pre-seek to clip start (skip Kling's soft first 0.5s) to warm the decoder
+            video.onseeked = () => { video._ready = true; finish(); };
+            video.currentTime = 0.5;
+            setTimeout(finish, 1200); // fallback
+          };
           video.src = s.videoBlobUrl;
           video.load();
-          setTimeout(() => res({ type: 'video', el: video }), 3000);
+          setTimeout(finish, 4000); // hard fallback
         });
       }
       if (s.imgDataUrl) {
@@ -3453,15 +3458,22 @@ OUTPUT — Return ONLY valid JSON, no markdown:
           try { previewMedia[_lastPreviewSceneIdx].el.pause(); } catch {}
         }
         if (media?.type === 'video') {
-          media.el.currentTime = 0;
-          if (playing) media.el.play().catch(() => {});
+          media.el._ready = false;
+          media.el.onseeked = () => {
+            media.el._ready = true;
+            if (playing) media.el.play().catch(() => {});
+          };
+          media.el.currentTime = 0.5; // skip Kling's soft first 0.5s; play() called after seek
+          setTimeout(() => { if (!media.el._ready) { media.el._ready = true; if (playing) media.el.play().catch(() => {}); } }, 400);
         }
         _lastPreviewSceneIdx = si;
       }
 
-      ctx.clearRect(0, 0, W, H);
+      // Only clearRect for non-video (video fills whole canvas; hold last frame if not ready)
+      if (!media || media.type !== 'video') ctx.clearRect(0, 0, W, H);
       if (media?.type === 'video') {
-        ctx.drawImage(media.el, 0, 0, W, H);
+        if (media.el.readyState >= 2 && media.el._ready !== false) ctx.drawImage(media.el, 0, 0, W, H);
+        // else hold last canvas frame — prevents black/pixelated flash
       } else if (media?.type === 'image') {
         drawSceneImage(ctx, media.el, si, lifeP, W, H);
       } else {
@@ -3819,13 +3831,18 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         return new Promise(res => {
           const video = document.createElement('video');
           video.muted = true; video.preload = 'auto'; video.playsInline = true;
-          const done = () => res({ type: 'video', el: video });
-          video.onloadeddata = done;
-          video.oncanplay = done;
+          let resolved = false;
+          const finish = () => { if (!resolved) { resolved = true; res({ type: 'video', el: video }); } };
           video.onerror = () => res({ type: 'image', el: (() => { const i = new Image(); i.src = scene.imgDataUrl; return i; })() });
+          video.oncanplay = () => {
+            // Pre-seek to clip start offset to warm the decoder first frame
+            video.onseeked = () => { video._ready = true; finish(); };
+            video.currentTime = 0.5;
+            setTimeout(finish, 1200);
+          };
           video.src = scene.videoBlobUrl;
           video.load();
-          setTimeout(() => res({ type: 'video', el: video }), 3000);
+          setTimeout(finish, 4000);
         });
       }
       if (scene.imgDataUrl) {
@@ -3950,8 +3967,13 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         if (isAnimated && sceneIdx !== _lastExportSceneIdx) {
           if (prevMedia?.type === 'video') try { prevMedia.el.pause(); } catch {}
           if (curMedia?.type === 'video') {
-            curMedia.el.currentTime = 0;
-            curMedia.el.play().catch(() => {});
+            curMedia.el._ready = false;
+            curMedia.el.onseeked = () => {
+              curMedia.el._ready = true;
+              curMedia.el.play().catch(() => {});
+            };
+            curMedia.el.currentTime = 0.5; // skip Kling's soft first 0.5s; play after seeked
+            setTimeout(() => { if (!curMedia.el._ready) { curMedia.el._ready = true; curMedia.el.play().catch(() => {}); } }, 400);
           }
           _lastExportSceneIdx = sceneIdx;
         }
@@ -3961,7 +3983,9 @@ OUTPUT — Return ONLY valid JSON, no markdown:
           if (!media) return;
           if (alpha < 1) ctx.globalAlpha = alpha;
           if (media.type === 'video') {
-            ctx.drawImage(media.el, 0, 0, w, h);
+            // Only draw once decoder has a clean frame (prevents pixelated first-frame)
+            if (media.el.readyState >= 2 && media.el._ready !== false) ctx.drawImage(media.el, 0, 0, w, h);
+            // else: hold last canvas frame — no draw, no clear
           } else {
             drawSceneImage(ctx, media.el, si, lifeProg, w, h);
           }

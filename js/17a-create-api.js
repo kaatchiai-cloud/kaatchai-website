@@ -4,13 +4,9 @@
 const createPage = $('create-page');
 const btnCreateContent = $('btn-create-content');
 const btnCreateBack = $('btn-create-back');
-const createApiKeyFree = $('create-api-key-free');
 const createApiKeyPaid = $('create-api-key-paid');
-const btnSaveKeyFree = $('btn-save-key-free');
 const btnSaveKeyPaid = $('btn-save-key-paid');
-const keyStatusFree = $('key-status-free');
 const keyStatusPaid = $('key-status-paid');
-const keyImageStatus = $('key-image-status');
 const createAudioInput = $('create-audio-input');
 const btnCreateImportAudio = $('btn-create-import-audio');
 const createAudioName = $('create-audio-name');
@@ -149,21 +145,13 @@ function renderTemplateGrid(category = 'all') {
   const filtered = category === 'all'
     ? TEMPLATES
     : TEMPLATES.filter(t => t.category === category || t.id === 'blank');
-  grid.innerHTML = filtered.map(t => {
-    const locked = isFree() && !FREE_TEMPLATES.includes(t.id);
-    return `
-    <div class="template-card${selectedTemplate === t.id ? ' selected' : ''}${locked ? ' locked' : ''}" data-tpl="${t.id}" style="background:${t.gradient};">
-      ${locked ? '<div class="lock-badge">🔒</div>' : ''}
+  grid.innerHTML = filtered.map(t => `
+    <div class="template-card${selectedTemplate === t.id ? ' selected' : ''}" data-tpl="${t.id}" style="background:${t.gradient};">
       <div class="template-card-name">${t.name}</div>
       <div class="template-card-desc">${t.description}</div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   grid.querySelectorAll('.template-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const locked = isFree() && !FREE_TEMPLATES.includes(card.dataset.tpl);
-      if (locked) { showUpgradePrompt('Upgrade to Pro to unlock all 40 templates.'); return; }
-      applyTemplate(card.dataset.tpl);
-    });
+    card.addEventListener('click', () => applyTemplate(card.dataset.tpl));
   });
 }
 
@@ -203,6 +191,8 @@ function applyTemplate(templateId) {
       c.classList.toggle('selected', c.dataset.tpl === templateId);
     });
   }
+  updateCreateButtons();
+  updateStepStates();
 }
 
 function setTemplateCategoryFilter(cat) {
@@ -211,35 +201,6 @@ function setTemplateCategoryFilter(cat) {
   renderTemplateGrid(cat);
 }
 
-function applyPlanGating() {
-  // Gate style dropdown
-  if (createStylePresetEl) {
-    Array.from(createStylePresetEl.options).forEach(opt => {
-      if (opt.value && opt.value !== 'custom' && !FREE_STYLES.includes(opt.value)) {
-        opt.disabled = isFree();
-        if (isFree() && !opt.textContent.includes('🔒')) opt.textContent += ' 🔒';
-      }
-    });
-  }
-  // Gate size dropdown
-  if (createImageSize) {
-    Array.from(createImageSize.options).forEach(opt => {
-      if (!FREE_SIZES.includes(opt.value)) {
-        opt.disabled = isFree();
-        if (isFree() && !opt.textContent.includes('🔒')) opt.textContent += ' 🔒';
-      }
-    });
-  }
-  // Gate podcast tab label
-  if (isFree()) createModeVideo.innerHTML = '🔒 Podcast';
-  else createModeVideo.innerHTML = '🎙️ Podcast';
-  // Gate audio editor buttons in create flow
-  const audioEditorBtns = ['btn-create-keep', 'btn-create-delete', 'btn-create-insert', 'btn-create-silence'];
-  audioEditorBtns.forEach(id => {
-    const btn = $(id);
-    if (btn) btn.style.display = isFree() ? 'none' : '';
-  });
-}
 
 function initTemplateUI() {
   const catContainer = $('template-categories');
@@ -264,88 +225,13 @@ if (_migKey && !localStorage.getItem('stori_key_free')) {
   localStorage.removeItem('stori_gemini_key_paid');
 }
 
-let freeImageGenAvailable = false;
-let activeTier = 'free'; // 'free' | 'paid'
-
-function getFreeKey() { return localStorage.getItem('stori_key_free') || (createApiKeyFree ? createApiKeyFree.value.trim() : ''); }
-function getPaidKey() { return localStorage.getItem('stori_key_paid') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
-function getCreateGeminiKey() { return getPaidKey(); }
-function getImageKey() { return activeTier === 'paid' ? getPaidKey() : (freeImageGenAvailable ? getFreeKey() : null); }
-function isPaidTier() { return activeTier === 'paid'; }
-
-function updateTierSelector() {
-  const radioFree = $('tier-radio-free');
-  const radioPaid = $('tier-radio-paid');
-  const cardFree = $('tier-card-free');
-  const cardPaid = $('tier-card-paid');
-  if (!radioFree || !radioPaid) return;
-
-  const hasFree = !!getFreeKey();
-  const hasPaid = !!getPaidKey();
-
-  // Auto-select: if only one key, select that tier. If both, default paid.
-  if (hasFree && hasPaid) {
-    if (!localStorage.getItem('stori_active_tier')) activeTier = 'paid';
-  } else if (hasFree) {
-    activeTier = 'free';
-  } else if (hasPaid) {
-    activeTier = 'paid';
-  }
-
-  radioFree.checked = activeTier === 'free';
-  radioPaid.checked = activeTier === 'paid';
-  if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
-  if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
-}
-
-// Radio button listeners
-document.querySelectorAll('input[name="active-tier"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    activeTier = radio.value;
-    localStorage.setItem('stori_active_tier', activeTier);
-    const cardFree = $('tier-card-free');
-    const cardPaid = $('tier-card-paid');
-    if (cardFree) cardFree.classList.toggle('active', activeTier === 'free');
-    if (cardPaid) cardPaid.classList.toggle('active', activeTier === 'paid');
-    updateCreateButtons();
-  });
-});
-
-// Test if free key supports image generation
-async function validateFreeKeyImageGen(key) {
-  if (!key) return false;
-  keyImageStatus.textContent = '⏳ Checking image generation...';
-  keyImageStatus.style.color = 'var(--text-muted)';
-  try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'Generate a small blue circle' }] }] })
-      }
-    );
-    if (resp.ok) {
-      const data = await resp.json();
-      const hasImage = data.candidates?.[0]?.content?.parts?.some(p => p.inlineData);
-      if (hasImage) {
-        freeImageGenAvailable = true;
-        keyImageStatus.textContent = '✓ Image generation available on free tier';
-        keyImageStatus.style.color = '#10b981';
-        return true;
-      }
-    }
-    freeImageGenAvailable = false;
-    keyImageStatus.textContent = '⚠ Image generation not available — add paid key for images';
-    keyImageStatus.style.color = '#f59e0b';
-    return false;
-  } catch(e) {
-    freeImageGenAvailable = false;
-    keyImageStatus.textContent = '⚠ Could not verify image generation';
-    keyImageStatus.style.color = '#f59e0b';
-    return false;
-  }
-}
+function getApiKey() { return localStorage.getItem('stori_key_paid') || localStorage.getItem('stori_key_free') || (createApiKeyPaid ? createApiKeyPaid.value.trim() : ''); }
+function getCreateGeminiKey() { return getApiKey(); }
+function getImageKey() { return getApiKey(); }
+// Backward compat stubs
+function getFreeKey() { return getApiKey(); }
+function getPaidKey() { return getApiKey(); }
+function isPaidTier() { return true; }
 
 function flashSave(btn, statusEl) {
   statusEl.textContent = '✓ Saved';
@@ -357,63 +243,66 @@ function flashSave(btn, statusEl) {
 }
 
 // Navigation
+function updateKeyStatusInline() {
+  const inlineEl = $('key-status-inline');
+  if (!inlineEl) return;
+  const key = getApiKey();
+  if (key) {
+    inlineEl.textContent = '🔑 Key saved';
+    inlineEl.style.color = '#10b981';
+  } else {
+    inlineEl.textContent = '🔑 No key';
+    inlineEl.style.color = '';
+  }
+}
+
 btnCreateContent.addEventListener('click', () => {
   navigateTo('create');
-  const savedFree = localStorage.getItem('stori_key_free');
-  const savedPaid = localStorage.getItem('stori_key_paid');
-  if (savedFree && createApiKeyFree) { createApiKeyFree.value = savedFree; keyStatusFree.textContent = '✓ Saved'; keyStatusFree.style.color = '#10b981'; }
-  if (savedPaid && createApiKeyPaid) { createApiKeyPaid.value = savedPaid; keyStatusPaid.textContent = '✓ Saved'; keyStatusPaid.style.color = '#10b981'; }
-  // Restore active tier
-  const savedTier = localStorage.getItem('stori_active_tier');
-  if (savedTier) activeTier = savedTier;
-  updateTierSelector();
+  const savedKey = getApiKey();
+  if (savedKey && createApiKeyPaid) { createApiKeyPaid.value = savedKey; }
+  updateKeyStatusInline();
   updateCreateButtons();
   updateStepStates();
-  // Render template category buttons + grid
   initTemplateUI();
-  applyPlanGating();
 });
 btnCreateBack.addEventListener('click', () => {
   navigateTo('home');
   destroyCreateAudioEditor();
 });
 
-// Save free key + validate image gen
-btnSaveKeyFree.addEventListener('click', async () => {
-  const key = createApiKeyFree.value.trim();
-  if (!key) { keyStatusFree.textContent = 'Enter a key'; keyStatusFree.style.color = '#ef4444'; return; }
-  localStorage.setItem('stori_key_free', key);
-  flashSave(btnSaveKeyFree, keyStatusFree);
-  updateTierSelector(); updateCreateButtons(); updateStepStates();
-  await validateFreeKeyImageGen(key);
+// Toggle key input expand/collapse
+const btnToggleKey = $('btn-toggle-key-input');
+if (btnToggleKey) btnToggleKey.addEventListener('click', () => {
+  const expand = $('create-key-expand');
+  if (expand) {
+    const isHidden = expand.style.display === 'none';
+    expand.style.display = isHidden ? 'flex' : 'none';
+    expand.classList.toggle('hidden', !isHidden);
+  }
 });
 
-// Save paid key
-btnSaveKeyPaid.addEventListener('click', () => {
+// Save API key
+if (btnSaveKeyPaid) btnSaveKeyPaid.addEventListener('click', () => {
   const key = createApiKeyPaid.value.trim();
   if (!key) { keyStatusPaid.textContent = 'Enter a key'; keyStatusPaid.style.color = '#ef4444'; return; }
   localStorage.setItem('stori_key_paid', key);
   flashSave(btnSaveKeyPaid, keyStatusPaid);
-  updateTierSelector(); updateCreateButtons(); updateStepStates();
+  updateKeyStatusInline();
+  updateCreateButtons(); updateStepStates();
 });
 
-// ── Model Selection (paid tier) ──
-function hasDedicatedPaidKey() { return isPaidTier() && getPaidKey() && getPaidKey() !== getFreeKey(); }
-function getTextModels() { return hasDedicatedPaidKey() ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash']; }
-function getTranscriptionModels() { return ['gemini-2.5-pro', 'gemini-2.5-flash']; }
-function getImageModels() {
-  return ['gemini-2.5-flash-image'];
-}
+// ── Model Selection ──
+function getTextModels() { return ['gemini-2.5-flash']; }
+function getTranscriptionModels() { return ['gemini-2.5-flash']; }
+function getImageModels() { return ['gemini-2.5-flash-image']; }
 function getTTSModels() { return ['gemini-2.5-flash-preview-tts']; }
-function getSegmentDuration() {
-  return isPaidTier() ? { min: 5, max: 15 } : { min: 12, max: 24 };
-}
+function getSegmentDuration() { return { min: 5, max: 15 }; }
 
 // ── API Call Wrapper with model fallback ──
 async function callGeminiAPI(models, body, apiKey) {
   const modelList = Array.isArray(models) ? models : [models];
   const key = apiKey || getCreateGeminiKey();
-  if (!key) throw new Error('No API key configured. Enter a free or paid tier key in Step 1.');
+  if (!key) throw new Error('No API key configured. Enter your Gemini API key in Step 1.');
 
   for (const model of modelList) {
     try {
@@ -443,8 +332,8 @@ function updateCreateButtons() {
     btnCreateTranscribe.textContent = createInputMode === 'text' ? '📝 Generate Storyboard' : '🎤 Transcribe with Gemini';
   }
   btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
-  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating;
-  if (keyImageStatus && !getFreeKey()) keyImageStatus.textContent = '';
+  const hasPendingLangs = typeof pendingLanguages !== 'undefined' && pendingLanguages.size > 0;
+  btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating || hasPendingLangs;
   // Update cost hints on buttons
   updateCostHints();
 }
@@ -461,7 +350,7 @@ function updateCostHints() {
     const gridBatches = pendingCount >= 4 ? Math.ceil(pendingCount / 9) : 0;
     const individualCount = pendingCount >= 4 ? pendingCount % 9 < 4 ? pendingCount % 9 : 0 : pendingCount;
     const gridCost = gridBatches > 0 ? estimateCost('gridGen2K', gridBatches) : 0;
-    const indivCost = individualCount > 0 ? estimateCost('imageGenFast', individualCount) : 0;
+    const indivCost = individualCount > 0 ? estimateCost('imageGen', individualCount) : 0;
     const totalCost = (parseFloat(gridCost) + parseFloat(indivCost)).toFixed(3);
     const modeLabel = gridBatches > 0
       ? `${gridBatches} grid batch${gridBatches > 1 ? 'es' : ''}${individualCount > 0 ? ` + ${individualCount} individual` : ''}`

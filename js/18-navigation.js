@@ -102,16 +102,6 @@ if (pipTransPosEl) {
 }
 
 
-// Temporary plan selector
-const planSelector = $('plan-selector');
-if (planSelector) {
-  planSelector.value = currentPlan;
-  planSelector.addEventListener('change', () => {
-    currentPlan = planSelector.value;
-    localStorage.setItem('stori_plan', currentPlan);
-    updateUserSection();
-    setStatus(`Switched to ${currentPlan === 'pro' ? 'Pro' : 'Free'} plan`);
-  });
-}
+// Plan selector removed — single tier
 
 // User section is now in 15-project.js (loads on landing page)

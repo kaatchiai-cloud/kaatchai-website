@@ -506,7 +506,6 @@
     const subGlobalStyle = $('sub-global-style');
     if (btnSubStyle) {
       btnSubStyle.addEventListener('click', () => {
-        if (isFree()) { showUpgradePrompt('Upgrade to Pro to customise subtitle styles.'); return; }
         subGlobalStyle.style.display = subGlobalStyle.style.display === 'none' ? '' : 'none';
       });
     }

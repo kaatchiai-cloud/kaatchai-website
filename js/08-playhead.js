@@ -1,10 +1,12 @@
     // ── Playhead sync (all timelines) ──
     const textPlayheadLine = $('text-playhead-line');
     const subPlayheadLine = $('sub-playhead-line');
+    const videoPlayheadLine = $('video-playhead-line');
     function updatePlayhead() {
-      if (!wavesurfer || !wavesurfer.isPlaying()) {
+      if (!wavesurfer || !wavesurfer.getDuration()) {
         playheadLine.style.display = 'none';
         textPlayheadLine.style.display = 'none';
+        if (videoPlayheadLine) videoPlayheadLine.style.display = 'none';
         if (subPlayheadLine) subPlayheadLine.style.display = 'none';
         return;
       }
@@ -13,6 +15,7 @@
       playheadLine.style.display = 'block';
       textPlayheadLine.style.left = px;
       textPlayheadLine.style.display = 'block';
+      if (videoPlayheadLine) { videoPlayheadLine.style.left = px; videoPlayheadLine.style.display = 'block'; }
       if (subPlayheadLine) { subPlayheadLine.style.left = px; subPlayheadLine.style.display = 'block'; }
-      requestAnimationFrame(updatePlayhead);
+      if (wavesurfer.isPlaying()) requestAnimationFrame(updatePlayhead);
     }
