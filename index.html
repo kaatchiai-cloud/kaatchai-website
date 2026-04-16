@@ -9,7 +9,7 @@
   <title>Stori — AI Visual Story Creator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Poppins:wght@300;400;600;700&family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Poppins:wght@300;400;600;700&family=Montserrat:wght@400;700;900&family=Anton&family=Inter:wght@400;600;700&family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <script defer src="vendor/wavesurfer.min.js"></script>
   <script defer src="vendor/wavesurfer-regions.min.js"></script>
@@ -1300,6 +1300,42 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-sm text-secondary mb-md">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
+      <!-- Subtitle style for Create Story -->
+      <div id="create-sub-style-panel" style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:14px; font-size:0.72rem;">
+        <div style="font-weight:600; margin-bottom:8px; font-size:0.78rem;">Subtitle Style</div>
+        <div class="form-row" style="margin-bottom:6px;">
+          <label class="text-secondary">Preset: <select id="create-sub-preset">
+            <option value="">Custom</option>
+            <option value="hormozi">Hormozi</option>
+            <option value="classic" selected>Classic</option>
+            <option value="karaoke">Karaoke</option>
+            <option value="bold">Bold Center</option>
+            <option value="minimal">Minimal</option>
+          </select></label>
+          <label class="text-secondary">Font: <select id="create-sub-font">
+            <option value="'Noto Sans Tamil', sans-serif" selected>Noto Sans Tamil</option>
+            <option value="Poppins">Poppins</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Anton">Anton</option>
+            <option value="Bebas Neue">Bebas Neue</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Inter">Inter</option>
+          </select></label>
+          <label class="text-secondary">Position: <select id="create-sub-position">
+            <option value="bot-center" selected>Bottom</option>
+            <option value="center">Center</option>
+            <option value="top-center">Top</option>
+          </select></label>
+          <label class="text-secondary"><input type="checkbox" id="create-sub-all-caps"> ALL CAPS</label>
+          <label class="text-secondary"><input type="checkbox" id="create-sub-bold" checked> Bold</label>
+        </div>
+        <div class="form-row">
+          <label class="text-secondary">Size: <input type="number" id="create-sub-size" min="16" max="72" value="32" style="width:45px;">px</label>
+          <label class="text-secondary">Color: <input type="color" id="create-sub-color" value="#ffffff"></label>
+          <label class="text-secondary">Stroke W: <input type="number" id="create-sub-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
+          <label class="text-secondary">BG α: <input type="number" id="create-sub-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
+        </div>
+      </div>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
@@ -1889,14 +1925,72 @@ body:has(#drop-zone:not(.hidden)) {
       <button id="btn-sub-style" style="font-size:0.68rem; padding:3px 8px; margin-left:auto;">🎨 Style</button>
       <button id="btn-delete-selected-subs" class="danger" style="font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
     </div>
-    <div id="sub-global-style" style="display:none; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:4px; font-size:0.72rem; display:none;">
-      <div class="form-row">
-        <label class="text-secondary">Size: <input type="number" id="sub-global-size" min="16" max="72" value="32" style="width:45px;">px</label>
-        <label class="text-secondary">Color: <input type="color" id="sub-global-color" value="#ffffff"></label>
-        <label class="text-secondary">Stroke: <input type="color" id="sub-global-stroke" value="#000000"></label>
-        <label class="text-secondary">Stroke W: <input type="number" id="sub-global-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
-        <label class="text-secondary">BG α: <input type="number" id="sub-global-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
-        <button id="btn-sub-apply-style" class="primary" style="font-size:0.68rem; padding:3px 10px;">Apply to All</button>
+    <div id="sub-global-style" style="display:none; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:4px; font-size:0.72rem;">
+      <div class="form-row" style="margin-bottom:4px;">
+        <label class="text-secondary">Preset: <select id="sub-global-preset">
+          <option value="">Custom</option>
+          <option value="hormozi">Hormozi</option>
+          <option value="classic">Classic</option>
+          <option value="karaoke">Karaoke</option>
+          <option value="bold">Bold Center</option>
+          <option value="minimal">Minimal</option>
+        </select></label>
+      </div>
+      <div id="sub-block-rows">
+        <div class="form-row" style="margin-bottom:6px;">
+          <label class="text-secondary">Font: <select id="sub-global-font">
+            <option value="'Noto Sans Tamil', sans-serif">Noto Sans Tamil</option>
+            <option value="Poppins">Poppins</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Anton">Anton</option>
+            <option value="Bebas Neue">Bebas Neue</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Inter">Inter</option>
+          </select></label>
+          <label class="text-secondary">Pos: <select id="sub-global-pos">
+            <option value="bot-center">Bottom</option>
+            <option value="center">Center</option>
+            <option value="top-center">Top</option>
+          </select></label>
+          <label class="text-secondary">Anim: <select id="sub-global-anim">
+            <option value="fade">Fade</option>
+            <option value="none">None</option>
+            <option value="slide-up">Slide Up</option>
+            <option value="scale">Scale</option>
+          </select></label>
+          <label class="text-secondary">Dur: <input type="number" id="sub-global-anim-dur" min="0" max="1" step="0.1" value="0.3" style="width:45px;">s</label>
+          <label class="text-secondary"><input type="checkbox" id="sub-global-all-caps"> ALL CAPS</label>
+          <label class="text-secondary"><input type="checkbox" id="sub-global-bold"> Bold</label>
+        </div>
+        <div class="form-row">
+          <label class="text-secondary">Size: <input type="number" id="sub-global-size" min="16" max="72" value="32" style="width:45px;">px</label>
+          <label class="text-secondary">Color: <input type="color" id="sub-global-color" value="#ffffff"></label>
+          <label class="text-secondary">Stroke: <input type="color" id="sub-global-stroke" value="#000000"></label>
+          <label class="text-secondary">Stroke W: <input type="number" id="sub-global-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
+          <label class="text-secondary">BG α: <input type="number" id="sub-global-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
+          <button id="btn-sub-apply-style" class="primary" style="font-size:0.68rem; padding:3px 10px;">Apply to All</button>
+        </div>
+      </div>
+      <div id="sub-reel-row" class="form-row" style="display:none; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">
+        <span class="text-muted" style="font-size:0.68rem; white-space:nowrap; margin-right:2px;">Word subtitle:</span>
+        <label class="text-secondary">Style: <select id="sub-reel-style">
+          <option value="word-by-word">Word by Word</option>
+          <option value="highlight" selected>Highlight</option>
+          <option value="karaoke">Karaoke</option>
+          <option value="bold-center">Bold Center</option>
+          <option value="none">None</option>
+        </select></label>
+        <label class="text-secondary">Color: <input type="color" id="sub-reel-color" value="#ffffff"></label>
+        <label class="text-secondary">Outline: <input type="color" id="sub-reel-outline" value="#000000"></label>
+        <label class="text-secondary">Backdrop: <select id="sub-reel-backdrop">
+          <option value="dark" selected>Dark</option><option value="blur">Blur</option>
+          <option value="shadow">Shadow</option><option value="none">None</option>
+        </select></label>
+        <label class="text-secondary">Size: <input type="range" id="sub-reel-size" min="2" max="8" step="0.5" value="4" style="width:50px;"><span id="sub-reel-size-label" style="min-width:12px;">4</span></label>
+        <label class="text-secondary">Pos: <select id="sub-reel-pos">
+          <option value="top">Top</option><option value="center">Center</option>
+          <option value="bottom" selected>Bottom</option>
+        </select></label>
       </div>
     </div>
     <div id="sub-drop-zone" class="empty">
@@ -1918,23 +2012,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Properties (shown when reel data transferred) -->
     <div id="reel-editor-props" style="display:none; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; font-size:0.72rem;">
-      <div style="font-weight:600; margin-bottom:8px;">Reel Properties</div>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
-        <label class="text-secondary">Subtitle Style: <select id="rep-sub-style">
-          <option value="none">None</option><option value="highlight">Highlight</option><option value="karaoke">Karaoke</option>
-          <option value="bounce">Bounce</option><option value="typewriter">Typewriter</option><option value="glow">Glow</option>
-        </select></label>
-        <label class="text-secondary">Color: <input type="color" id="rep-sub-color" value="#ffffff"></label>
-        <label class="text-secondary">Outline: <input type="color" id="rep-sub-outline" value="#000000"></label>
-        <label class="text-secondary">Backdrop: <select id="rep-sub-backdrop">
-          <option value="dark">Dark</option><option value="blur">Blur</option><option value="none">None</option>
-        </select></label>
-        <label class="text-secondary">Size: <input type="range" id="rep-sub-size" min="2" max="8" step="0.5" value="4" style="width:50px;"><span id="rep-sub-size-label">4</span></label>
-        <label class="text-secondary">Position: <select id="rep-sub-pos">
-          <option value="top">Top</option><option value="center">Center</option><option value="bottom">Bottom</option>
-        </select></label>
-      </div>
-      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding-top:6px; border-top:1px solid var(--border);">
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         <span class="text-secondary">Overlays:</span>
         <button class="btn-xs" data-editor-overlay="subscribe">🔴 Subscribe</button>
         <button class="btn-xs" data-editor-overlay="follow">💜 Follow</button>

@@ -13,3 +13,5 @@
 4. **Don't assume.** If unclear about what the user wants, ask. Don't fill in gaps with guesses.
 
 5. **NEVER LIE.** When asked "does X do Y?" — READ THE CODE FIRST. If you haven't checked, say "I haven't checked yet." Never fabricate an answer.
+
+6. **Don't touch the irrelevant and unnecessary code while changing the code. Always provide summary at the end of change for the user.

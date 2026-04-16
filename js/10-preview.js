@@ -412,21 +412,28 @@
     const editorOverlayChips = $('editor-overlay-chips');
 
     function showReelPropsPanel() {
-      console.log('[ReelProps] show called, panel:', !!reelPropsPanel, 'subtitle:', !!window._editorReelSubtitle, 'overlays:', window._editorReelOverlays?.length, 'chipsEl:', !!editorOverlayChips);
-      if (!reelPropsPanel) return;
       const rs = window._editorReelSubtitle;
-      if (!rs && (!window._editorReelOverlays || window._editorReelOverlays.length === 0)) return;
-      reelPropsPanel.style.display = '';
-      if (rs) {
-        const el = (id) => $(id);
-        const ss = el('rep-sub-style'); if (ss) ss.value = rs.style || 'highlight';
-        const sc = el('rep-sub-color'); if (sc) sc.value = rs.subColor || '#ffffff';
-        const so = el('rep-sub-outline'); if (so) so.value = rs.subOutline || '#000000';
-        const sb = el('rep-sub-backdrop'); if (sb) sb.value = rs.subBackdrop || 'dark';
-        const sz = el('rep-sub-size'); if (sz) sz.value = rs.subSize || 4;
-        const szl = el('rep-sub-size-label'); if (szl) szl.textContent = rs.subSize || 4;
-        const sp = el('rep-sub-pos'); if (sp) sp.value = rs.subPosition || 'bottom';
+      const hasOverlays = window._editorReelOverlays?.length > 0;
+      // Show word-subtitle row and hide block-subtitle rows for reel content
+      const reelRow = $('sub-reel-row');
+      const blockRows = $('sub-block-rows');
+      if (reelRow) {
+        reelRow.style.display = rs ? '' : 'none';
+        if (rs) {
+          const ss = $('sub-reel-style'); if (ss) ss.value = rs.style || 'highlight';
+          const sc = $('sub-reel-color'); if (sc) sc.value = rs.subColor || '#ffffff';
+          const so = $('sub-reel-outline'); if (so) so.value = rs.subOutline || '#000000';
+          const sb = $('sub-reel-backdrop'); if (sb) sb.value = rs.subBackdrop || 'dark';
+          const sz = $('sub-reel-size'); if (sz) sz.value = rs.subSize || 4;
+          const szl = $('sub-reel-size-label'); if (szl) szl.textContent = rs.subSize || 4;
+          const sp = $('sub-reel-pos'); if (sp) sp.value = rs.subPosition || 'bottom';
+        }
       }
+      if (blockRows) blockRows.style.display = rs ? 'none' : '';
+      // Reel Properties panel now only shows for overlays
+      if (!reelPropsPanel) return;
+      if (!hasOverlays) { reelPropsPanel.style.display = 'none'; return; }
+      reelPropsPanel.style.display = '';
       renderEditorOverlayChips();
     }
 
@@ -478,21 +485,21 @@
     }
 
     // Subtitle property controls
-    ['rep-sub-style','rep-sub-color','rep-sub-outline','rep-sub-backdrop','rep-sub-size','rep-sub-pos'].forEach(id => {
+    ['sub-reel-style','sub-reel-color','sub-reel-outline','sub-reel-backdrop','sub-reel-size','sub-reel-pos'].forEach(id => {
       const el = $(id);
       if (!el) return;
       const evt = (el.type === 'range' || el.type === 'color') ? 'input' : 'change';
       el.addEventListener(evt, () => {
         if (!window._editorReelSubtitle) return;
         const rs = window._editorReelSubtitle;
-        rs.style = $('rep-sub-style')?.value || rs.style;
-        rs.subColor = $('rep-sub-color')?.value || rs.subColor;
-        rs.subOutline = $('rep-sub-outline')?.value || rs.subOutline;
-        rs.subBackdrop = $('rep-sub-backdrop')?.value || rs.subBackdrop;
-        rs.subSize = parseFloat($('rep-sub-size')?.value) || rs.subSize;
-        rs.subPosition = $('rep-sub-pos')?.value || rs.subPosition;
-        const szl = $('rep-sub-size-label');
-        if (szl) szl.textContent = $('rep-sub-size')?.value;
+        rs.style = $('sub-reel-style')?.value || rs.style;
+        rs.subColor = $('sub-reel-color')?.value || rs.subColor;
+        rs.subOutline = $('sub-reel-outline')?.value || rs.subOutline;
+        rs.subBackdrop = $('sub-reel-backdrop')?.value || rs.subBackdrop;
+        rs.subSize = parseFloat($('sub-reel-size')?.value) || rs.subSize;
+        rs.subPosition = $('sub-reel-pos')?.value || rs.subPosition;
+        const szl = $('sub-reel-size-label');
+        if (szl) szl.textContent = $('sub-reel-size')?.value;
         // Sync to reel globals
         if (typeof reelSubtitleStyle !== 'undefined') {
           reelSubtitleStyle = rs.style; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline;

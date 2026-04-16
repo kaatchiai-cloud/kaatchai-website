@@ -135,6 +135,9 @@ function createReelJob(overrides) {
     subBackdrop: reelSubBackdrop,
     subSize: reelSubSize,
     subPosition: reelSubPosition,
+    subFont: reelSubFont,
+    subAllCaps: reelSubAllCaps,
+    subAccent: reelSubAccent,
     audioLang: 'original',
     subtitleLang: 'original',
     scenes: [],
@@ -1548,6 +1551,46 @@ function drawReelSceneFrame(ctx, cw, ch, elapsed, scenes) {
   }
 }
 
+const REEL_SUB_PRESETS = {
+  'hormozi':  { subtitleStyle: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5,   subPosition: 'bottom', subFont: 'Anton',   subAllCaps: true,  subAccent: '#f7c204' },
+  'classic':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4,   subPosition: 'bottom', subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+  'karaoke':  { subtitleStyle: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 3.5, subPosition: 'bottom', subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+  'bold':     { subtitleStyle: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5,   subPosition: 'center', subFont: 'Poppins', subAllCaps: true,  subAccent: '#f7c204' },
+  'minimal':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3.5, subPosition: 'bottom', subFont: 'Inter',   subAllCaps: false, subAccent: '#7c3aed' },
+};
+
+function applyReelSubPresetToCard(el, results) {
+  const preset = el.value;
+  const idx = parseInt(el.dataset.ri);
+  const r = (results || window._reelMultiResults || [])[idx];
+  if (!r || !preset) return;
+  const p = REEL_SUB_PRESETS[preset];
+  if (!p) return;
+  if (!r.settings) r.settings = {};
+  Object.assign(r.settings, p);
+  const card = el.closest('.reel-preview-section');
+  if (!card) return;
+  const q = (sel) => card.querySelector(sel);
+  const styleEl = q(`.rc-sub-style[data-ri="${idx}"]`);
+  if (styleEl) styleEl.value = p.subtitleStyle;
+  const colorEl = q(`.rc-sub-color[data-ri="${idx}"]`);
+  if (colorEl) colorEl.value = p.subColor;
+  const outlineEl = q(`.rc-sub-outline[data-ri="${idx}"]`);
+  if (outlineEl) outlineEl.value = p.subOutline;
+  const backdropEl = q(`.rc-sub-backdrop[data-ri="${idx}"]`);
+  if (backdropEl) backdropEl.value = p.subBackdrop;
+  const sizeEl = q(`.rc-sub-size[data-ri="${idx}"]`);
+  if (sizeEl) { sizeEl.value = p.subSize; const sl = card.querySelector(`.rc-size-label`); if (sl) sl.textContent = p.subSize; }
+  const posEl = q(`.rc-sub-pos[data-ri="${idx}"]`);
+  if (posEl) posEl.value = p.subPosition;
+  const accentEl = q(`.rc-sub-accent[data-ri="${idx}"]`);
+  if (accentEl) accentEl.value = p.subAccent;
+  const fontEl = q(`.rc-sub-font[data-ri="${idx}"]`);
+  if (fontEl) fontEl.value = p.subFont;
+  const capsEl = q(`.rc-sub-all-caps[data-ri="${idx}"]`);
+  if (capsEl) capsEl.checked = p.subAllCaps;
+}
+
 function renderAllReelPreviews() {
   const container = $('reel-previews-container');
   if (!container) return;
@@ -1580,6 +1623,9 @@ function renderAllReelPreviews() {
     const subBackdrop = s.subBackdrop || reelSubBackdrop;
     const subSize = s.subSize || reelSubSize;
     const subPos = s.subPosition || reelSubPosition;
+    const subFont = s.subFont || reelSubFont || 'Poppins';
+    const subAllCaps = s.subAllCaps !== undefined ? s.subAllCaps : reelSubAllCaps;
+    const subAccent = s.subAccent || reelSubAccent || '#7c3aed';
     const viewport = s.viewport || reelViewport;
     const vpx = s.viewportX ?? reelViewportX;
     const transDur = r.scenes?.[1]?.transDur ?? 0.3;
@@ -1595,16 +1641,37 @@ function renderAllReelPreviews() {
         </select></label>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
-        <label class="form-label">Subtitle: <select class="rc-sub-style" data-ri="${i}">
+        <label class="form-label">Subtitle Preset: <select class="rc-sub-preset" data-ri="${i}">
+          <option value="">Custom</option>
+          <option value="hormozi">Hormozi</option>
+          <option value="classic">Classic</option>
+          <option value="karaoke">Karaoke</option>
+          <option value="bold">Bold Center</option>
+          <option value="minimal">Minimal</option>
+        </select></label>
+        <label class="form-label">Style: <select class="rc-sub-style" data-ri="${i}">
           ${Object.entries(REEL_SUBTITLE_STYLES).map(([k, v]) => `<option value="${k}" ${k === subStyle ? 'selected' : ''}>${v}</option>`).join('')}
         </select></label>
+        <label class="form-label">Font: <select class="rc-sub-font" data-ri="${i}">
+          <option value="Poppins" ${subFont === 'Poppins' ? 'selected' : ''}>Poppins</option>
+          <option value="Montserrat" ${subFont === 'Montserrat' ? 'selected' : ''}>Montserrat</option>
+          <option value="Anton" ${subFont === 'Anton' ? 'selected' : ''}>Anton</option>
+          <option value="Bebas Neue" ${subFont === 'Bebas Neue' ? 'selected' : ''}>Bebas Neue</option>
+          <option value="Oswald" ${subFont === 'Oswald' ? 'selected' : ''}>Oswald</option>
+          <option value="Inter" ${subFont === 'Inter' ? 'selected' : ''}>Inter</option>
+        </select></label>
+        <label class="form-label"><input type="checkbox" class="rc-sub-all-caps" data-ri="${i}" ${subAllCaps ? 'checked' : ''}> ALL CAPS</label>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
         <label class="form-label">Color: <input type="color" class="rc-sub-color" data-ri="${i}" value="${subColor}"></label>
+        <label class="form-label">Accent: <input type="color" class="rc-sub-accent" data-ri="${i}" value="${subAccent}" title="Highlight word color"></label>
         <label class="form-label">Outline: <input type="color" class="rc-sub-outline" data-ri="${i}" value="${subOutline}"></label>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
         <label class="form-label">Backdrop: <select class="rc-sub-backdrop" data-ri="${i}">
           <option value="dark" ${subBackdrop === 'dark' ? 'selected' : ''}>Dark</option>
           <option value="blur" ${subBackdrop === 'blur' ? 'selected' : ''}>Blur</option>
+          <option value="shadow" ${subBackdrop === 'shadow' ? 'selected' : ''}>Shadow</option>
           <option value="none" ${subBackdrop === 'none' ? 'selected' : ''}>None</option>
         </select></label>
         <label class="form-label">Size: <input type="range" class="rc-sub-size" data-ri="${i}" min="2" max="8" value="${subSize}" step="0.5" style="width:50px;"><span class="rc-size-label text-2xs">${subSize}</span></label>
@@ -1695,14 +1762,16 @@ function renderAllReelPreviews() {
       }
     }
     const rs = r.settings || {};
-    const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
+    const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition, savedF = reelSubFont, savedAC = reelSubAllCaps, savedAcc = reelSubAccent;
     reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
     reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+    reelSubFont = rs.subFont || savedF; reelSubAllCaps = rs.subAllCaps !== undefined ? rs.subAllCaps : savedAC;
+    reelSubAccent = rs.subAccent || savedAcc;
     const subStyle = rs.subtitleStyle || reelSubtitleStyle;
     if (subStyle !== 'none' && r.words && r.words.length > 0) {
       renderReelSubtitle(ctx, cw, ch, midTime, r.words, subStyle);
     }
-    reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
+    reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP; reelSubFont = savedF; reelSubAllCaps = savedAC; reelSubAccent = savedAcc;
   }
   // Seek video then draw all previews
   const canvases = [...container.querySelectorAll('.reel-thumb-canvas')];
@@ -1815,14 +1884,16 @@ function renderAllReelPreviews() {
           }
           // Sync globals from per-reel settings for renderReelSubtitle
           const rs = r.settings || {};
-          const savedColor = reelSubColor, savedOutline = reelSubOutline, savedBackdrop = reelSubBackdrop, savedSize = reelSubSize, savedPos = reelSubPosition;
+          const savedColor = reelSubColor, savedOutline = reelSubOutline, savedBackdrop = reelSubBackdrop, savedSize = reelSubSize, savedPos = reelSubPosition, savedFont = reelSubFont, savedCaps = reelSubAllCaps, savedAccent = reelSubAccent;
           reelSubColor = rs.subColor || savedColor; reelSubOutline = rs.subOutline || savedOutline;
           reelSubBackdrop = rs.subBackdrop || savedBackdrop; reelSubSize = rs.subSize || savedSize; reelSubPosition = rs.subPosition || savedPos;
+          reelSubFont = rs.subFont || savedFont; reelSubAllCaps = rs.subAllCaps !== undefined ? rs.subAllCaps : savedCaps;
+          reelSubAccent = rs.subAccent || savedAccent;
           const subStyle = rs.subtitleStyle || reelSubtitleStyle;
           if (subStyle !== 'none' && r.words?.length > 0) {
             renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle);
           }
-          reelSubColor = savedColor; reelSubOutline = savedOutline; reelSubBackdrop = savedBackdrop; reelSubSize = savedSize; reelSubPosition = savedPos;
+          reelSubColor = savedColor; reelSubOutline = savedOutline; reelSubBackdrop = savedBackdrop; reelSubSize = savedSize; reelSubPosition = savedPos; reelSubFont = savedFont; reelSubAllCaps = savedCaps; reelSubAccent = savedAccent;
           drawReelFrame(drawCtx, cw, ch);
           drawReelOverlays(drawCtx, cw, ch, elapsed);
         }
@@ -1927,12 +1998,14 @@ function renderAllReelPreviews() {
             try { drawReelSceneFrame(drawCtx, cw, ch, t, r.scenes); } catch(e) {}
           }
           const rs2 = r.settings || {};
-          const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition;
+          const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition, sF = reelSubFont, sAC = reelSubAllCaps, sAcc = reelSubAccent;
           reelSubColor = rs2.subColor || sC; reelSubOutline = rs2.subOutline || sO;
           reelSubBackdrop = rs2.subBackdrop || sB; reelSubSize = rs2.subSize || sSz; reelSubPosition = rs2.subPosition || sP;
+          reelSubFont = rs2.subFont || sF; reelSubAllCaps = rs2.subAllCaps !== undefined ? rs2.subAllCaps : sAC;
+          reelSubAccent = rs2.subAccent || sAcc;
           const subStyle = rs2.subtitleStyle || reelSubtitleStyle;
           if (subStyle !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, t, r.words, subStyle);
-          reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP;
+          reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP; reelSubFont = sF; reelSubAllCaps = sAC; reelSubAccent = sAcc;
           drawReelFrame(drawCtx, cw, ch);
           drawReelOverlays(drawCtx, cw, ch, t);
         };
@@ -1988,12 +2061,14 @@ function renderAllReelPreviews() {
             try { drawReelSceneFrame(drawCtx, cw, ch, elapsed, r.scenes); } catch(e) {}
           }
           const rs3 = r.settings || {};
-          const sC2 = reelSubColor, sO2 = reelSubOutline, sB2 = reelSubBackdrop, sSz2 = reelSubSize, sP2 = reelSubPosition;
+          const sC2 = reelSubColor, sO2 = reelSubOutline, sB2 = reelSubBackdrop, sSz2 = reelSubSize, sP2 = reelSubPosition, sF2 = reelSubFont, sAC2 = reelSubAllCaps, sAcc2 = reelSubAccent;
           reelSubColor = rs3.subColor || sC2; reelSubOutline = rs3.subOutline || sO2;
           reelSubBackdrop = rs3.subBackdrop || sB2; reelSubSize = rs3.subSize || sSz2; reelSubPosition = rs3.subPosition || sP2;
+          reelSubFont = rs3.subFont || sF2; reelSubAllCaps = rs3.subAllCaps !== undefined ? rs3.subAllCaps : sAC2;
+          reelSubAccent = rs3.subAccent || sAcc2;
           const subStyle3 = rs3.subtitleStyle || reelSubtitleStyle;
           if (subStyle3 !== 'none' && r.words?.length > 0) renderReelSubtitle(drawCtx, cw, ch, elapsed, r.words, subStyle3);
-          reelSubColor = sC2; reelSubOutline = sO2; reelSubBackdrop = sB2; reelSubSize = sSz2; reelSubPosition = sP2;
+          reelSubColor = sC2; reelSubOutline = sO2; reelSubBackdrop = sB2; reelSubSize = sSz2; reelSubPosition = sP2; reelSubFont = sF2; reelSubAllCaps = sAC2; reelSubAccent = sAcc2;
           drawReelFrame(drawCtx, cw, ch);
           drawReelOverlays(drawCtx, cw, ch, elapsed);
         }
@@ -2059,6 +2134,10 @@ function renderAllReelPreviews() {
     });
   });
   container.querySelectorAll('.rc-sub-pos').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subPosition')));
+  container.querySelectorAll('.rc-sub-font').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subFont')));
+  container.querySelectorAll('.rc-sub-accent').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subAccent')));
+  container.querySelectorAll('.rc-sub-all-caps').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subAllCaps', () => el.checked)));
+  container.querySelectorAll('.rc-sub-preset').forEach(el => el.addEventListener('change', () => applyReelSubPresetToCard(el, results)));
   container.querySelectorAll('.rc-viewport').forEach(el => {
     el.addEventListener('change', () => {
       updateReelSetting(el, 'viewport');
@@ -2212,6 +2291,7 @@ function saveActiveReelSettings() {
     subtitleStyle: reelSubtitleStyle, transition: reelTransition,
     viewport: reelViewport, viewportX: reelViewportX,
     subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition,
+    subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent,
   };
 }
 
@@ -2234,6 +2314,9 @@ function selectReelPreview(idx) {
     reelSubBackdrop = r.settings.subBackdrop || 'dark';
     reelSubSize = r.settings.subSize || 4;
     reelSubPosition = r.settings.subPosition || 'bottom';
+    reelSubFont = r.settings.subFont || 'Poppins';
+    reelSubAllCaps = r.settings.subAllCaps !== undefined ? r.settings.subAllCaps : false;
+    reelSubAccent = r.settings.subAccent || '#7c3aed';
     // Sync UI controls
     const subStyleEl = $('reel-subtitle-style');
     if (subStyleEl) subStyleEl.value = reelSubtitleStyle;
@@ -4014,26 +4097,8 @@ async function openReelInFullEditor() {
   }
 
   console.log('[ToEditor] videoTimelineItems:', videoTimelineItems.length, 'photoItems:', photoItems.length);
-  // Transfer subtitles as subtitle items
-  if (reelWords && reelWords.length > 0) {
-    subtitleItems = [];
-    // Group words into subtitle segments (~5 words each)
-    for (let i = 0; i < reelWords.length; i += 5) {
-      const group = reelWords.slice(i, i + 5);
-      if (group.length === 0) continue;
-      subtitleItems.push({
-        id: nextSubtitleId++,
-        text: group.map(w => w.word).join(' '),
-        startTime: group[0].start,
-        duration: group[group.length - 1].end - group[0].start,
-        font: "'Poppins', sans-serif", fontSize: 32,
-        color: reelSubColor || '#ffffff',
-        strokeColor: reelSubOutline || '#000000', strokeWidth: 2,
-        bgColor: '#000000', bgAlpha: reelSubBackdrop === 'none' ? 0 : 0.5,
-        bold: true, position: reelSubPosition === 'top' ? 'top-center' : reelSubPosition === 'center' ? 'center' : 'bot-center', animation: 'none', animDur: 0,
-      });
-    }
-  }
+  // Reel word subtitles are handled by _editorReelSubtitle (set below); no subtitleItems needed
+  subtitleItems = [];
 
   // Transfer BGM + volume
   console.log('[ToEditor] BGM buffer:', !!reelBgmBuffer, 'audioEl:', !!reelBgmAudioEl, 'volume:', reelBgmVolume);
@@ -4206,20 +4271,7 @@ function loadEditorReel(idx) {
     }
   }
 
-  // Subtitles from words
-  if (r.words && r.words.length > 0) {
-    for (let i = 0; i < r.words.length; i += 5) {
-      const group = r.words.slice(i, i + 5);
-      if (group.length === 0) continue;
-      subtitleItems.push({
-        id: nextSubtitleId++, text: group.map(w => w.word).join(' '),
-        startTime: group[0].start, duration: group[group.length - 1].end - group[0].start,
-        font: "'Poppins', sans-serif", fontSize: 32, color: reelSubColor || '#fff',
-        strokeColor: reelSubOutline || '#000', strokeWidth: 2,
-        bgColor: '#000', bgAlpha: 0.5, bold: true, position: 'bottom', animation: 'none', animDur: 0,
-      });
-    }
-  }
+  // Reel word subtitles handled by _editorReelSubtitle; subtitleItems cleared above
 
   updateAudioControls();
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();

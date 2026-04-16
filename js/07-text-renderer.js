@@ -123,7 +123,7 @@
 
         // Determine display text (typewriter effect)
         const anim = t.animation || 'none';
-        let displayText = t.text;
+        let displayText = t.allCaps ? t.text.toUpperCase() : t.text;
         let typewriterFrac = 1;
         if (anim === 'typewriter') {
           typewriterFrac = entryProgress;
@@ -233,15 +233,19 @@
       const color = typeof reelSubColor !== 'undefined' ? reelSubColor : '#ffffff';
       const outline = typeof reelSubOutline !== 'undefined' ? reelSubOutline : '#000000';
       const backdrop = typeof reelSubBackdrop !== 'undefined' ? reelSubBackdrop : 'dark';
-      const accentColor = 'var(--accent)' === 'var(--accent)' ? '#a078ff' : '#a078ff'; // resolved
+      const accentColor = typeof reelSubAccent !== 'undefined' ? reelSubAccent : '#7c3aed';
+      const fontFamily = typeof reelSubFont !== 'undefined' ? reelSubFont : 'Poppins';
+      const allCaps = typeof reelSubAllCaps !== 'undefined' && reelSubAllCaps;
       const sizeFactor = typeof reelSubSize !== 'undefined' ? reelSubSize / 100 : 0.04;
       const fontSize = Math.round(cw * sizeFactor);
-      const font = `700 ${fontSize}px Poppins, sans-serif`;
+      const font = `700 ${fontSize}px ${fontFamily}, sans-serif`;
       const pos = typeof reelSubPosition !== 'undefined' ? reelSubPosition : 'bottom';
       const y = pos === 'top' ? ch * 0.12 : pos === 'center' ? ch * 0.52 : ch * 0.85;
       const maxWidth = cw * 0.9;
+      const wordText = (w) => allCaps ? w.word.toUpperCase() : w.word;
 
       function drawBackdrop(x, bY, w, h) {
+        if (backdrop === 'shadow') return; // shadow applied in drawTextWithOutline
         const bw = Math.min(w, maxWidth + 32);
         const bx = Math.max(0, cw/2 - bw/2);
         if (backdrop === 'dark') { ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(bx, bY, bw, h); }
@@ -258,11 +262,19 @@
       }
       function drawTextWithOutline(text, tx, ty) {
         const fitted = fitText(text, ctx.font);
+        if (backdrop === 'shadow') {
+          ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
+          ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 2;
+        }
         if (outline && outline !== 'transparent') {
           ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
           ctx.strokeText(fitted, tx, ty);
         }
         ctx.fillText(fitted, tx, ty);
+        if (backdrop === 'shadow') {
+          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+        }
       }
 
       if (style === 'word-by-word') {
@@ -270,7 +282,7 @@
         const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
         if (idx >= 0) {
           const chunk = words.slice(idx, idx + 2);
-          const text = chunk.map(w => w.word).join(' ');
+          const text = chunk.map(w => wordText(w)).join(' ');
           ctx.font = font; ctx.textAlign = 'center';
           const m = ctx.measureText(text);
           drawBackdrop(cw/2 - m.width/2 - 14, y - fontSize - 4, m.width + 28, fontSize + 16);
@@ -280,9 +292,9 @@
       } else if (style === 'highlight') {
         const segWords = getSegmentWords(words, elapsed);
         if (segWords.length > 0) {
-          const sentence = segWords.map(w => w.word).join(' ');
+          const sentence = segWords.map(w => wordText(w)).join(' ');
           const currentWord = segWords.find(w => elapsed >= w.start && elapsed < w.end);
-          ctx.font = `600 ${Math.round(fontSize * 0.7)}px Poppins, sans-serif`;
+          ctx.font = `600 ${Math.round(fontSize * 0.7)}px ${fontFamily}, sans-serif`;
           ctx.textAlign = 'center';
           const metrics = ctx.measureText(sentence);
           const bgW = Math.min(metrics.width + 24, maxWidth);
@@ -291,16 +303,16 @@
           for (const w of segWords) {
             ctx.fillStyle = (currentWord && w.word === currentWord.word && w.start === currentWord.start) ? accentColor : color;
             ctx.textAlign = 'left';
-            drawTextWithOutline(w.word + ' ', xPos, y);
-            xPos += ctx.measureText(w.word + ' ').width;
+            drawTextWithOutline(wordText(w) + ' ', xPos, y);
+            xPos += ctx.measureText(wordText(w) + ' ').width;
           }
         }
       } else if (style === 'karaoke') {
         const visible = words.filter(w => elapsed >= w.start);
         if (visible.length > 0) {
           const recent = visible.slice(-4);
-          const text = recent.map(w => w.word).join(' ');
-          ctx.font = `600 ${Math.round(fontSize * 0.8)}px Poppins, sans-serif`;
+          const text = recent.map(w => wordText(w)).join(' ');
+          ctx.font = `600 ${Math.round(fontSize * 0.8)}px ${fontFamily}, sans-serif`;
           ctx.textAlign = 'center';
           const metrics = ctx.measureText(text);
           drawBackdrop(cw/2 - metrics.width/2 - 12, y - fontSize * 0.8 - 4, metrics.width + 24, fontSize * 0.8 + 16);
@@ -315,7 +327,7 @@
           const group = words.slice(groupStart, groupStart + 3);
           if (group.length > 0) {
             ctx.font = font; ctx.textAlign = 'center';
-            const groupText = group.map(w => w.word).join(' ');
+            const groupText = group.map(w => wordText(w)).join(' ');
             const metrics = ctx.measureText(groupText);
             drawBackdrop(cw/2 - metrics.width/2 - 16, y - fontSize - 6, metrics.width + 32, fontSize + 20);
             // Draw each word, highlight current
@@ -324,7 +336,7 @@
             for (const w of group) {
               const isCurrent = elapsed >= w.start && elapsed < w.end;
               ctx.fillStyle = isCurrent ? accentColor : color;
-              const wText = w.word + (w !== group[group.length - 1] ? ' ' : '');
+              const wText = wordText(w) + (w !== group[group.length - 1] ? ' ' : '');
               drawTextWithOutline(wText, xPos, y);
               xPos += ctx.measureText(wText).width;
             }

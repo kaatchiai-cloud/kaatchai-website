@@ -586,17 +586,25 @@ btnCreateSendEditor.addEventListener('click', async () => {
   subTimelineContainer.querySelectorAll('.sub-block').forEach(el => el.remove());
   const { width: subW } = getSelectedImageSize();
   const maxSubWidth = Math.round(subW * 0.85);
+  // Read subtitle style from Create Story Step 8 panel
+  const _csFont     = ($('create-sub-font')?.value)     || "'Noto Sans Tamil', sans-serif";
+  const _csSize     = Math.max(16, Math.min(72, parseInt($('create-sub-size')?.value)    || 32));
+  const _csColor    = ($('create-sub-color')?.value)    || '#ffffff';
+  const _csStrokeW  = Math.max(0, parseInt($('create-sub-stroke-w')?.value) || 2);
+  const _csBgAlpha  = Math.max(0, Math.min(1, parseFloat($('create-sub-bg-alpha')?.value) || 0.5));
+  const _csPos      = ($('create-sub-position')?.value) || 'bot-center';
+  const _csBold     = $('create-sub-bold')?.checked ?? true;
+  const _csAllCaps  = $('create-sub-all-caps')?.checked ?? false;
   // Use primary track subtitles first, then add language track subtitles
   const primarySubs = createGeneratedSubtitles.get('primary');
   if (primarySubs) {
     for (const sub of primarySubs) {
       subtitleItems.push({
         id: nextSubtitleId++, text: sub.text,
-        font: "'Noto Sans Tamil', sans-serif",
-        fontSize: 32, color: '#ffffff',
-        strokeColor: '#000000', strokeWidth: 2,
-        bgColor: '#000000', bgAlpha: 0.5, bold: true,
-        position: 'bot-center',
+        font: _csFont, fontSize: _csSize, color: _csColor,
+        strokeColor: '#000000', strokeWidth: _csStrokeW,
+        bgColor: '#000000', bgAlpha: _csBgAlpha, bold: _csBold,
+        position: _csPos, allCaps: _csAllCaps,
         startTime: sub.startTime, duration: sub.duration,
         animation: 'fade', animDur: 0.3,
         _maxWidth: maxSubWidth,
@@ -910,16 +918,23 @@ btnCreateSaveProject.addEventListener('click', async () => {
   let saveSubId = 1;
   const { width: saveSubW } = getSelectedImageSize();
   const saveMaxSubWidth = Math.round(saveSubW * 0.85);
+  const _svFont    = ($('create-sub-font')?.value)     || "'Noto Sans Tamil', sans-serif";
+  const _svSize    = Math.max(16, Math.min(72, parseInt($('create-sub-size')?.value)    || 32));
+  const _svColor   = ($('create-sub-color')?.value)    || '#ffffff';
+  const _svStrokeW = Math.max(0, parseInt($('create-sub-stroke-w')?.value) || 2);
+  const _svBgAlpha = Math.max(0, Math.min(1, parseFloat($('create-sub-bg-alpha')?.value) || 0.5));
+  const _svPos     = ($('create-sub-position')?.value) || 'bot-center';
+  const _svBold    = $('create-sub-bold')?.checked ?? true;
+  const _svAllCaps = $('create-sub-all-caps')?.checked ?? false;
   const primarySubs = createGeneratedSubtitles.get('primary');
   if (primarySubs) {
     for (const sub of primarySubs) {
       subtitleItems.push({
         id: saveSubId++, text: sub.text,
-        font: "'Noto Sans Tamil', sans-serif",
-        fontSize: 32, color: '#ffffff',
-        strokeColor: '#000000', strokeWidth: 2,
-        bgColor: '#000000', bgAlpha: 0.5, bold: true,
-        position: 'bot-center',
+        font: _svFont, fontSize: _svSize, color: _svColor,
+        strokeColor: '#000000', strokeWidth: _svStrokeW,
+        bgColor: '#000000', bgAlpha: _svBgAlpha, bold: _svBold,
+        position: _svPos, allCaps: _svAllCaps,
         startTime: sub.startTime, duration: sub.duration,
         animation: 'fade', animDur: 0.3,
         _maxWidth: saveMaxSubWidth,
@@ -1045,3 +1060,28 @@ btnBackToCreate.addEventListener('click', () => {
   updateCreateButtons();
   updateStepStates();
 });
+
+// Create Story subtitle preset handler
+const createSubPresetEl = $('create-sub-preset');
+if (createSubPresetEl) {
+  createSubPresetEl.addEventListener('change', () => {
+    const preset = createSubPresetEl.value;
+    const presets = {
+      'hormozi': { font: 'Anton',                           size: 48, color: '#ffffff', strokeW: 0, bgAlpha: 0, pos: 'bot-center', bold: true,  allCaps: true  },
+      'classic': { font: "'Noto Sans Tamil', sans-serif",   size: 32, color: '#ffffff', strokeW: 2, bgAlpha: 0.5, pos: 'bot-center', bold: true, allCaps: false },
+      'karaoke': { font: "'Noto Sans Tamil', sans-serif",   size: 28, color: '#ffffff', strokeW: 2, bgAlpha: 0.5, pos: 'bot-center', bold: false, allCaps: false },
+      'bold':    { font: 'Poppins',                         size: 42, color: '#ffffff', strokeW: 2, bgAlpha: 0.6, pos: 'center',     bold: true,  allCaps: true  },
+      'minimal': { font: 'Inter',                           size: 28, color: '#ffffff', strokeW: 0, bgAlpha: 0,   pos: 'bot-center', bold: false, allCaps: false },
+    };
+    const p = presets[preset];
+    if (!p) return;
+    const fn = $('create-sub-font');       if (fn) fn.value = p.font;
+    const sz = $('create-sub-size');       if (sz) sz.value = p.size;
+    const col = $('create-sub-color');     if (col) col.value = p.color;
+    const sw = $('create-sub-stroke-w');   if (sw) sw.value = p.strokeW;
+    const bg = $('create-sub-bg-alpha');   if (bg) bg.value = p.bgAlpha;
+    const pos = $('create-sub-position');  if (pos) pos.value = p.pos;
+    const bold = $('create-sub-bold');     if (bold) bold.checked = p.bold;
+    const caps = $('create-sub-all-caps'); if (caps) caps.checked = p.allCaps;
+  });
+}

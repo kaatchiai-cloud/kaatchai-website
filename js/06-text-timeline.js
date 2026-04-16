@@ -512,19 +512,104 @@
     const btnSubApplyStyle = $('btn-sub-apply-style');
     if (btnSubApplyStyle) {
       btnSubApplyStyle.addEventListener('click', () => {
+        const presetEl = $('sub-global-preset');
+        if (presetEl && presetEl.value) { applyEditorSubPreset(presetEl.value); return; }
         const size = Math.max(16, Math.min(72, parseInt($('sub-global-size').value) || 32));
         const color = $('sub-global-color').value;
         const stroke = $('sub-global-stroke').value;
         const strokeW = Math.max(0, parseInt($('sub-global-stroke-w').value) || 2);
         const bgAlpha = Math.max(0, Math.min(1, parseFloat($('sub-global-bg-alpha').value) || 0.5));
+        const fontEl = $('sub-global-font');
+        const posEl = $('sub-global-pos');
+        const animEl = $('sub-global-anim');
+        const animDurEl = $('sub-global-anim-dur');
+        const allCapsEl = $('sub-global-all-caps');
+        const boldEl = $('sub-global-bold');
         for (const sub of subtitleItems) {
           sub.fontSize = size;
           sub.color = color;
           sub.strokeColor = stroke;
           sub.strokeWidth = strokeW;
           sub.bgAlpha = bgAlpha;
+          if (fontEl) sub.font = fontEl.value;
+          if (posEl) sub.position = posEl.value;
+          if (animEl) sub.animation = animEl.value;
+          if (animDurEl) sub.animDur = Math.max(0, parseFloat(animDurEl.value) || 0.3);
+          if (allCapsEl) sub.allCaps = allCapsEl.checked;
+          if (boldEl) sub.bold = boldEl.checked;
         }
         setStatus(`Subtitle style applied to ${subtitleItems.length} subtitles`);
+      });
+    }
+
+    function applyEditorSubPreset(preset) {
+      const presets = {
+        'hormozi': { fontSize: 48, color: '#ffffff', strokeColor: '#000000', strokeWidth: 0, bgAlpha: 0, font: 'Anton', position: 'bot-center', animation: 'fade', animDur: 0.2, allCaps: true, bold: true },
+        'classic': { fontSize: 32, color: '#ffffff', strokeColor: '#000000', strokeWidth: 2, bgAlpha: 0.5, font: 'Poppins', position: 'bot-center', animation: 'fade', animDur: 0.3, allCaps: false, bold: true },
+        'karaoke': { fontSize: 28, color: '#ffffff', strokeColor: '#000000', strokeWidth: 2, bgAlpha: 0.5, font: 'Poppins', position: 'bot-center', animation: 'fade', animDur: 0.3, allCaps: false, bold: false },
+        'bold':    { fontSize: 42, color: '#ffffff', strokeColor: '#000000', strokeWidth: 2, bgAlpha: 0.6, font: 'Poppins', position: 'center',     animation: 'scale', animDur: 0.3, allCaps: true, bold: true },
+        'minimal': { fontSize: 28, color: '#ffffff', strokeColor: '#000000', strokeWidth: 0, bgAlpha: 0, font: 'Inter',   position: 'bot-center', animation: 'fade', animDur: 0.3, allCaps: false, bold: false },
+      };
+      // Reel word-subtitle properties for each preset
+      const reelPresets = {
+        'hormozi': { style: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5, subPosition: 'bottom' },
+        'classic': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4, subPosition: 'bottom' },
+        'karaoke': { style: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4, subPosition: 'bottom' },
+        'bold':    { style: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5, subPosition: 'bottom' },
+        'minimal': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3, subPosition: 'bottom' },
+      };
+      const p = presets[preset];
+      if (!p) return;
+      for (const sub of subtitleItems) Object.assign(sub, p);
+      // Sync UI controls to show the applied values
+      const sz = $('sub-global-size'); if (sz) sz.value = p.fontSize;
+      const col = $('sub-global-color'); if (col) col.value = p.color;
+      const str = $('sub-global-stroke'); if (str) str.value = p.strokeColor;
+      const strW = $('sub-global-stroke-w'); if (strW) strW.value = p.strokeWidth;
+      const bg = $('sub-global-bg-alpha'); if (bg) bg.value = p.bgAlpha;
+      const fn = $('sub-global-font'); if (fn) fn.value = p.font;
+      const pos = $('sub-global-pos'); if (pos) pos.value = p.position;
+      const an = $('sub-global-anim'); if (an) an.value = p.animation;
+      const ad = $('sub-global-anim-dur'); if (ad) ad.value = p.animDur;
+      const ac = $('sub-global-all-caps'); if (ac) ac.checked = p.allCaps;
+      const bo = $('sub-global-bold'); if (bo) bo.checked = p.bold;
+      // Apply to reel word-subtitle if present
+      const rp = reelPresets[preset];
+      const rs = window._editorReelSubtitle;
+      if (rp && rs) {
+        rs.style = rp.style;
+        rs.subColor = rp.subColor;
+        rs.subOutline = rp.subOutline;
+        rs.subBackdrop = rp.subBackdrop;
+        rs.subSize = rp.subSize;
+        rs.subPosition = rp.subPosition;
+        // Sync sub-reel-row controls
+        const srs = $('sub-reel-style'); if (srs) srs.value = rp.style;
+        const src = $('sub-reel-color'); if (src) src.value = rp.subColor;
+        const sro = $('sub-reel-outline'); if (sro) sro.value = rp.subOutline;
+        const srb = $('sub-reel-backdrop'); if (srb) srb.value = rp.subBackdrop;
+        const srz = $('sub-reel-size'); if (srz) srz.value = rp.subSize;
+        const srl = $('sub-reel-size-label'); if (srl) srl.textContent = rp.subSize;
+        const srp2 = $('sub-reel-pos'); if (srp2) srp2.value = rp.subPosition;
+        // Sync reel globals
+        if (typeof reelSubtitleStyle !== 'undefined') {
+          reelSubtitleStyle = rp.style; reelSubColor = rp.subColor; reelSubOutline = rp.subOutline;
+          reelSubBackdrop = rp.subBackdrop; reelSubSize = rp.subSize; reelSubPosition = rp.subPosition;
+        }
+        // Re-render inline preview
+        if (typeof renderInlineFrame === 'function' && typeof previewPlaying !== 'undefined' && !previewPlaying) {
+          const t = (inlineScrub?.value / 1000) * (currentBuffer?.duration || 1);
+          renderInlineFrame(t);
+        }
+      }
+      setStatus(`${preset.charAt(0).toUpperCase() + preset.slice(1)} preset applied to ${subtitleItems.length} subtitles`);
+    }
+
+    // Auto-apply preset on dropdown change
+    const subGlobalPresetEl = $('sub-global-preset');
+    if (subGlobalPresetEl) {
+      subGlobalPresetEl.addEventListener('change', () => {
+        if (subGlobalPresetEl.value) applyEditorSubPreset(subGlobalPresetEl.value);
       });
     }
 
