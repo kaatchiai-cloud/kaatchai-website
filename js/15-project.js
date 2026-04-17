@@ -537,7 +537,22 @@ async function saveProjectToFile(audioBuf, statusFn) {
       logo: logoImgSrc ? { imgSrc: logoImgSrc, position: logoPosition, size: logoSize, opacity: logoOpacity } : undefined,
       createState: createScenes ? {
         transcript: createTranscript,
-        scenes: createScenes.map(s => ({ prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment })),
+        videoMode: createVideoMode || 'illustrated',
+        scenes: await Promise.all(createScenes.map(async s => {
+          const base = { prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
+          const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
+          if (clipsToSave.length > 0) {
+            try {
+              base.videoClipsData = await Promise.all(clipsToSave.map(async clip => {
+                const resp = await fetch(clip.url);
+                const blob = await resp.blob();
+                return { clipData: await blobToBase64(blob), clipDuration: clip.clipDuration };
+              }));
+              base.videoData = base.videoClipsData[0].clipData;
+            } catch(e) { console.warn('Scene video save error:', e); }
+          }
+          return base;
+        })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
         selectedTemplate: selectedTemplate || '',
@@ -901,7 +916,27 @@ projectInput.addEventListener('change', async () => {
     // Restore create wizard state if saved
     if (project.createState) {
       createTranscript = project.createState.transcript;
-      createScenes = project.createState.scenes;
+      createVideoMode = project.createState.videoMode || 'illustrated';
+      // Restore scenes, decoding per-scene videoData → blob URL
+      createScenes = await Promise.all((project.createState.scenes || []).map(async s => {
+        const scene = { ...s };
+        if (s.videoClipsData && s.videoClipsData.length > 0) {
+          try {
+            scene.videoClips = s.videoClipsData.map(cd => {
+              const blob = base64ToBlob(cd.clipData);
+              return { url: URL.createObjectURL(blob), clipDuration: cd.clipDuration };
+            });
+            scene.videoUrl = scene.videoClips[0].url;
+          } catch(e) { console.warn('Scene video restore error:', e); }
+        } else if (s.videoData) {
+          try {
+            const blob = base64ToBlob(s.videoData);
+            scene.videoUrl = URL.createObjectURL(blob);
+            scene.videoClips = [{ url: scene.videoUrl, clipDuration: s.duration }];
+          } catch(e) { console.warn('Scene video restore error:', e); }
+        }
+        return scene;
+      }));
       createAudioBuffer = currentBuffer;
       cameFromCreate = true;
       btnBackToCreate.style.display = '';
@@ -934,6 +969,12 @@ projectInput.addEventListener('change', async () => {
           return { ...e, imgEl: img };
         });
         nextEnvId = Math.max(1, ...storyEnvironments.map(e => e.id)) + 1;
+      }
+      // Render animated video cards if applicable
+      if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {
+        const videoStep = $('create-video-step');
+        if (videoStep) videoStep.style.display = '';
+        if (typeof renderCreateVideoCards === 'function') renderCreateVideoCards();
       }
     } else {
       cameFromCreate = false;

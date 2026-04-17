@@ -859,8 +859,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — a vivid visual description of what could be shown as an image for that segment. Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
-        ]}]
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+        ]}],
+        generationConfig: { response_mime_type: 'application/json' },
       };
       const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody, key);
       trackCost('transcription', 1);
@@ -1144,8 +1145,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — a vivid visual description of what could be shown as an image for that segment. Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
-      ]}]
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+      ]}],
+      generationConfig: { response_mime_type: 'application/json' },
     };
     const transcribeData = await callGeminiAPI(getTranscriptionModels(), transcribeBody, key);
     trackCost('transcription', 1);
@@ -1787,13 +1789,23 @@ function renderAllReelPreviews() {
     canvases.forEach(cvs => drawPreviewFrame(cvs, results[parseInt(cvs.dataset.ri)]));
   }
 
-  // Preload all scene images so they're ready before playback hits transitions
+  // Preload all scene images/videos so they're ready before playback hits transitions
   results.forEach(r => {
     if (!r.scenes) return;
     r.scenes.forEach(s => {
       if (s.imgDataUrl && !s._img) {
         s._img = new Image();
         s._img.src = s.imgDataUrl;
+      }
+      if (reelVideoMode === 'animated' && (s.videoUrl || (s.videoClips && s.videoClips.length > 0)) && !s._videoEls) {
+        const clips = s.videoClips || [{ url: s.videoUrl, clipDuration: 10 }];
+        s._videoEls = clips.map(clip => {
+          const v = document.createElement('video');
+          v.muted = true; v.preload = 'auto'; v.playsInline = true;
+          v.src = clip.url; v.load();
+          return v;
+        });
+        s._videoEl = s._videoEls[0];
       }
     });
   });
@@ -1879,8 +1891,41 @@ function renderAllReelPreviews() {
             const vpx = r.settings?.viewportX ?? reelViewportX;
             try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, vp, vpx); } catch(e) {}
           } else if (r.scenes) {
-            // Use renderTimelineFrame for transitions between scenes
-            try { drawReelSceneFrame(drawCtx, cw, ch, elapsed, r.scenes); } catch(e) {}
+            if (reelVideoMode === 'animated') {
+              let sceneIdx = 0;
+              for (let si = r.scenes.length - 1; si >= 0; si--) { if ((r.scenes[si].startTime || 0) <= elapsed) { sceneIdx = si; break; } }
+              const st = mpState[idx];
+              if (st._lastSceneIdx === undefined) { st._lastSceneIdx = -1; st._lastClipIdx = -1; }
+              const curScene = r.scenes[sceneIdx];
+              const clips = curScene?.videoClips || (curScene?.videoUrl ? [{ url: curScene.videoUrl, clipDuration: 10 }] : []);
+              const timeInScene = elapsed - (curScene?.startTime || 0);
+              let clipIdx = Math.max(0, clips.length - 1);
+              let cumDur = 0;
+              for (let c = 0; c < clips.length; c++) { if (timeInScene < cumDur + (clips[c].clipDuration || 10)) { clipIdx = c; break; } cumDur += (clips[c].clipDuration || 10); }
+              const videoEls = curScene?._videoEls || (curScene?._videoEl ? [curScene._videoEl] : []);
+              const videoEl = videoEls[clipIdx] || videoEls[0];
+              const sceneChanged = sceneIdx !== st._lastSceneIdx;
+              const clipChanged = clipIdx !== st._lastClipIdx;
+              if (sceneChanged || clipChanged) {
+                if (st._lastSceneIdx >= 0) {
+                  const prev = r.scenes[st._lastSceneIdx];
+                  const prevEls = prev?._videoEls || (prev?._videoEl ? [prev._videoEl] : []);
+                  if (sceneChanged) { prevEls.forEach(v => { try { v.pause(); } catch {} }); }
+                  else { const prevEl = videoEls[st._lastClipIdx]; if (prevEl) try { prevEl.pause(); } catch {} }
+                }
+                if (videoEl) {
+                  videoEl._ready = false;
+                  videoEl.onseeked = () => { videoEl._ready = true; if (st.playing) videoEl.play().catch(() => {}); };
+                  videoEl.currentTime = 0.5;
+                  setTimeout(() => { if (!videoEl._ready) { videoEl._ready = true; if (st.playing) videoEl.play().catch(() => {}); } }, 400);
+                }
+                st._lastSceneIdx = sceneIdx;
+                st._lastClipIdx = clipIdx;
+              }
+              if (videoEl?.readyState >= 2) try { drawCoverFit(drawCtx, videoEl, cw, ch); } catch(e) {}
+            } else {
+              try { drawReelSceneFrame(drawCtx, cw, ch, elapsed, r.scenes); } catch(e) {}
+            }
           }
           // Sync globals from per-reel settings for renderReelSubtitle
           const rs = r.settings || {};
@@ -1915,6 +1960,13 @@ function renderAllReelPreviews() {
     if (reelBgmAudioEl) { try { reelBgmAudioEl.pause(); } catch(e) {} }
     if (st.animId) cancelAnimationFrame(st.animId);
     if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
+    if (reelVideoMode === 'animated') {
+      const r = results[idx];
+      if (r?.scenes) r.scenes.forEach(s => {
+        if (s._videoEls) s._videoEls.forEach(v => { try { v.pause(); } catch {} });
+        else if (s._videoEl) { try { s._videoEl.pause(); } catch {} }
+      });
+    }
   }
 
   function stopMp(idx, resetScrub) {
@@ -2422,7 +2474,9 @@ function renderReelSceneGrid(scenes) {
     const refLabel = scene.refImageDataUrl ? '✓ Reference set' : '';
     card.innerHTML = `
       <div class="scene-img" id="reel-scene-img-${idx}" style="aspect-ratio:${ratio};">
-        ${scene.imgDataUrl
+        ${reelVideoMode === 'animated' && scene.videoUrl
+          ? `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline></video>`
+          : scene.imgDataUrl
           ? `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`
           : `<div class="scene-img-placeholder" style="aspect-ratio:${ratio};"></div>`}
       </div>
@@ -2559,7 +2613,9 @@ function reelUpdateSceneCardImage(idx) {
   const scene = reelPendingScenes[idx];
   const platform = REEL_PLATFORMS[reelPlatform];
   const ratio = `${platform.width}/${platform.height}`;
-  if (scene.imgDataUrl) {
+  if (reelVideoMode === 'animated' && scene.videoUrl) {
+    imgDiv.innerHTML = `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline></video>`;
+  } else if (scene.imgDataUrl) {
     imgDiv.innerHTML = `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`;
   } else {
     imgDiv.innerHTML = `<div class="scene-img-placeholder" style="aspect-ratio:${ratio};"></div>`;
@@ -2639,7 +2695,13 @@ async function reelGenerateSceneImage(idx) {
   }
 }
 
-function reelRegenerateScene(idx) { reelGenerateSceneImage(idx); }
+function reelRegenerateScene(idx) {
+  if (reelVideoMode === 'animated' && reelPendingScenes[idx]?.videoUrl) {
+    regenReelSceneVideoCard(idx);
+  } else {
+    reelGenerateSceneImage(idx);
+  }
+}
 
 async function reelRegenerateSelected() {
   if (reelSelectedSceneIdxs.size === 0 || !reelPendingScenes) return;
@@ -2653,6 +2715,121 @@ async function reelRegenerateSelected() {
   document.querySelectorAll('.scene-card').forEach(c => { c.style.borderColor = ''; c.style.boxShadow = ''; });
   updateReelRegenSelectedBtn();
   await reelRunImageGeneration(scenesToRegen);
+}
+
+async function reelRunAnimation(barEl, labelEl, progressEl) {
+  if (reelVideoMode !== 'animated' || typeof animateScenes !== 'function') return;
+  const scenesWithImages = reelPendingScenes.filter(s => s.imgDataUrl);
+  if (!scenesWithImages.length) return;
+  if (barEl) barEl.style.width = '50%';
+  if (labelEl) labelEl.textContent = 'Animating scenes…';
+  if (progressEl) progressEl.style.display = '';
+  try {
+    await animateScenes(scenesWithImages, (done, total, label) => {
+      if (barEl) barEl.style.width = (50 + Math.round((done / total) * 50)) + '%';
+      if (labelEl) labelEl.textContent = label;
+    }, getReelApiKey());
+    reelPendingScenes.forEach((_, i) => reelUpdateSceneCardImage(i));
+    if (labelEl) labelEl.textContent = `Done! ${scenesWithImages.length} scenes animated.`;
+    renderReelVideoCards();
+  } catch (animErr) {
+    if (labelEl) { labelEl.textContent = `Animation error: ${animErr.message}`; labelEl.style.color = '#ef4444'; }
+  }
+  setTimeout(() => { if (progressEl) progressEl.style.display = 'none'; }, 4000);
+}
+
+// ── Reel Animated Video Cards ──
+
+function renderReelVideoCards() {
+  const grid = $('reel-video-grid-inner');
+  const wrapper = $('reel-video-grid');
+  if (!grid || !wrapper || !reelPendingScenes) return;
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const ratio = platform ? `${platform.width}/${platform.height}` : '9/16';
+  grid.innerHTML = '';
+  reelPendingScenes.forEach((scene, idx) => {
+    const hasVideo = !!scene.videoUrl;
+    const card = document.createElement('div');
+    card.className = 'scene-card';
+    card.id = `reel-video-card-${idx}`;
+    card.innerHTML = `
+      <div class="scene-card-img" id="reel-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111;">
+        ${hasVideo
+          ? `<video id="reel-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#666;font-size:0.75rem;">${scene.status === 'error' ? 'Failed' : 'No video'}</div>`}
+      </div>
+      <div style="padding:6px 8px;">
+        <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
+          <button class="btn-xs" onclick="reelVideoPlay(${idx})">▶</button>
+          <button class="btn-xs" onclick="reelVideoPause(${idx})">⏸</button>
+          <button class="btn-xs" onclick="reelVideoStop(${idx})">⏹</button>
+          <span id="reel-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+        </div>
+        <input type="range" id="reel-video-seek-${idx}" min="0" max="1000" value="0"
+          style="width:100%; margin-bottom:4px; cursor:pointer;"
+          oninput="reelVideoSeek(${idx}, this.value)">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
+          <button class="btn-xs danger" onclick="regenReelSceneVideoCard(${idx})">🔄 Regen</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+    if (hasVideo) wireReelVideoCard(idx);
+  });
+  wrapper.style.display = '';
+  const regenAllBtn = $('btn-reel-regen-all-videos');
+  if (regenAllBtn) {
+    regenAllBtn.style.display = '';
+    regenAllBtn.onclick = async () => {
+      const failed = reelPendingScenes.map((s, i) => i).filter(i => !reelPendingScenes[i].videoUrl);
+      for (const idx of failed) await regenReelSceneVideoCard(idx);
+    };
+  }
+}
+
+function wireReelVideoCard(idx) {
+  const videoEl = $(`reel-video-el-${idx}`);
+  const seekEl = $(`reel-video-seek-${idx}`);
+  const timeEl = $(`reel-video-time-${idx}`);
+  if (!videoEl) return;
+  videoEl.ontimeupdate = () => {
+    if (!videoEl.duration) return;
+    if (seekEl) seekEl.value = Math.round((videoEl.currentTime / videoEl.duration) * 1000);
+    if (timeEl) timeEl.textContent = fmtShort(videoEl.currentTime);
+  };
+}
+
+function reelVideoPlay(idx) { const v = $(`reel-video-el-${idx}`); if (v) v.play().catch(() => {}); }
+function reelVideoPause(idx) { const v = $(`reel-video-el-${idx}`); if (v) v.pause(); }
+function reelVideoStop(idx) { const v = $(`reel-video-el-${idx}`); if (v) { v.pause(); v.currentTime = 0; } }
+function reelVideoSeek(idx, val) { const v = $(`reel-video-el-${idx}`); if (v && v.duration) v.currentTime = (val / 1000) * v.duration; }
+
+async function regenReelSceneVideoCard(idx) {
+  if (!reelPendingScenes) return;
+  const scene = reelPendingScenes[idx];
+  scene.videoUrl = null;
+  const imgDiv = $(`reel-video-img-${idx}`);
+  if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.72rem;">Regenerating…</div>`;
+  try {
+    if (typeof reelGenerateSceneImage === 'function') await reelGenerateSceneImage(idx);
+    if (scene.imgDataUrl && reelVideoMode === 'animated' && typeof animateScenes === 'function') {
+      if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.72rem;">Animating…</div>`;
+      scene.videoUrl = null;
+      scene.videoClips = null;
+      await animateScenes([scene], () => {}, getReelApiKey());
+    }
+  } catch (e) {
+    if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;">Failed</div>`;
+    return;
+  }
+  const platform = REEL_PLATFORMS[reelPlatform];
+  const ratio = platform ? `${platform.width}/${platform.height}` : '9/16';
+  if (imgDiv && scene.videoUrl) {
+    imgDiv.innerHTML = `<video id="reel-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`;
+    wireReelVideoCard(idx);
+  } else if (imgDiv) {
+    imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;">No video</div>`;
+  }
 }
 
 async function reelRunImageGeneration(scenesToGen) {
@@ -2707,9 +2884,10 @@ async function reelRunImageGeneration(scenesToGen) {
       trackCost('gridGen2K', 1);
       reelGenImagesRunning = false;
       if (btnPause) btnPause.style.display = 'none';
-      if (barEl) barEl.style.width = '100%';
       if (labelEl) labelEl.textContent = `Done! ${cells.length} images generated (grid mode — $0.134 vs $${(total * 0.039).toFixed(3)} individual).`;
       if (btnGenImages) btnGenImages.disabled = false;
+      await reelRunAnimation(barEl, labelEl, progressEl);
+      if (barEl) barEl.style.width = '100%';
       return;
     } catch(gridErr) {
       console.error('[Grid] Pro grid failed:', gridErr.message);
@@ -2726,9 +2904,10 @@ async function reelRunImageGeneration(scenesToGen) {
         trackCost('gridGen2K', 1);
         reelGenImagesRunning = false;
         if (btnPause) btnPause.style.display = 'none';
-        if (barEl) barEl.style.width = '100%';
         if (labelEl) labelEl.textContent = `Done! ${fbCells.length} images (3.1 Flash grid — $0.101).`;
         if (btnGenImages) btnGenImages.disabled = false;
+        await reelRunAnimation(barEl, labelEl, progressEl);
+        if (barEl) barEl.style.width = '100%';
         return;
       } catch(fb1Err) {
         console.error('[Grid] 3.1 Flash grid failed:', fb1Err.message);
@@ -2745,9 +2924,10 @@ async function reelRunImageGeneration(scenesToGen) {
           trackCost('imageGen', 1);
           reelGenImagesRunning = false;
           if (btnPause) btnPause.style.display = 'none';
-          if (barEl) barEl.style.width = '100%';
           if (labelEl) labelEl.textContent = `Done! ${fbCells2.length} images (2.5 Flash grid — $0.039).`;
           if (btnGenImages) btnGenImages.disabled = false;
+          await reelRunAnimation(barEl, labelEl, progressEl);
+          if (barEl) barEl.style.width = '100%';
           return;
         } catch(fb2Err) {
           console.error('[Grid] All grid attempts failed, falling back to individual:', fb2Err.message);
@@ -2788,6 +2968,8 @@ async function reelRunImageGeneration(scenesToGen) {
   }
   if (btnGenImages) btnGenImages.disabled = false;
   if (btnContinue) btnContinue.style.display = '';
+
+  await reelRunAnimation(barEl, labelEl, progressEl);
 }
 
 async function reelBuildVariationsAndPreview() {
@@ -3587,6 +3769,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
     const project = {
       version: 1,
       type: 'reel',
+      videoMode: reelVideoMode,
       platform: reelPlatform,
       duration: reelDuration,
       subtitleStyle: reelSubtitleStyle,
@@ -3640,12 +3823,18 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
           segmentIndex: r.segmentIndex,
           settings: r.settings,
           words: r.words,
-          scenes: r.scenes ? r.scenes.map(s => ({
-            startTime: s.startTime, endTime: s.endTime, duration: s.duration,
-            text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
-            prompt: s.prompt, isVideo: s.isVideo,
-            transition: s.transition, transDur: s.transDur, motion: s.motion,
-            segmentIndex: s.segmentIndex,
+          scenes: r.scenes ? await Promise.all(r.scenes.map(async s => {
+            let videoData = null;
+            if (reelVideoMode === 'animated' && s.videoUrl) {
+              try { videoData = await blobToBase64(await fetch(s.videoUrl).then(r => r.blob())); } catch(e) {}
+            }
+            return {
+              startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+              text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+              prompt: s.prompt, isVideo: s.isVideo,
+              transition: s.transition, transDur: s.transDur, motion: s.motion,
+              segmentIndex: s.segmentIndex, videoData,
+            };
           })) : [],
           audioData,
         };
@@ -3949,24 +4138,43 @@ async function exportSingleReel() {
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const done = new Promise(r => { recorder.onstop = r; });
 
-    // Preload scene images
-    const sceneImages = reelScenes.map(s => {
-      if (!s.imgDataUrl) return null;
-      const img = new Image(); img.src = s.imgDataUrl; return img;
-    });
-
-    const timerWorker = new Worker(URL.createObjectURL(new Blob([
-      `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-    ], { type: 'text/javascript' })));
-
-    // For video mode: play video in sync with export
     const isVid = reelScenes && reelScenes.some(s => s.isVideo);
+    const isAnimated = reelVideoMode === 'animated' && reelScenes.some(s => s.videoUrl);
     const activeResult = window._reelMultiResults ? window._reelMultiResults[activeReelPreview] : null;
-    if (isVid && reelVideoEl) {
-      const vidOffset = activeResult ? activeResult.videoStart : 0;
-      reelVideoEl.currentTime = vidOffset;
-      reelVideoEl.muted = true;
-      reelVideoEl.play();
+
+    // Preload scene media — multi-clip animated scenes produce type:'video-clips'
+    const exportMediaEls = await Promise.all(reelScenes.map(async s => {
+      if (isAnimated && (s.videoUrl || (s.videoClips && s.videoClips.length > 0))) {
+        const clips = s.videoClips || [{ url: s.videoUrl, clipDuration: 10 }];
+        const loadedEls = await Promise.all(clips.map(clip => new Promise(res => {
+          const v = document.createElement('video');
+          v.muted = true; v.preload = 'auto'; v.playsInline = true;
+          let done = false;
+          const finish = () => { if (!done) { done = true; res(v); } };
+          v.onerror = () => res(null);
+          v.oncanplay = () => { v.onseeked = () => { v._ready = true; finish(); }; v.currentTime = 0.5; setTimeout(finish, 1200); };
+          v.src = clip.url; v.load();
+          setTimeout(finish, 4000);
+        })));
+        const validEls = loadedEls.filter(Boolean);
+        if (validEls.length === 0) {
+          if (s.imgDataUrl) return new Promise(res => { const i = new Image(); i.onload = () => res({ type: 'image', el: i }); i.onerror = () => res(null); i.src = s.imgDataUrl; });
+          return null;
+        }
+        if (validEls.length === 1) return { type: 'video', el: validEls[0] };
+        return { type: 'video-clips', els: validEls, clips };
+      }
+      if (s.imgDataUrl) {
+        return new Promise(res => { const i = new Image(); i.onload = () => res({ type: 'image', el: i }); i.onerror = () => res(null); i.src = s.imgDataUrl; });
+      }
+      return null;
+    }));
+
+    if (!isAnimated) {
+      if (isVid && reelVideoEl) {
+        const vidOffset = activeResult ? activeResult.videoStart : 0;
+        reelVideoEl.currentTime = vidOffset; reelVideoEl.muted = true; reelVideoEl.play();
+      }
     }
 
     exportLabel.textContent = 'Recording frames...';
@@ -3976,6 +4184,69 @@ async function exportSingleReel() {
     const audioStartedAt = audioCtxRef.currentTime;
     const totalDur = reelAudioBuffer.duration;
     let stopped = false;
+    let _lastExportSceneIdx = -1;
+
+    function _startExportVideoEl(v) {
+      v._ready = false;
+      v.onseeked = () => { v._ready = true; v.play().catch(() => {}); };
+      v.currentTime = 0.5;
+      setTimeout(() => { if (!v._ready) { v._ready = true; v.play().catch(() => {}); } }, 400);
+    }
+
+    function drawExportFrame(elapsed) {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, platform.width, platform.height);
+      if (isAnimated) {
+        let sceneIdx = 0;
+        for (let si = reelScenes.length - 1; si >= 0; si--) { if ((reelScenes[si].startTime || 0) <= elapsed) { sceneIdx = si; break; } }
+        const cur = exportMediaEls[sceneIdx];
+        if (sceneIdx !== _lastExportSceneIdx) {
+          if (_lastExportSceneIdx >= 0) {
+            const prev = exportMediaEls[_lastExportSceneIdx];
+            if (prev?.type === 'video') try { prev.el.pause(); } catch {}
+            else if (prev?.type === 'video-clips') prev.els.forEach(v => { try { v.pause(); } catch {} });
+          }
+          if (cur?.type === 'video') _startExportVideoEl(cur.el);
+          else if (cur?.type === 'video-clips') { cur._activeClipIdx = 0; if (cur.els[0]) _startExportVideoEl(cur.els[0]); }
+          _lastExportSceneIdx = sceneIdx;
+        }
+        if (cur?.type === 'video-clips') {
+          const timeInScene = elapsed - (reelScenes[sceneIdx].startTime || 0);
+          let clipIdx = Math.max(0, cur.clips.length - 1);
+          let cumDur = 0;
+          for (let c = 0; c < cur.clips.length; c++) { if (timeInScene < cumDur + (cur.clips[c].clipDuration || 10)) { clipIdx = c; break; } cumDur += (cur.clips[c].clipDuration || 10); }
+          if (cur._activeClipIdx === undefined) cur._activeClipIdx = 0;
+          if (clipIdx !== cur._activeClipIdx) {
+            const prevV = cur.els[cur._activeClipIdx]; if (prevV) try { prevV.pause(); } catch {}
+            if (cur.els[clipIdx]) _startExportVideoEl(cur.els[clipIdx]);
+            cur._activeClipIdx = clipIdx;
+          }
+          const activeEl = cur.els[cur._activeClipIdx];
+          if (activeEl?.readyState >= 2) try { drawCoverFit(ctx, activeEl, platform.width, platform.height); } catch(e) {}
+        } else if (cur?.type === 'video' && cur.el.readyState >= 2) try { drawCoverFit(ctx, cur.el, platform.width, platform.height); } catch(e) {}
+        else if (cur?.type === 'image' && cur.el.naturalWidth > 0) try { drawCoverFit(ctx, cur.el, platform.width, platform.height); } catch(e) {}
+      } else if (isVid && reelVideoEl) {
+        const vp = activeResult?.settings?.viewport || reelViewport;
+        const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
+        try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
+          try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
+        }
+      } else {
+        try { drawReelSceneFrame(ctx, platform.width, platform.height, elapsed, reelScenes); } catch(e) {}
+      }
+      const rs = activeResult?.settings || {};
+      const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
+      reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
+      reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+      const subStyle = rs.subtitleStyle || reelSubtitleStyle;
+      if (subStyle !== 'none' && reelWords.length > 0) renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
+      reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
+      drawReelFrame(ctx, platform.width, platform.height);
+      drawReelOverlays(ctx, platform.width, platform.height, elapsed);
+    }
+
+    const timerWorker = new Worker(URL.createObjectURL(new Blob([
+      `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
+    ], { type: 'text/javascript' })));
 
     timerWorker.onmessage = () => {
       if (stopped) return;
@@ -3983,38 +4254,13 @@ async function exportSingleReel() {
       const progress = Math.min(elapsed / totalDur, 1);
       exportBar.style.width = (progress * 100).toFixed(1) + '%';
       exportLabel.textContent = `Exporting... ${Math.round(progress * 100)}% (${fmtShort(elapsed)} / ${fmtShort(totalDur)})`;
-
       if (elapsed >= totalDur) {
         stopped = true; timerWorker.postMessage('stop'); timerWorker.terminate(); recorder.stop();
         if (reelVideoEl) { reelVideoEl.pause(); reelVideoEl.muted = true; }
+        if (isAnimated) exportMediaEls.forEach(m => { if (m?.type === 'video') try { m.el.pause(); } catch {} else if (m?.type === 'video-clips') m.els.forEach(v => { try { v.pause(); } catch {} }); });
         return;
       }
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, platform.width, platform.height);
-      if (isVid && reelVideoEl) {
-        const scene = reelScenes.find(s => elapsed >= s.startTime && elapsed < s.endTime);
-        if (scene) {
-          const vp = activeResult?.settings?.viewport || reelViewport;
-          const vpx = activeResult?.settings?.viewportX ?? reelViewportX;
-          try { drawViewportCrop(ctx, reelVideoEl, platform.width, platform.height, vp, vpx); } catch(e) {
-            try { drawCoverFit(ctx, reelVideoEl, platform.width, platform.height); } catch(e2) {}
-          }
-        }
-      } else {
-        try { drawReelSceneFrame(ctx, platform.width, platform.height, elapsed, reelScenes); } catch(e) {}
-      }
-      // Sync per-reel subtitle settings
-      const rs = activeResult?.settings || {};
-      const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
-      reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
-      reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
-      const subStyle = rs.subtitleStyle || reelSubtitleStyle;
-      if (subStyle !== 'none' && reelWords.length > 0) {
-        renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
-      }
-      reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
-      drawReelFrame(ctx, platform.width, platform.height);
-      drawReelOverlays(ctx, platform.width, platform.height, elapsed);
+      drawExportFrame(elapsed);
     };
     timerWorker.postMessage('start');
     await done;
@@ -4301,6 +4547,7 @@ async function loadReelProject(project) {
   reelDuration = project.duration || 60;
   reelSubtitleStyle = project.subtitleStyle || 'highlight';
   reelTransition = project.transition || 'whip-pan';
+  reelVideoMode = project.videoMode || 'illustrated';
   reelSubColor = project.subColor || '#ffffff';
   reelSubOutline = project.subOutline || '#000000';
   reelSubBackdrop = project.subBackdrop || 'dark';
@@ -4443,7 +4690,17 @@ async function loadReelProject(project) {
       }
       const scenes = r.scenes || reelScenes;
       const si = r.segmentIndex ?? ri;
-      for (const s of scenes) { if (s.segmentIndex == null) s.segmentIndex = si; }
+      for (const s of scenes) {
+        if (s.segmentIndex == null) s.segmentIndex = si;
+        if (s.videoData && !s.videoBlobUrl) {
+          try {
+            const b64 = s.videoData.includes(',') ? s.videoData.split(',')[1] : s.videoData;
+            const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: 'video/mp4' });
+            s.videoBlobUrl = URL.createObjectURL(blob);
+          } catch (_) {}
+        }
+      }
       await preloadSceneImages(scenes);
       results.push({
         audioBuffer,
@@ -4526,6 +4783,10 @@ async function loadReelProject(project) {
     reelPendingScenes = allLoadedScenes;
     if (reelStepScenes) reelStepScenes.classList.remove('hidden');
     renderReelSceneGrid(reelPendingScenes);
+    if (reelVideoMode === 'animated' && allLoadedScenes.some(s => s.videoBlobUrl)) {
+      allLoadedScenes.forEach(s => { if (s.videoBlobUrl) s.videoUrl = s.videoBlobUrl; });
+      renderReelVideoCards();
+    }
   }
 
   // Show section 4 (preview)
@@ -4556,3 +4817,48 @@ if (btnBackToReel) btnBackToReel.addEventListener('click', () => {
   const tabsEl = $('editor-reel-tabs');
   if (tabsEl) tabsEl.classList.add('hidden');
 });
+
+// ── Pipeline job handoff (from marketing-pipeline) ──
+function idbRead(key) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('stori_db', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('kv', 'readonly');
+      const get = tx.objectStore('kv').get(key);
+      get.onsuccess = () => resolve(get.result);
+      get.onerror = () => reject(get.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbDelete(key) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('stori_db', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').delete(key);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function checkPipelineJob() {
+  try {
+    const project = await idbRead('stori_pipeline_job');
+    if (!project) return;
+    await idbDelete('stori_pipeline_job');
+    await loadReelProject(project);
+  } catch (e) {
+    console.warn('[Pipeline] Failed to load pipeline job:', e);
+  }
+}
+
+// Run after scripts finish loading
+setTimeout(checkPipelineJob, 500);

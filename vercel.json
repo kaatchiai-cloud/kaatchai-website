@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/kling.js": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/api/kling/:path*", "destination": "/api/kling" }
+  ]
+}

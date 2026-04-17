@@ -338,6 +338,48 @@ function updateCreateButtons() {
   updateCostHints();
 }
 
+// ── Video Mode Selection ──
+function setCreateVideoMode(mode) {
+  createVideoMode = mode;
+  const cardIll = $('create-card-illustrated');
+  const cardAni = $('create-card-animated');
+  if (cardIll) cardIll.classList.toggle('active', mode === 'illustrated');
+  if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
+  const section = $('create-kling-provider-section');
+  if (section) section.style.display = mode === 'animated' ? '' : 'none';
+}
+
+function setReelVideoMode(mode) {
+  reelVideoMode = mode;
+  const cardIll = $('reel-card-illustrated');
+  const cardAni = $('reel-card-animated');
+  if (cardIll) cardIll.classList.toggle('active', mode === 'illustrated');
+  if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
+  const section = $('reel-kling-provider-section');
+  if (section) section.style.display = mode === 'animated' ? '' : 'none';
+}
+
+function saveKlingKey(lsKey, inputId, btn) {
+  const input = $(inputId);
+  if (!input || !input.value.trim()) return;
+  localStorage.setItem(lsKey, input.value.trim());
+  const orig = btn.textContent;
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+// Pre-fill Kling key inputs from localStorage on load
+(function initKlingKeyInputs() {
+  const klingAk = localStorage.getItem('stori_kling_access_key');
+  const klingSk = localStorage.getItem('stori_kling_secret_key');
+  ['create', 'reel'].forEach(prefix => {
+    const ak = $(`${prefix}-kling-ak`);
+    const sk = $(`${prefix}-kling-sk`);
+    if (ak && klingAk) ak.value = klingAk;
+    if (sk && klingSk) sk.value = klingSk;
+  });
+})();
+
 function updateCostHints() {
   const sceneCount = createScenes ? createScenes.length : 0;
   const pendingCount = createScenes ? createScenes.filter(s => s.status !== 'done').length : 0;

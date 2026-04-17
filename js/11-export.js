@@ -79,6 +79,9 @@
 
       setStatus('Exporting video...'); exportProgress.classList.add('visible'); exportBar.style.width = '0%';
 
+      const isAnimatedExport = typeof createVideoMode !== 'undefined' && createVideoMode === 'animated'
+        && videoTimelineItems.length > 0 && videoTimelineItems[0] && videoTimelineItems[0].videoEl;
+
       const { width: exportW, height: exportH } = getSelectedImageSize();
       const canvas = document.createElement('canvas');
       canvas.width = exportW; canvas.height = exportH;
@@ -120,6 +123,19 @@
           `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
         ], { type: 'text/javascript' })));
 
+        // Animated mode: pre-seek and start first clip before recording
+        let exportActiveClipIdx = -1;
+        if (isAnimatedExport) {
+          videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+          const firstClip = videoTimelineItems[0];
+          if (firstClip && firstClip.videoEl) {
+            firstClip.videoEl.currentTime = firstClip.inPoint || 0;
+            await new Promise(r => { firstClip.videoEl.onseeked = () => { firstClip.videoEl.onseeked = null; r(); }; setTimeout(r, 500); });
+            firstClip.videoEl.play().catch(() => {});
+            exportActiveClipIdx = 0;
+          }
+        }
+
         recorder.start(100); audioSource.start();
         if (exportBgmSource) exportBgmSource.start();
         const t0 = performance.now();
@@ -130,7 +146,6 @@
           const elapsed = (performance.now() - t0) / 1000;
           const progress = Math.min(elapsed / currentBuffer.duration, 1);
           exportBar.style.width = (progress * 100).toFixed(1) + '%';
-          // Estimate remaining time
           let etaStr = '';
           if (progress > 0.02 && elapsed > 1) {
             const totalEst = elapsed / progress;
@@ -142,9 +157,34 @@
           const fr = applyFrame(ctx, exportW, exportH);
           if (fr.applied) { ctx.save(); ctx.beginPath(); ctx.rect(fr.x, fr.y, fr.w, fr.h); ctx.clip(); ctx.translate(fr.x, fr.y); }
           const ew = fr.applied ? fr.w : exportW, eh = fr.applied ? fr.h : exportH;
-          const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
-          if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
-          renderBgVideoAfter(ctx, ew, eh, elapsed, sorted, bgM);
+          if (isAnimatedExport) {
+            const newIdx = videoTimelineItems.findIndex(c => elapsed >= c.startTime && elapsed < c.startTime + c.duration);
+            if (newIdx !== exportActiveClipIdx) {
+              if (exportActiveClipIdx >= 0 && videoTimelineItems[exportActiveClipIdx]) videoTimelineItems[exportActiveClipIdx].videoEl.pause();
+              exportActiveClipIdx = newIdx;
+              if (newIdx >= 0) {
+                const nc = videoTimelineItems[newIdx];
+                nc.videoEl.currentTime = nc.inPoint + 0.5;
+                nc.videoEl.onseeked = () => { nc.videoEl.onseeked = null; nc.videoEl.play().catch(() => {}); };
+                setTimeout(() => { nc.videoEl.play().catch(() => {}); }, 400);
+              }
+            }
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, ew, eh);
+            if (newIdx >= 0 && videoTimelineItems[newIdx].videoEl) {
+              const vEl = videoTimelineItems[newIdx].videoEl;
+              const vw = vEl.videoWidth || ew, vh = vEl.videoHeight || eh;
+              if (vw && vh) {
+                const sc = Math.max(ew / vw, eh / vh);
+                const dw = vw * sc, dh = vh * sc;
+                ctx.drawImage(vEl, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
+              }
+            }
+          } else {
+            const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
+            if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
+            renderBgVideoAfter(ctx, ew, eh, elapsed, sorted, bgM);
+          }
           renderPiP(ctx, ew, eh, elapsed);
           renderTextOverlays(ctx, ew, eh, elapsed, sortedTexts);
           if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
@@ -163,6 +203,7 @@
             stopped = true;
             timerWorker.postMessage('stop');
             timerWorker.terminate();
+            if (isAnimatedExport) videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
             recorder.stop();
           }
         };

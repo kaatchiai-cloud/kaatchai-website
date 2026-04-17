@@ -921,11 +921,16 @@ function updateStepStates() {
   showStep('create-generate-step', hasScenes);
   markStep('create-generate-step', allImagesDone, hasScenes && !allImagesDone);
 
-  // Step 7: Multi-Language — after images generated
+  // Step 7: Animated Videos — only in animated mode, after images generated
+  const hasVideos = hasImages && createVideoMode === 'animated' && createScenes.some(s => s.videoUrl);
+  showStep('create-video-step', createVideoMode === 'animated' && hasImages);
+  if (hasVideos) markStep('create-video-step', createScenes.every(s => s.videoUrl || s.status === 'error'), true);
+
+  // Step 8: Multi-Language — after images generated
   showStep('create-language-step', hasImages);
   if (hasImages && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
 
-  // Step 8: Send to Editor — after images generated
+  // Step 9: Send to Editor — after images generated
   showStep('create-send-step', hasImages);
   markStep('create-send-step', false, hasImages);
 
@@ -1011,14 +1016,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{
-              parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment suitable for AI image generation.
-
-${segTexts}
-
-Return ONLY a valid JSON array with no markdown formatting:
-[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition"}]
-
-Important: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+              parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
             }]
           })
         }
@@ -1115,14 +1113,15 @@ STRICT RULES (MUST follow ALL):
 
 VALIDATION: After generating, verify that your segments form a complete chain: 0 → ... → ${createAudioBuffer.duration.toFixed(1)} with no missing time ranges.
 
-For each segment, provide the transcribed text AND a detailed visual scene description suitable for generating an illustration image.
+For each segment, provide the transcribed text AND a vivid visual scene description.${createVideoMode === 'animated' ? ` ANIMATED VIDEO MODE: Each sceneDescription MUST describe cinematic MOTION — start with camera direction (pan left/right, zoom in/out, tracking shot, dolly forward), describe subject action (walking, flowing, emerging, transforming), include environmental motion (wind, flowing water, drifting clouds). One continuous motion per scene, no cuts.` : ` Each sceneDescription should be suitable for AI image generation — vivid, specific, describing subject, style, mood, colors, and composition.`}
 
 Return ONLY a valid JSON array with no markdown formatting, in this exact structure:
-[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description for image generation: subject, style, mood, colors, composition"}]
+[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description"}]
 
-Important: sceneDescription should be a vivid, specific image generation prompt — describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
+Important: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
               ]
             }],
+            generationConfig: { response_mime_type: 'application/json' },
           };
 
       const totalDur = createAudioBuffer.duration;
@@ -1532,7 +1531,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene. Each description should be suitable for AI image generation.\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
+              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nEach description should be suitable for AI image generation.'}\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors, camera direction and motion"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
               generationConfig: { temperature: 0.7 }
             })
           }
@@ -1618,10 +1617,10 @@ ${chapterText}
 For each segment, provide:
 1. startTime and endTime (within ${ch.startTime.toFixed(1)} to ${ch.endTime.toFixed(1)})
 2. The transcript text for that segment
-3. A vivid visual scene description for AI image generation
+3. A vivid visual scene description${createVideoMode === 'animated' ? ` — ANIMATED VIDEO MODE: describe cinematic MOTION (camera direction: pan/zoom/tracking/dolly, subject action: walking/flowing/emerging, environmental motion: wind/water/clouds). One continuous motion, no cuts.` : ' for AI image generation'}
 
 Return a JSON array with EXACTLY ${ch.splits} entries:
-[{"startTime":${ch.startTime.toFixed(1)},"endTime":100.0,"text":"transcript portion","sceneDescription":"detailed visual: subject, composition, mood, colors"}]
+[{"startTime":${ch.startTime.toFixed(1)},"endTime":100.0,"text":"transcript portion","sceneDescription":"detailed visual: subject, composition, mood, colors, camera direction and motion"}]
 
 RULES:
 - EXACTLY ${ch.splits} segments, no more, no less
@@ -1797,7 +1796,7 @@ btnCreateRegeneratePrompts.addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
-            parts: [{ text: `Here is a transcript with timestamps from an audio that is ${createAudioBuffer.duration.toFixed(1)} seconds long:\n\n${transcriptText}\n\nFor each segment, generate a vivid, detailed image generation prompt that visually represents the content being discussed. The prompt should describe a scene with specific details about subject, composition, style, mood, lighting, and colors — suitable for AI image generation.\n\nIMPORTANT: The segments MUST cover the ENTIRE audio duration from 0 to ${createAudioBuffer.duration.toFixed(1)} seconds. The last segment's endTime must be ${createAudioBuffer.duration.toFixed(1)}. Do not skip or shorten any segment.\n\nReturn ONLY a valid JSON array with no markdown:\n[{"startTime": 0, "endTime": 10, "prompt": "detailed image prompt here"}]` }]
+            parts: [{ text: `Here is a transcript with timestamps from an audio that is ${createAudioBuffer.duration.toFixed(1)} seconds long:\n\n${transcriptText}\n\nFor each segment, generate a vivid, detailed prompt that visually represents the content being discussed.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each prompt MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nThe prompt should describe a scene with specific details about subject, composition, style, mood, lighting, and colors — suitable for AI image generation.'}\n\nIMPORTANT: The segments MUST cover the ENTIRE audio duration from 0 to ${createAudioBuffer.duration.toFixed(1)} seconds. The last segment's endTime must be ${createAudioBuffer.duration.toFixed(1)}. Do not skip or shorten any segment.\n\nReturn ONLY a valid JSON array with no markdown:\n[{"startTime": 0, "endTime": 10, "prompt": "detailed prompt here"}]` }]
           }]
         })
       }
@@ -2492,7 +2491,11 @@ if (btnDownloadAllImages) {
 
 // Regenerate single scene (called from onclick)
 window.regenerateScene = async function(idx) {
-  await generateSceneImage(idx);
+  if (createVideoMode === 'animated' && createScenes[idx]?.videoUrl) {
+    await regenSceneImageAndVideo(idx);
+  } else {
+    await generateSceneImage(idx);
+  }
 };
 
 // Update aspect ratios when image size changes
@@ -2717,6 +2720,150 @@ async function runImageGeneration(scenesToGen) {
   btnCreateGenerate.disabled = false;
   updateCreateButtons();
   updateStepStates();
+
+  // Animated mode: run Kling animation after image generation
+  if (createVideoMode === 'animated' && typeof animateScenes === 'function') {
+    const scenesWithImages = createScenes.filter(s => s.imgDataUrl);
+    if (scenesWithImages.length > 0) {
+      const videoBar = $('create-video-bar');
+      const videoLabel = $('create-video-label');
+      const videoProgress = $('create-video-progress');
+      if (videoProgress) videoProgress.classList.add('visible');
+      if (videoBar) videoBar.style.width = '0%';
+      if (videoLabel) videoLabel.textContent = 'Animating scenes…';
+      const videoStep = $('create-video-step');
+      if (videoStep) videoStep.style.display = '';
+      updateStepStates();
+      try {
+        await animateScenes(scenesWithImages, (done, total, label) => {
+          if (videoBar) videoBar.style.width = Math.round((done / total) * 100) + '%';
+          if (videoLabel) videoLabel.textContent = label;
+        }, getCreateGeminiKey());
+        renderCreateVideoCards();
+        if (videoLabel) videoLabel.textContent = `Done! ${scenesWithImages.length} scenes animated.`;
+      } catch (animErr) {
+        if (videoLabel) { videoLabel.textContent = `Animation error: ${animErr.message}`; videoLabel.style.color = '#ef4444'; }
+      }
+      setTimeout(() => { if (videoProgress) videoProgress.classList.remove('visible'); }, 4000);
+      updateStepStates();
+    }
+  }
+}
+
+// ── Animated Video Cards ──
+
+function renderCreateVideoCards() {
+  const grid = $('create-video-grid');
+  if (!grid || !createScenes) return;
+  const { ratio } = getSelectedImageSize();
+  grid.innerHTML = '';
+  createScenes.forEach((scene, idx) => {
+    const card = document.createElement('div');
+    card.className = 'scene-card';
+    card.id = `create-video-card-${idx}`;
+    const hasVideo = !!scene.videoUrl;
+    card.innerHTML = `
+      <div class="scene-card-img" id="create-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111; position:relative;">
+        ${hasVideo
+          ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;padding:6px;text-align:center;">${scene.videoError ? 'Animation failed — click Regen' : (scene.status === 'error' ? 'Image failed — click Regen' : 'No video')}</div>`}
+      </div>
+      <div style="padding:6px 8px;">
+        <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
+          <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
+          <button class="btn-xs" onclick="createVideoPause(${idx})">⏸</button>
+          <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
+          <span id="create-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+        </div>
+        <input type="range" id="create-video-seek-${idx}" min="0" max="1000" value="0"
+          style="width:100%; margin-bottom:4px; cursor:pointer;"
+          oninput="createVideoSeek(${idx}, this.value)">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
+          <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+    if (hasVideo) wireCreateVideoCard(idx);
+  });
+  const regenAllBtn = $('btn-create-regen-all-videos');
+  if (regenAllBtn) {
+    regenAllBtn.onclick = async () => {
+      const failed = createScenes.map((s, i) => i).filter(i => !createScenes[i].videoUrl);
+      for (const idx of failed) await regenSceneImageAndVideo(idx);
+    };
+  }
+}
+
+function wireCreateVideoCard(idx) {
+  const videoEl = $(`create-video-el-${idx}`);
+  const seekEl = $(`create-video-seek-${idx}`);
+  const timeEl = $(`create-video-time-${idx}`);
+  if (!videoEl) return;
+  videoEl.ontimeupdate = () => {
+    if (!videoEl.duration) return;
+    if (seekEl) seekEl.value = Math.round((videoEl.currentTime / videoEl.duration) * 1000);
+    if (timeEl) timeEl.textContent = fmtShort(videoEl.currentTime);
+  };
+}
+
+function createVideoPlay(idx) {
+  const v = $(`create-video-el-${idx}`); if (v) v.play().catch(() => {});
+}
+function createVideoPause(idx) {
+  const v = $(`create-video-el-${idx}`); if (v) v.pause();
+}
+function createVideoStop(idx) {
+  const v = $(`create-video-el-${idx}`); if (v) { v.pause(); v.currentTime = 0; }
+}
+function createVideoSeek(idx, val) {
+  const v = $(`create-video-el-${idx}`); if (v && v.duration) v.currentTime = (val / 1000) * v.duration;
+}
+
+async function regenSceneImageAndVideo(idx) {
+  if (!createScenes) return;
+  const scene = createScenes[idx];
+  scene.videoUrl = null;
+  scene.videoClips = null;
+  updateCreateVideoCard(idx, 'generating');
+  try {
+    await generateSceneImage(idx);
+    if (scene.imgDataUrl && createVideoMode === 'animated' && typeof animateScenes === 'function') {
+      updateCreateVideoCard(idx, 'animating');
+      await animateScenes([scene], (done, total, label) => {
+        updateCreateVideoCard(idx, label);
+      }, getCreateGeminiKey());
+    }
+  } catch (e) {
+    updateCreateVideoCard(idx, 'error');
+    return;
+  }
+  renderCreateVideoCardSingle(idx);
+  autoSaveCreateState();
+}
+
+function updateCreateVideoCard(idx, status) {
+  const imgDiv = $(`create-video-img-${idx}`);
+  if (!imgDiv) return;
+  const { ratio } = getSelectedImageSize();
+  imgDiv.style.aspectRatio = ratio;
+  imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.72rem;padding:8px;text-align:center;">${status}</div>`;
+}
+
+function renderCreateVideoCardSingle(idx) {
+  const card = $(`create-video-card-${idx}`);
+  if (!card) return;
+  const scene = createScenes[idx];
+  const { ratio } = getSelectedImageSize();
+  const hasVideo = !!scene.videoUrl;
+  const imgDiv = $(`create-video-img-${idx}`);
+  if (imgDiv) {
+    imgDiv.style.aspectRatio = ratio;
+    imgDiv.innerHTML = hasVideo
+      ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.75rem;">Failed</div>`;
+    if (hasVideo) wireCreateVideoCard(idx);
+  }
 }
 
 btnCreatePause.addEventListener('click', () => {

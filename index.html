@@ -1011,6 +1011,37 @@ body:has(#drop-zone:not(.hidden)) {
       <button id="btn-create-save-early" class="btn-sm hidden">💾 Save Project</button>
     </div>
 
+    <!-- Step 0: Video Mode Selection -->
+    <div class="create-step" id="create-video-mode-step">
+      <h3><span class="step-num">0</span> Video Mode</h3>
+      <div class="video-mode-cards">
+        <div class="video-mode-card active" id="create-card-illustrated" onclick="setCreateVideoMode('illustrated')">
+          <div class="video-mode-icon">🖼</div>
+          <div class="video-mode-title">Illustrated Video</div>
+          <div class="video-mode-desc">Stylized visual</div>
+          <div class="video-mode-cost">1X token</div>
+        </div>
+        <div class="video-mode-card" id="create-card-animated" onclick="setCreateVideoMode('animated')">
+          <div class="video-mode-icon">🎬</div>
+          <div class="video-mode-title">Animated Video</div>
+          <div class="video-mode-desc">AI generated video</div>
+          <div class="video-mode-cost">16X token</div>
+        </div>
+      </div>
+      <div id="create-kling-provider-section" style="display:none; margin-top:12px;">
+        <div class="form-row">
+          <label class="text-xs text-muted">Access Key:</label>
+          <input type="password" id="create-kling-ak" placeholder="Kling access key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_access_key','create-kling-ak',this)" class="btn-xs">Save</button>
+        </div>
+        <div class="form-row">
+          <label class="text-xs text-muted">Secret Key:</label>
+          <input type="password" id="create-kling-sk" placeholder="Kling secret key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_secret_key','create-kling-sk',this)" class="btn-xs">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
       <h3><span class="step-num">1</span> Input & Template</h3>
@@ -1278,7 +1309,20 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="scene-grid" id="create-scene-grid"></div>
     </div>
 
-    <!-- Step 7: Multi-Language Voiceover (optional) -->
+    <!-- Step 7: Animated Videos (animated mode only) -->
+    <div class="create-step" id="create-video-step" style="display:none;">
+      <h3><span class="step-num">7</span> Animated Videos</h3>
+      <div class="create-row flex-wrap gap-md">
+        <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
+      </div>
+      <div class="create-progress" id="create-video-progress">
+        <div class="bar-bg"><div class="bar-fill" id="create-video-bar"></div></div>
+        <div class="label" id="create-video-label">Animating...</div>
+      </div>
+      <div class="scene-grid" id="create-video-grid"></div>
+    </div>
+
+    <!-- Step 8: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
       <h3><span class="step-num">7</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
       <p class="text-sm text-secondary mb-md">
@@ -1359,6 +1403,37 @@ body:has(#drop-zone:not(.hidden)) {
         </div>
       </div>
       <button id="btn-reel-save-top" class="btn-sm">💾 Save</button>
+    </div>
+
+    <!-- Reel Step 0: Video Mode Selection -->
+    <div class="reel-step" id="reel-video-mode-step">
+      <h3><span class="step-num">0</span> Video Mode</h3>
+      <div class="video-mode-cards">
+        <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
+          <div class="video-mode-icon">🖼</div>
+          <div class="video-mode-title">Illustrated Video</div>
+          <div class="video-mode-desc">AI-generated scene images</div>
+          <div class="video-mode-cost">1X token</div>
+        </div>
+        <div class="video-mode-card" id="reel-card-animated" onclick="setReelVideoMode('animated')">
+          <div class="video-mode-icon">🎬</div>
+          <div class="video-mode-title">Animated Video</div>
+          <div class="video-mode-desc">Images → Kling AI video</div>
+          <div class="video-mode-cost">16X token</div>
+        </div>
+      </div>
+      <div id="reel-kling-provider-section" style="display:none; margin-top:12px;">
+        <div class="form-row">
+          <label class="text-xs text-muted">Access Key:</label>
+          <input type="password" id="reel-kling-ak" placeholder="Kling access key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_access_key','reel-kling-ak',this)" class="btn-xs">Save</button>
+        </div>
+        <div class="form-row">
+          <label class="text-xs text-muted">Secret Key:</label>
+          <input type="password" id="reel-kling-sk" placeholder="Kling secret key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_secret_key','reel-kling-sk',this)" class="btn-xs">Save</button>
+        </div>
+      </div>
     </div>
 
     <!-- Reel Step 1: Input -->
@@ -1485,6 +1560,13 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="form-row mt-md" style="justify-content:center; gap:8px;">
         <button id="btn-reel-retry-images" class="btn-md" style="display:none;">Retry Failed</button>
         <button id="btn-reel-pause-images" class="btn-md" style="display:none;">Pause</button>
+      </div>
+      <div id="reel-video-grid" style="display:none; margin-top:16px;">
+        <h4 style="font-size:0.85rem; margin-bottom:10px;">Animated Videos</h4>
+        <div id="reel-video-grid-inner" class="scene-grid"></div>
+        <div class="form-row mt-md" style="justify-content:center;">
+          <button id="btn-reel-regen-all-videos" class="btn-md" style="display:none;">🔄 Regenerate All Failed</button>
+        </div>
       </div>
       <div id="reel-image-progress" style="display:none;">
         <div class="bar-bg"><div class="bar-fill" id="reel-image-bar"></div></div>
@@ -2143,7 +2225,7 @@ body:has(#drop-zone:not(.hidden)) {
       'js/07-text-renderer.js','js/08-playhead.js','js/10-preview.js','js/11-export.js',
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
-      'js/17d-create-languages.js','js/20-reels-creator.js','js/18-navigation.js'
+      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js'
     ];
     var _v = Date.now();
     var loaded = 0;

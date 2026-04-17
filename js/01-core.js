@@ -155,6 +155,11 @@ const MOTIONS = {
   'pan-down': 'Pan Down',
 };
 
+// ── Video Mode ──
+let createVideoMode = 'illustrated'; // 'illustrated' | 'animated'
+let reelVideoMode   = 'illustrated'; // 'illustrated' | 'animated'
+let klingProvider   = 'runware';     // 'runware' | 'official'
+
 // ── Plan (single tier — stubs kept for compatibility) ──
 function isPro() { return true; }
 function isFree() { return false; }

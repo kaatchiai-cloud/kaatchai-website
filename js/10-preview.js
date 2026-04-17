@@ -42,6 +42,19 @@
     let previewPlaying = false, previewStartedAt = 0, previewPausedAt = 0;
     let previewSorted = [], previewSortedTexts = [], previewSortedSubs = [], previewCtx = null, previewCW = 0, previewCH = 0;
     let previewMode = 'none'; // 'inline' | 'fullscreen' | 'none'
+    let _previewActiveClipIdx = -1;
+
+    function _drawVideoCoverFit(ctx, videoEl, w, h) {
+      const vw = videoEl.videoWidth || w, vh = videoEl.videoHeight || h;
+      if (!vw || !vh) return;
+      const scale = Math.max(w / vw, h / vh);
+      const dw = vw * scale, dh = vh * scale;
+      ctx.drawImage(videoEl, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    }
+
+    function _isAnimatedPreview() {
+      return typeof createVideoMode !== 'undefined' && createVideoMode === 'animated' && videoTimelineItems.length > 0 && videoTimelineItems[0].videoEl;
+    }
 
     // Fullscreen elements
     const previewScrub = $('preview-scrub');
@@ -236,6 +249,19 @@
       previewPlaying = true;
       updatePlayButtons();
 
+      if (_isAnimatedPreview()) {
+        _previewActiveClipIdx = -1;
+        const clipIdx = videoTimelineItems.findIndex(c => fromTime >= c.startTime && fromTime < c.startTime + c.duration);
+        if (clipIdx >= 0) {
+          const clip = videoTimelineItems[clipIdx];
+          const posInClip = clip.inPoint + (fromTime - clip.startTime);
+          clip.videoEl.currentTime = Math.max(clip.inPoint, posInClip);
+          clip.videoEl.onseeked = () => { clip.videoEl.onseeked = null; clip.videoEl.play().catch(() => {}); };
+          setTimeout(() => { clip.videoEl.play().catch(() => {}); }, 400);
+          _previewActiveClipIdx = clipIdx;
+        }
+      }
+
       if (previewAnimId) cancelAnimationFrame(previewAnimId);
       previewAnimId = requestAnimationFrame(previewDraw);
     }
@@ -252,9 +278,26 @@
         const fr1 = applyFrame(previewCtx, previewCW, previewCH);
         if (fr1.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr1.x, fr1.y, fr1.w, fr1.h); previewCtx.clip(); previewCtx.translate(fr1.x, fr1.y); }
         const cw1 = fr1.applied ? fr1.w : previewCW, ch1 = fr1.applied ? fr1.h : previewCH;
-        const bgM1 = renderBgVideoBefore(previewCtx, cw1, ch1, elapsed, previewSorted);
-        if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, cw1, ch1, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, cw1, ch1, elapsed, previewSorted, bgM1);
+        if (_isAnimatedPreview()) {
+          const newIdx1 = videoTimelineItems.findIndex(c => elapsed >= c.startTime && elapsed < c.startTime + c.duration);
+          if (newIdx1 !== _previewActiveClipIdx) {
+            if (_previewActiveClipIdx >= 0 && videoTimelineItems[_previewActiveClipIdx]) videoTimelineItems[_previewActiveClipIdx].videoEl.pause();
+            _previewActiveClipIdx = newIdx1;
+            if (newIdx1 >= 0) {
+              const nc1 = videoTimelineItems[newIdx1];
+              nc1.videoEl.currentTime = nc1.inPoint + 0.5;
+              nc1.videoEl.onseeked = () => { nc1.videoEl.onseeked = null; if (previewPlaying) nc1.videoEl.play().catch(() => {}); };
+              setTimeout(() => { if (previewPlaying) nc1.videoEl.play().catch(() => {}); }, 400);
+            }
+          }
+          previewCtx.fillStyle = '#000';
+          previewCtx.fillRect(0, 0, cw1, ch1);
+          if (newIdx1 >= 0) _drawVideoCoverFit(previewCtx, videoTimelineItems[newIdx1].videoEl, cw1, ch1);
+        } else {
+          const bgM1 = renderBgVideoBefore(previewCtx, cw1, ch1, elapsed, previewSorted);
+          if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, cw1, ch1, elapsed, previewSorted);
+          renderBgVideoAfter(previewCtx, cw1, ch1, elapsed, previewSorted, bgM1);
+        }
         renderPiP(previewCtx, cw1, ch1, elapsed);
         renderTextOverlays(previewCtx, cw1, ch1, elapsed, previewSortedTexts);
         _renderReelOrStdSubs(previewCtx, cw1, ch1, elapsed, previewSortedSubs);
@@ -266,9 +309,26 @@
         const fr2 = applyFrame(previewCtx, previewCW, previewCH);
         if (fr2.applied) { previewCtx.save(); previewCtx.beginPath(); previewCtx.rect(fr2.x, fr2.y, fr2.w, fr2.h); previewCtx.clip(); previewCtx.translate(fr2.x, fr2.y); }
         const cw2 = fr2.applied ? fr2.w : previewCW, ch2 = fr2.applied ? fr2.h : previewCH;
-        const bgM2 = renderBgVideoBefore(previewCtx, cw2, ch2, elapsed, previewSorted);
-        if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, cw2, ch2, elapsed, previewSorted);
-        renderBgVideoAfter(previewCtx, cw2, ch2, elapsed, previewSorted, bgM2);
+        if (_isAnimatedPreview()) {
+          const newIdx2 = videoTimelineItems.findIndex(c => elapsed >= c.startTime && elapsed < c.startTime + c.duration);
+          if (newIdx2 !== _previewActiveClipIdx) {
+            if (_previewActiveClipIdx >= 0 && videoTimelineItems[_previewActiveClipIdx]) videoTimelineItems[_previewActiveClipIdx].videoEl.pause();
+            _previewActiveClipIdx = newIdx2;
+            if (newIdx2 >= 0) {
+              const nc2 = videoTimelineItems[newIdx2];
+              nc2.videoEl.currentTime = nc2.inPoint + 0.5;
+              nc2.videoEl.onseeked = () => { nc2.videoEl.onseeked = null; if (previewPlaying) nc2.videoEl.play().catch(() => {}); };
+              setTimeout(() => { if (previewPlaying) nc2.videoEl.play().catch(() => {}); }, 400);
+            }
+          }
+          previewCtx.fillStyle = '#000';
+          previewCtx.fillRect(0, 0, cw2, ch2);
+          if (newIdx2 >= 0) _drawVideoCoverFit(previewCtx, videoTimelineItems[newIdx2].videoEl, cw2, ch2);
+        } else {
+          const bgM2 = renderBgVideoBefore(previewCtx, cw2, ch2, elapsed, previewSorted);
+          if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, cw2, ch2, elapsed, previewSorted);
+          renderBgVideoAfter(previewCtx, cw2, ch2, elapsed, previewSorted, bgM2);
+        }
         renderPiP(previewCtx, cw2, ch2, elapsed);
         renderTextOverlays(previewCtx, cw2, ch2, elapsed, previewSortedTexts);
         _renderReelOrStdSubs(previewCtx, cw2, ch2, elapsed, previewSortedSubs);
@@ -338,6 +398,10 @@
       previewPlaying = false;
       if (previewAnimId) { cancelAnimationFrame(previewAnimId); previewAnimId = null; }
       stopPreviewAudio();
+      if (_isAnimatedPreview()) {
+        videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+        _previewActiveClipIdx = -1;
+      }
       updatePlayButtons();
     }
 

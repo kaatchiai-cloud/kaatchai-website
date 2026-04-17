@@ -558,7 +558,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   selectedPhotoIds.clear();
   selectedTextIds.clear();
 
-  // Add generated images to photo timeline
+  // Add generated images/videos to timeline
   for (const scene of createScenes) {
     if (!scene.imgDataUrl) continue;
     const img = new Image();
@@ -567,16 +567,39 @@ btnCreateSendEditor.addEventListener('click', async () => {
       img.onerror = reject;
       img.src = scene.imgDataUrl;
     });
-    photoItems.push({
-      id: nextPhotoId++,
-      imgSrc: scene.imgDataUrl,
-      imgEl: img,
-      startTime: scene.startTime,
-      duration: scene.duration,
-      transition: 'fade',
-      transDur: 0.5,
-      motion: 'ken-burns',
-    });
+    if (createVideoMode === 'animated' && (scene.videoUrl || (scene.videoClips && scene.videoClips.length > 0))) {
+      const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.duration }];
+      let clipStart = scene.startTime;
+      for (let ci = 0; ci < clips.length; ci++) {
+        const clip = clips[ci];
+        const remaining = scene.startTime + scene.duration - clipStart;
+        if (remaining <= 0) break;
+        const showDur = Math.min(clip.clipDuration || scene.duration, remaining);
+        const videoEl = document.createElement('video');
+        videoEl.src = clip.url;
+        videoEl.muted = true;
+        videoTimelineItems.push({
+          id: nextVideoTimelineId++,
+          videoEl, videoSrc: clip.url,
+          videoDuration: clip.clipDuration || scene.duration,
+          inPoint: 0, outPoint: showDur,
+          startTime: clipStart, duration: showDur,
+          imgSrc: scene.imgDataUrl, imgEl: img,
+        });
+        clipStart += clip.clipDuration || scene.duration;
+      }
+    } else {
+      photoItems.push({
+        id: nextPhotoId++,
+        imgSrc: scene.imgDataUrl,
+        imgEl: img,
+        startTime: scene.startTime,
+        duration: scene.duration,
+        transition: 'fade',
+        transDur: 0.5,
+        motion: 'ken-burns',
+      });
+    }
   }
 
   // Transfer pre-generated subtitles from Step 8 selections

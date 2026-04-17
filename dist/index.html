@@ -1902,6 +1902,37 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <button id="btn-create-save-early" class="ml-auto btn-sm hidden">💾 Save Project</button>
     </div>
 
+    <!-- Step 0: Video Mode Selection -->
+    <div class="create-step" id="create-video-mode-step">
+      <h3><span class="step-num">0</span> Video Mode</h3>
+      <div class="video-mode-cards">
+        <div class="video-mode-card active" id="create-card-illustrated" onclick="setCreateVideoMode('illustrated')">
+          <div class="video-mode-icon">🖼</div>
+          <div class="video-mode-title">Illustrated Video</div>
+          <div class="video-mode-desc">Stylized visual</div>
+          <div class="video-mode-cost">1X token</div>
+        </div>
+        <div class="video-mode-card" id="create-card-animated" onclick="setCreateVideoMode('animated')">
+          <div class="video-mode-icon">🎬</div>
+          <div class="video-mode-title">Animated Video</div>
+          <div class="video-mode-desc">AI generated video</div>
+          <div class="video-mode-cost">16X token</div>
+        </div>
+      </div>
+      <div id="create-kling-provider-section" style="display:none; margin-top:12px;">
+        <div class="form-row">
+          <label class="text-xs text-muted">Access Key:</label>
+          <input type="password" id="create-kling-ak" placeholder="Kling access key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_access_key','create-kling-ak',this)" class="btn-xs">Save</button>
+        </div>
+        <div class="form-row">
+          <label class="text-xs text-muted">Secret Key:</label>
+          <input type="password" id="create-kling-sk" placeholder="Kling secret key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_secret_key','create-kling-sk',this)" class="btn-xs">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Step 1: API Key -->
     <div class="create-step">
       <h3><span class="step-num">1</span> Gemini API Key</h3>
@@ -2215,7 +2246,20 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <div class="scene-grid" id="create-scene-grid"></div>
     </div>
 
-    <!-- Step 7: Multi-Language Voiceover (optional) -->
+    <!-- Step 7: Animated Videos (animated mode only) -->
+    <div class="create-step" id="create-video-step" class="hidden">
+      <h3><span class="step-num">7</span> Animated Videos</h3>
+      <div class="create-row flex-wrap gap-md">
+        <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
+      </div>
+      <div class="create-progress" id="create-video-progress">
+        <div class="bar-bg"><div class="bar-fill" id="create-video-bar"></div></div>
+        <div class="label" id="create-video-label">Animating...</div>
+      </div>
+      <div class="scene-grid" id="create-video-grid"></div>
+    </div>
+
+    <!-- Step 8: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" class="hidden">
       <h3><span class="step-num">9</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
       <p class="text-sm text-secondary mb-md">
@@ -2286,6 +2330,37 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <button id="btn-reel-back" class="btn-sm">← Back</button>
       <h2>🎬 Create Reel/Short</h2>
       <button id="btn-reel-save-top" class="btn-sm" style="position:absolute; right:0; top:50%; transform:translateY(-50%);">💾 Save</button>
+    </div>
+
+    <!-- Reel Step 0: Video Mode Selection -->
+    <div class="reel-step" id="reel-video-mode-step">
+      <h3><span class="step-num">0</span> Video Mode</h3>
+      <div class="video-mode-cards">
+        <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
+          <div class="video-mode-icon">🖼</div>
+          <div class="video-mode-title">Illustrated Video</div>
+          <div class="video-mode-desc">AI-generated scene images</div>
+          <div class="video-mode-cost">1X token</div>
+        </div>
+        <div class="video-mode-card" id="reel-card-animated" onclick="setReelVideoMode('animated')">
+          <div class="video-mode-icon">🎬</div>
+          <div class="video-mode-title">Animated Video</div>
+          <div class="video-mode-desc">Images → Kling AI video</div>
+          <div class="video-mode-cost">16X token</div>
+        </div>
+      </div>
+      <div id="reel-kling-provider-section" style="display:none; margin-top:12px;">
+        <div class="form-row">
+          <label class="text-xs text-muted">Access Key:</label>
+          <input type="password" id="reel-kling-ak" placeholder="Kling access key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_access_key','reel-kling-ak',this)" class="btn-xs">Save</button>
+        </div>
+        <div class="form-row">
+          <label class="text-xs text-muted">Secret Key:</label>
+          <input type="password" id="reel-kling-sk" placeholder="Kling secret key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <button onclick="saveKlingKey('stori_kling_secret_key','reel-kling-sk',this)" class="btn-xs">Save</button>
+        </div>
+      </div>
     </div>
 
     <!-- Reel API Key -->
@@ -2436,6 +2511,13 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
         <span id="reel-image-label" class="text-xs text-muted"></span>
       </div>
       <button id="btn-reel-scenes-continue" class="primary btn-md mt-md" style="display:none;">Continue to Preview</button>
+      <div id="reel-video-grid" style="display:none; margin-top:16px;">
+        <h4 style="font-size:0.85rem; margin-bottom:10px;">Animated Videos</h4>
+        <div id="reel-video-grid-inner" class="scene-grid"></div>
+        <div class="form-row mt-md" style="justify-content:center;">
+          <button id="btn-reel-regen-all-videos" class="btn-md" style="display:none;">🔄 Regenerate All Failed</button>
+        </div>
+      </div>
     </div>
 
     <!-- Reel Step 4: Mini Editor + Preview -->
@@ -3156,7 +3238,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       'js/07-text-renderer.js','js/08-playhead.js','js/10-preview.js','js/11-export.js',
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
-      'js/17d-create-languages.js','js/20-reels-creator.js','js/18-navigation.js'
+      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js'
     ];
     var loaded = 0;
     for (var i = 0; i < scripts.length; i++) {
@@ -10267,64 +10349,65 @@ function updateStepStates() {
   const hasScenes = createScenes && createScenes.length > 0;
   const hasImages = hasScenes && createScenes.some(s => s.imgDataUrl);
 
-  // steps[0] = Step 1: API Key
-  steps[0].classList.toggle('step-done', hasKey);
-  // steps[1] = Step 2: Input (Voice/Text)
-  steps[1].classList.toggle('step-done', hasAudio);
-  // steps[2] = Step 3: Output Size (no state tracking)
-  // steps[3] = Step 4: Transcribe / Storyboard generation
-  if (steps[3]) {
-    steps[3].classList.toggle('step-done', hasTranscript);
-    steps[3].classList.toggle('step-active', hasKey && hasAudio && !hasTranscript);
+  // steps[0] = Step 0: Video Mode (always visible, no state)
+  // steps[1] = Step 1: API Key
+  if (steps[1]) steps[1].classList.toggle('step-done', hasKey);
+  // steps[2] = Step 2: Input (Voice/Text)
+  if (steps[2]) steps[2].classList.toggle('step-done', hasAudio);
+  // steps[3] = Step 3: Output Size (no state tracking)
+  // steps[4] = Step 4: Transcribe / Storyboard generation
+  if (steps[4]) {
+    steps[4].classList.toggle('step-done', hasTranscript);
+    steps[4].classList.toggle('step-active', hasKey && hasAudio && !hasTranscript);
   }
   const hasChapters = createChapters && createChapters.length > 0;
   const isPodcast = createInputMode === 'podcast';
 
-  // steps[4] = Step 5: Chapter Splitting (podcast only)
-  if (steps[4]) {
+  // steps[5] = Step 5: Chapter Splitting (podcast only)
+  if (steps[5]) {
     if (isPodcast) {
-      steps[4].classList.toggle('step-done', hasChapters);
-      steps[4].classList.toggle('step-active', hasTranscript && !hasChapters);
+      steps[5].classList.toggle('step-done', hasChapters);
+      steps[5].classList.toggle('step-active', hasTranscript && !hasChapters);
     } else {
-      steps[4].style.display = 'none';
+      steps[5].style.display = 'none';
     }
   }
-  // steps[5] = Step 6: Storyboard
-  if (steps[5]) {
-    steps[5].classList.toggle('step-done', hasScenes);
-    steps[5].classList.toggle('step-active', hasTranscript && !hasScenes);
-  }
-  // steps[6] = Step 7: Visual References (optional, shown after scenes exist)
+  // steps[6] = Step 6: Storyboard
   if (steps[6]) {
+    steps[6].classList.toggle('step-done', hasScenes);
+    steps[6].classList.toggle('step-active', hasTranscript && !hasScenes);
+  }
+  // steps[7] = Step 7: Visual References (optional, shown after scenes exist)
+  if (steps[7]) {
     if (hasScenes) {
-      steps[6].style.display = '';
+      steps[7].style.display = '';
       renderSceneAssignments();
     } else {
-      steps[6].style.display = 'none';
+      steps[7].style.display = 'none';
     }
   }
-  // steps[7] = Step 8: Generate Images
+  // steps[8] = Step 8: Generate Images
   const allImagesDone = hasImages && createScenes.every(s => s.status === 'done');
-  if (steps[7]) {
-    steps[7].classList.toggle('step-done', allImagesDone);
-    steps[7].classList.toggle('step-active', hasScenes && !allImagesDone);
-  }
-  // steps[8] = Step 9: Multi-Language (Pro only, unlocked after images)
   if (steps[8]) {
+    steps[8].classList.toggle('step-done', allImagesDone);
+    steps[8].classList.toggle('step-active', hasScenes && !allImagesDone);
+  }
+  // steps[9] = Step 9: Multi-Language (Pro only, unlocked after images)
+  if (steps[9]) {
     if (hasImages && isPro()) {
-      steps[8].style.display = '';
+      steps[9].style.display = '';
       renderPrimaryAudioCard();
-      steps[8].classList.toggle('step-active', true);
+      steps[9].classList.toggle('step-active', true);
     } else {
-      steps[8].style.display = 'none';
+      steps[9].style.display = 'none';
     }
   }
-  // steps[9] = Step 10: Send to Editor
-  if (steps[9]) {
+  // steps[10] = Step 10: Send to Editor
+  if (steps[10]) {
     if (hasImages) {
-      steps[9].style.display = '';
+      steps[10].style.display = '';
     }
-    steps[9].classList.toggle('step-active', hasImages);
+    steps[10].classList.toggle('step-active', hasImages);
   }
 }
 
