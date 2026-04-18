@@ -628,8 +628,8 @@ body:has(#drop-zone:not(.hidden)) {
           <h1 class="lp-h1">Turn Your Voice into<br><span class="lp-gradient">Illustrated Videos</span></h1>
           <p class="lp-hero-sub">Your voice becomes illustrated video. Kaatchi's cinematic AI generates unique visuals for every scene — no stock footage, no design skills needed. Just authentic storytelling.</p>
           <div class="lp-hero-ctas">
-            <button id="btn-create-content" class="lp-btn-primary">✨ Create a Story</button>
-            <button id="btn-create-reel" class="lp-btn-glass">🎬 Create Reel</button>
+            <button id="btn-create-content" class="lp-btn-primary">🤖 Copilot — Long Video</button>
+            <button id="btn-create-reel" class="lp-btn-glass">⚡ Autopilot — Short Reel</button>
           </div>
           <div class="lp-hero-extras">
             <button id="btn-new-project" class="lp-btn-extra">✏️ Edit Content</button>
@@ -997,7 +997,7 @@ body:has(#drop-zone:not(.hidden)) {
   <div id="create-page">
     <div class="create-header">
       <button id="btn-create-back" class="btn-md">← Back</button>
-      <h2>✨ Create Content</h2>
+      <h2>🤖 Copilot — Long Video</h2>
       <div class="create-api-bar">
         <span id="key-status-inline" class="text-xs text-muted">🔑 No key</span>
         <button id="btn-toggle-key-input" class="btn-xs">Change Key</button>
@@ -1010,6 +1010,15 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
       <button id="btn-create-save-early" class="btn-sm hidden">💾 Save Project</button>
     </div>
+
+    <!-- Agent UI: side panel + scrollable workflow -->
+    <div id="create-body">
+      <div id="create-agent-panel">
+        <div class="agent-panel-label">AI Agents</div>
+        <div class="agent-panel-mode-badge" id="create-agent-mode-badge">Copilot</div>
+        <div class="agent-list" id="create-agent-list"></div>
+      </div>
+      <div id="create-workflow">
 
     <!-- Step 0: Video Mode Selection -->
     <div class="create-step" id="create-video-mode-step">
@@ -1044,6 +1053,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
+      <div class="agent-step-header"><span class="agent-step-icon">📝</span><span class="agent-step-name">Script Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">1</span> Input & Template</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
@@ -1201,23 +1211,31 @@ body:has(#drop-zone:not(.hidden)) {
           </select>
         </label>
       </div>
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.8rem; color:var(--text-muted);" id="create-script-launch-hint">Import audio to begin</span>
+        <button id="btn-create-transcribe" class="agent-launch-btn" disabled>▶ Script, Storyboard & Prompt Agent</button>
+      </div>
     </div>
 
-    <!-- Step 2: Transcribe -->
+    <!-- Step 2: Storyboard & Prompt Agent (results view — triggered from Script Agent) -->
     <div class="create-step" id="create-transcribe-step" style="display:none;">
-      <h3><span class="step-num">2</span> Transcribe Audio</h3>
-      <div class="create-row">
-        <button id="btn-create-transcribe" class="primary btn-md" disabled>🎤 Transcribe with Gemini</button>
-      </div>
-      <div class="create-progress" id="create-transcribe-progress">
-        <div class="bar-bg"><div class="bar-fill" id="create-transcribe-bar"></div></div>
-        <div class="label" id="create-transcribe-label">Processing...</div>
-      </div>
+      <div class="agent-step-header"><span class="agent-step-icon">🎨</span><span class="agent-step-name">Storyboard & Prompt Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">2</span> Storyboard & Image Prompts</h3>
       <div class="create-transcript" id="create-transcript-output"></div>
+      <div id="create-storyboard-grid" class="storyboard-grid" style="margin-top:12px;"></div>
+      <div class="form-row mt-lg" id="create-storyboard-regen-row" style="display:none;">
+        <button id="btn-create-regenerate-prompts" class="btn-sm">🔄 Regenerate All Prompts</button>
+        <span class="text-sm text-muted">Edit any prompt before generating images →</span>
+      </div>
+      <div class="agent-launch-row" id="create-launch-after-storyboard">
+        <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
+        <button class="agent-launch-btn" onclick="launchImageAgent()">Launch Image Agent →</button>
+      </div>
     </div>
 
     <!-- Step 3: Chapter Splitting (Podcast only) -->
     <div class="create-step hidden" id="create-chapter-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">📑</span><span class="agent-step-name">Chapter Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">3</span> Chapter Splitting</h3>
       <p class="text-sm text-secondary mb-md">
         Split your podcast into chapters. Each chapter will get its own set of images in the storyboard.
@@ -1243,21 +1261,9 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- Step 4: Storyboard — Review & Edit Prompts -->
-    <div class="create-step" id="create-storyboard-step" style="display:none;">
-      <h3><span class="step-num">4</span> Storyboard — Image Prompts</h3>
-      <p class="text-sm text-secondary mb-md">
-        Review the AI-generated scene prompts below. Each prompt corresponds to a segment of your audio and will determine the image placed at that time on the photo timeline. Edit any prompt before generating images.
-      </p>
-      <div id="create-storyboard-grid" class="storyboard-grid"></div>
-      <div class="form-row mt-lg">
-        <button id="btn-create-regenerate-prompts" class="btn-sm">🔄 Regenerate All Prompts</button>
-        <span class="text-sm text-muted">Happy with prompts? Proceed to next step →</span>
-      </div>
-    </div>
-
-    <!-- Step 5: Visual References (optional) -->
+    <!-- Step 4: Visual References (optional) -->
     <div class="create-step" id="create-references-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">🔗</span><span class="agent-step-name">Reference Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">5</span> Visual References <span class="text-xs text-muted">(optional)</span></h3>
       <p class="text-sm text-secondary mb-md">
         Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
@@ -1295,9 +1301,9 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 6: Generate Images -->
     <div class="create-step" id="create-generate-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">🖼️</span><span class="agent-step-name">Image Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">6</span> Generate Scene Images</h3>
       <div class="create-row flex-wrap gap-md">
-        <button id="btn-create-generate" class="primary btn-md">🖼 Generate All Images</button>
         <button id="btn-create-pause" class="btn-xs hidden">⏸ Pause</button>
         <button id="btn-create-retry-failed" class="danger btn-xs hidden">🔄 Retry Failed</button>
         <button id="btn-download-all-images" class="btn-xs hidden">📥 Download All Images</button>
@@ -1307,10 +1313,35 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="label" id="create-generate-label">Generating...</div>
       </div>
       <div class="scene-grid" id="create-scene-grid"></div>
+      <div class="agent-launch-row" id="create-launch-after-image">
+        <span class="agent-launch-summary" id="create-launch-image-summary"></span>
+        <button class="agent-launch-btn" id="create-launch-image-btn" onclick="document.getElementById('create-bgm-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch BGM Agent →</button>
+      </div>
     </div>
 
-    <!-- Step 7: Animated Videos (animated mode only) -->
+    <!-- Step 7: BGM (auto-generated with Lyria 3) -->
+    <div class="create-step" id="create-bgm-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">7</span> Background Music</h3>
+      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
+      <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
+      <div id="create-bgm-player" style="display:none; margin-top:12px;">
+        <audio id="create-bgm-audio" controls loop style="width:100%; max-width:420px;"></audio>
+        <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <label class="form-label" style="margin:0;">Vol:</label>
+          <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
+          <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
+        </div>
+      </div>
+      <div class="agent-launch-row" id="create-launch-after-bgm">
+        <span class="agent-launch-summary" id="create-launch-bgm-summary">BGM ready</span>
+        <button class="agent-launch-btn" id="create-launch-bgm-btn" onclick="document.getElementById('create-video-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch Animation Agent →</button>
+      </div>
+    </div>
+
+    <!-- Step 8: Animated Videos (animated mode only) -->
     <div class="create-step" id="create-video-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">✨</span><span class="agent-step-name">Animation Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">7</span> Animated Videos</h3>
       <div class="create-row flex-wrap gap-md">
         <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
@@ -1320,10 +1351,15 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="label" id="create-video-label">Animating...</div>
       </div>
       <div class="scene-grid" id="create-video-grid"></div>
+      <div class="agent-launch-row" id="create-launch-after-animation">
+        <span class="agent-launch-summary" id="create-launch-animation-summary"></span>
+        <button class="agent-launch-btn" onclick="document.getElementById('create-language-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch Voiceover Agent →</button>
+      </div>
     </div>
 
     <!-- Step 8: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">🌐</span><span class="agent-step-name">Voiceover Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">7</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
       <p class="text-sm text-secondary mb-md">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
@@ -1385,13 +1421,16 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
       </div>
     </div>
+
+      </div><!-- /#create-workflow -->
+    </div><!-- /#create-body -->
   </div>
 
   <!-- ═══ Reel/Short Creator ═══ -->
   <div id="reel-page">
     <div class="reel-header">
       <button id="btn-reel-back" class="btn-sm">← Back</button>
-      <h2>🎬 Create Reel/Short</h2>
+      <h2>⚡ Autopilot — Short Reel</h2>
       <div class="create-api-bar">
         <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
         <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
@@ -1404,6 +1443,15 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
       <button id="btn-reel-save-top" class="btn-sm">💾 Save</button>
     </div>
+
+    <!-- Agent UI: side panel + scrollable workflow -->
+    <div id="reel-body">
+      <div id="reel-agent-panel">
+        <div class="agent-panel-label">AI Agents</div>
+        <div class="agent-panel-mode-badge" id="reel-agent-mode-badge">Autopilot</div>
+        <div class="agent-list" id="reel-agent-list"></div>
+      </div>
+      <div id="reel-workflow">
 
     <!-- Reel Step 0: Video Mode Selection -->
     <div class="reel-step" id="reel-video-mode-step">
@@ -1438,6 +1486,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 1: Input -->
     <div class="reel-step" id="reel-step-input">
+      <div class="agent-step-header"><span class="agent-step-icon">📝</span><span class="agent-step-name">Script Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">1</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
@@ -1500,6 +1549,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 3: Presets (shown after input is ready) -->
     <div class="reel-step hidden" id="reel-step-presets">
+      <div class="agent-step-header"><span class="agent-step-icon">🎨</span><span class="agent-step-name">Storyboard Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">2</span> Presets</h3>
       <div id="reel-preset-segments" class="mb-md"></div>
       <div id="reel-edit-mode-row" class="form-row mb-md hidden">
@@ -1544,7 +1594,7 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
 
       <div class="form-row mt-md" style="align-items:center; gap:8px;">
-        <button id="btn-reel-generate" class="primary btn-md">Generate <span id="reel-btn-count">(1)</span> Reel<span id="reel-btn-suffix"></span></button>
+        <button id="btn-reel-generate" class="primary btn-md">🚀 Launch Agents →</button>
         <span id="reel-generate-status" class="text-sm text-muted"></span>
       </div>
       <div class="create-progress hidden" id="reel-progress">
@@ -1555,6 +1605,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 3.5: Scene Images (audio/text mode only) -->
     <div class="reel-step hidden" id="reel-step-scenes">
+      <div class="agent-step-header"><span class="agent-step-icon">🖼️</span><span class="agent-step-name">Image Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">3</span> Scene Images</h3>
       <div id="reel-scene-grid"></div>
       <div class="form-row mt-md" style="justify-content:center; gap:8px;">
@@ -1574,8 +1625,26 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
+    <!-- Reel Step BGM: Auto-generated with Lyria 3 -->
+    <div class="reel-step hidden" id="reel-step-bgm">
+      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">4</span> Background Music</h3>
+      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your reel content.</p>
+      <div id="reel-bgm-status" class="text-sm text-muted" style="display:none;"></div>
+      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
+        <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
+        <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
+          <label class="form-label" style="margin:0;">Vol:</label>
+          <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="50" style="width:80px;">
+          <span id="reel-bgm-vol-label" class="text-sm text-muted">50%</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Reel Step 4: Mini Editor + Preview -->
     <div class="reel-step hidden" id="reel-step-editor">
+      <div class="agent-step-header"><span class="agent-step-icon">▶️</span><span class="agent-step-name">Preview Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">4</span> Preview & Edit</h3>
       <div class="reel-editor-vertical">
         <div id="reel-previews-container" style="display:none; width:100%;"></div>
@@ -1598,6 +1667,9 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
       </div>
     </div>
+
+      </div><!-- /#reel-workflow -->
+    </div><!-- /#reel-body -->
   </div>
 
   <div id="editor">

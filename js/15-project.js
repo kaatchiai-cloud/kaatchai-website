@@ -976,6 +976,7 @@ projectInput.addEventListener('change', async () => {
         if (videoStep) videoStep.style.display = '';
         if (typeof renderCreateVideoCards === 'function') renderCreateVideoCards();
       }
+      // Agent panel will be inferred when user navigates back to create page
     } else {
       cameFromCreate = false;
       btnBackToCreate.style.display = 'none';

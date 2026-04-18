@@ -390,6 +390,7 @@ btnGenerateLanguages.addEventListener('click', async () => {
   btnGenerateLanguages.disabled = true;
   langGenerating = true;
   updateCreateButtons();
+  if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', `Generating ${selectedLangs.length} language${selectedLangs.length > 1 ? 's' : ''}…`);
   const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
 
   // Capture voice selections BEFORE re-rendering cards
@@ -515,9 +516,11 @@ btnGenerateLanguages.addEventListener('click', async () => {
   if (failedCount > 0) {
     languageStatus.textContent = `${doneTracks.length} track(s) ready · ${failedCount} failed`;
     languageStatus.style.color = '#f59e0b';
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', failedCount === selectedLangs.length ? 'error' : 'done', `${doneTracks.length} ready · ${failedCount} failed`);
   } else {
     languageStatus.textContent = `${doneTracks.length} language track(s) ready`;
     languageStatus.style.color = '#10b981';
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'done', `${doneTracks.length} track${doneTracks.length > 1 ? 's' : ''} ready`);
   }
 });
 
@@ -1082,6 +1085,7 @@ btnBackToCreate.addEventListener('click', () => {
 
   updateCreateButtons();
   updateStepStates();
+  if (typeof inferCreateAgentStates === 'function') inferCreateAgentStates();
 });
 
 // Create Story subtitle preset handler

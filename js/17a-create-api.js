@@ -20,7 +20,6 @@ const createStoryboardGrid = $('create-storyboard-grid');
 const btnCreateRegeneratePrompts = $('btn-create-regenerate-prompts');
 const createGenerateStep = $('create-generate-step');
 const createImageSize = $('create-image-size');
-const btnCreateGenerate = $('btn-create-generate');
 const createGenerateProgress = $('create-generate-progress');
 const createGenerateBar = $('create-generate-bar');
 const createGenerateLabel = $('create-generate-label');
@@ -264,6 +263,7 @@ btnCreateContent.addEventListener('click', () => {
   updateCreateButtons();
   updateStepStates();
   initTemplateUI();
+  inferCreateAgentStates();
 });
 btnCreateBack.addEventListener('click', () => {
   navigateTo('home');
@@ -327,11 +327,18 @@ function updateCreateButtons() {
   const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
   btnCreateTranscribe.disabled = !(hasKey && hasAudio);
-  // Update transcribe button label based on input mode
-  if (!createTranscript && btnCreateTranscribe.textContent.indexOf('✓') === -1 && btnCreateTranscribe.textContent.indexOf('Retry') === -1) {
-    btnCreateTranscribe.textContent = createInputMode === 'text' ? '📝 Generate Storyboard' : '🎤 Transcribe with Gemini';
+  // Update hint text next to launch button
+  const hint = $('create-script-launch-hint');
+  if (hint) {
+    if (createTranscript) hint.textContent = 'Storyboard generated ✅';
+    else if (!hasAudio) hint.textContent = 'Import audio to begin';
+    else if (!hasKey) hint.textContent = 'API key required';
+    else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
-  btnCreateGenerate.disabled = !createScenes || createScenes.length === 0;
+  // Update transcribe button label based on input mode
+  if (!createTranscript && btnCreateTranscribe.textContent.indexOf('Retry') === -1) {
+    btnCreateTranscribe.textContent = '▶ Script, Storyboard & Prompt Agent';
+  }
   const hasPendingLangs = typeof pendingLanguages !== 'undefined' && pendingLanguages.size > 0;
   btnCreateSendEditor.disabled = !createScenes || !createScenes.some(s => s.imgDataUrl) || langGenerating || hasPendingLangs;
   // Update cost hints on buttons
@@ -347,6 +354,18 @@ function setCreateVideoMode(mode) {
   if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
   const section = $('create-kling-provider-section');
   if (section) section.style.display = mode === 'animated' ? '' : 'none';
+  refreshCreateAgentPanel();
+  // Image launch always goes to BGM (runs in both modes)
+  const imgBtn = $('create-launch-image-btn');
+  if (imgBtn) imgBtn.textContent = 'Launch BGM Agent →';
+  // BGM launch button is mode-dependent
+  const bgmBtn = $('create-launch-bgm-btn');
+  if (bgmBtn) {
+    bgmBtn.textContent = mode === 'animated' ? 'Launch Animation Agent →' : 'Launch Voiceover Agent →';
+    bgmBtn.onclick = () => document.getElementById(mode === 'animated' ? 'create-video-step' : 'create-language-step')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const modeBadge = $('create-agent-mode-badge');
+  if (modeBadge) modeBadge.textContent = 'Copilot';
 }
 
 function setReelVideoMode(mode) {
@@ -357,6 +376,9 @@ function setReelVideoMode(mode) {
   if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
   const section = $('reel-kling-provider-section');
   if (section) section.style.display = mode === 'animated' ? '' : 'none';
+  refreshReelAgentPanel();
+  const modeBadge = $('reel-agent-mode-badge');
+  if (modeBadge) modeBadge.textContent = 'Autopilot';
 }
 
 function saveKlingKey(lsKey, inputId, btn) {
@@ -387,18 +409,6 @@ function updateCostHints() {
   if (btnCreateTranscribe && !btnCreateTranscribe.disabled) {
     btnCreateTranscribe.title = `Estimated cost: ~$${estimateCost('transcription', 1)}`;
   }
-  // Generate images button — grid mode cost estimate
-  if (btnCreateGenerate && sceneCount > 0) {
-    const gridBatches = pendingCount >= 4 ? Math.ceil(pendingCount / 9) : 0;
-    const individualCount = pendingCount >= 4 ? pendingCount % 9 < 4 ? pendingCount % 9 : 0 : pendingCount;
-    const gridCost = gridBatches > 0 ? estimateCost('gridGen2K', gridBatches) : 0;
-    const indivCost = individualCount > 0 ? estimateCost('imageGen', individualCount) : 0;
-    const totalCost = (parseFloat(gridCost) + parseFloat(indivCost)).toFixed(3);
-    const modeLabel = gridBatches > 0
-      ? `${gridBatches} grid batch${gridBatches > 1 ? 'es' : ''}${individualCount > 0 ? ` + ${individualCount} individual` : ''}`
-      : `${pendingCount} individual`;
-    btnCreateGenerate.title = `Estimated cost: ~$${totalCost} (${modeLabel})`;
-  }
   // Language generate button
   const langBtn = $('btn-generate-languages');
   if (langBtn) {
@@ -406,5 +416,340 @@ function updateCostHints() {
     if (checked.length > 0) {
       langBtn.title = `Estimated cost: ~$${estimateCost('ttsPerLang', checked.length)} (${checked.length} languages)`;
     }
+  }
+}
+
+// ══════════════════════════════════════════
+//  AGENT PANEL — Create Story (Copilot)
+// ══════════════════════════════════════════
+
+const CREATE_AGENTS_ILLUSTRATED = [
+  { id: 'script',    stepId: 'create-input-step',      icon: '📝', label: 'Script Agent' },
+  { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎨', label: 'Storyboard & Prompt Agent' },
+  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
+  // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
+  { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
+  { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
+  { id: 'voiceover', stepId: 'create-language-step',   icon: '🌐', label: 'Voiceover Agent' },
+];
+
+const CREATE_AGENTS_ANIMATED = [
+  { id: 'script',    stepId: 'create-input-step',      icon: '📝', label: 'Script Agent' },
+  { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎬', label: 'Cinematography & Prompt Agent' },
+  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
+  // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
+  { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
+  { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
+  { id: 'animation', stepId: 'create-video-step',      icon: '✨', label: 'Animation Agent' },
+  { id: 'voiceover', stepId: 'create-language-step',   icon: '🌐', label: 'Voiceover Agent' },
+];
+
+// status: 'waiting' | 'running' | 'done' | 'error'
+// detail: short summary string shown below the label
+const _createAgentState = {};
+
+function updateCreateAgent(id, status, detail = '') {
+  if (!_createAgentState[id]) _createAgentState[id] = { status: 'waiting', detail: '', subtasks: [] };
+  _createAgentState[id].status = status;
+  _createAgentState[id].detail = detail;
+  _renderCreateAgentPanel();
+  _syncAgentStepHeader('create', id, status);
+  if (status === 'done') _showCreateLaunchRow(id);
+}
+
+function _getCreateAgents() {
+  return createVideoMode === 'animated' ? CREATE_AGENTS_ANIMATED : CREATE_AGENTS_ILLUSTRATED;
+}
+
+function _renderCreateAgentPanel() {
+  const list = $('create-agent-list');
+  if (!list) return;
+  const agents = _getCreateAgents();
+  list.innerHTML = agents.map(a => {
+    const s = _createAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
+    const subtasks = s.subtasks || [];
+    let bodyHtml = '';
+    if (subtasks.length > 0) {
+      bodyHtml = subtasks.map(t => {
+        const icon = t.status === 'done' ? '✅' : t.status === 'warn' ? '⚠️' : t.status === 'running' ? '⏳' : t.status === 'error' ? '❌' : '○';
+        return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
+      }).join('');
+    } else if (s.detail) {
+      bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
+    }
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
+      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+      <div class="agent-row-top">
+        <span class="agent-row-icon">${a.icon}</span>
+        <span class="agent-row-label">${a.label}</span>
+        <span class="agent-status-dot ${s.status}"></span>
+      </div>
+      ${bodyHtml}
+    </div>`;
+  }).join('');
+}
+
+function resetCreateAgentTasks(agentId) {
+  if (!_createAgentState[agentId]) _createAgentState[agentId] = { status: 'waiting', detail: '', subtasks: [] };
+  _createAgentState[agentId].subtasks = [];
+}
+
+function updateCreateAgentTask(agentId, taskId, taskStatus, taskLabel) {
+  if (!_createAgentState[agentId]) _createAgentState[agentId] = { status: 'running', detail: '', subtasks: [] };
+  const tasks = _createAgentState[agentId].subtasks;
+  const existing = tasks.find(t => t.id === taskId);
+  if (existing) {
+    existing.status = taskStatus;
+    if (taskLabel !== undefined) existing.label = taskLabel;
+  } else {
+    tasks.push({ id: taskId, label: taskLabel || taskId, status: taskStatus });
+  }
+  if (taskStatus === 'error') {
+    _createAgentState[agentId].status = 'error';
+  } else if (taskStatus === 'running' && _createAgentState[agentId].status !== 'error') {
+    _createAgentState[agentId].status = 'running';
+  } else if (tasks.length > 0 && tasks.every(t => t.status === 'done' || t.status === 'warn')) {
+    _createAgentState[agentId].status = 'done';
+    _showCreateLaunchRow(agentId);
+  }
+  _renderCreateAgentPanel();
+  _syncAgentStepHeader('create', agentId, _createAgentState[agentId].status);
+}
+
+function _syncAgentStepHeader(pipeline, agentId, status) {
+  const agents = pipeline === 'create' ? _getCreateAgents() : _getReelAgents();
+  const agent = agents.find(a => a.id === agentId);
+  if (!agent) return;
+  const step = $(agent.stepId);
+  if (!step) return;
+  const badge = step.querySelector('.agent-step-status-badge');
+  if (!badge) return;
+  const labels = { waiting: 'Waiting', running: 'Running…', done: 'Done', error: 'Error' };
+  badge.className = `agent-step-status-badge ${status}`;
+  badge.textContent = labels[status] || status;
+}
+
+function _showCreateLaunchRow(agentId) {
+  const row = $(`create-launch-after-${agentId}`);
+  if (row) row.classList.add('visible');
+}
+
+// Call when video mode changes to re-render panel with correct agent names
+function refreshCreateAgentPanel() {
+  Object.keys(_createAgentState).forEach(k => delete _createAgentState[k]);
+  _renderCreateAgentPanel();
+  // update storyboard step header name based on mode
+  const storyboardHeader = document.querySelector('#create-transcribe-step .agent-step-name');
+  if (storyboardHeader) {
+    storyboardHeader.textContent = createVideoMode === 'animated' ? 'Cinematography & Prompt Agent' : 'Storyboard & Prompt Agent';
+  }
+  const storyboardIcon = document.querySelector('#create-transcribe-step .agent-step-icon');
+  if (storyboardIcon) storyboardIcon.textContent = createVideoMode === 'animated' ? '🎬' : '🎨';
+}
+
+// ══════════════════════════════════════════
+//  AGENT PANEL — Create Reel (Autopilot)
+// ══════════════════════════════════════════
+
+const REEL_AGENTS_ILLUSTRATED = [
+  { id: 'script',   stepId: 'reel-step-input',   icon: '📝', label: 'Script Agent' },
+  { id: 'scene',    stepId: 'reel-step-presets',  icon: '🎨', label: 'Storyboard Agent' },
+  { id: 'image',    stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
+  { id: 'bgm',      stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',  stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+];
+
+const REEL_AGENTS_ANIMATED = [
+  { id: 'script',    stepId: 'reel-step-input',   icon: '📝', label: 'Script Agent' },
+  { id: 'scene',     stepId: 'reel-step-presets',  icon: '🎬', label: 'Cinematography Agent' },
+  { id: 'image',     stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
+  { id: 'animation', stepId: 'reel-step-scenes',   icon: '✨', label: 'Animation Agent' },
+  { id: 'bgm',       stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',   stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+];
+
+const _reelAgentState = {};
+
+function updateReelAgent(id, status, detail = '') {
+  if (!_reelAgentState[id]) _reelAgentState[id] = { status: 'waiting', detail: '', subtasks: [] };
+  _reelAgentState[id].status = status;
+  _reelAgentState[id].detail = detail;
+  _renderReelAgentPanel();
+  _syncAgentStepHeader('reel', id, status);
+}
+
+function resetReelAgentTasks(agentId) {
+  if (!_reelAgentState[agentId]) _reelAgentState[agentId] = { status: 'waiting', detail: '', subtasks: [] };
+  _reelAgentState[agentId].subtasks = [];
+}
+
+function updateReelAgentTask(agentId, taskId, taskStatus, taskLabel) {
+  if (!_reelAgentState[agentId]) _reelAgentState[agentId] = { status: 'running', detail: '', subtasks: [] };
+  const tasks = _reelAgentState[agentId].subtasks;
+  const existing = tasks.find(t => t.id === taskId);
+  if (existing) {
+    existing.status = taskStatus;
+    if (taskLabel !== undefined) existing.label = taskLabel;
+  } else {
+    tasks.push({ id: taskId, label: taskLabel || taskId, status: taskStatus });
+  }
+  if (taskStatus === 'error') {
+    _reelAgentState[agentId].status = 'error';
+  } else if (taskStatus === 'running' && _reelAgentState[agentId].status !== 'error') {
+    _reelAgentState[agentId].status = 'running';
+  } else if (tasks.length > 0 && tasks.every(t => t.status === 'done' || t.status === 'warn')) {
+    _reelAgentState[agentId].status = 'done';
+  }
+  _renderReelAgentPanel();
+  _syncAgentStepHeader('reel', agentId, _reelAgentState[agentId].status);
+}
+
+function _getReelAgents() {
+  return reelVideoMode === 'animated' ? REEL_AGENTS_ANIMATED : REEL_AGENTS_ILLUSTRATED;
+}
+
+function _renderReelAgentPanel() {
+  const list = $('reel-agent-list');
+  if (!list) return;
+  const agents = _getReelAgents();
+  list.innerHTML = agents.map(a => {
+    const s = _reelAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
+    const subtasks = s.subtasks || [];
+    let bodyHtml = '';
+    if (subtasks.length > 0) {
+      bodyHtml = subtasks.map(t => {
+        const icon = t.status === 'done' ? '✅' : t.status === 'warn' ? '⚠️' : t.status === 'running' ? '⏳' : t.status === 'error' ? '❌' : '○';
+        return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
+      }).join('');
+    } else if (s.detail) {
+      bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
+    }
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
+      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+      <div class="agent-row-top">
+        <span class="agent-row-icon">${a.icon}</span>
+        <span class="agent-row-label">${a.label}</span>
+        <span class="agent-status-dot ${s.status}"></span>
+      </div>
+      ${bodyHtml}
+    </div>`;
+  }).join('');
+}
+
+function refreshReelAgentPanel() {
+  Object.keys(_reelAgentState).forEach(k => delete _reelAgentState[k]);
+  _renderReelAgentPanel();
+  const sceneHeader = document.querySelector('#reel-step-presets .agent-step-name');
+  if (sceneHeader) sceneHeader.textContent = reelVideoMode === 'animated' ? 'Cinematography Agent' : 'Storyboard Agent';
+  const sceneIcon = document.querySelector('#reel-step-presets .agent-step-icon');
+  if (sceneIcon) sceneIcon.textContent = reelVideoMode === 'animated' ? '🎬' : '🎨';
+}
+
+// ══════════════════════════════════════════
+//  INFER AGENT STATES FROM RESTORED PROJECT
+// ══════════════════════════════════════════
+
+function inferCreateAgentStates() {
+  // Reset panel to current mode first
+  refreshCreateAgentPanel();
+
+  if (!createScenes || createScenes.length === 0) return;
+
+  // Script Agent: done if transcript or scenes exist
+  if (createTranscript || createScenes.length > 0) {
+    updateCreateAgent('script', 'done', 'Input ready');
+  }
+
+  // Storyboard & Prompt Agent: done if transcript exists
+  if (createTranscript) {
+    const sceneCount = createScenes.length;
+    updateCreateAgent('storyboard', 'done', `${sceneCount} scenes`);
+    const launchSummary = $('create-launch-storyboard-summary');
+    if (launchSummary) launchSummary.textContent = `✅ ${sceneCount} scenes identified`;
+  }
+
+  // Chapter Agent: done if chapters exist
+  if (createChapters && createChapters.length > 0) {
+    updateCreateAgent('chapter', 'done', `${createChapters.length} chapters`);
+  }
+
+  // Reference Agent: hidden in V1 — re-enable in V2
+  // if (createScenes.length > 0) { updateCreateAgent('reference', 'done', 'Ready'); }
+
+  // Image Agent: done/error based on scene statuses
+  const doneImgs = createScenes.filter(s => s.imgDataUrl).length;
+  const failedImgs = createScenes.filter(s => s.status === 'error').length;
+  if (doneImgs > 0) {
+    const status = failedImgs > 0 ? 'error' : 'done';
+    const detail = failedImgs > 0 ? `${doneImgs} done · ${failedImgs} failed` : `${doneImgs} images`;
+    updateCreateAgent('image', status, detail);
+    const imgSummary = $('create-launch-image-summary');
+    if (imgSummary) imgSummary.textContent = `✅ ${doneImgs} images generated`;
+  }
+
+  // BGM Agent: done if a BGM blob URL has been generated
+  if (typeof createBgmUrl !== 'undefined' && createBgmUrl) {
+    updateCreateAgent('bgm', 'done', 'Music ready');
+    const bgmStep = $('create-bgm-step');
+    if (bgmStep) bgmStep.style.display = '';
+    const bgmPlayer = $('create-bgm-player');
+    if (bgmPlayer) bgmPlayer.style.display = '';
+    const bgmAudio = $('create-bgm-audio');
+    if (bgmAudio && !bgmAudio.src) bgmAudio.src = createBgmUrl;
+  }
+
+  // Voiceover Agent: done if language tracks exist
+  if (typeof languageTracks !== 'undefined' && languageTracks && languageTracks.length > 0) {
+    const doneTracks = languageTracks.filter(t => t.status === 'done');
+    if (doneTracks.length > 0) {
+      updateCreateAgent('voiceover', 'done', `${doneTracks.length} track${doneTracks.length > 1 ? 's' : ''} ready`);
+    }
+  }
+
+  // Animation Agent: done if any scene has video clips
+  if (createVideoMode === 'animated') {
+    const animatedCount = createScenes.filter(s => s.videoClips?.length > 0 || s.videoUrl).length;
+    if (animatedCount > 0) {
+      updateCreateAgent('animation', 'done', `${animatedCount} clips ready`);
+      const animSummary = $('create-launch-animation-summary');
+      if (animSummary) animSummary.textContent = `✅ ${animatedCount} scenes animated`;
+    }
+  }
+}
+
+function inferReelAgentStates() {
+  // Reset panel to current mode first
+  refreshReelAgentPanel();
+
+  const scenes = reelPendingScenes || reelScenes;
+  if (!scenes || scenes.length === 0) return;
+
+  // Script Agent: done if scenes exist (transcription ran)
+  updateReelAgent('script', 'done', `${scenes.length} segments`);
+
+  // Storyboard / Cinematography Agent: done if scenes have prompts
+  if (scenes.some(s => s.prompt || s.sceneDescription)) {
+    updateReelAgent('scene', 'done', 'Descriptions ready');
+  }
+
+  // Image Agent: done if any scene has image
+  const doneImgs = scenes.filter(s => s.imgDataUrl).length;
+  if (doneImgs > 0) {
+    const failedImgs = scenes.filter(s => s.status === 'error').length;
+    updateReelAgent('image', failedImgs > 0 ? 'error' : 'done', `${doneImgs} images`);
+  }
+
+  // Animation Agent: done if any scene has video clips
+  if (reelVideoMode === 'animated') {
+    const animatedCount = scenes.filter(s => s.videoClips?.length > 0 || s.videoUrl).length;
+    if (animatedCount > 0) {
+      updateReelAgent('animation', 'done', `${animatedCount} clips ready`);
+    }
+  }
+
+  // Preview Agent: done if editor step is visible
+  const editorStep = $('reel-step-editor');
+  if (editorStep && !editorStep.classList.contains('hidden')) {
+    updateReelAgent('preview', 'done', 'Reel ready');
   }
 }
