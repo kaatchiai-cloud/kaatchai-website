@@ -84,6 +84,9 @@ let reelStartTime = 0;
 let reelBgmBuffer = null;
 let reelFrameImgEl = null;
 let reelFrameImgSrc = '';
+let reelFrameImgX = 0;    // % of canvas width (0 = left edge)
+let reelFrameImgY = 0;    // % of canvas height (0 = top edge)
+let reelFrameImgW = 100;  // % of canvas width (100 = full width)
 let reelFrameOpacity = 1.0;
 let reelFrameTemplate = 'none'; // none | bottom-strip | top-bar | corner-tag | full-border | custom-png
 let reelFrameText = '';
@@ -94,9 +97,9 @@ let reelOverlayItems = []; // [{id, type, startTime, duration, params}]
 let nextOverlayId = 1;
 
 const REEL_OVERLAY_PRESETS = {
-  'subscribe': { label: '🔴 Subscribe', defaultDuration: 3, defaultParams: { text: 'Subscribe', color: '#ff0000', textColor: '#ffffff' } },
-  'follow':    { label: '💜 Follow',    defaultDuration: 3, defaultParams: { text: 'Follow',    color: '#a855f7', textColor: '#ffffff' } },
-  'lower-third': { label: '📛 Lower Third', defaultDuration: 4, defaultParams: { name: 'Your Name', title: 'Your Title', color: '#000000', textColor: '#ffffff' } },
+  'subscribe': { label: '🔴 Subscribe', defaultDuration: 3, defaultParams: { text: 'Subscribe', color: '#ff0000', textColor: '#ffffff', font: 'Poppins' } },
+  'follow':    { label: '💜 Follow',    defaultDuration: 3, defaultParams: { text: 'Follow',    color: '#a855f7', textColor: '#ffffff', font: 'Poppins' } },
+  'lower-third': { label: '📛 Lower Third', defaultDuration: 4, defaultParams: { name: 'Your Name', title: 'Your Title', color: '#000000', textColor: '#ffffff', accentColor: '#a855f7', font: 'Poppins' } },
   'cta-arrow': { label: '👇 CTA Arrow', defaultDuration: 3, defaultParams: { text: 'Link in Bio', color: '#ffffff' } },
   'fade-title': { label: '✨ Title Card', defaultDuration: 3, defaultParams: { text: 'Your Title', color: '#ffffff' } },
 };
@@ -229,6 +232,7 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
   navigateTo('home');
   reelMode = false;
   reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
+  reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
   reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
   if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
   updateReelFrameControls();
@@ -1682,6 +1686,9 @@ function renderAllReelPreviews() {
   const cw = platform.width;
   const ch = platform.height;
   const isVid = results.some(r => r.scenes?.some(s => s.isVideo));
+  const dpr = window.devicePixelRatio || 1;
+  const prevCSSW = 300, prevCSSH = Math.round(300 * ch / cw);
+  const previewW = Math.round(prevCSSW * dpr), previewH = Math.round(prevCSSH * dpr);
 
   // Build controls HTML for each reel
   function buildControlsHtml(i, r) {
@@ -1769,9 +1776,25 @@ function renderAllReelPreviews() {
         </select></label>
         <label class="form-label">Vol: <input type="range" class="rc-bgm-vol" data-ri="${i}" min="0" max="100" value="50" style="width:50px;"><span class="rc-bgm-vol-label">50%</span></label>
         <label class="form-label">Frame: <select id="reel-frame-${i}" class="rc-frame" data-ri="${i}">
-          <option value="none">None</option><option value="bottom-strip">Bottom Strip</option><option value="top-bar">Top Bar</option>
-          <option value="corner-tag">Corner Tag</option><option value="full-border">Full Border</option>
+          <option value="none" ${reelFrameTemplate==='none'?'selected':''}>None</option>
+          <option value="bottom-strip" ${reelFrameTemplate==='bottom-strip'?'selected':''}>Bottom Strip</option>
+          <option value="top-bar" ${reelFrameTemplate==='top-bar'?'selected':''}>Top Bar</option>
+          <option value="corner-tag" ${reelFrameTemplate==='corner-tag'?'selected':''}>Corner Tag</option>
+          <option value="full-border" ${reelFrameTemplate==='full-border'?'selected':''}>Full Border</option>
+          <option value="custom-png" ${reelFrameTemplate==='custom-png'?'selected':''}>Custom PNG</option>
         </select></label>
+        <span class="rc-frame-tpl-row" data-ri="${i}" style="display:${(reelFrameTemplate!=='none'&&reelFrameTemplate!=='custom-png')?'inline-flex':'none'}; gap:4px; align-items:center;">
+          <input type="text" class="rc-frame-text" data-ri="${i}" value="${reelFrameText}" placeholder="Frame text" style="width:80px;font-size:inherit;padding:2px 4px;">
+          <input type="color" class="rc-frame-bg" data-ri="${i}" value="${reelFrameBgColor}" title="BG color">
+          <input type="color" class="rc-frame-tc" data-ri="${i}" value="${reelFrameTextColor}" title="Text color">
+        </span>
+        <span class="rc-frame-png-row" data-ri="${i}" style="display:${reelFrameTemplate==='custom-png'?'inline-flex':'none'}; gap:4px; align-items:center; flex-wrap:wrap;">
+          <button class="btn-xs rc-frame-upload" data-ri="${i}">${reelFrameImgSrc ? '🖼 PNG loaded' : '+ Upload PNG'}</button>
+          <label class="form-label" style="font-size:inherit;">W:<input type="range" class="rc-frame-imgw" data-ri="${i}" min="10" max="200" value="${reelFrameImgW}" step="5" style="width:55px;" title="Width %"><span class="rc-frame-imgw-val text-2xs">${reelFrameImgW}%</span></label>
+          <label class="form-label" style="font-size:inherit;">X:<input type="range" class="rc-frame-imgx" data-ri="${i}" min="-100" max="100" value="${reelFrameImgX}" step="1" style="width:55px;" title="X offset %"><span class="rc-frame-imgx-val text-2xs">${reelFrameImgX}%</span></label>
+          <label class="form-label" style="font-size:inherit;">Y:<input type="range" class="rc-frame-imgy" data-ri="${i}" min="-100" max="100" value="${reelFrameImgY}" step="1" style="width:55px;" title="Y offset %"><span class="rc-frame-imgy-val text-2xs">${reelFrameImgY}%</span></label>
+          <label class="form-label" style="font-size:inherit;">Opacity:<input type="range" class="rc-frame-opacity" data-ri="${i}" min="0" max="100" value="${Math.round(reelFrameOpacity * 100)}" step="5" style="width:50px;" title="Opacity"><span class="rc-frame-opacity-val text-2xs">${Math.round(reelFrameOpacity * 100)}%</span></label>
+        </span>
       </div>
       <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         <label class="form-label">Overlays:</label>
@@ -1795,7 +1818,7 @@ function renderAllReelPreviews() {
         <!-- Left: Canvas + seek -->
         <div style="flex-shrink:0;">
           <div class="reel-canvas-wrap" style="width:300px;">
-            <canvas class="reel-thumb-canvas" data-ri="${i}" width="${cw}" height="${ch}"></canvas>
+            <canvas class="reel-thumb-canvas" data-ri="${i}" width="${previewW}" height="${previewH}" style="width:${prevCSSW}px;height:${prevCSSH}px;display:block;"></canvas>
           </div>
           <div style="display:flex; align-items:center; gap:4px; margin-top:6px; width:300px;">
             <button class="btn-xs reel-mp-play" data-ri="${i}" title="Play/Pause">▶</button>
@@ -1815,6 +1838,7 @@ function renderAllReelPreviews() {
   // Render frame with subtitles on each canvas
   function drawPreviewFrame(cvs, r) {
     const ctx = cvs.getContext('2d');
+    ctx.setTransform(previewW / cw, 0, 0, previewH / ch, 0, 0);
     const midTime = r.words && r.words.length > 0 ? r.words[Math.min(3, r.words.length - 1)].start + 0.1 : 0.5;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cw, ch);
     if (reelVideoEl && reelVideoEl.videoWidth > 0) {
@@ -1956,6 +1980,7 @@ function renderAllReelPreviews() {
         if (scrub) scrub.value = Math.round((elapsed / r.audioBuffer.duration) * 1000);
         if (timeEl) timeEl.textContent = fmtShort(elapsed);
         if (drawCtx) {
+          drawCtx.setTransform(previewW / cw, 0, 0, previewH / ch, 0, 0);
           drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
           if (reelVideoEl && reelVideoEl.videoWidth > 0) {
             const vp = r.settings?.viewport || reelViewport;
@@ -2080,6 +2105,7 @@ function renderAllReelPreviews() {
         const r = results[idx];
         const drawCtx = cvs.getContext('2d');
         const midTime = r.words?.length > 0 ? r.words[Math.min(3, r.words.length - 1)].start + 0.1 : 0.5;
+        drawCtx.setTransform(previewW / cw, 0, 0, previewH / ch, 0, 0);
         drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
         if (reelVideoEl && reelVideoEl.videoWidth > 0) {
           try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, r.settings?.viewport || 'fill-center', r.settings?.viewportX ?? 50); } catch(e) {}
@@ -2114,6 +2140,7 @@ function renderAllReelPreviews() {
       if (cvs) {
         const drawCtx = cvs.getContext('2d');
         const drawFrame = () => {
+          drawCtx.setTransform(previewW / cw, 0, 0, previewH / ch, 0, 0);
           drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
           if (reelVideoEl && reelVideoEl.videoWidth > 0) {
             try { drawViewportCrop(drawCtx, reelVideoEl, cw, ch, r.settings?.viewport || 'fill-center', r.settings?.viewportX ?? 50); } catch(e) {}
@@ -2175,6 +2202,7 @@ function renderAllReelPreviews() {
         scrub.value = Math.round((elapsed / r.audioBuffer.duration) * 1000);
         if (timeEl) timeEl.textContent = fmtShort(elapsed);
         if (drawCtx) {
+          drawCtx.setTransform(previewW / cw, 0, 0, previewH / ch, 0, 0);
           drawCtx.fillStyle = '#000'; drawCtx.fillRect(0, 0, cw, ch);
           if (reelVideoEl && reelVideoEl.videoWidth > 0) {
             const vp = r.settings?.viewport || reelViewport;
@@ -2336,11 +2364,108 @@ function renderAllReelPreviews() {
     });
   });
   // Frame select in per-reel controls
+  function updateRcFrameRows() {
+    container.querySelectorAll('.rc-frame-tpl-row').forEach(row => {
+      row.style.display = (reelFrameTemplate !== 'none' && reelFrameTemplate !== 'custom-png') ? 'inline-flex' : 'none';
+    });
+    container.querySelectorAll('.rc-frame-png-row').forEach(row => {
+      row.style.display = reelFrameTemplate === 'custom-png' ? 'inline-flex' : 'none';
+    });
+  }
+  function redrawFrameOnThumbs() {
+    const platform = REEL_PLATFORMS[reelPlatform];
+    const fcw = platform.width, fch = platform.height;
+    const fdpr = window.devicePixelRatio || 1;
+    const fpw = Math.round(300 * fdpr), fph = Math.round(Math.round(300 * fch / fcw) * fdpr);
+    container.querySelectorAll('.reel-thumb-canvas').forEach(cvs => {
+      const idx = parseInt(cvs.dataset.ri);
+      const r = (window._reelMultiResults || [])[idx]; if (!r) return;
+      const ctx = cvs.getContext('2d');
+      ctx.setTransform(fpw / fcw, 0, 0, fph / fch, 0, 0);
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, fcw, fch);
+      if (r.scenes) { try { drawReelSceneFrame(ctx, fcw, fch, 0.5, r.scenes); } catch(e) {} }
+      const rs = r.settings || {};
+      const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition, sF = reelSubFont, sAC = reelSubAllCaps, sAcc = reelSubAccent;
+      reelSubColor = rs.subColor || sC; reelSubOutline = rs.subOutline || sO; reelSubBackdrop = rs.subBackdrop || sB;
+      reelSubSize = rs.subSize || sSz; reelSubPosition = parseSubPos(rs.subPosition ?? sP);
+      reelSubFont = rs.subFont || sF; reelSubAllCaps = rs.subAllCaps !== undefined ? rs.subAllCaps : sAC; reelSubAccent = rs.subAccent || sAcc;
+      const subStyle = rs.subtitleStyle || reelSubtitleStyle;
+      const midTime = r.words?.length > 0 ? r.words[Math.min(3, r.words.length - 1)].start + 0.1 : 0.5;
+      if (subStyle !== 'none' && r.words?.length > 0) { try { renderReelSubtitle(ctx, fcw, fch, midTime, r.words, subStyle); } catch(e) {} }
+      reelSubColor = sC; reelSubOutline = sO; reelSubBackdrop = sB; reelSubSize = sSz; reelSubPosition = sP; reelSubFont = sF; reelSubAllCaps = sAC; reelSubAccent = sAcc;
+      drawReelFrame(ctx, fcw, fch);
+      drawReelOverlays(ctx, fcw, fch, midTime);
+    });
+  }
   container.querySelectorAll('.rc-frame').forEach(el => {
     el.addEventListener('change', () => {
       reelFrameTemplate = el.value;
+      updateRcFrameRows();
       window._editorReelFrame = { template: reelFrameTemplate, text: reelFrameText, bgColor: reelFrameBgColor, textColor: reelFrameTextColor, opacity: reelFrameOpacity, imgEl: reelFrameImgEl, imgSrc: reelFrameImgSrc };
-      renderReelFrame(0);
+      redrawFrameOnThumbs();
+    });
+  });
+  container.querySelectorAll('.rc-frame-text').forEach(el => {
+    el.addEventListener('input', () => { reelFrameText = el.value; redrawFrameOnThumbs(); });
+  });
+  container.querySelectorAll('.rc-frame-bg').forEach(el => {
+    el.addEventListener('input', () => { reelFrameBgColor = el.value; redrawFrameOnThumbs(); });
+  });
+  container.querySelectorAll('.rc-frame-tc').forEach(el => {
+    el.addEventListener('input', () => { reelFrameTextColor = el.value; redrawFrameOnThumbs(); });
+  });
+  container.querySelectorAll('.rc-frame-opacity').forEach(el => {
+    el.addEventListener('input', () => {
+      reelFrameOpacity = parseInt(el.value) / 100;
+      const label = el.closest('.rc-frame-png-row')?.querySelector('.rc-frame-opacity-val');
+      if (label) label.textContent = el.value + '%';
+      redrawFrameOnThumbs();
+    });
+  });
+  container.querySelectorAll('.rc-frame-imgw').forEach(el => {
+    el.addEventListener('input', () => {
+      reelFrameImgW = parseInt(el.value);
+      const label = el.closest('.rc-frame-png-row')?.querySelector('.rc-frame-imgw-val');
+      if (label) label.textContent = el.value + '%';
+      redrawFrameOnThumbs();
+    });
+  });
+  container.querySelectorAll('.rc-frame-imgx').forEach(el => {
+    el.addEventListener('input', () => {
+      reelFrameImgX = parseInt(el.value);
+      const label = el.closest('.rc-frame-png-row')?.querySelector('.rc-frame-imgx-val');
+      if (label) label.textContent = el.value + '%';
+      redrawFrameOnThumbs();
+    });
+  });
+  container.querySelectorAll('.rc-frame-imgy').forEach(el => {
+    el.addEventListener('input', () => {
+      reelFrameImgY = parseInt(el.value);
+      const label = el.closest('.rc-frame-png-row')?.querySelector('.rc-frame-imgy-val');
+      if (label) label.textContent = el.value + '%';
+      redrawFrameOnThumbs();
+    });
+  });
+  container.querySelectorAll('.rc-frame-upload').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fi = $('reel-frame-input'); if (!fi) return;
+      fi.value = '';
+      fi.onchange = (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            reelFrameImgEl = img; reelFrameImgSrc = ev.target.result;
+            container.querySelectorAll('.rc-frame-upload').forEach(b => b.textContent = '🖼 PNG loaded');
+            window._editorReelFrame = { template: reelFrameTemplate, text: reelFrameText, bgColor: reelFrameBgColor, textColor: reelFrameTextColor, opacity: reelFrameOpacity, imgEl: reelFrameImgEl, imgSrc: reelFrameImgSrc };
+            redrawFrameOnThumbs();
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+      fi.click();
     });
   });
   // Retry failed variation
@@ -3483,7 +3608,13 @@ function drawReelFrame(ctx, cw, ch) {
   ctx.save();
   ctx.globalAlpha = reelFrameOpacity;
   if (reelFrameTemplate === 'custom-png') {
-    if (reelFrameImgEl) ctx.drawImage(reelFrameImgEl, 0, 0, cw, ch);
+    if (reelFrameImgEl) {
+      const imgW = cw * (reelFrameImgW / 100);
+      const imgH = imgW * (reelFrameImgEl.naturalHeight / reelFrameImgEl.naturalWidth);
+      const imgX = cw * (reelFrameImgX / 100);
+      const imgY = ch * (reelFrameImgY / 100);
+      ctx.drawImage(reelFrameImgEl, imgX, imgY, imgW, imgH);
+    }
   } else {
     const text = reelFrameText;
     const bg = reelFrameBgColor;
@@ -3575,9 +3706,8 @@ function drawReelOverlays(ctx, cw, ch, currentTime) {
       ctx.roundRect(bx, by, btnW, btnH, r);
       ctx.fill();
       ctx.shadowBlur = 0;
-      // Bell icon + text
       const fs = Math.round(btnH * 0.44);
-      ctx.font = `700 ${fs}px Poppins, sans-serif`;
+      ctx.font = `700 ${fs}px ${p.font || 'Poppins'}, sans-serif`;
       ctx.fillStyle   = p.textColor || '#ffffff';
       ctx.textAlign   = 'center';
       ctx.textBaseline = 'middle';
@@ -3586,23 +3716,22 @@ function drawReelOverlays(ctx, cw, ch, currentTime) {
       ctx.restore();
 
     } else if (item.type === 'lower-third') {
-      // Slide-up lower third bar
-      const barH  = Math.round(ch * 0.13);
+      const font   = p.font || 'Poppins';
+      const barH   = Math.round(ch * 0.13);
       const slideY = ch * 0.78 + barH * (1 - Math.min(1, elapsed / (item.duration * 0.15)));
-      ctx.fillStyle = p.color || 'rgba(0,0,0,0.8)';
+      ctx.fillStyle = p.color || '#000000';
       ctx.fillRect(0, slideY, cw, barH);
-      // Accent stripe
-      ctx.fillStyle = '#a855f7';
+      ctx.fillStyle = p.accentColor || '#a855f7';
       ctx.fillRect(0, slideY, Math.round(cw * 0.012), barH);
       const nameFs  = Math.round(barH * 0.38);
       const titleFs = Math.round(barH * 0.28);
-      ctx.fillStyle   = p.textColor || '#ffffff';
       ctx.textAlign   = 'left';
       ctx.textBaseline = 'top';
-      ctx.font = `700 ${nameFs}px Poppins, sans-serif`;
+      ctx.font = `700 ${nameFs}px ${font}, sans-serif`;
+      ctx.fillStyle = p.textColor || '#ffffff';
       ctx.fillText(p.name || 'Your Name', Math.round(cw * 0.04), slideY + barH * 0.1);
-      ctx.font = `400 ${titleFs}px Poppins, sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `400 ${titleFs}px ${font}, sans-serif`;
+      ctx.fillStyle = p.textColor ? p.textColor + 'bb' : 'rgba(255,255,255,0.7)';
       ctx.fillText(p.title || '', Math.round(cw * 0.04), slideY + barH * 0.52);
 
     } else if (item.type === 'cta-arrow') {
@@ -3622,8 +3751,8 @@ function drawReelOverlays(ctx, cw, ch, currentTime) {
       ctx.fillText('↓', cw / 2, arrowY + arrFs * 0.3);
 
     } else if (item.type === 'fade-title') {
-      // Centered title card with semi-transparent bg
       const fs3   = Math.round(cw * 0.072);
+      const font  = p.font || 'Poppins';
       const lines = (p.text || 'Your Title').split('\n');
       const lineH = fs3 * 1.35;
       const totalH = lines.length * lineH;
@@ -3631,13 +3760,15 @@ function drawReelOverlays(ctx, cw, ch, currentTime) {
       const bgW   = cw * 0.88;
       const bgH   = totalH + bgPad * 2;
       const bgX   = (cw - bgW) / 2;
-      const bgY   = ch * 0.5 - bgH / 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      const pos   = p.position || 'center';
+      const bgY   = pos === 'top' ? ch * 0.08 : pos === 'bottom' ? ch * 0.82 - bgH : ch * 0.5 - bgH / 2;
+      const bgCol = p.bgColor || '#000000';
+      ctx.fillStyle = bgCol + 'cc'; // hex + 80% opacity
       try { ctx.beginPath(); ctx.roundRect(bgX, bgY, bgW, bgH, fs3 * 0.3); ctx.fill(); }
       catch(e) { ctx.fillRect(bgX, bgY, bgW, bgH); }
-      ctx.font = `700 ${fs3}px Poppins, sans-serif`;
-      ctx.fillStyle   = p.color || '#ffffff';
-      ctx.textAlign   = 'center';
+      ctx.font = `700 ${fs3}px ${font}, sans-serif`;
+      ctx.fillStyle    = p.color || '#ffffff';
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       lines.forEach((line, i) => {
         ctx.fillText(line, cw / 2, bgY + bgPad + lineH * i + lineH / 2);
@@ -4343,18 +4474,111 @@ function renderOverlayChips() {
   if (!container) return;
   if (!reelOverlayItems.length) { container.style.display = 'none'; return; }
   container.style.display = 'flex';
+  container.style.flexWrap = 'wrap';
+  container.style.gap = '4px';
+  container.style.justifyContent = 'center';
   const totalDur = reelAudioBuffer ? reelAudioBuffer.duration : (reelScenes?.at(-1)?.endTime || 60);
   container.innerHTML = reelOverlayItems.map(item => {
     const def = REEL_OVERLAY_PRESETS[item.type];
     const label = def ? def.label : item.type;
+    const p = item.params || {};
     const endTime = (item.startTime + item.duration).toFixed(1);
-    return `<span class="reel-overlay-chip" data-oid="${item.id}" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;margin:1px;flex-shrink:1;min-width:0;">
-      ${label}
-      <input type="number" class="ov-start" data-oid="${item.id}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="ov-end" data-oid="${item.id}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;" title="End">s
+    let paramsHtml = '';
+    if (item.type === 'lower-third') {
+      paramsHtml = `
+        <input type="text" class="ov-name" data-oid="${item.id}" value="${p.name || ''}" placeholder="Name" style="width:70px;font-size:inherit;padding:2px 4px;">
+        <input type="text" class="ov-title-text" data-oid="${item.id}" value="${p.title || ''}" placeholder="Role/Title" style="width:70px;font-size:inherit;padding:2px 4px;">
+        <select class="ov-font" data-oid="${item.id}" style="font-size:inherit;padding:2px 3px;max-width:90px;">
+          ${['Poppins','Montserrat','Anton','Bebas Neue','Oswald','Inter'].map(f => `<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+        <input type="color" class="ov-color" data-oid="${item.id}" value="${p.color || '#000000'}" title="BG color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+        <input type="color" class="ov-text-color" data-oid="${item.id}" value="${p.textColor || '#ffffff'}" title="Text color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+        <input type="color" class="ov-accent-color" data-oid="${item.id}" value="${p.accentColor || '#a855f7'}" title="Accent stripe" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+    } else if (item.type === 'fade-title') {
+      paramsHtml = `
+        <input type="text" class="ov-text" data-oid="${item.id}" value="${p.text || ''}" placeholder="Text" style="width:90px;font-size:inherit;padding:2px 4px;">
+        <input type="color" class="ov-color" data-oid="${item.id}" value="${p.color || '#ffffff'}" title="Text color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+        <input type="color" class="ov-bg-color" data-oid="${item.id}" value="${p.bgColor || '#000000'}" title="BG color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+        <select class="ov-font" data-oid="${item.id}" style="font-size:inherit;padding:2px 3px;max-width:90px;">
+          ${['Poppins','Montserrat','Anton','Bebas Neue','Oswald','Inter'].map(f => `<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+        <select class="ov-position" data-oid="${item.id}" style="font-size:inherit;padding:2px 3px;max-width:70px;">
+          <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
+          <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
+          <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
+        </select>`;
+    } else if (item.type === 'subscribe' || item.type === 'follow') {
+      paramsHtml = `
+        <input type="text" class="ov-text" data-oid="${item.id}" value="${p.text || ''}" placeholder="Text" style="width:80px;font-size:inherit;padding:2px 4px;">
+        <input type="color" class="ov-color" data-oid="${item.id}" value="${p.color || '#ff0000'}" title="Button color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+        <input type="color" class="ov-text-color" data-oid="${item.id}" value="${p.textColor || '#ffffff'}" title="Text/icon color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+    } else {
+      paramsHtml = `
+        <input type="text" class="ov-text" data-oid="${item.id}" value="${p.text || ''}" placeholder="Text" style="width:100px;font-size:inherit;padding:2px 4px;">
+        <input type="color" class="ov-color" data-oid="${item.id}" value="${p.color || '#ffffff'}" title="Color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+    }
+    const isWide = item.type === 'fade-title' || item.type === 'lower-third';
+    return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:0;${isWide ? 'flex-wrap:wrap;max-width:100%;' : ''}">
+      <span style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;">${label}</span>
+      ${paramsHtml}
+      <input type="number" class="ov-start" data-oid="${item.id}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="ov-end" data-oid="${item.id}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="End">s
       <button onclick="deleteReelOverlay(${item.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
     </span>`;
   }).join('');
-  // Wire start/end inputs
+  container.querySelectorAll('.ov-text').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.text = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-name').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.name = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-title-text').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.title = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-color').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.color = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-bg-color').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.bgColor = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-text-color').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.textColor = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-accent-color').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
+      if (ov) { ov.params.accentColor = inp.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-font').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(sel.dataset.oid));
+      if (ov) { ov.params.font = sel.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
+  container.querySelectorAll('.ov-position').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const ov = reelOverlayItems.find(o => o.id === parseInt(sel.dataset.oid));
+      if (ov) { ov.params.position = sel.value; renderReelFrame(ov.startTime + 0.5); }
+    });
+  });
   container.querySelectorAll('.ov-start').forEach(inp => {
     inp.addEventListener('change', () => {
       const ov = reelOverlayItems.find(o => o.id === parseInt(inp.dataset.oid));
@@ -4715,6 +4939,9 @@ async function openReelInFullEditor() {
     opacity: reelFrameOpacity,
     imgEl: reelFrameImgEl,
     imgSrc: reelFrameImgSrc,
+    imgX: reelFrameImgX,
+    imgY: reelFrameImgY,
+    imgW: reelFrameImgW,
   };
 
   // Transfer overlay items

@@ -521,11 +521,34 @@
         }
       }
       if (blockRows) blockRows.style.display = rs ? 'none' : '';
-      // Reel Properties panel now only shows for overlays
       if (!reelPropsPanel) return;
-      if (!hasOverlays) { reelPropsPanel.style.display = 'none'; return; }
-      reelPropsPanel.style.display = '';
+      initEditorFrameControls();
       renderEditorOverlayChips();
+    }
+
+    function syncOverlaysToGlobal() {
+      if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = (window._editorReelOverlays || []).map(o => ({ ...o }));
+    }
+    function syncFrameToGlobal() {
+      const f = window._editorReelFrame || {};
+      if (typeof reelFrameTemplate !== 'undefined') {
+        reelFrameTemplate = f.template || 'none';
+        reelFrameText = f.text || '';
+        reelFrameBgColor = f.bgColor || '#000000';
+        reelFrameTextColor = f.textColor || '#ffffff';
+        reelFrameOpacity = f.opacity !== undefined ? f.opacity : 1;
+        reelFrameImgEl = f.imgEl || null;
+        reelFrameImgSrc = f.imgSrc || '';
+        reelFrameImgX = f.imgX !== undefined ? f.imgX : 0;
+        reelFrameImgY = f.imgY !== undefined ? f.imgY : 0;
+        reelFrameImgW = f.imgW !== undefined ? f.imgW : 100;
+      }
+    }
+    function refreshInlinePreview() {
+      if (!previewPlaying) {
+        const t = (inlineScrub?.value / 1000) * (currentBuffer?.duration || 1);
+        renderInlineFrame(t);
+      }
     }
 
     function renderEditorOverlayChips() {
@@ -534,44 +557,151 @@
       if (!items.length) { editorOverlayChips.style.display = 'none'; return; }
       editorOverlayChips.style.display = 'flex';
       const totalDur = currentBuffer ? currentBuffer.duration : 60;
+      const FONTS = ['Poppins','Montserrat','Anton','Bebas Neue','Oswald','Inter'];
       editorOverlayChips.innerHTML = items.map((item, i) => {
         const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[item.type] : null;
         const label = def ? def.label : item.type;
+        const p = item.params || {};
         const endTime = (item.startTime + item.duration).toFixed(1);
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:1;min-width:0;">
-          ${label}
-          <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;">–<input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:42px;font-size:inherit;padding:2px 3px;">s
+        const isWide = item.type === 'fade-title' || item.type === 'lower-third';
+        let paramsHtml = '';
+        if (item.type === 'lower-third') {
+          paramsHtml = `
+            <input type="text" class="eov-name" data-idx="${i}" value="${p.name||''}" placeholder="Name" style="width:70px;font-size:inherit;padding:2px 4px;">
+            <input type="text" class="eov-title-text" data-idx="${i}" value="${p.title||''}" placeholder="Role" style="width:70px;font-size:inherit;padding:2px 4px;">
+            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
+            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#000000'}" title="BG" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+            <input type="color" class="eov-accent-color" data-idx="${i}" value="${p.accentColor||'#a855f7'}" title="Accent" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+        } else if (item.type === 'fade-title') {
+          paramsHtml = `
+            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:90px;font-size:inherit;padding:2px 4px;">
+            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Text color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+            <input type="color" class="eov-bg-color" data-idx="${i}" value="${p.bgColor||'#000000'}" title="BG color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
+            <select class="eov-position" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:70px;">
+              <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
+              <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
+              <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
+            </select>`;
+        } else if (item.type === 'subscribe' || item.type === 'follow') {
+          paramsHtml = `
+            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:80px;font-size:inherit;padding:2px 4px;">
+            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ff0000'}" title="Button color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
+            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text/icon color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+        } else {
+          paramsHtml = `
+            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:100px;font-size:inherit;padding:2px 4px;">
+            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
+        }
+        return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:0;${isWide?'flex-wrap:wrap;max-width:100%;':''}">
+          <span style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;">${label}</span>
+          ${paramsHtml}
+          <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="End">s
           <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
         </span>`;
       }).join('');
-      // Wire events
+
+      // Wire param inputs
+      editorOverlayChips.querySelectorAll('.eov-text').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.text = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-name').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.name = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-title-text').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.title = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-color').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.color = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-text-color').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.textColor = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-bg-color').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.bgColor = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-accent-color').forEach(inp => {
+        inp.addEventListener('input', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.params.accentColor = inp.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-font').forEach(sel => {
+        sel.addEventListener('change', () => { const ov = window._editorReelOverlays[parseInt(sel.dataset.idx)]; if (ov) { ov.params.font = sel.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
+      editorOverlayChips.querySelectorAll('.eov-position').forEach(sel => {
+        sel.addEventListener('change', () => { const ov = window._editorReelOverlays[parseInt(sel.dataset.idx)]; if (ov) { ov.params.position = sel.value; syncOverlaysToGlobal(); refreshInlinePreview(); } });
+      });
       editorOverlayChips.querySelectorAll('.eov-start').forEach(inp => {
-        inp.addEventListener('change', () => {
-          const idx = parseInt(inp.dataset.idx);
-          if (window._editorReelOverlays[idx]) {
-            window._editorReelOverlays[idx].startTime = Math.max(0, parseFloat(inp.value) || 0);
-            if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
-          }
-        });
+        inp.addEventListener('change', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { ov.startTime = Math.max(0, parseFloat(inp.value)||0); syncOverlaysToGlobal(); } });
       });
       editorOverlayChips.querySelectorAll('.eov-end').forEach(inp => {
-        inp.addEventListener('change', () => {
-          const idx = parseInt(inp.dataset.idx);
-          const ov = window._editorReelOverlays[idx];
-          if (ov) {
-            const end = Math.max(ov.startTime + 0.5, parseFloat(inp.value) || 0);
-            ov.duration = end - ov.startTime;
-            if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
-          }
-        });
+        inp.addEventListener('change', () => { const ov = window._editorReelOverlays[parseInt(inp.dataset.idx)]; if (ov) { const end = Math.max(ov.startTime+0.5, parseFloat(inp.value)||0); ov.duration = end - ov.startTime; syncOverlaysToGlobal(); } });
       });
       editorOverlayChips.querySelectorAll('.eov-del').forEach(btn => {
         btn.addEventListener('click', () => {
-          const idx = parseInt(btn.dataset.idx);
-          window._editorReelOverlays.splice(idx, 1);
-          if (typeof reelOverlayItems !== 'undefined') reelOverlayItems = window._editorReelOverlays.map(o => ({ ...o }));
-          renderEditorOverlayChips();
+          window._editorReelOverlays.splice(parseInt(btn.dataset.idx), 1);
+          syncOverlaysToGlobal(); renderEditorOverlayChips();
         });
+      });
+    }
+
+    // Frame controls wiring
+    function updateEditorFrameRows() {
+      const t = (window._editorReelFrame?.template) || 'none';
+      const tplRow = $('editor-reel-frame-tpl-controls');
+      const pngRow = $('editor-reel-frame-png-controls');
+      if (tplRow) tplRow.style.display = (t !== 'none' && t !== 'custom-png') ? 'inline-flex' : 'none';
+      if (pngRow) pngRow.style.display = t === 'custom-png' ? 'inline-flex' : 'none';
+    }
+    function initEditorFrameControls() {
+      const f = window._editorReelFrame || {};
+      const tmpl = $('editor-reel-frame-template'); if (tmpl) tmpl.value = f.template || 'none';
+      const txt = $('editor-reel-frame-text'); if (txt) txt.value = f.text || '';
+      const bg = $('editor-reel-frame-bg'); if (bg) bg.value = f.bgColor || '#000000';
+      const tc = $('editor-reel-frame-tc'); if (tc) tc.value = f.textColor || '#ffffff';
+      const op = $('editor-reel-frame-opacity'); if (op) { op.value = Math.round((f.opacity||1)*100); const ol = $('editor-reel-frame-opacity-label'); if (ol) ol.textContent = op.value+'%'; }
+      const imgw = $('editor-reel-frame-imgw'); if (imgw) { imgw.value = f.imgW||100; const l=$('editor-reel-frame-imgw-label'); if(l) l.textContent=(f.imgW||100)+'%'; }
+      const imgx = $('editor-reel-frame-imgx'); if (imgx) { imgx.value = f.imgX||0; const l=$('editor-reel-frame-imgx-label'); if(l) l.textContent=(f.imgX||0)+'%'; }
+      const imgy = $('editor-reel-frame-imgy'); if (imgy) { imgy.value = f.imgY||0; const l=$('editor-reel-frame-imgy-label'); if(l) l.textContent=(f.imgY||0)+'%'; }
+      if (f.imgSrc && $('editor-reel-frame-upload')) $('editor-reel-frame-upload').textContent = '🖼 PNG loaded';
+      updateEditorFrameRows();
+    }
+    ['editor-reel-frame-template','editor-reel-frame-text','editor-reel-frame-bg','editor-reel-frame-tc','editor-reel-frame-opacity',
+     'editor-reel-frame-imgw','editor-reel-frame-imgx','editor-reel-frame-imgy'].forEach(id => {
+      const el = $(id); if (!el) return;
+      const evt = (el.type === 'range' || el.type === 'color') ? 'input' : (el.tagName === 'SELECT' ? 'change' : 'input');
+      el.addEventListener(evt, () => {
+        if (!window._editorReelFrame) window._editorReelFrame = {};
+        const f = window._editorReelFrame;
+        if (id === 'editor-reel-frame-template') { f.template = el.value; updateEditorFrameRows(); }
+        else if (id === 'editor-reel-frame-text') f.text = el.value;
+        else if (id === 'editor-reel-frame-bg') f.bgColor = el.value;
+        else if (id === 'editor-reel-frame-tc') f.textColor = el.value;
+        else if (id === 'editor-reel-frame-opacity') { f.opacity = parseInt(el.value)/100; const l=$('editor-reel-frame-opacity-label'); if(l) l.textContent=el.value+'%'; }
+        else if (id === 'editor-reel-frame-imgw') { f.imgW = parseInt(el.value); const l=$('editor-reel-frame-imgw-label'); if(l) l.textContent=el.value+'%'; }
+        else if (id === 'editor-reel-frame-imgx') { f.imgX = parseInt(el.value); const l=$('editor-reel-frame-imgx-label'); if(l) l.textContent=el.value+'%'; }
+        else if (id === 'editor-reel-frame-imgy') { f.imgY = parseInt(el.value); const l=$('editor-reel-frame-imgy-label'); if(l) l.textContent=el.value+'%'; }
+        syncFrameToGlobal(); refreshInlinePreview();
+      });
+    });
+    const efUpload = $('editor-reel-frame-upload');
+    const efInput = $('editor-reel-frame-input');
+    if (efUpload && efInput) {
+      efUpload.addEventListener('click', () => { efInput.value=''; efInput.click(); });
+      efInput.addEventListener('change', (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            if (!window._editorReelFrame) window._editorReelFrame = {};
+            window._editorReelFrame.imgEl = img;
+            window._editorReelFrame.imgSrc = ev.target.result;
+            if (efUpload) efUpload.textContent = '🖼 PNG loaded';
+            syncFrameToGlobal(); refreshInlinePreview();
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
       });
     }
 

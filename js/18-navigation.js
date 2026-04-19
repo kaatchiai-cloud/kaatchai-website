@@ -24,7 +24,6 @@ btnNewProject.addEventListener('click', (e) => {
   const bgVidSec = $('bg-video-section');
   if (bgVidSec) bgVidSec.style.display = 'none';
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
-  currentSeriesName = ''; currentEpisodeNumber = 0;
   pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
   if (pipSec) pipSec.style.display = 'none';
@@ -34,10 +33,6 @@ btnNewProject.addEventListener('click', (e) => {
   editorOriginalBuffer = null; editorOriginalSubtitles = [];
   const editorLangDiv = $('editor-lang-selector');
   if (editorLangDiv) editorLangDiv.style.display = 'none';
-  const seriesEl = $('series-name');
-  const epEl = $('episode-number');
-  if (seriesEl) seriesEl.value = '';
-  if (epEl) epEl.value = '';
   navigateTo('editor');
   updateAudioControls();
   applyEditorPlanGating();

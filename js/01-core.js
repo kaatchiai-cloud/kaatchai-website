@@ -32,6 +32,7 @@ let currentBuffer = null, undoStack = [], activeRegion = null;
 // Background music
 let bgmBuffer = null, bgmVolume = 0.3, bgmLoop = true;
 let bgmGainNode = null, bgmSource = null;
+let bgmSel = null, bgmDragging = null;
 
 // Video series
 let currentSeriesName = '';

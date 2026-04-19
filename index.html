@@ -2184,17 +2184,52 @@ body:has(#drop-zone:not(.hidden)) {
       <button id="sprop-delete" class="danger btn-sm">Remove</button>
     </div>
 
-    <!-- Reel Properties (shown when reel data transferred) -->
-    <div id="reel-editor-props" style="display:none; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; font-size:0.72rem;">
-      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-        <span class="text-secondary">Overlays:</span>
-        <button class="btn-xs" data-editor-overlay="subscribe">🔴 Subscribe</button>
-        <button class="btn-xs" data-editor-overlay="follow">💜 Follow</button>
-        <button class="btn-xs" data-editor-overlay="lower-third">📛 Lower Third</button>
-        <button class="btn-xs" data-editor-overlay="cta-arrow">👇 CTA</button>
-        <button class="btn-xs" data-editor-overlay="fade-title">✨ Title</button>
+    <!-- Reel Frame + Overlays Section (shown when reel data transferred) -->
+    <div id="reel-editor-props">
+      <div class="section-label mt-md">Reel Frame &amp; Overlays</div>
+
+      <!-- Frame subsection -->
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:6px; padding:8px 12px; font-size:0.72rem;">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <span class="text-secondary" style="font-weight:600;">🎞 Frame</span>
+          <label class="text-xs text-muted">Template:
+            <select id="editor-reel-frame-template" style="font-size:0.72rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+              <option value="none">None</option>
+              <option value="bottom-strip">Bottom Strip</option>
+              <option value="top-bar">Top Bar</option>
+              <option value="corner-tag">Corner Tag</option>
+              <option value="full-border">Full Border</option>
+              <option value="custom-png">Custom PNG</option>
+            </select>
+          </label>
+          <span id="editor-reel-frame-tpl-controls" style="display:none; gap:6px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="editor-reel-frame-text" placeholder="Frame text" style="width:90px; font-size:0.72rem; padding:2px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text-primary);">
+            <label class="text-xs text-muted">BG <input type="color" id="editor-reel-frame-bg" value="#000000" style="width:24px;height:20px;padding:0;border:none;cursor:pointer;vertical-align:middle;"></label>
+            <label class="text-xs text-muted">Text <input type="color" id="editor-reel-frame-tc" value="#ffffff" style="width:24px;height:20px;padding:0;border:none;cursor:pointer;vertical-align:middle;"></label>
+          </span>
+          <span id="editor-reel-frame-png-controls" style="display:none; gap:6px; align-items:center; flex-wrap:wrap;">
+            <button id="editor-reel-frame-upload" class="btn-xs">+ Upload PNG</button>
+            <input type="file" id="editor-reel-frame-input" accept="image/*" hidden>
+            <label class="text-xs text-muted">W<input type="range" id="editor-reel-frame-imgw" min="10" max="200" value="100" step="5" style="width:50px;vertical-align:middle;"><span id="editor-reel-frame-imgw-label" class="text-xs">100%</span></label>
+            <label class="text-xs text-muted">X<input type="range" id="editor-reel-frame-imgx" min="-100" max="100" value="0" step="1" style="width:50px;vertical-align:middle;"><span id="editor-reel-frame-imgx-label" class="text-xs">0%</span></label>
+            <label class="text-xs text-muted">Y<input type="range" id="editor-reel-frame-imgy" min="-100" max="100" value="0" step="1" style="width:50px;vertical-align:middle;"><span id="editor-reel-frame-imgy-label" class="text-xs">0%</span></label>
+          </span>
+          <label class="text-xs text-muted">Opacity<input type="range" id="editor-reel-frame-opacity" min="0" max="100" value="100" style="width:55px;vertical-align:middle;"><span id="editor-reel-frame-opacity-label" class="text-xs">100%</span></label>
+        </div>
       </div>
-      <div id="editor-overlay-chips" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px; max-width:100%; overflow:hidden;"></div>
+
+      <!-- Overlays subsection -->
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; font-size:0.72rem;">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+          <span class="text-secondary" style="font-weight:600;">✨ Overlays</span>
+          <button class="btn-xs" data-editor-overlay="subscribe">🔴 Subscribe</button>
+          <button class="btn-xs" data-editor-overlay="follow">💜 Follow</button>
+          <button class="btn-xs" data-editor-overlay="lower-third">📛 Lower Third</button>
+          <button class="btn-xs" data-editor-overlay="cta-arrow">👇 CTA</button>
+          <button class="btn-xs" data-editor-overlay="fade-title">✨ Title</button>
+        </div>
+        <div id="editor-overlay-chips" style="display:none; flex-wrap:wrap; gap:4px; max-width:100%; overflow:hidden;"></div>
+      </div>
     </div>
 
     <!-- Inline Preview Panel (collapsible) -->
@@ -2219,10 +2254,6 @@ body:has(#drop-zone:not(.hidden)) {
       <button id="btn-export-video" class="success">⬇ Export Video</button>
       <button id="btn-export-all-langs" class="success btn-sm" style="display:none;">🌐 Export All</button>
       <div class="separator"></div>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <input type="text" id="series-name" placeholder="Series name" style="width:120px; font-size:0.7rem; padding:4px 8px;">
-        <input type="number" id="episode-number" placeholder="Ep#" min="1" style="width:45px; font-size:0.7rem; padding:4px 6px;">
-      </div>
       <button id="btn-save-project">💾 Save Project</button>
       <button id="btn-load-project">📂 Open Project</button>
     </div>

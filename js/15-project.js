@@ -47,12 +47,6 @@ async function saveProjectToGallery(jsonStr, name) {
     }
   } catch(e) { console.warn('Thumbnail error:', e); }
 
-  // Read series inputs
-  const seriesEl = $('series-name');
-  const epEl = $('episode-number');
-  if (seriesEl) currentSeriesName = seriesEl.value.trim();
-  if (epEl) currentEpisodeNumber = parseInt(epEl.value) || 0;
-
   const meta = {
     id: name + '_' + Date.now(),
     name,
@@ -175,13 +169,6 @@ function createGalleryCard(p) {
       setStatus('Loading project from gallery...');
       const fullProject = await getGalleryProject(p.id);
       if (!fullProject?.projectJson) { setStatus('Project data not found.'); return; }
-      // Restore series metadata
-      currentSeriesName = p.seriesName || '';
-      currentEpisodeNumber = p.episodeNumber || 0;
-      const seriesEl = $('series-name');
-      const epEl = $('episode-number');
-      if (seriesEl) seriesEl.value = currentSeriesName;
-      if (epEl) epEl.value = currentEpisodeNumber || '';
       // Load project via existing file load logic
       const blob = new Blob([fullProject.projectJson], { type: 'application/json' });
       const dt = new DataTransfer();
@@ -247,10 +234,6 @@ async function loadGalleryCards() {
       header.querySelector('.series-new-episode').addEventListener('click', () => {
         currentSeriesName = name;
         currentEpisodeNumber = episodes.length + 1;
-        const seriesEl = $('series-name');
-        const epEl = $('episode-number');
-        if (seriesEl) seriesEl.value = currentSeriesName;
-        if (epEl) epEl.value = currentEpisodeNumber;
         const lastEp = episodes[episodes.length - 1];
         if (lastEp.stylePrompt) {
           createStylePrompt = lastEp.stylePrompt;
