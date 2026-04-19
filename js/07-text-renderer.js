@@ -240,7 +240,8 @@
       const fontSize = Math.round(cw * sizeFactor);
       const font = `700 ${fontSize}px ${fontFamily}, sans-serif`;
       const pos = typeof reelSubPosition !== 'undefined' ? reelSubPosition : 'bottom';
-      const y = pos === 'top' ? ch * 0.12 : pos === 'center' ? ch * 0.52 : ch * 0.85;
+      const posNum = typeof pos === 'number' ? pos : (pos === 'top' ? 12 : pos === 'center' ? 52 : 85);
+      const y = ch * (posNum / 100);
       const maxWidth = cw * 0.9;
       const wordText = (w) => allCaps ? w.word.toUpperCase() : w.word;
 
@@ -279,7 +280,10 @@
 
       if (style === 'word-by-word') {
         // Show current word + next 1-2 words, big and bold
-        const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        let idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        // Before first word or between words: show nearest upcoming word
+        if (idx < 0) idx = words.findIndex(w => w.start > elapsed);
+        if (idx < 0) idx = words.length - 1; // after last word: show last
         if (idx >= 0) {
           const chunk = words.slice(idx, idx + 2);
           const text = chunk.map(w => wordText(w)).join(' ');
@@ -309,8 +313,9 @@
         }
       } else if (style === 'karaoke') {
         const visible = words.filter(w => elapsed >= w.start);
-        if (visible.length > 0) {
-          const recent = visible.slice(-4);
+        // Before first word: show first word as preview
+        const recent = visible.length > 0 ? visible.slice(-4) : words.slice(0, 1);
+        if (recent.length > 0) {
           const text = recent.map(w => wordText(w)).join(' ');
           ctx.font = `600 ${Math.round(fontSize * 0.8)}px ${fontFamily}, sans-serif`;
           ctx.textAlign = 'center';
@@ -321,7 +326,9 @@
         }
       } else if (style === 'bold-center') {
         // 3 words at a time, current word highlighted
-        const idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        let idx = words.findIndex(w => elapsed >= w.start && elapsed < w.end);
+        if (idx < 0) idx = words.findIndex(w => w.start > elapsed); // upcoming
+        if (idx < 0) idx = words.length - 1; // after last
         if (idx >= 0) {
           const groupStart = Math.floor(idx / 3) * 3;
           const group = words.slice(groupStart, groupStart + 3);

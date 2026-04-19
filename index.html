@@ -1053,7 +1053,6 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
-      <div class="agent-step-header"><span class="agent-step-icon">📝</span><span class="agent-step-name">Script Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">1</span> Input & Template</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
@@ -1486,7 +1485,6 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 1: Input -->
     <div class="reel-step" id="reel-step-input">
-      <div class="agent-step-header"><span class="agent-step-icon">📝</span><span class="agent-step-name">Script Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <h3><span class="step-num">1</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
@@ -1596,6 +1594,7 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="form-row mt-md" style="align-items:center; gap:8px;">
         <button id="btn-reel-generate" class="primary btn-md">🚀 Launch Agents →</button>
         <span id="reel-generate-status" class="text-sm text-muted"></span>
+        <span id="reel-cost-estimate" class="text-sm text-muted" style="margin-left:auto; display:none;"></span>
       </div>
       <div class="create-progress hidden" id="reel-progress">
         <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
@@ -1771,18 +1770,6 @@ body:has(#drop-zone:not(.hidden)) {
       <input type="file" id="bgm-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
     </div>
 
-    <div id="bgm-section" style="display:none">
-      <div class="bgm-bar">
-        <span class="bgm-label">🎵 BGM</span>
-        <span id="bgm-name" class="bgm-name">No file</span>
-        <label style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
-          <input type="checkbox" id="bgm-loop" checked> Loop
-        </label>
-        <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
-        <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
-        <button id="bgm-remove" class="bgm-remove-btn">✕</button>
-      </div>
-    </div>
 
     <div id="pip-section" style="display:none">
       <div class="pip-bar">
@@ -1987,6 +1974,26 @@ body:has(#drop-zone:not(.hidden)) {
         <div id="video-playhead-line"></div>
       </div>
     </div>
+
+    <!-- BGM Timeline -->
+    <div id="bgm-section" style="display:none">
+      <div class="bgm-bar">
+        <span class="bgm-label">🎵 BGM</span>
+        <span id="bgm-name" class="bgm-name">No file</span>
+        <label class="bgm-control-label">🔊
+          <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
+          <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
+        </label>
+        <label class="bgm-control-label">
+          <input type="checkbox" id="bgm-loop" checked> Loop
+        </label>
+        <button id="bgm-remove" class="bgm-remove-btn">✕</button>
+      </div>
+      <div id="bgm-timeline-wrap">
+        <canvas id="bgm-waveform-canvas"></canvas>
+        <div id="bgm-playhead-line"></div>
+      </div>
+    </div>
     <div id="video-props">
       <button id="vprop-close" class="props-close-btn" title="Close">✕</button>
       <span class="text-sm font-semibold" style="color:var(--accent);">🎬 Video Clip</span>
@@ -2125,26 +2132,39 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-sub-apply-style" class="primary" style="font-size:0.68rem; padding:3px 10px;">Apply to All</button>
         </div>
       </div>
-      <div id="sub-reel-row" class="form-row" style="display:none; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">
-        <span class="text-muted" style="font-size:0.68rem; white-space:nowrap; margin-right:2px;">Word subtitle:</span>
-        <label class="text-secondary">Style: <select id="sub-reel-style">
-          <option value="word-by-word">Word by Word</option>
-          <option value="highlight" selected>Highlight</option>
-          <option value="karaoke">Karaoke</option>
-          <option value="bold-center">Bold Center</option>
-          <option value="none">None</option>
-        </select></label>
-        <label class="text-secondary">Color: <input type="color" id="sub-reel-color" value="#ffffff"></label>
-        <label class="text-secondary">Outline: <input type="color" id="sub-reel-outline" value="#000000"></label>
-        <label class="text-secondary">Backdrop: <select id="sub-reel-backdrop">
-          <option value="dark" selected>Dark</option><option value="blur">Blur</option>
-          <option value="shadow">Shadow</option><option value="none">None</option>
-        </select></label>
-        <label class="text-secondary">Size: <input type="range" id="sub-reel-size" min="2" max="8" step="0.5" value="4" style="width:50px;"><span id="sub-reel-size-label" style="min-width:12px;">4</span></label>
-        <label class="text-secondary">Pos: <select id="sub-reel-pos">
-          <option value="top">Top</option><option value="center">Center</option>
-          <option value="bottom" selected>Bottom</option>
-        </select></label>
+      <div id="sub-reel-row" style="display:none; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">
+        <div class="form-row" style="margin-bottom:4px;">
+          <label class="text-secondary">Style: <select id="sub-reel-style">
+            <option value="word-by-word">Word by Word</option>
+            <option value="highlight" selected>Highlight</option>
+            <option value="karaoke">Karaoke</option>
+            <option value="bold-center">Bold Center</option>
+            <option value="none">None</option>
+          </select></label>
+          <label class="text-secondary">Font: <select id="sub-reel-font">
+            <option value="Poppins">Poppins</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Anton">Anton</option>
+            <option value="Bebas Neue">Bebas Neue</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Inter">Inter</option>
+          </select></label>
+          <label class="text-secondary"><input type="checkbox" id="sub-reel-all-caps"> ALL CAPS</label>
+          <label class="text-secondary">Pos: <select id="sub-reel-pos">
+            <option value="top">Top</option><option value="center">Center</option>
+            <option value="bottom" selected>Bottom</option>
+          </select> <input type="range" id="sub-reel-pos-num" min="0" max="100" step="1" value="85" style="width:80px;vertical-align:middle;"><span id="sub-reel-pos-label" style="min-width:20px;font-size:0.7rem;">85%</span></label>
+          <label class="text-secondary">Size: <input type="range" id="sub-reel-size" min="2" max="8" step="0.5" value="4" style="width:50px;"><span id="sub-reel-size-label" style="min-width:12px;">4</span></label>
+        </div>
+        <div class="form-row">
+          <label class="text-secondary">Color: <input type="color" id="sub-reel-color" value="#ffffff"></label>
+          <label class="text-secondary">Accent: <input type="color" id="sub-reel-accent" value="#7c3aed" title="Highlighted word color"></label>
+          <label class="text-secondary">Outline: <input type="color" id="sub-reel-outline" value="#000000"></label>
+          <label class="text-secondary">Backdrop: <select id="sub-reel-backdrop">
+            <option value="dark" selected>Dark</option><option value="blur">Blur</option>
+            <option value="shadow">Shadow</option><option value="none">None</option>
+          </select></label>
+        </div>
       </div>
     </div>
     <div id="sub-drop-zone" class="empty">

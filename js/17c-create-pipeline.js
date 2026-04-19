@@ -986,7 +986,6 @@ btnCreateTranscribe.addEventListener('click', async () => {
   if (!key || !createAudioBuffer) return;
 
   btnCreateTranscribe.disabled = true;
-  updateCreateAgent('script', 'done', 'Input ready');
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
 

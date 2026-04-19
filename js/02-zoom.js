@@ -45,6 +45,7 @@ function applyZoom() {
   updateZoomInfo(); drawRuler(); renderPhotos(); renderTexts();
   if (typeof renderSubtitles === 'function') renderSubtitles();
   syncWaveformZoom();
+  if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
 }
 
 function syncWaveformZoom() {

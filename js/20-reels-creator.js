@@ -108,13 +108,14 @@ let reelGenImagesPaused = false;
 let reelGenImagesRunning = false;
 
 // Variation rows: each row = one reel variant (audio lang + subtitle lang)
-let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'original' }];
-let reelPerSegmentVariations = {}; // segIndex → rows array, null = use global
+let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'none' }];
 const REEL_LANG_OPTIONS = { original: 'Same as Input', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
+const REEL_SUBTITLE_LANG_OPTIONS = { none: 'None', ...REEL_LANG_OPTIONS };
 
 // ── Job Queue ──
 let reelJobs = [];
 let nextReelJobId = 1;
+let reelGenerating = false;
 
 function createReelJob(overrides) {
   return {
@@ -200,6 +201,7 @@ let reelEditMode = 'subtitles'; // subtitles | auto-cut
 if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
   navigateTo('reel');
   reelMode = true;
+  if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
   // Load saved keys
   const savedFree = localStorage.getItem('stori_key_free');
   const savedPaid = localStorage.getItem('stori_key_paid');
@@ -253,6 +255,7 @@ function setReelInputMode(mode) {
   if (durLabel) durLabel.style.display = mode === 'text' ? '' : 'none';
   if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
   if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
+  updateReelCostEstimate();
 }
 // Edit mode radio
 document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
@@ -272,6 +275,7 @@ function showReelPresets() {
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
   initReelTemplateUI();
   renumberReelSteps();
+  updateReelCostEstimate();
 }
 
 let _reelTemplateUIInit = false;
@@ -445,6 +449,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
     reelAudioName.textContent = `${file.name} (${fmtShort(reelAudioBuffer.duration)})`;
     reelSegments = [];
     reelJobs = [];
+    syncAddSegmentButtons();
     if (reelAudioEditor) reelAudioEditor.classList.remove('hidden');
     initReelAudioWaveform();
     hidePageLoader();
@@ -478,6 +483,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     reelOriginalAudioBuffer = reelAudioBuffer;
     reelSegments = [];
     reelJobs = [];
+    syncAddSegmentButtons();
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
@@ -695,6 +701,7 @@ function renderReelPresetSegments() {
       renderReelPresetSegments();
     });
   });
+  updateReelCostEstimate();
 }
 
 function stopSegPreview() {
@@ -712,7 +719,9 @@ function renderReelJobCards() {
   const container = $('reel-preset-segments');
   if (!container) return;
   const segmentJobs = reelJobs.filter(j => j.type === 'segment');
+  syncAddSegmentButtons();
   if (segmentJobs.length === 0) { container.innerHTML = ''; return; }
+  updateReelCostEstimate();
   const langHtml = Object.entries(REEL_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   container.innerHTML = `<div class="reel-segments-list">${segmentJobs.map((job, si) => {
     const varJobs = reelJobs.filter(j => j.type === 'variation' && j.parentId === job.id);
@@ -734,7 +743,7 @@ function renderReelJobCards() {
         <span style="font-size:0.8rem;font-weight:600;flex:1;">Segment ${si + 1}: ${fmtShort(job.segStart)} – ${fmtShort(job.segEnd)} (${(job.segEnd - job.segStart).toFixed(0)}s)</span>
         <span style="font-size:0.7rem;">${statusBadge}</span>
       </div>
-      <button class="btn-xs reel-seg-remove" data-jid="${job.id}" style="position:absolute;top:8px;right:6px;padding:2px 5px;font-size:0.65rem;">✕</button>
+      <button class="btn-xs reel-seg-remove" data-jid="${job.id}" style="position:absolute;top:8px;right:6px;padding:2px 5px;font-size:0.65rem;"${reelGenerating ? ' disabled' : ''}>✕</button>
     </div>`;
   }).join('')}</div>`;
 
@@ -765,6 +774,7 @@ function renderReelJobCards() {
       const jid = parseInt(btn.dataset.jid);
       reelJobs = reelJobs.filter(j => j.id !== jid && j.parentId !== jid);
       renderReelJobCards();
+      syncAddSegmentButtons();
     });
   });
   // Remove variation job
@@ -777,12 +787,25 @@ function renderReelJobCards() {
   });
 }
 
+function syncAddSegmentButtons() {
+  const hasSegment = reelJobs.some(j => j.type === 'segment');
+  if (btnAddAudioSeg) btnAddAudioSeg.disabled = hasSegment;
+  if (btnReelAddSegment) btnReelAddSegment.disabled = hasSegment;
+}
+
 // ── Preset handlers ──
 function updateReelAspectRatio() {
   const p = REEL_PLATFORMS[reelPlatform];
   if (p) document.documentElement.style.setProperty('--reel-aspect', `${p.width}/${p.height}`);
 }
-if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); });
+function syncVariationPlatformStyle() {
+  const extra = $('reel-variation-extra');
+  if (!extra) return;
+  extra.querySelectorAll('.var-platform').forEach(sel => { sel.value = reelPlatform; });
+  extra.querySelectorAll('.var-style').forEach(sel => { sel.value = reelStyleEl ? reelStyleEl.value : 'cinematic'; });
+}
+if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); syncVariationPlatformStyle(); });
+if (reelStyleEl) reelStyleEl.addEventListener('change', syncVariationPlatformStyle);
 updateReelAspectRatio();
 if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
 if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
@@ -833,23 +856,27 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   const key = getReelApiKey();
   console.log('[ReelGen] API key:', key ? 'present' : 'MISSING');
   if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
+  setReelExportEnabled(false);
 
   // ── Job queue mode: reelJobs has segment jobs (skip in text mode — text mode is always single-reel) ──
   if (reelInputMode !== 'text' && reelJobs.filter(j => j.type === 'segment').length > 0) {
     btnReelGenerate.disabled = true;
-    reelProgressEl.classList.remove('hidden');
+    reelGenerating = true; renderReelJobCards(); refreshReelAgentPanel(); initAllReelAgentTasks();
     try {
     const segmentJobs = reelJobs.filter(j => j.type === 'segment' && j.status === 'pending');
 
     // Phase 1: Transcribe all segment jobs
-    for (let si = 0; si < segmentJobs.length; si++) {
-      const job = segmentJobs[si];
-      reelProgressLabel.textContent = `Transcribing Segment ${si + 1} of ${segmentJobs.length}...`;
-      reelProgressBar.style.width = `${(si / segmentJobs.length * 40).toFixed(0)}%`;
-      setStatus(`Transcribing Segment ${si + 1}/${segmentJobs.length}...`, true);
+    resetReelAgentTasks('script');
+    updateReelAgentTask('script', 'transcribe', 'waiting', 'Transcribing audio…');
+    updateReelAgentTask('script', 'scenes', 'waiting', 'Creating scenes…');
+    updateReelAgentTask('script', 'subtitles', 'waiting', 'Timing subtitles…');
+    updateReelAgentTask('script', 'transcribe', 'running', 'Transcribing…');
+    updateReelAgent('scene', 'running', 'Analyzing audio & writing scenes…');
+    const job = segmentJobs[0];
+    if (job) {
       job.status = 'transcribing';
       renderReelJobCards();
-    try {
+      try {
       const segAudio = job.audioBuffer;
       const transPreset = REEL_TRANSITIONS[job.transition] || REEL_TRANSITIONS['whip-pan'];
 
@@ -888,7 +915,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         const wDur = totalDur / Math.max(1, allText.length);
         allText.forEach((w, i) => { words.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
       }
-      console.log(`[ReelGen] Segment ${si+1}: ${segments.length} segments, ${words.length} words generated`);
+      console.log(`[ReelGen] ${segments.length} segments, ${words.length} words generated`);
 
       const isVidInput = reelInputMode === 'video' && reelVideoEl;
       if (isVidInput && reelEditMode === 'subtitles') {
@@ -910,7 +937,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       job.status = 'error';
       job.error = friendlyApiError(err.message);
       renderReelJobCards();
-      reelProgressLabel.textContent = `Segment ${si + 1} failed: ${job.error}`;
+      reelProgressLabel.textContent = `Segment failed: ${job.error}`;
     }
     }
 
@@ -918,10 +945,19 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribedJobs = reelJobs.filter(j => j.type === 'segment' && (j.status === 'transcribing' || j.status === 'generating-images') && j.scenes.length > 0);
     const allJobScenes = [];
     for (const transcJob of transcribedJobs) { for (const s of transcJob.scenes) allJobScenes.push(s); }
+    updateReelAgentTask('script', 'transcribe', 'done', 'Audio transcribed');
+    updateReelAgentTask('script', 'scenes', 'done', `${allJobScenes.length} scenes created`);
+    updateReelAgentTask('script', 'subtitles', 'done', 'Subtitles timed');
+    resetReelAgentTasks('scene');
+    updateReelAgentTask('scene', 'prompts', 'waiting', 'Writing image prompts…');
+    updateReelAgentTask('scene', 'cinematography', 'waiting', 'Setting shot directions…');
+    updateReelAgentTask('scene', 'prompts', 'running', 'Writing image prompts…');
     if (allJobScenes.some(s => s.status === 'pending')) {
       reelPendingScenes = allJobScenes;
       if (reelStepScenes) reelStepScenes.classList.remove('hidden');
       renderReelSceneGrid(reelPendingScenes);
+      updateReelAgentTask('scene', 'prompts', 'done', `${reelPendingScenes.length} prompts ready`);
+      updateReelAgentTask('scene', 'cinematography', 'done', 'Shot directions set');
       // Phase 3: Generate images per segment job
       for (let ri = 0; ri < transcribedJobs.length; ri++) {
         const imgJob = transcribedJobs[ri];
@@ -929,7 +965,6 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         if (pendingScenes.length > 0) {
           imgJob.status = 'generating-images';
           renderReelJobCards();
-          setStatus(`Generating images for Segment ${ri + 1}...`, true);
           await reelRunImageGeneration(pendingScenes);
         }
         imgJob.status = 'done';
@@ -1007,10 +1042,8 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Phase 5: Build _reelMultiResults from all done jobs
     const doneJobs = reelJobs.filter(j => j.status === 'done');
     if (doneJobs.length === 0) {
-      reelProgressLabel.textContent = 'No reels generated. Check API key and try again.';
-      setStatus('Generation failed — no reels produced');
-      btnReelGenerate.disabled = false;
-      reelProgressEl.classList.add('hidden');
+      updateReelAgent('preview', 'error', 'Generation failed — check API key');
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       return;
     }
 
@@ -1039,7 +1072,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       }
     }
 
-    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
+    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent };
     window._reelMultiResults = doneJobs.map(job => {
       const isSegJob = job.type === 'segment';
       const effSubLang = isSegJob ? baseSubLang5 : job.subtitleLang;
@@ -1065,22 +1098,23 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     reelScenes = window._reelMultiResults[0].scenes;
     reelWords = window._reelMultiResults[0].words;
 
-    reelProgressBar.style.width = '100%';
     reelProgressEl.classList.add('hidden');
-    reelGenerateStatus.textContent = `${doneJobs.length} Reel(s) ready`;
-    setStatus(`${doneJobs.length} Reel(s) ready`);
     showReelEditorStep();
     renderReelScenes();
     renderReelFrame(0);
     renderAllReelPreviews();
-    btnReelGenerate.disabled = false;
+    resetReelAgentTasks('preview');
+    updateReelAgent('preview', 'running');
+    updateReelAgentTask('preview', 'sync', 'done', 'Audio & timing synced');
+    updateReelAgentTask('preview', 'assemble', 'done', 'Reel preview ready');
+    reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
     return;
     } catch(e) {
       console.error('[ReelGen] Job queue error:', e);
       reelProgressEl.classList.add('hidden');
       reelGenerateStatus.textContent = 'Error: ' + (e.message || 'Generation failed');
       setStatus('Reel generation failed');
-      btnReelGenerate.disabled = false;
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       return;
     }
   }
@@ -1131,13 +1165,16 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   const transPreset = REEL_TRANSITIONS[reelTransition] || REEL_TRANSITIONS['whip-pan'];
 
   btnReelGenerate.disabled = true;
-  reelProgressEl.classList.remove('hidden');
+  reelGenerating = true; refreshReelAgentPanel(); initAllReelAgentTasks();
 
   try {
     // Step 1: Transcribe with word-level timestamps
-    reelProgressLabel.textContent = 'Transcribing...';
-    reelProgressBar.style.width = '10%';
-    setStatus('Transcribing audio...', true);
+    resetReelAgentTasks('script');
+    updateReelAgentTask('script', 'transcribe', 'waiting', 'Transcribing audio…');
+    updateReelAgentTask('script', 'scenes', 'waiting', 'Creating scenes…');
+    updateReelAgentTask('script', 'subtitles', 'waiting', 'Timing subtitles…');
+    updateReelAgentTask('script', 'transcribe', 'running', 'Transcribing…');
+    updateReelAgent('scene', 'running', 'Analyzing audio & writing scenes…');
 
     const wavBlob = audioBufferToWavBlob(reelAudioBuffer);
     const b64Audio = await blobToBase64(wavBlob);
@@ -1179,6 +1216,13 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
     }
     console.log(`[ReelGen] Single: ${segments.length} segments, ${reelWords.length} words`);
+    updateReelAgentTask('script', 'transcribe', 'done', 'Audio transcribed');
+    updateReelAgentTask('script', 'scenes', 'done', `${segments.length} scenes created`);
+    updateReelAgentTask('script', 'subtitles', 'done', 'Subtitles timed');
+    resetReelAgentTasks('scene');
+    updateReelAgentTask('scene', 'prompts', 'waiting', 'Writing image prompts…');
+    updateReelAgentTask('scene', 'cinematography', 'waiting', 'Setting shot directions…');
+    updateReelAgentTask('scene', 'prompts', 'running', 'Writing image prompts…');
 
     const isVideoMode = reelInputMode === 'video' && reelVideoEl;
 
@@ -1225,24 +1269,28 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressEl.classList.add('hidden');
       if (reelStepScenes) reelStepScenes.classList.remove('hidden');
       renderReelSceneGrid(reelPendingScenes);
+      updateReelAgentTask('scene', 'prompts', 'done', `${reelPendingScenes.length} prompts ready`);
+      updateReelAgentTask('scene', 'cinematography', 'done', 'Shot directions set');
       await reelRunImageGeneration(reelPendingScenes.filter(s => s.status === 'pending'));
     }
 
     // Generate variation rows
-    const origReel = { audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, segmentIndex: 0, settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition } };
+    const origReel = { audioBuffer: reelAudioBuffer, scenes: reelScenes, words: reelWords, videoStart: 0, videoEnd: reelAudioBuffer.duration, segmentIndex: 0, settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent } };
     const singleResults = [];
     const translationCache = {};
     const ttsCache = {};
     const origText = reelWords?.map(w => w.word).join(' ') || '';
+    if (reelVariationRows.length > 1) updateReelAgent('language', 'running', `0/${reelVariationRows.length} languages`);
 
     for (const v of reelVariationRows) {
      try {
       const isOrigAudio = v.audio === 'original';
       const isOrigSub = v.subtitle === 'original';
+      const isNoSub = v.subtitle === 'none';
 
       // Subtitle words
-      let subWords = origReel.words;
-      if (!isOrigSub && origText) {
+      let subWords = isNoSub ? [] : origReel.words;
+      if (!isOrigSub && !isNoSub && origText) {
         const cKey = `sub_${v.subtitle}`;
         if (!translationCache[cKey]) {
           reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[v.subtitle]}...`;
@@ -1339,8 +1387,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       try {
         const isOrigAudio2 = v.audio === 'original';
         const isOrigSub2 = v.subtitle === 'original';
-        let subWords2 = origReel.words;
-        if (!isOrigSub2 && origText) {
+        const isNoSub2 = v.subtitle === 'none';
+        let subWords2 = isNoSub2 ? [] : origReel.words;
+        if (!isOrigSub2 && !isNoSub2 && origText) {
           const cKey2 = `sub_${v.subtitle}`;
           if (!translationCache[cKey2]) {
             const transBody2 = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[v.subtitle]}. Return ONLY the translated text:\n\n${origText}` }] }] };
@@ -1426,13 +1475,13 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 
     window._reelMultiResults = singleResults;
     activeReelPreview = 0;
+    if (reelVariationRows.length > 1) updateReelAgent('language', 'done', `${singleResults.length} languages`);
 
     // Show mini editor
-    reelProgressBar.style.width = '100%';
-    reelProgressLabel.textContent = 'Done!';
-    reelProgressEl.classList.add('hidden');
-    reelGenerateStatus.textContent = `${singleResults.length} Reel(s) ready`;
-    setStatus(`${singleResults.length} Reel(s) ready`);
+    resetReelAgentTasks('preview');
+    updateReelAgent('preview', 'running');
+    updateReelAgentTask('preview', 'sync', 'done', 'Audio & timing synced');
+    updateReelAgentTask('preview', 'assemble', 'done', 'Reel preview ready');
     showReelEditorStep();
     renderReelScenes();
     renderReelFrame(0);
@@ -1440,10 +1489,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
 
   } catch(e) {
     console.error('[ReelGen] Error:', e);
-    reelProgressLabel.textContent = 'Error: ' + friendlyApiError(e.message || 'Generation failed');
-    reelProgressEl.classList.add('hidden');
-    setStatus('Reel generation failed');
+    updateReelAgent('preview', 'error', friendlyApiError(e.message || 'Generation failed'));
   }
+  reelGenerating = false;
   btnReelGenerate.disabled = false;
 });
 
@@ -1553,12 +1601,17 @@ function drawReelSceneFrame(ctx, cw, ch, elapsed, scenes) {
   }
 }
 
+// Converts old string position values ('top'/'center'/'bottom') or numeric (0-100) to a number
+function parseSubPos(v) { return typeof v === 'number' ? v : (v === 'top' ? 12 : v === 'center' ? 52 : 85); }
+// Maps a 0-100 number back to the nearest named option for the select dropdown
+function subPosToStr(n) { return n <= 20 ? 'top' : n <= 65 ? 'center' : 'bottom'; }
+
 const REEL_SUB_PRESETS = {
-  'hormozi':  { subtitleStyle: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5,   subPosition: 'bottom', subFont: 'Anton',   subAllCaps: true,  subAccent: '#f7c204' },
-  'classic':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4,   subPosition: 'bottom', subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
-  'karaoke':  { subtitleStyle: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 3.5, subPosition: 'bottom', subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
-  'bold':     { subtitleStyle: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5,   subPosition: 'center', subFont: 'Poppins', subAllCaps: true,  subAccent: '#f7c204' },
-  'minimal':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3.5, subPosition: 'bottom', subFont: 'Inter',   subAllCaps: false, subAccent: '#7c3aed' },
+  'hormozi':  { subtitleStyle: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5,   subPosition: 85, subFont: 'Anton',   subAllCaps: true,  subAccent: '#f7c204' },
+  'classic':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4,   subPosition: 85, subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+  'karaoke':  { subtitleStyle: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 3.5, subPosition: 85, subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+  'bold':     { subtitleStyle: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5,   subPosition: 52, subFont: 'Poppins', subAllCaps: true,  subAccent: '#f7c204' },
+  'minimal':  { subtitleStyle: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3.5, subPosition: 85, subFont: 'Inter',   subAllCaps: false, subAccent: '#7c3aed' },
 };
 
 function applyReelSubPresetToCard(el, results) {
@@ -1570,6 +1623,19 @@ function applyReelSubPresetToCard(el, results) {
   if (!p) return;
   if (!r.settings) r.settings = {};
   Object.assign(r.settings, p);
+  console.log('[SubPreset] applied:', preset, 'idx:', idx, 'activeReelPreview:', activeReelPreview, 'style:', p.subtitleStyle, 'font:', p.subFont);
+  // Sync globals so saveActiveReelSettings() doesn't overwrite with stale values
+  if (idx === activeReelPreview) {
+    reelSubtitleStyle = p.subtitleStyle; reelSubColor = p.subColor; reelSubOutline = p.subOutline;
+    reelSubBackdrop = p.subBackdrop; reelSubSize = p.subSize; reelSubPosition = p.subPosition;
+    reelSubFont = p.subFont; reelSubAllCaps = p.subAllCaps; reelSubAccent = p.subAccent;
+  }
+  window._editorReelSubtitle = {
+    words: window._editorReelSubtitle?.words || reelWords,
+    style: p.subtitleStyle, subColor: p.subColor, subOutline: p.subOutline,
+    subBackdrop: p.subBackdrop, subSize: p.subSize, subPosition: p.subPosition,
+    subFont: p.subFont, subAllCaps: p.subAllCaps, subAccent: p.subAccent,
+  };
   const card = el.closest('.reel-preview-section');
   if (!card) return;
   const q = (sel) => card.querySelector(sel);
@@ -1584,7 +1650,9 @@ function applyReelSubPresetToCard(el, results) {
   const sizeEl = q(`.rc-sub-size[data-ri="${idx}"]`);
   if (sizeEl) { sizeEl.value = p.subSize; const sl = card.querySelector(`.rc-size-label`); if (sl) sl.textContent = p.subSize; }
   const posEl = q(`.rc-sub-pos[data-ri="${idx}"]`);
-  if (posEl) posEl.value = p.subPosition;
+  if (posEl) posEl.value = subPosToStr(p.subPosition);
+  const posNumEl = q(`.rc-sub-pos-num[data-ri="${idx}"]`);
+  if (posNumEl) { posNumEl.value = p.subPosition; const pl = card.querySelector('.rc-pos-label'); if (pl) pl.textContent = p.subPosition + '%'; }
   const accentEl = q(`.rc-sub-accent[data-ri="${idx}"]`);
   if (accentEl) accentEl.value = p.subAccent;
   const fontEl = q(`.rc-sub-font[data-ri="${idx}"]`);
@@ -1624,7 +1692,7 @@ function renderAllReelPreviews() {
     const subOutline = s.subOutline || reelSubOutline;
     const subBackdrop = s.subBackdrop || reelSubBackdrop;
     const subSize = s.subSize || reelSubSize;
-    const subPos = s.subPosition || reelSubPosition;
+    const subPos = parseSubPos(s.subPosition ?? reelSubPosition ?? 85);
     const subFont = s.subFont || reelSubFont || 'Poppins';
     const subAllCaps = s.subAllCaps !== undefined ? s.subAllCaps : reelSubAllCaps;
     const subAccent = s.subAccent || reelSubAccent || '#7c3aed';
@@ -1633,7 +1701,7 @@ function renderAllReelPreviews() {
     const transDur = r.scenes?.[1]?.transDur ?? 0.3;
     const curMotion = r.scenes?.[0]?.motion || 'slow-zoom-in';
     return `
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <label class="form-label">Transition: <select class="rc-transition" data-ri="${i}">
           ${Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}" ${k === trans ? 'selected' : ''}>${v.label}</option>`).join('')}
         </select></label>
@@ -1642,7 +1710,7 @@ function renderAllReelPreviews() {
           ${Object.entries(MOTIONS).map(([k, v]) => `<option value="${k}" ${k === curMotion ? 'selected' : ''}>${v}</option>`).join('')}
         </select></label>
       </div>
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <label class="form-label">Subtitle Preset: <select class="rc-sub-preset" data-ri="${i}">
           <option value="">Custom</option>
           <option value="hormozi">Hormozi</option>
@@ -1664,12 +1732,12 @@ function renderAllReelPreviews() {
         </select></label>
         <label class="form-label"><input type="checkbox" class="rc-sub-all-caps" data-ri="${i}" ${subAllCaps ? 'checked' : ''}> ALL CAPS</label>
       </div>
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <label class="form-label">Color: <input type="color" class="rc-sub-color" data-ri="${i}" value="${subColor}"></label>
         <label class="form-label">Accent: <input type="color" class="rc-sub-accent" data-ri="${i}" value="${subAccent}" title="Highlight word color"></label>
         <label class="form-label">Outline: <input type="color" class="rc-sub-outline" data-ri="${i}" value="${subOutline}"></label>
       </div>
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <label class="form-label">Backdrop: <select class="rc-sub-backdrop" data-ri="${i}">
           <option value="dark" ${subBackdrop === 'dark' ? 'selected' : ''}>Dark</option>
           <option value="blur" ${subBackdrop === 'blur' ? 'selected' : ''}>Blur</option>
@@ -1678,10 +1746,10 @@ function renderAllReelPreviews() {
         </select></label>
         <label class="form-label">Size: <input type="range" class="rc-sub-size" data-ri="${i}" min="2" max="8" value="${subSize}" step="0.5" style="width:50px;"><span class="rc-size-label text-2xs">${subSize}</span></label>
         <label class="form-label">Position: <select class="rc-sub-pos" data-ri="${i}">
-          <option value="top" ${subPos === 'top' ? 'selected' : ''}>Top</option>
-          <option value="center" ${subPos === 'center' ? 'selected' : ''}>Center</option>
-          <option value="bottom" ${subPos === 'bottom' ? 'selected' : ''}>Bottom</option>
-        </select></label>
+          <option value="top" ${subPos <= 20 ? 'selected' : ''}>Top</option>
+          <option value="center" ${subPos > 20 && subPos <= 65 ? 'selected' : ''}>Center</option>
+          <option value="bottom" ${subPos > 65 ? 'selected' : ''}>Bottom</option>
+        </select> <input type="range" class="rc-sub-pos-num" data-ri="${i}" min="0" max="100" step="1" value="${subPos}" style="width:80px;vertical-align:middle;"><span class="rc-pos-label text-2xs">${subPos}%</span></label>
       </div>
       ${isVid ? `<label class="form-label">Viewport: <select class="rc-viewport" data-ri="${i}">
         <option value="fill-center" ${viewport === 'fill-center' ? 'selected' : ''}>Fill</option>
@@ -1692,9 +1760,10 @@ function renderAllReelPreviews() {
         <option value="custom" ${viewport === 'custom' ? 'selected' : ''}>Custom</option>
       </select></label>
       <label class="form-label ${viewport !== 'custom' ? 'hidden' : ''} rc-vpx-label" data-ri="${i}">Pan: <input type="range" class="rc-vpx" data-ri="${i}" min="0" max="100" value="${vpx}" style="width:60px;"></label>` : ''}
-      <div style="display:flex; gap:8px; align-items:center; margin-top:4px; padding-top:6px; border-top:1px solid var(--border);">
-        <label class="form-label">Music: <select id="reel-bgm-preset-${i}" class="rc-bgm" data-ri="${i}">
-          <option value="none">None</option><option value="upbeat">Upbeat</option><option value="calm">Calm</option>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; padding-top:6px; border-top:1px solid var(--border);">
+        <label class="form-label">BGM: <select id="reel-bgm-preset-${i}" class="rc-bgm" data-ri="${i}">
+          ${reelBgmAiBuffer ? '<option value="ai-generated" selected>AI Generated ✨</option>' : ''}
+          <option value="none" ${!reelBgmAiBuffer ? 'selected' : ''}>None</option><option value="upbeat">Upbeat</option><option value="calm">Calm</option>
           <option value="cinematic">Cinematic</option><option value="corporate">Corporate</option><option value="playful">Playful</option>
           <option value="custom">Custom</option>
         </select></label>
@@ -1766,7 +1835,7 @@ function renderAllReelPreviews() {
     const rs = r.settings || {};
     const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition, savedF = reelSubFont, savedAC = reelSubAllCaps, savedAcc = reelSubAccent;
     reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
-    reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+    reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = parseSubPos(rs.subPosition ?? savedP);
     reelSubFont = rs.subFont || savedF; reelSubAllCaps = rs.subAllCaps !== undefined ? rs.subAllCaps : savedAC;
     reelSubAccent = rs.subAccent || savedAcc;
     const subStyle = rs.subtitleStyle || reelSubtitleStyle;
@@ -1853,19 +1922,21 @@ function renderAllReelPreviews() {
       const startedAt = ctx.currentTime - resumeOffset;
       source.start(0, resumeOffset);
       let bgmPreviewSource = null;
+      let bgmGainNode = null;
       if (reelBgmBuffer) {
         bgmPreviewSource = ctx.createBufferSource();
         bgmPreviewSource.buffer = reelBgmBuffer;
         bgmPreviewSource.loop = true;
-        const bgmGain = ctx.createGain(); bgmGain.gain.value = reelBgmVolume;
-        bgmPreviewSource.connect(bgmGain); bgmGain.connect(ctx.destination);
+        bgmGainNode = ctx.createGain(); bgmGainNode.gain.value = reelBgmVolume;
+        bgmPreviewSource.connect(bgmGainNode); bgmGainNode.connect(ctx.destination);
         bgmPreviewSource.start(0, resumeOffset);
         console.log('[BGM] Playing buffer, offset:', resumeOffset, 'gain:', reelBgmVolume);
       } else if (reelBgmAudioEl) {
         reelBgmAudioEl.currentTime = resumeOffset;
+        reelBgmAudioEl.volume = reelBgmVolume;
         reelBgmAudioEl.play().catch(() => {});
       }
-      mpState[idx] = { source, bgmSource: bgmPreviewSource, startedAt, playing: true, animId: null, pausedAt: 0 };
+      mpState[idx] = { source, bgmSource: bgmPreviewSource, bgmGain: bgmGainNode, startedAt, playing: true, animId: null, pausedAt: 0 };
       btn.textContent = '⏸';
       // Start video playback in sync
       if (reelVideoEl && reelVideoEl.videoWidth > 0) {
@@ -1931,7 +2002,7 @@ function renderAllReelPreviews() {
           const rs = r.settings || {};
           const savedColor = reelSubColor, savedOutline = reelSubOutline, savedBackdrop = reelSubBackdrop, savedSize = reelSubSize, savedPos = reelSubPosition, savedFont = reelSubFont, savedCaps = reelSubAllCaps, savedAccent = reelSubAccent;
           reelSubColor = rs.subColor || savedColor; reelSubOutline = rs.subOutline || savedOutline;
-          reelSubBackdrop = rs.subBackdrop || savedBackdrop; reelSubSize = rs.subSize || savedSize; reelSubPosition = rs.subPosition || savedPos;
+          reelSubBackdrop = rs.subBackdrop || savedBackdrop; reelSubSize = rs.subSize || savedSize; reelSubPosition = parseSubPos(rs.subPosition ?? savedPos);
           reelSubFont = rs.subFont || savedFont; reelSubAllCaps = rs.subAllCaps !== undefined ? rs.subAllCaps : savedCaps;
           reelSubAccent = rs.subAccent || savedAccent;
           const subStyle = rs.subtitleStyle || reelSubtitleStyle;
@@ -2052,7 +2123,7 @@ function renderAllReelPreviews() {
           const rs2 = r.settings || {};
           const sC = reelSubColor, sO = reelSubOutline, sB = reelSubBackdrop, sSz = reelSubSize, sP = reelSubPosition, sF = reelSubFont, sAC = reelSubAllCaps, sAcc = reelSubAccent;
           reelSubColor = rs2.subColor || sC; reelSubOutline = rs2.subOutline || sO;
-          reelSubBackdrop = rs2.subBackdrop || sB; reelSubSize = rs2.subSize || sSz; reelSubPosition = rs2.subPosition || sP;
+          reelSubBackdrop = rs2.subBackdrop || sB; reelSubSize = rs2.subSize || sSz; reelSubPosition = parseSubPos(rs2.subPosition ?? sP);
           reelSubFont = rs2.subFont || sF; reelSubAllCaps = rs2.subAllCaps !== undefined ? rs2.subAllCaps : sAC;
           reelSubAccent = rs2.subAccent || sAcc;
           const subStyle = rs2.subtitleStyle || reelSubtitleStyle;
@@ -2115,7 +2186,7 @@ function renderAllReelPreviews() {
           const rs3 = r.settings || {};
           const sC2 = reelSubColor, sO2 = reelSubOutline, sB2 = reelSubBackdrop, sSz2 = reelSubSize, sP2 = reelSubPosition, sF2 = reelSubFont, sAC2 = reelSubAllCaps, sAcc2 = reelSubAccent;
           reelSubColor = rs3.subColor || sC2; reelSubOutline = rs3.subOutline || sO2;
-          reelSubBackdrop = rs3.subBackdrop || sB2; reelSubSize = rs3.subSize || sSz2; reelSubPosition = rs3.subPosition || sP2;
+          reelSubBackdrop = rs3.subBackdrop || sB2; reelSubSize = rs3.subSize || sSz2; reelSubPosition = parseSubPos(rs3.subPosition ?? sP2);
           reelSubFont = rs3.subFont || sF2; reelSubAllCaps = rs3.subAllCaps !== undefined ? rs3.subAllCaps : sAC2;
           reelSubAccent = rs3.subAccent || sAcc2;
           const subStyle3 = rs3.subtitleStyle || reelSubtitleStyle;
@@ -2143,16 +2214,32 @@ function renderAllReelPreviews() {
       const preset = REEL_TRANSITIONS[el.value] || REEL_TRANSITIONS['whip-pan'];
       r.scenes.forEach(s => { s.transition = preset.transition; s.transDur = preset.transDur; s.motion = preset.motion; });
     }
-    // Sync subtitle settings to editor global
-    if (['subtitleStyle','subColor','subOutline','subBackdrop','subSize','subPosition'].includes(key)) {
+    // Sync subtitle settings to globals and editor state
+    const SUB_KEYS = ['subtitleStyle','subColor','subOutline','subBackdrop','subSize','subPosition','subFont','subAllCaps','subAccent'];
+    if (SUB_KEYS.includes(key)) {
+      // Keep globals in sync so saveActiveReelSettings() doesn't overwrite with stale values
+      if (idx === activeReelPreview) {
+        if (key === 'subtitleStyle') reelSubtitleStyle = r.settings[key];
+        else if (key === 'subColor')    reelSubColor    = r.settings[key];
+        else if (key === 'subOutline')  reelSubOutline  = r.settings[key];
+        else if (key === 'subBackdrop') reelSubBackdrop = r.settings[key];
+        else if (key === 'subSize')     reelSubSize     = r.settings[key];
+        else if (key === 'subPosition') reelSubPosition = r.settings[key];
+        else if (key === 'subFont')     reelSubFont     = r.settings[key];
+        else if (key === 'subAllCaps')  reelSubAllCaps  = r.settings[key];
+        else if (key === 'subAccent')   reelSubAccent   = r.settings[key];
+      }
       window._editorReelSubtitle = {
         words: window._editorReelSubtitle?.words || reelWords,
-        style: r.settings.subtitleStyle || reelSubtitleStyle,
-        subSize: r.settings.subSize || reelSubSize,
-        subPosition: r.settings.subPosition || reelSubPosition,
-        subColor: r.settings.subColor || reelSubColor,
-        subOutline: r.settings.subOutline || reelSubOutline,
-        subBackdrop: r.settings.subBackdrop || reelSubBackdrop,
+        style: reelSubtitleStyle,
+        subSize: reelSubSize,
+        subPosition: reelSubPosition,
+        subColor: reelSubColor,
+        subOutline: reelSubOutline,
+        subBackdrop: reelSubBackdrop,
+        subFont: reelSubFont,
+        subAllCaps: reelSubAllCaps,
+        subAccent: reelSubAccent,
       };
     }
   }
@@ -2185,7 +2272,22 @@ function renderAllReelPreviews() {
       if (label) label.textContent = el.value;
     });
   });
-  container.querySelectorAll('.rc-sub-pos').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subPosition')));
+  container.querySelectorAll('.rc-sub-pos').forEach(el => el.addEventListener('change', () => {
+    const n = parseSubPos(el.value);
+    const numEl = el.parentElement?.querySelector('.rc-sub-pos-num');
+    if (numEl) numEl.value = n;
+    const lbl = el.parentElement?.querySelector('.rc-pos-label');
+    if (lbl) lbl.textContent = n + '%';
+    updateReelSetting(el, 'subPosition', () => n);
+  }));
+  container.querySelectorAll('.rc-sub-pos-num').forEach(el => el.addEventListener('input', () => {
+    const n = parseInt(el.value);
+    const selEl = el.parentElement?.querySelector('.rc-sub-pos');
+    if (selEl) selEl.value = subPosToStr(n);
+    const lbl = el.parentElement?.querySelector('.rc-pos-label');
+    if (lbl) lbl.textContent = n + '%';
+    updateReelSetting(el, 'subPosition', () => n);
+  }));
   container.querySelectorAll('.rc-sub-font').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subFont')));
   container.querySelectorAll('.rc-sub-accent').forEach(el => el.addEventListener('input', () => updateReelSetting(el, 'subAccent')));
   container.querySelectorAll('.rc-sub-all-caps').forEach(el => el.addEventListener('change', () => updateReelSetting(el, 'subAllCaps', () => el.checked)));
@@ -2206,17 +2308,24 @@ function renderAllReelPreviews() {
       const mood = el.value;
       console.log('[BGM] Selected:', mood);
       if (mood === 'none') { reelBgmBuffer = null; if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; } return; }
+      if (mood === 'ai-generated') { reelBgmBuffer = reelBgmAiBuffer; reelBgmAudioEl = null; return; }
       if (mood === 'custom') { reelBgmBuffer = null; const inp = $('reel-bgm-input'); if (inp) inp.click(); return; }
       await loadBgmPreset(mood);
       console.log('[BGM] Loaded. buffer:', !!reelBgmBuffer, 'audioEl:', !!reelBgmAudioEl);
     });
   });
-  // BGM volume slider
+  // BGM volume slider — synced with BGM section slider + WaveSurfer + live preview gain
   container.querySelectorAll('.rc-bgm-vol').forEach(el => {
     el.addEventListener('input', () => {
       reelBgmVolume = parseInt(el.value) / 100;
       const label = el.parentElement.querySelector('.rc-bgm-vol-label');
       if (label) label.textContent = el.value + '%';
+      if (reelBgmWavesurfer) reelBgmWavesurfer.setVolume(reelBgmVolume);
+      const sectionSlider = $('reel-bgm-volume-slider');
+      if (sectionSlider) { sectionSlider.value = el.value; const lbl = $('reel-bgm-vol-label'); if (lbl) lbl.textContent = el.value + '%'; }
+      const mpSt = window._reelMpState;
+      if (mpSt) Object.values(mpSt).forEach(st => { if (st.playing && st.bgmGain) st.bgmGain.gain.value = reelBgmVolume; });
+      if (reelBgmAudioEl) reelBgmAudioEl.volume = reelBgmVolume;
     });
   });
   // Overlay buttons in per-reel controls
@@ -2365,7 +2474,7 @@ function selectReelPreview(idx) {
     reelSubOutline = r.settings.subOutline || '#000000';
     reelSubBackdrop = r.settings.subBackdrop || 'dark';
     reelSubSize = r.settings.subSize || 4;
-    reelSubPosition = r.settings.subPosition || 'bottom';
+    reelSubPosition = parseSubPos(r.settings.subPosition ?? 85);
     reelSubFont = r.settings.subFont || 'Poppins';
     reelSubAllCaps = r.settings.subAllCaps !== undefined ? r.settings.subAllCaps : false;
     reelSubAccent = r.settings.subAccent || '#7c3aed';
@@ -2387,7 +2496,9 @@ function selectReelPreview(idx) {
     const slEl = $('reel-sub-size-label');
     if (slEl) slEl.textContent = reelSubSize;
     const spEl = $('reel-sub-position');
-    if (spEl) spEl.value = reelSubPosition;
+    if (spEl) spEl.value = subPosToStr(reelSubPosition);
+    const spNumEl = $('reel-sub-position-num');
+    if (spNumEl) { spNumEl.value = reelSubPosition; const spLbl = $('reel-sub-pos-label'); if (spLbl) spLbl.textContent = reelSubPosition + '%'; }
   }
   renderReelScenes();
   renderReelFrame(0);
@@ -2493,10 +2604,10 @@ function renderReelSceneGrid(scenes) {
             ${scene.status === 'done' ? '✓ Done' : scene.status === 'generating' ? '⏳ Generating...' : scene.status === 'error' ? '✗ Error' : '○ Pending'}
           </span>
         </div>
-        <div class="scene-ref-row" id="reel-scene-ref-${idx}" style="${scene.refImageDataUrl ? '' : 'display:none;'}">
+        <div class="scene-ref-row" id="reel-scene-ref-${idx}" style="display:none;">
           ${refThumbHtml}
           <span class="ref-label">${refLabel}</span>
-          <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px; ${scene.refImageDataUrl ? '' : 'display:none;'}">✕</button>
+          <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px; display:none;">✕</button>
         </div>
       </div>`;
 
@@ -2695,11 +2806,21 @@ async function reelGenerateSceneImage(idx) {
   }
 }
 
-function reelRegenerateScene(idx) {
+async function reelRegenerateScene(idx) {
   if (reelVideoMode === 'animated' && reelPendingScenes[idx]?.videoUrl) {
     regenReelSceneVideoCard(idx);
   } else {
-    reelGenerateSceneImage(idx);
+    resetReelAgentTasks('image');
+    updateReelAgent('image', 'running');
+    updateReelAgentTask('image', 'individual', 'running', `Regenerating scene ${idx + 1}…`);
+    await reelGenerateSceneImage(idx);
+    const doneCount = (reelPendingScenes || []).filter(s => s.imgDataUrl).length;
+    const failedCount = (reelPendingScenes || []).filter(s => s.status === 'error').length;
+    updateReelAgentTask('image', 'individual', failedCount > 0 ? 'error' : 'done',
+      failedCount > 0 ? `${doneCount} done · ${failedCount} failed` : `${doneCount} images ready`);
+    if (reelVideoMode === 'animated' && reelPendingScenes[idx]?.imgDataUrl) {
+      await reelRunAnimation(null, null, null);
+    }
   }
 }
 
@@ -2724,16 +2845,22 @@ async function reelRunAnimation(barEl, labelEl, progressEl) {
   if (barEl) barEl.style.width = '50%';
   if (labelEl) labelEl.textContent = 'Animating scenes…';
   if (progressEl) progressEl.style.display = '';
+  resetReelAgentTasks('animation');
+  updateReelAgent('animation', 'running');
+  updateReelAgentTask('animation', 'animate', 'running', `0/${scenesWithImages.length} clips…`);
   try {
     await animateScenes(scenesWithImages, (done, total, label) => {
       if (barEl) barEl.style.width = (50 + Math.round((done / total) * 50)) + '%';
       if (labelEl) labelEl.textContent = label;
+      updateReelAgentTask('animation', 'animate', 'running', label);
     }, getReelApiKey());
     reelPendingScenes.forEach((_, i) => reelUpdateSceneCardImage(i));
     if (labelEl) labelEl.textContent = `Done! ${scenesWithImages.length} scenes animated.`;
     renderReelVideoCards();
+    updateReelAgentTask('animation', 'animate', 'done', `${scenesWithImages.length} clips animated`);
   } catch (animErr) {
     if (labelEl) { labelEl.textContent = `Animation error: ${animErr.message}`; labelEl.style.color = '#ef4444'; }
+    updateReelAgentTask('animation', 'animate', 'error', animErr.message);
   }
   setTimeout(() => { if (progressEl) progressEl.style.display = 'none'; }, 4000);
 }
@@ -2811,12 +2938,26 @@ async function regenReelSceneVideoCard(idx) {
   const imgDiv = $(`reel-video-img-${idx}`);
   if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.72rem;">Regenerating…</div>`;
   try {
-    if (typeof reelGenerateSceneImage === 'function') await reelGenerateSceneImage(idx);
+    if (typeof reelGenerateSceneImage === 'function') {
+      resetReelAgentTasks('image');
+      updateReelAgent('image', 'running');
+      updateReelAgentTask('image', 'individual', 'running', `Regenerating scene ${idx + 1}…`);
+      await reelGenerateSceneImage(idx);
+      const doneCount = reelPendingScenes.filter(s => s.imgDataUrl).length;
+      const failedCount = reelPendingScenes.filter(s => s.status === 'error').length;
+      updateReelAgentTask('image', 'individual', failedCount > 0 ? 'error' : 'done',
+        failedCount > 0 ? `${doneCount} done · ${failedCount} failed` : `${doneCount} images ready`);
+    }
     if (scene.imgDataUrl && reelVideoMode === 'animated' && typeof animateScenes === 'function') {
       if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.72rem;">Animating…</div>`;
       scene.videoUrl = null;
       scene.videoClips = null;
+      resetReelAgentTasks('animation');
+      updateReelAgent('animation', 'running');
+      updateReelAgentTask('animation', 'animate', 'running', `Animating scene ${idx + 1}…`);
       await animateScenes([scene], () => {}, getReelApiKey());
+      const animatedCount = reelPendingScenes.filter(s => s.videoUrl).length;
+      updateReelAgentTask('animation', 'animate', 'done', `${animatedCount} clips ready`);
     }
   } catch (e) {
     if (imgDiv) imgDiv.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;">Failed</div>`;
@@ -2837,17 +2978,21 @@ async function reelRunImageGeneration(scenesToGen) {
   const btnRetry = $('btn-reel-retry-images');
   const btnPause = $('btn-reel-pause-images');
   const btnContinue = $('btn-reel-scenes-continue');
-  const progressEl = $('reel-image-progress');
-  const barEl = $('reel-image-bar');
-  const labelEl = $('reel-image-label');
+  // Progress shown exclusively in agent sidebar — not in individual step sections
+  const progressEl = null;
+  const barEl = null;
+  const labelEl = null;
 
   if (btnGenImages) btnGenImages.disabled = true;
   if (btnRetry) btnRetry.style.display = 'none';
   if (btnPause) { btnPause.style.display = ''; btnPause.textContent = '⏸ Pause'; }
   reelGenImagesPaused = false;
   reelGenImagesRunning = true;
-  if (progressEl) progressEl.style.display = '';
-  if (labelEl) labelEl.style.color = '';
+  resetReelAgentTasks('image');
+  updateReelAgent('image', 'running');
+  // Show BGM step early so panel click can scroll to it
+  const _bgmStepEl = $('reel-step-bgm');
+  if (_bgmStepEl) { _bgmStepEl.classList.remove('hidden'); }
   const total = scenesToGen.length;
 
   // Grid mode: 4+ scenes without reference images → single grid API call (saves ~50% cost)
@@ -2868,8 +3013,11 @@ async function reelRunImageGeneration(scenesToGen) {
     try {
       if (labelEl) labelEl.textContent = `Generating ${total} images in grid mode...`;
       if (barEl) barEl.style.width = '30%';
+      updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
       const gridDataUrl = await generateGridImage(prompts, key, stylePrompt, undefined, 'portrait format (9:16 aspect ratio)');
       if (barEl) barEl.style.width = '50%';
+      updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
+      updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
       // Pro returns 2K → upscale 2x to 4K → crop cells
       const cells = await reelUpscaleAndCrop(gridDataUrl, 2, 3, 3, total, barEl, labelEl, 'Pro 2K');
       for (let gi = 0; gi < cells.length; gi++) {
@@ -2886,15 +3034,20 @@ async function reelRunImageGeneration(scenesToGen) {
       if (btnPause) btnPause.style.display = 'none';
       if (labelEl) labelEl.textContent = `Done! ${cells.length} images generated (grid mode — $0.134 vs $${(total * 0.039).toFixed(3)} individual).`;
       if (btnGenImages) btnGenImages.disabled = false;
+      updateReelAgentTask('image', 'upscale', 'done', `${cells.length} images ready`);
       await reelRunAnimation(barEl, labelEl, progressEl);
       if (barEl) barEl.style.width = '100%';
+      autoPickBgm().catch(e => console.warn('[BGM] autoPickBgm error:', e));
       return;
     } catch(gridErr) {
       console.error('[Grid] Pro grid failed:', gridErr.message);
       if (labelEl) labelEl.textContent = 'Pro failed, trying 3.1 Flash 2K grid...';
       try {
         // Fallback 1: gemini-3.1-flash-image-preview at 2K → upscale 2K→4K
+        updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
         const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview', 'portrait format (9:16 aspect ratio)');
+        updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
+        updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
         const fbCells = await reelUpscaleAndCrop(fbGrid, 2, 3, 3, total, barEl, labelEl, '3.1 Flash 2K');
         for (let gi = 0; gi < fbCells.length; gi++) {
           const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
@@ -2906,15 +3059,20 @@ async function reelRunImageGeneration(scenesToGen) {
         if (btnPause) btnPause.style.display = 'none';
         if (labelEl) labelEl.textContent = `Done! ${fbCells.length} images (3.1 Flash grid — $0.101).`;
         if (btnGenImages) btnGenImages.disabled = false;
+        updateReelAgentTask('image', 'upscale', 'done', `${fbCells.length} images ready`);
         await reelRunAnimation(barEl, labelEl, progressEl);
         if (barEl) barEl.style.width = '100%';
+        autoPickBgm().catch(e => console.warn('[BGM] autoPickBgm error:', e));
         return;
       } catch(fb1Err) {
         console.error('[Grid] 3.1 Flash grid failed:', fb1Err.message);
         if (labelEl) labelEl.textContent = '3.1 Flash failed, trying 2.5 Flash 1K grid...';
         try {
           // Fallback 2: gemini-2.5-flash-image at 1K → upscale 1K→2K
+          updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
           const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image', 'portrait format (9:16 aspect ratio)');
+          updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
+          updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
           const fbCells2 = await reelUpscaleAndCrop(fbGrid2, 2, 3, 3, total, barEl, labelEl, '2.5 Flash 1K');
           for (let gi = 0; gi < fbCells2.length; gi++) {
             const scene = scenesToGen[gi]; const idx = reelPendingScenes.indexOf(scene);
@@ -2926,8 +3084,10 @@ async function reelRunImageGeneration(scenesToGen) {
           if (btnPause) btnPause.style.display = 'none';
           if (labelEl) labelEl.textContent = `Done! ${fbCells2.length} images (2.5 Flash grid — $0.039).`;
           if (btnGenImages) btnGenImages.disabled = false;
+          updateReelAgentTask('image', 'upscale', 'done', `${fbCells2.length} images ready`);
           await reelRunAnimation(barEl, labelEl, progressEl);
           if (barEl) barEl.style.width = '100%';
+          autoPickBgm().catch(e => console.warn('[BGM] autoPickBgm error:', e));
           return;
         } catch(fb2Err) {
           console.error('[Grid] All grid attempts failed, falling back to individual:', fb2Err.message);
@@ -2951,6 +3111,7 @@ async function reelRunImageGeneration(scenesToGen) {
     const idx = reelPendingScenes.indexOf(scenesToGen[i]);
     if (barEl) barEl.style.width = Math.round((i / total) * 100) + '%';
     if (labelEl) labelEl.textContent = `Generating image ${i + 1} of ${total}...`;
+    updateReelAgentTask('image', 'individual', 'running', `Image ${i + 1}/${total}…`);
     await reelGenerateSceneImage(idx);
   }
 
@@ -2968,14 +3129,18 @@ async function reelRunImageGeneration(scenesToGen) {
   }
   if (btnGenImages) btnGenImages.disabled = false;
   if (btnContinue) btnContinue.style.display = '';
+  updateReelAgentTask('image', 'individual', failedCount > 0 ? 'error' : 'done', failedCount > 0 ? `${doneCount} done · ${failedCount} failed` : `${doneCount} images ready`);
 
   await reelRunAnimation(barEl, labelEl, progressEl);
+
+  // Auto-generate BGM with Lyria 3 after images (and animation) are ready
+  autoPickBgm().catch(e => console.warn('[BGM] autoPickBgm error:', e));
 }
 
 async function reelBuildVariationsAndPreview() {
   // Job queue path: build results directly from jobs
   if (reelJobs.filter(j => j.type === 'segment').length > 0) {
-    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
+    const jobSettings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent };
     const activeJobs = reelJobs.filter(j => j.scenes && j.scenes.length > 0);
     if (activeJobs.length === 0) { setStatus('No scenes yet — wait for transcription'); return; }
 
@@ -3066,7 +3231,7 @@ async function reelBuildVariationsAndPreview() {
 
   try {
     const allResults = [];
-    const settings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition };
+    const settings = { subtitleStyle: reelSubtitleStyle, transition: reelTransition, viewport: reelViewport, viewportX: reelViewportX, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent };
 
     // Build list of base reels (one per segment, or just one for single)
     const baseReels = origReels || [{
@@ -3628,8 +3793,17 @@ if (reelSubSizeEl) reelSubSizeEl.addEventListener('input', () => {
   saveActiveReelSettings();
   renderReelFrame(0);
 });
+const reelSubPosNumEl = $('reel-sub-position-num');
 if (reelSubPositionEl) reelSubPositionEl.addEventListener('change', () => {
-  reelSubPosition = reelSubPositionEl.value;
+  reelSubPosition = parseSubPos(reelSubPositionEl.value);
+  if (reelSubPosNumEl) { reelSubPosNumEl.value = reelSubPosition; const lbl = $('reel-sub-pos-label'); if (lbl) lbl.textContent = reelSubPosition + '%'; }
+  saveActiveReelSettings();
+  renderReelFrame(0);
+});
+if (reelSubPosNumEl) reelSubPosNumEl.addEventListener('input', () => {
+  reelSubPosition = parseInt(reelSubPosNumEl.value);
+  if (reelSubPositionEl) reelSubPositionEl.value = subPosToStr(reelSubPosition);
+  const lbl = $('reel-sub-pos-label'); if (lbl) lbl.textContent = reelSubPosition + '%';
   saveActiveReelSettings();
   renderReelFrame(0);
 });
@@ -3659,12 +3833,13 @@ function renderVariationRows() {
   const container = $('reel-variation-list');
   if (!container) return;
   const langHtml = Object.entries(REEL_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  const subLangHtml = Object.entries(REEL_SUBTITLE_LANG_OPTIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   const platHtml = Object.entries(REEL_PLATFORMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   const styleHtml = typeof STYLE_PRESETS !== 'undefined' ? Object.keys(STYLE_PRESETS).map(k => `<option value="${k}">${k.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`).join('') : '<option value="cinematic">Cinematic</option>';
   const transHtml = Object.entries(REEL_TRANSITIONS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
   // Row 0 inline (Audio + Sub only, shares Platform/Style/Transition from presets row)
   container.innerHTML = `<label class="form-label" data-vi="0">Audio: <select class="var-audio" data-vi="0">${langHtml}</select></label>
-    <label class="form-label" data-vi="0">Sub: <select class="var-subtitle" data-vi="0">${langHtml}</select></label>`;
+    <label class="form-label" data-vi="0">Sub: <select class="var-subtitle" data-vi="0">${subLangHtml}</select></label>`;
 
   // Additional rows go into a sibling container (each on its own line)
   let extraContainer = $('reel-variation-extra');
@@ -3676,11 +3851,11 @@ function renderVariationRows() {
   extraContainer.innerHTML = reelVariationRows.slice(1).map((row, idx) => {
     const i = idx + 1;
     return `<div class="reel-presets-row" style="margin-top:6px;" data-vi="${i}">
-      <label class="form-label">Platform: <select class="var-platform" data-vi="${i}">${platHtml}</select></label>
-      <label class="form-label">Visual style: <select class="var-style" data-vi="${i}">${styleHtml}</select></label>
+      <label class="form-label">Platform: <select class="var-platform" data-vi="${i}" disabled>${platHtml}</select></label>
+      <label class="form-label">Visual style: <select class="var-style" data-vi="${i}" disabled>${styleHtml}</select></label>
       <label class="form-label">Transition: <select class="var-transition" data-vi="${i}">${transHtml}</select></label>
       <label class="form-label">Audio: <select class="var-audio" data-vi="${i}">${langHtml}</select></label>
-      <label class="form-label">Sub: <select class="var-subtitle" data-vi="${i}">${langHtml}</select></label>
+      <label class="form-label">Sub: <select class="var-subtitle" data-vi="${i}">${subLangHtml}</select></label>
       <button class="variation-remove" data-vi="${i}">✕</button>
     </div>`;
   }).join('');
@@ -3689,12 +3864,10 @@ function renderVariationRows() {
     el.querySelectorAll('.var-platform').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
       sel.value = reelVariationRows[i].platform || reelPlatform || 'instagram';
-      sel.addEventListener('change', () => { reelVariationRows[i].platform = sel.value; });
     });
     el.querySelectorAll('.var-style').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
       sel.value = reelVariationRows[i].style || (reelStyleEl ? reelStyleEl.value : 'cinematic');
-      sel.addEventListener('change', () => { reelVariationRows[i].style = sel.value; });
     });
     el.querySelectorAll('.var-transition').forEach(sel => {
       const i = parseInt(sel.dataset.vi);
@@ -3731,11 +3904,32 @@ function updateVariationCount() {
   const suffixSpan = $('reel-btn-suffix');
   if (countSpan) countSpan.textContent = `(${total})`;
   if (suffixSpan) suffixSpan.textContent = total !== 1 ? 's' : '';
+  updateReelCostEstimate();
+}
+
+function updateReelCostEstimate() {
+  const el = $('reel-cost-estimate');
+  if (!el) return;
+  const segCount = Math.max(1, reelJobs.filter(j => j.type === 'segment').length);
+  const isAudioVideo = reelInputMode !== 'text';
+  const audioExtraLangs = reelVariationRows.filter(v => v.audio !== 'original').length;
+  const subtitleExtraLangs = reelVariationRows.filter(v => v.subtitle !== 'original' && v.subtitle !== 'none').length;
+
+  const transcriptionCost = isAudioVideo ? (COST_ESTIMATES.transcription || 0.003) : 0;
+  const sceneWritingCost = 7 * (COST_ESTIMATES.textGeneration || 0.001);
+  const imageCost = COST_ESTIMATES.gridGen2K || 0.134;
+  const langCost = audioExtraLangs * (COST_ESTIMATES.ttsPerLang || 0.02)
+    + subtitleExtraLangs * (COST_ESTIMATES.textGeneration || 0.001);
+  const perReel = transcriptionCost + sceneWritingCost + imageCost + langCost;
+  const total = segCount * perReel;
+
+  el.textContent = `Est. ~$${total.toFixed(3)}`;
+  el.style.display = '';
 }
 
 const btnAddVariation = $('btn-add-variation');
 if (btnAddVariation) btnAddVariation.addEventListener('click', () => {
-  reelVariationRows.push({ platform: reelPlatform, style: reelStyleEl ? reelStyleEl.value : 'cinematic', transition: reelTransition, audio: 'original', subtitle: 'original' });
+  reelVariationRows.push({ platform: reelPlatform, style: reelStyleEl ? reelStyleEl.value : 'cinematic', transition: reelTransition, audio: 'original', subtitle: 'none' });
   renderVariationRows();
 });
 
@@ -3779,6 +3973,9 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       subBackdrop: reelSubBackdrop,
       subSize: reelSubSize,
       subPosition: reelSubPosition,
+      subFont: reelSubFont,
+      subAllCaps: reelSubAllCaps,
+      subAccent: reelSubAccent,
       inputMode: reelInputMode,
       inputText: reelTextInput ? reelTextInput.value : '',
       segments: reelSegments,
@@ -3808,6 +4005,10 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       frameImgSrc: reelFrameImgSrc || '',
       overlayItems: reelOverlayItems.map(o => ({ id: o.id, type: o.type, startTime: o.startTime, duration: o.duration, params: o.params })),
       bgmVolume: reelBgmVolume,
+      bgmData: await (async () => {
+        if (!reelBgmBuffer) return null;
+        try { return await blobToBase64(audioBufferToWavBlob(reelBgmBuffer)); } catch(e) { return null; }
+      })(),
       multiResults: window._reelMultiResults ? await Promise.all(window._reelMultiResults.map(async r => {
         let audioData = null;
         if (r.audioBuffer) {
@@ -3866,6 +4067,34 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
 });
 
 // ── BGM ──
+let reelBgmWavesurfer = null;
+
+function initReelBgmWaveform(url) {
+  const container = $('reel-bgm-waveform');
+  if (!container || typeof WaveSurfer === 'undefined') return;
+  if (reelBgmWavesurfer) { try { reelBgmWavesurfer.destroy(); } catch(e) {} reelBgmWavesurfer = null; }
+  reelBgmWavesurfer = WaveSurfer.create({
+    container: '#reel-bgm-waveform',
+    waveColor: 'rgba(167,139,250,0.5)',
+    progressColor: '#7c3aed',
+    height: 72,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 2,
+    cursorColor: '#fff',
+    cursorWidth: 1,
+  });
+  reelBgmWavesurfer.load(url);
+  const playBtn = $('reel-bgm-play-btn');
+  if (playBtn) {
+    reelBgmWavesurfer.on('play', () => { playBtn.textContent = '⏸ Pause'; });
+    reelBgmWavesurfer.on('pause', () => { playBtn.textContent = '▶ Play'; });
+    reelBgmWavesurfer.on('finish', () => { playBtn.textContent = '▶ Play'; });
+    playBtn.onclick = () => reelBgmWavesurfer?.playPause();
+  }
+  reelBgmWavesurfer.setVolume(reelBgmVolume);
+}
+
 const BGM_PRESETS = {
   upbeat:    { label: 'Upbeat',    src: 'audio/bgm/upbeat.mp3' },
   calm:      { label: 'Calm',      src: 'audio/bgm/calm.mp3' },
@@ -3877,6 +4106,7 @@ const BGM_PRESETS = {
 // BGM audio element for file:// compatible playback
 let reelBgmAudioEl = null;
 let reelBgmVolume = 0.5;
+let reelBgmAiBuffer = null; // Lyria 3 generated buffer (preserved when user switches presets)
 
 async function loadBgmPreset(mood) {
   if (!mood || mood === 'none' || mood === 'custom') {
@@ -3918,26 +4148,86 @@ async function loadBgmPreset(mood) {
 }
 
 async function autoPickBgm() {
+  try {
   if (reelBgmBuffer) return; // don't override user's choice
   const key = getReelApiKey();
   if (!key) return;
+
+  const bgmStep = $('reel-step-bgm');
+  const bgmStatus = $('reel-bgm-status');
+  const bgmPlayer = $('reel-bgm-player');
+  if (bgmStep) bgmStep.classList.remove('hidden');
+  resetReelAgentTasks('bgm');
+  updateReelAgentTask('bgm', 'analyze', 'waiting', 'Analyzing content…');
+  updateReelAgentTask('bgm', 'compose', 'waiting', 'Composing with Lyria 3…');
+  updateReelAgentTask('bgm', 'analyze', 'done', 'Content analyzed');
+  updateReelAgentTask('bgm', 'compose', 'running', 'Composing with Lyria 3…');
+  if (bgmPlayer) bgmPlayer.style.display = 'none';
+
+  // Try Lyria 3 first
+  try {
+    const text = ($('reel-text-input')?.value || '').slice(0, 400);
+    const scenes = reelPendingScenes || reelScenes || [];
+    const images = scenes.filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
+    const arrayBuf = await generateLyriaBgm(key, text || 'social media reel', images);
+
+    // Decode to AudioBuffer for sync playback during reel preview
+    const bufCopy = arrayBuf.slice(0);
+    reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+
+    // Create Blob URL for the waveform player
+    const blob = new Blob([bufCopy], { type: 'audio/mp3' });
+    const blobUrl = URL.createObjectURL(blob);
+    if (bgmStatus) bgmStatus.style.display = 'none';
+    if (bgmPlayer) bgmPlayer.style.display = '';
+    initReelBgmWaveform(blobUrl);
+    reelBgmAiBuffer = reelBgmBuffer; // save for "AI Generated" option
+    // Select "AI Generated" in all preview music dropdowns
+    document.querySelectorAll('.rc-bgm').forEach(sel => {
+      if (!sel.querySelector('option[value="ai-generated"]')) {
+        const opt = document.createElement('option'); opt.value = 'ai-generated'; opt.textContent = 'AI Generated ✨';
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      sel.value = 'ai-generated';
+    });
+    console.log('[BGM] Lyria 3 generated for reel');
+    updateReelAgentTask('bgm', 'compose', 'done', 'Music ready · Lyria 3');
+    return;
+  } catch(e) {
+    console.warn('[BGM] Lyria 3 failed, falling back to preset:', e);
+    updateReelAgentTask('bgm', 'compose', 'warn', 'Lyria 3 unavailable · trying preset');
+    updateReelAgentTask('bgm', 'preset', 'running', 'Selecting mood preset…');
+  }
+
+  // Fallback: pick a preset mood via Gemini Flash
   const template = document.querySelector('#reel-template-grid .template-card.selected')?.dataset?.template || '';
   const style = $('reel-style')?.value || '';
   const text = ($('reel-text-input')?.value || '').slice(0, 200);
   const context = [template && `template:${template}`, style && `style:${style}`, text && `topic:${text}`].filter(Boolean).join(', ');
-  if (!context) return;
+  if (!context) { updateReelAgentTask('bgm', 'preset', 'done', 'Default preset'); return; }
   try {
     const body = { contents: [{ parts: [{ text: `Music director for social media reels. Content: "${context}". Pick ONE mood from: upbeat, calm, cinematic, corporate, playful. Reply with ONLY the single word.` }] }] };
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const data = await resp.json();
+    const data = await callGeminiAPI(getTranscriptionModels(), body, key);
     const mood = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase().replace(/[^a-z]/g, '');
     if (BGM_PRESETS[mood]) {
       await loadBgmPreset(mood);
       const el = $('reel-bgm-preset'); if (el) el.value = mood;
       const lbl = $('reel-bgm-auto-label'); if (lbl) lbl.style.display = '';
-      console.log('[BGM] Auto-picked:', mood);
+      if (bgmStatus) bgmStatus.style.display = 'none';
+      if (bgmPlayer) bgmPlayer.style.display = '';
+      initReelBgmWaveform(BGM_PRESETS[mood].src);
+      console.log('[BGM] Preset auto-picked:', mood);
+      updateReelAgentTask('bgm', 'preset', 'done', `Music ready · ${BGM_PRESETS[mood]?.label || mood} preset`);
+    } else {
+      updateReelAgentTask('bgm', 'preset', 'done', 'Default preset');
     }
-  } catch(e) { console.warn('[BGM] Auto-pick failed:', e); }
+  } catch(e) {
+    console.warn('[BGM] Auto-pick failed:', e);
+    updateReelAgentTask('bgm', 'preset', 'error', 'BGM selection failed');
+  }
+  } finally {
+    setReelExportEnabled(true);
+  }
 }
 
 const reelBgmPresetEl = $('reel-bgm-preset');
@@ -3947,6 +4237,7 @@ if (reelBgmPresetEl) reelBgmPresetEl.addEventListener('change', async () => {
   const uploadBtn = $('btn-reel-bgm'); if (uploadBtn) uploadBtn.style.display = mood === 'custom' ? '' : 'none';
   if (mood === 'custom') { reelBgmBuffer = null; return; }
   await loadBgmPreset(mood);
+  setReelExportEnabled(true);
 });
 if (btnReelBgm) btnReelBgm.addEventListener('click', () => reelBgmInput.click());
 if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
@@ -3957,8 +4248,24 @@ if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
     const arrayBuf = await file.arrayBuffer();
     reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
     if (btnReelBgm) btnReelBgm.textContent = `♫ ${file.name.slice(0, 20)}`;
+    setReelExportEnabled(true);
   } catch(e) { if (btnReelBgm) btnReelBgm.textContent = '+ Upload (error)'; }
 });
+
+// Volume slider for reel BGM waveform player
+const reelBgmVolumeSlider = $('reel-bgm-volume-slider');
+if (reelBgmVolumeSlider) {
+  reelBgmVolumeSlider.addEventListener('input', () => {
+    reelBgmVolume = parseInt(reelBgmVolumeSlider.value) / 100;
+    if (reelBgmWavesurfer) reelBgmWavesurfer.setVolume(reelBgmVolume);
+    const lbl = $('reel-bgm-vol-label');
+    if (lbl) lbl.textContent = reelBgmVolumeSlider.value + '%';
+    document.querySelectorAll('.rc-bgm-vol').forEach(el => { el.value = reelBgmVolumeSlider.value; const l = el.parentElement.querySelector('.rc-bgm-vol-label'); if (l) l.textContent = reelBgmVolumeSlider.value + '%'; });
+    const mpSt = window._reelMpState;
+    if (mpSt) Object.values(mpSt).forEach(st => { if (st.playing && st.bgmGain) st.bgmGain.gain.value = reelBgmVolume; });
+    if (reelBgmAudioEl) reelBgmAudioEl.volume = reelBgmVolume;
+  });
+}
 
 // ── Frame Overlay ──
 const btnReelFrame = $('btn-reel-frame');
@@ -4236,7 +4543,7 @@ async function exportSingleReel() {
       const rs = activeResult?.settings || {};
       const savedC = reelSubColor, savedO = reelSubOutline, savedB = reelSubBackdrop, savedSz = reelSubSize, savedP = reelSubPosition;
       reelSubColor = rs.subColor || savedC; reelSubOutline = rs.subOutline || savedO;
-      reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = rs.subPosition || savedP;
+      reelSubBackdrop = rs.subBackdrop || savedB; reelSubSize = rs.subSize || savedSz; reelSubPosition = parseSubPos(rs.subPosition ?? savedP);
       const subStyle = rs.subtitleStyle || reelSubtitleStyle;
       if (subStyle !== 'none' && reelWords.length > 0) renderReelSubtitle(ctx, platform.width, platform.height, elapsed, reelWords, subStyle);
       reelSubColor = savedC; reelSubOutline = savedO; reelSubBackdrop = savedB; reelSubSize = savedSz; reelSubPosition = savedP;
@@ -4284,6 +4591,12 @@ if (btnReelExport) btnReelExport.addEventListener('click', () => exportSingleRee
 
 // ── Export All Reels ──
 const btnReelExportAll = $('btn-reel-export-all');
+
+function setReelExportEnabled(enabled) {
+  [btnReelExport, btnReelExportAll, btnReelSaveProject, btnReelSaveTop, btnReelFullEditor].forEach(b => {
+    if (b) b.disabled = !enabled;
+  });
+}
 if (btnReelExportAll) btnReelExportAll.addEventListener('click', async () => {
   const results = window._reelMultiResults;
   if (!results || results.length === 0) return;
@@ -4311,6 +4624,7 @@ async function openReelInFullEditor() {
   const platform = REEL_PLATFORMS[reelPlatform];
 
   const activeResult = window._reelMultiResults?.[activeReelPreview];
+  const activeWords = activeResult?.words?.length > 0 ? activeResult.words : reelWords;
   const vidStart = activeResult?.videoStart || 0;
   console.log('[ToEditor] scenes:', reelScenes.length, 'videoEl:', !!reelVideoEl, 'videoSrc:', !!reelVideoSrc, 'audioDur:', reelAudioBuffer?.duration);
   for (const scene of reelScenes) {
@@ -4343,8 +4657,27 @@ async function openReelInFullEditor() {
   }
 
   console.log('[ToEditor] videoTimelineItems:', videoTimelineItems.length, 'photoItems:', photoItems.length);
-  // Reel word subtitles are handled by _editorReelSubtitle (set below); no subtitleItems needed
+  // Populate subtitle timeline blocks from reel words (canvas rendering still uses _editorReelSubtitle)
   subtitleItems = [];
+  const _wordsForSubs = activeWords?.length > 0 ? activeWords : reelWords;
+  if (_wordsForSubs && _wordsForSubs.length > 0) {
+    for (let i = 0; i < _wordsForSubs.length; i += 5) {
+      const group = _wordsForSubs.slice(i, i + 5);
+      if (group.length === 0) continue;
+      subtitleItems.push({
+        id: nextSubtitleId++,
+        text: group.map(w => w.word).join(' '),
+        startTime: group[0].start,
+        duration: group[group.length - 1].end - group[0].start,
+        font: "'Poppins', sans-serif", fontSize: 32,
+        color: reelSubColor || '#ffffff',
+        strokeColor: reelSubOutline || '#000000', strokeWidth: 2,
+        bgColor: '#000000', bgAlpha: reelSubBackdrop === 'none' ? 0 : 0.5,
+        bold: true, position: reelSubPosition <= 20 ? 'top-center' : reelSubPosition <= 65 ? 'center' : 'bot-center',
+        animation: 'none', animDur: 0,
+      });
+    }
+  }
 
   // Transfer BGM + volume
   console.log('[ToEditor] BGM buffer:', !!reelBgmBuffer, 'audioEl:', !!reelBgmAudioEl, 'volume:', reelBgmVolume);
@@ -4354,9 +4687,23 @@ async function openReelInFullEditor() {
     const bgmVolLbl = $('bgm-volume-label'); if (bgmVolLbl) bgmVolLbl.textContent = Math.round(bgmVolume * 100) + '%';
     const bgmNm = $('bgm-name'); if (bgmNm) bgmNm.textContent = `BGM (${fmtShort(bgmBuffer.duration)})`;
     const bgmSec = $('bgm-section'); if (bgmSec) { bgmSec.style.display = ''; console.log('[ToEditor] BGM section shown'); }
+    if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
   } else if (reelBgmAudioEl) {
     // BGM loaded via audio element (file:// fallback) — can't transfer buffer, but show info
-    console.log('[ToEditor] BGM only as audio element, no buffer to transfer');
+    // Try to re-fetch and decode to AudioBuffer so export/editor can use it
+    if (reelBgmAudioEl.src) {
+      try {
+        const resp = await fetch(reelBgmAudioEl.src);
+        const arrayBuf = await resp.arrayBuffer();
+        bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+        bgmVolume = reelBgmVolume;
+        const bgmVol = $('bgm-volume'); if (bgmVol) bgmVol.value = Math.round(bgmVolume * 100);
+        const bgmVolLbl = $('bgm-volume-label'); if (bgmVolLbl) bgmVolLbl.textContent = Math.round(bgmVolume * 100) + '%';
+        const bgmNm = $('bgm-name'); if (bgmNm) bgmNm.textContent = `BGM (${fmtShort(bgmBuffer.duration)})`;
+        const bgmSec = $('bgm-section'); if (bgmSec) bgmSec.style.display = '';
+        if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
+      } catch(e) { console.warn('[ToEditor] Could not decode BGM audio element:', e); }
+    }
   }
 
   // Transfer frame settings
@@ -4401,14 +4748,29 @@ async function openReelInFullEditor() {
   if (videoTimelineItems.length > 0) bgVideoMode = 'video-only';
   // Store reel properties for editor preview
   window._editorReelSubtitle = {
-    words: reelWords,
+    words: activeWords,
     style: reelSubtitleStyle,
     subSize: reelSubSize,
     subPosition: reelSubPosition,
     subColor: reelSubColor,
     subOutline: reelSubOutline,
     subBackdrop: reelSubBackdrop,
+    subFont: reelSubFont,
+    subAllCaps: reelSubAllCaps,
+    subAccent: reelSubAccent,
   };
+  console.log('[ToEditor] subtitle:', reelSubtitleStyle, 'font:', reelSubFont, 'allCaps:', reelSubAllCaps, 'accent:', reelSubAccent);
+  // Sync subtitle panel controls in editor
+  const rs = window._editorReelSubtitle;
+  const srs = $('sub-reel-style'); if (srs) srs.value = rs.style;
+  const src = $('sub-reel-color'); if (src) src.value = rs.subColor;
+  const sro = $('sub-reel-outline'); if (sro) sro.value = rs.subOutline;
+  const srb = $('sub-reel-backdrop'); if (srb) srb.value = rs.subBackdrop;
+  const srz = $('sub-reel-size'); if (srz) srz.value = rs.subSize;
+  const srl = $('sub-reel-size-label'); if (srl) srl.textContent = rs.subSize;
+  const srpPos = parseSubPos(rs.subPosition ?? 85);
+  const srp = $('sub-reel-pos'); if (srp) srp.value = subPosToStr(srpPos);
+  const srpNum = $('sub-reel-pos-num'); if (srpNum) { srpNum.value = srpPos; const srpLbl = $('sub-reel-pos-label'); if (srpLbl) srpLbl.textContent = srpPos + '%'; }
   window._editorReelViewport = {
     mode: activeResult?.settings?.viewport || reelViewport || 'fill-center',
     panX: activeResult?.settings?.viewportX ?? reelViewportX ?? 50,
@@ -4443,7 +4805,8 @@ async function openReelInFullEditor() {
   loadEditorLibrary();
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
   drawRuler(); renderPhotos(); renderTexts(); renderSubtitles();
-  if (typeof showInlinePreview === 'function') showInlinePreview();
+  if (typeof window._forceInlineRender === 'function') window._forceInlineRender();
+  else if (typeof showInlinePreview === 'function') showInlinePreview();
   if (typeof window._showReelPropsPanel === 'function') window._showReelPropsPanel();
   if (typeof setupEditorLanguageSelector === 'function' && editorLanguageTracks.length > 0) setupEditorLanguageSelector();
   const items = photoItems.length + videoTimelineItems.length;
@@ -4517,7 +4880,23 @@ function loadEditorReel(idx) {
     }
   }
 
-  // Reel word subtitles handled by _editorReelSubtitle; subtitleItems cleared above
+  // Populate subtitle timeline blocks from reel words (canvas rendering still uses _editorReelSubtitle)
+  subtitleItems = [];
+  if (r.words && r.words.length > 0) {
+    for (let i = 0; i < r.words.length; i += 5) {
+      const group = r.words.slice(i, i + 5);
+      if (group.length === 0) continue;
+      subtitleItems.push({
+        id: nextSubtitleId++, text: group.map(w => w.word).join(' '),
+        startTime: group[0].start, duration: group[group.length - 1].end - group[0].start,
+        font: "'Poppins', sans-serif", fontSize: 32, color: reelSubColor || '#fff',
+        strokeColor: reelSubOutline || '#000', strokeWidth: 2,
+        bgColor: '#000', bgAlpha: 0.5, bold: true,
+        position: reelSubPosition <= 20 ? 'top-center' : reelSubPosition <= 65 ? 'center' : 'bot-center',
+        animation: 'none', animDur: 0,
+      });
+    }
+  }
 
   updateAudioControls();
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
@@ -4552,7 +4931,10 @@ async function loadReelProject(project) {
   reelSubOutline = project.subOutline || '#000000';
   reelSubBackdrop = project.subBackdrop || 'dark';
   reelSubSize = project.subSize || 4;
-  reelSubPosition = project.subPosition || 'bottom';
+  reelSubPosition = parseSubPos(project.subPosition ?? 85);
+  reelSubFont = project.subFont || 'Poppins';
+  reelSubAllCaps = project.subAllCaps ?? false;
+  reelSubAccent = project.subAccent || '#7c3aed';
   if (project.inputMode) reelInputMode = project.inputMode;
   if (reelTextInput && project.inputText) reelTextInput.value = project.inputText;
   if (project.segments) reelSegments = project.segments;
@@ -4571,7 +4953,9 @@ async function loadReelProject(project) {
   const subSizeLabel = $('reel-sub-size-label');
   if (subSizeLabel) subSizeLabel.textContent = reelSubSize;
   const subPosEl = $('reel-sub-position');
-  if (subPosEl) subPosEl.value = reelSubPosition;
+  if (subPosEl) subPosEl.value = subPosToStr(reelSubPosition);
+  const subPosNumEl = $('reel-sub-position-num');
+  if (subPosNumEl) { subPosNumEl.value = reelSubPosition; const spLbl = $('reel-sub-pos-label'); if (spLbl) spLbl.textContent = reelSubPosition + '%'; }
   setReelInputMode(reelInputMode);
 
   // Restore audio
@@ -4655,10 +5039,25 @@ async function loadReelProject(project) {
     nextOverlayId = 1;
   }
   if (project.bgmVolume != null) reelBgmVolume = project.bgmVolume;
+  if (project.bgmData) {
+    try {
+      const arrayBuf = base64ToArrayBuffer(project.bgmData);
+      reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+      reelBgmAiBuffer = reelBgmBuffer;
+      const bgmStep = $('reel-step-bgm');
+      const bgmPlayer = $('reel-bgm-player');
+      if (bgmStep) bgmStep.classList.remove('hidden');
+      if (bgmPlayer) bgmPlayer.style.display = '';
+      try {
+        const wavBlob = audioBufferToWavBlob(reelBgmBuffer);
+        initReelBgmWaveform(URL.createObjectURL(wavBlob));
+      } catch(e) {}
+    } catch(e) { console.warn('[Project] Could not restore BGM:', e); }
+  }
   // Sync to editor globals
   window._editorReelFrame = { template: reelFrameTemplate, text: reelFrameText, bgColor: reelFrameBgColor, textColor: reelFrameTextColor, opacity: reelFrameOpacity, imgEl: reelFrameImgEl, imgSrc: reelFrameImgSrc };
   window._editorReelOverlays = reelOverlayItems.map(o => ({ ...o }));
-  window._editorReelSubtitle = { words: reelWords, style: reelSubtitleStyle, subSize: reelSubSize, subPosition: reelSubPosition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop };
+  window._editorReelSubtitle = { words: reelWords, style: reelSubtitleStyle, subSize: reelSubSize, subPosition: reelSubPosition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent };
 
   // Restore variation rows
   if (project.variationRows) reelVariationRows = project.variationRows;
@@ -4730,7 +5129,7 @@ async function loadReelProject(project) {
         audioLang: 'original', subtitleLang: 'original',
         audioLangLabel: 'Original', subtitleLangLabel: 'Original',
         segmentIndex: si,
-        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
+        settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent },
         needsRegeneration: true,
       });
     }
@@ -4745,7 +5144,7 @@ async function loadReelProject(project) {
       audioLang: 'original', subtitleLang: 'original',
       audioLangLabel: 'Original', subtitleLangLabel: 'Original',
       segmentIndex: 0,
-      settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition },
+      settings: { subtitleStyle: reelSubtitleStyle, transition: reelTransition, subColor: reelSubColor, subOutline: reelSubOutline, subBackdrop: reelSubBackdrop, subSize: reelSubSize, subPosition: reelSubPosition, subFont: reelSubFont, subAllCaps: reelSubAllCaps, subAccent: reelSubAccent },
     });
   }
 
@@ -4805,6 +5204,7 @@ async function loadReelProject(project) {
   } else {
     setStatus(`Project loaded — ${results.length} reel(s)`);
   }
+  if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
 }
 
 // ── Back to Reel from Editor ──
@@ -4816,6 +5216,7 @@ if (btnBackToReel) btnBackToReel.addEventListener('click', () => {
   // Hide reel tabs in editor
   const tabsEl = $('editor-reel-tabs');
   if (tabsEl) tabsEl.classList.add('hidden');
+  if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
 });
 
 // ── Pipeline job handoff (from marketing-pipeline) ──

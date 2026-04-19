@@ -21,6 +21,197 @@
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
+    function drawBgmWaveform() {
+      const canvas = $('bgm-waveform-canvas');
+      if (!canvas || !bgmBuffer) return;
+      // getBoundingClientRect forces a layout flush, returning accurate width even right after display change
+      const wrap = canvas.parentElement;
+      let w = wrap ? wrap.getBoundingClientRect().width : 0;
+      if (!w) w = timelineContainer.getBoundingClientRect().width || timelineContainer.clientWidth;
+      if (!w) { requestAnimationFrame(drawBgmWaveform); return; }
+      const totalDur = aDur();
+      if (!totalDur) return;
+      const dpr = devicePixelRatio || 1;
+      const h = 64;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, w, h);
+
+      const data = bgmBuffer.getChannelData(0);
+      const sampleRate = bgmBuffer.sampleRate;
+      const bgmDur = bgmBuffer.duration;
+      const loop = bgmLoopCheckbox ? bgmLoopCheckbox.checked : bgmLoop;
+      const visStart = visibleStart();
+      const visDur = visibleDuration();
+      const samplesPerPx = Math.max(1, Math.floor(sampleRate * visDur / w));
+
+      for (let px = 0; px < w; px++) {
+        const t = visStart + (px / w) * visDur;
+        if (t < 0 || t > totalDur) continue;
+        const srcT = loop ? (t % bgmDur) : t;
+        if (!loop && srcT >= bgmDur) continue;
+
+        const startSample = Math.floor(srcT * sampleRate);
+        let peak = 0;
+        const end = Math.min(startSample + samplesPerPx, data.length);
+        for (let i = startSample; i < end; i++) {
+          const abs = Math.abs(data[i]);
+          if (abs > peak) peak = abs;
+        }
+        const barH = Math.max(2, peak * (h - 8));
+        const midY = h / 2;
+        const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
+        ctx.strokeStyle = rep === 0 ? '#6c63ff' : '#8b83ff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 0.5, midY - barH / 2);
+        ctx.lineTo(px + 0.5, midY + barH / 2);
+        ctx.stroke();
+      }
+
+      // Loop divider lines — use local coordinates, not secToPx
+      if (loop && bgmDur < totalDur) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        for (let t = bgmDur; t < totalDur; t += bgmDur) {
+          const x = ((t - visStart) / visDur) * w;
+          if (x < 0 || x > w) continue;
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+      // Selection overlay
+      if (bgmSel) {
+        const x1 = ((bgmSel.start - visStart) / visDur) * w;
+        const x2 = ((bgmSel.end - visStart) / visDur) * w;
+        if (x2 > 0 && x1 < w) {
+          ctx.fillStyle = 'rgba(108,99,255,0.35)';
+          ctx.fillRect(Math.max(0, x1), 0, Math.min(w, x2) - Math.max(0, x1), h);
+          ctx.strokeStyle = '#a09dff'; ctx.lineWidth = 1.5;
+          if (x1 >= 0 && x1 <= w) { ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, h); ctx.stroke(); }
+          if (x2 >= 0 && x2 <= w) { ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, h); ctx.stroke(); }
+        }
+      }
+      // Move ghost
+      if (bgmDragging && bgmDragging.mode === 'move') {
+        const dur = bgmDragging.origSel.end - bgmDragging.origSel.start;
+        const ns = bgmDragging.newStart;
+        const gx1 = ((ns - visStart) / visDur) * w;
+        const gx2 = ((ns + dur - visStart) / visDur) * w;
+        if (gx2 > 0 && gx1 < w) {
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(Math.max(0, gx1), 0, Math.min(w, gx2) - Math.max(0, gx1), h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+          ctx.setLineDash([4, 3]);
+          if (gx1 >= 0 && gx1 <= w) { ctx.beginPath(); ctx.moveTo(gx1, 0); ctx.lineTo(gx1, h); ctx.stroke(); }
+          if (gx2 >= 0 && gx2 <= w) { ctx.beginPath(); ctx.moveTo(gx2, 0); ctx.lineTo(gx2, h); ctx.stroke(); }
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // Expose so zoom and project-load can call it
+    window.drawBgmWaveform = drawBgmWaveform;
+
+    function updateBgmSelUI() {
+      const infoEl = $('bgm-sel-info');
+      const btnDel = $('bgm-del-sel');
+      if (bgmSel && (bgmSel.end - bgmSel.start) >= 0.05) {
+        if (infoEl) infoEl.textContent = `${fmtShort(bgmSel.start)} – ${fmtShort(bgmSel.end)} (${fmtShort(bgmSel.end - bgmSel.start)})`;
+        if (btnDel) btnDel.disabled = false;
+      } else {
+        bgmSel = null;
+        if (infoEl) infoEl.textContent = 'Drag to select  •  drag selection to move';
+        if (btnDel) btnDel.disabled = true;
+      }
+    }
+
+    function bgmPxToTime(clientX) {
+      const canvas = $('bgm-waveform-canvas');
+      if (!canvas) return 0;
+      const rect = canvas.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return visibleStart() + frac * visibleDuration();
+    }
+
+    const bgmCanvas = $('bgm-waveform-canvas');
+    if (bgmCanvas) {
+      bgmCanvas.addEventListener('mousedown', e => {
+        if (!bgmBuffer) return;
+        e.preventDefault();
+        const t = bgmPxToTime(e.clientX);
+        if (bgmSel && t >= bgmSel.start - 0.1 && t <= bgmSel.end + 0.1) {
+          bgmDragging = { mode: 'move', startT: t, origSel: { ...bgmSel }, newStart: bgmSel.start };
+          bgmCanvas.style.cursor = 'grabbing';
+        } else {
+          bgmSel = null;
+          bgmDragging = { mode: 'select', anchorT: t };
+          updateBgmSelUI();
+        }
+      });
+    }
+
+    window.addEventListener('mousemove', e => {
+      if (!bgmDragging || !bgmBuffer) return;
+      const t = bgmPxToTime(e.clientX);
+      if (bgmDragging.mode === 'select') {
+        const a = bgmDragging.anchorT;
+        bgmSel = { start: Math.min(a, t), end: Math.max(a, t) };
+        updateBgmSelUI();
+      } else {
+        const dur = bgmDragging.origSel.end - bgmDragging.origSel.start;
+        const offset = t - bgmDragging.startT;
+        const raw = bgmDragging.origSel.start + offset;
+        bgmDragging.newStart = Math.max(0, Math.min(bgmBuffer.duration - dur, raw));
+      }
+      drawBgmWaveform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!bgmDragging) return;
+      if (bgmDragging.mode === 'select') {
+        if (!bgmSel || (bgmSel.end - bgmSel.start) < 0.05) bgmSel = null;
+      } else if (bgmDragging.mode === 'move') {
+        const origSel = bgmDragging.origSel;
+        const newStart = bgmDragging.newStart;
+        const dur = origSel.end - origSel.start;
+        if (Math.abs(newStart - origSel.start) >= 0.05) {
+          const seg = extractRegion(bgmBuffer, origSel.start, origSel.end);
+          const nb = deleteRegion(bgmBuffer, origSel.start, origSel.end);
+          if (nb && seg) {
+            let insertAt = newStart > origSel.start ? Math.max(0, newStart - dur) : newStart;
+            insertAt = Math.min(insertAt, nb.duration);
+            bgmBuffer = insertAudioAt(nb, seg, insertAt);
+            bgmSel = { start: insertAt, end: insertAt + dur };
+          }
+        }
+        if (bgmCanvas) bgmCanvas.style.cursor = 'crosshair';
+      }
+      bgmDragging = null;
+      updateBgmSelUI();
+      drawBgmWaveform();
+    });
+
+    const bgmDelSelBtn = $('bgm-del-sel');
+    if (bgmDelSelBtn) bgmDelSelBtn.addEventListener('click', () => {
+      if (!bgmSel || !bgmBuffer) return;
+      const selDur = bgmSel.end - bgmSel.start;
+      const nb = deleteRegion(bgmBuffer, bgmSel.start, bgmSel.end);
+      if (!nb) { setStatus('Cannot delete: would remove entire BGM audio.'); return; }
+      bgmBuffer = nb;
+      bgmSel = null;
+      updateBgmSelUI();
+      drawBgmWaveform();
+      setStatus(`BGM: deleted ${fmtShort(selDur)}`);
+    });
+
     btnAddBgm.addEventListener('click', () => {
       bgmInputEl.click();
     });
@@ -31,8 +222,10 @@
       try {
         const arrayBuf = await file.arrayBuffer();
         bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+        bgmSel = null; bgmDragging = null;
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
+        drawBgmWaveform();
         setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
     });
@@ -46,12 +239,15 @@
     bgmLoopCheckbox.addEventListener('change', () => {
       bgmLoop = bgmLoopCheckbox.checked;
       if (bgmSource) bgmSource.loop = bgmLoop;
+      drawBgmWaveform();
     });
 
     bgmRemoveBtn.addEventListener('click', () => {
-      bgmBuffer = null;
+      bgmBuffer = null; bgmSel = null; bgmDragging = null;
       bgmSection.style.display = 'none';
       bgmNameEl.textContent = 'No file';
+      const canvas = $('bgm-waveform-canvas');
+      if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
       setStatus('BGM removed');
     });
 

@@ -759,7 +759,7 @@ button.warn:hover { background: rgba(245,158,11,0.25); border-color: var(--amber
 input[type="file"] { display: none; }
 
 /* ── Playhead ── */
-#playhead-line, #text-playhead-line {
+#playhead-line, #text-playhead-line, #sub-playhead-line, #video-playhead-line, #bgm-playhead-line {
   position: absolute; top: 0; bottom: 0; width: 2px;
   background: var(--red); pointer-events: none; z-index: 20; display: none;
   box-shadow: 0 0 6px rgba(239,68,68,0.5);
@@ -1458,18 +1458,33 @@ input:focus, select:focus, textarea:focus {
 .series-new-episode:hover { background: var(--accent); color: #fff; }
 
 /* ── Background Music ── */
+#bgm-section { margin: 4px 0; }
 .bgm-bar {
   display: flex; align-items: center; gap: 8px;
-  padding: 6px 12px; background: var(--bg-elevated);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  margin: 4px 8px; font-size: 0.72rem;
+  padding: 4px 10px; background: var(--bg-elevated);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 0.72rem;
 }
 .bgm-label { color: var(--accent); font-weight: 600; white-space: nowrap; }
 .bgm-name { color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
-.bgm-slider { width: 80px; }
+.bgm-control-label { font-size: 0.68rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.bgm-slider { width: 70px; }
 .bgm-vol-label { color: var(--text-muted); min-width: 30px; text-align: right; }
-.bgm-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; }
+.bgm-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; margin-left: auto; }
 .bgm-remove-btn:hover { background: var(--red); color: #fff; }
+#bgm-timeline-wrap {
+  position: relative; width: 100%; height: 64px; overflow: hidden;
+  background: #0d1117;
+  border: 1px solid var(--border); border-top: none;
+  cursor: crosshair;
+}
+#bgm-waveform-canvas { display: block; width: 100%; height: 64px; }
+#bgm-sel-bar {
+  padding: 3px 10px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  font-size: 0.65rem; display: flex; align-items: center; gap: 8px;
+}
 
 /* ── Reel/Short Creator ── */
 #reel-page { width: 100%; max-width: 1080px; display: none; }
@@ -2246,6 +2261,22 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <div class="scene-grid" id="create-scene-grid"></div>
     </div>
 
+    <!-- Step BGM: AI Background Music -->
+    <div class="create-step" id="create-bgm-step" style="display:none;">
+      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">7</span> Background Music</h3>
+      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
+      <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
+      <div id="create-bgm-player" style="display:none; margin-top:12px;">
+        <audio id="create-bgm-audio" controls loop style="width:100%; max-width:420px;"></audio>
+        <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <label class="form-label" style="margin:0;">Vol:</label>
+          <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
+          <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Step 7: Animated Videos (animated mode only) -->
     <div class="create-step" id="create-video-step" class="hidden">
       <h3><span class="step-num">7</span> Animated Videos</h3>
@@ -2489,6 +2520,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <div class="form-row mt-md" style="align-items:center; gap:8px;">
         <button id="btn-reel-generate" class="primary btn-md">Generate <span id="reel-btn-count">(1)</span> Reel<span id="reel-btn-suffix"></span></button>
         <span id="reel-generate-status" class="text-sm text-muted"></span>
+        <span id="reel-cost-estimate" class="text-sm text-muted" style="margin-left:auto; display:none;"></span>
       </div>
       <div class="create-progress hidden" id="reel-progress">
         <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
@@ -2516,6 +2548,24 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
         <div id="reel-video-grid-inner" class="scene-grid"></div>
         <div class="form-row mt-md" style="justify-content:center;">
           <button id="btn-reel-regen-all-videos" class="btn-md" style="display:none;">🔄 Regenerate All Failed</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reel Step BGM: Auto-generated with Lyria 3 -->
+    <div class="reel-step hidden" id="reel-step-bgm">
+      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">4</span> Background Music</h3>
+      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your reel content.</p>
+      <div id="reel-bgm-status" class="text-sm text-muted" style="display:none;"></div>
+      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
+        <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
+        <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
+          <button id="reel-bgm-stop-btn" class="btn-sm">⏹ Stop</button>
+          <label class="form-label" style="margin:0;">Vol:</label>
+          <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="50" style="width:80px;">
+          <span id="reel-bgm-vol-label" class="text-sm text-muted">50%</span>
         </div>
       </div>
     </div>
@@ -2591,6 +2641,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
               <option value="center">Center</option>
               <option value="bottom" selected>Bottom</option>
             </select>
+            <input type="range" id="reel-sub-position-num" min="0" max="100" step="1" value="85" style="width:80px;vertical-align:middle;">
+            <span id="reel-sub-pos-label" class="text-2xs">85%</span>
           </label>
           <label class="form-label">Viewport:
             <select id="reel-viewport">
@@ -2732,12 +2784,22 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
       <div class="bgm-bar">
         <span class="bgm-label">🎵 BGM</span>
         <span id="bgm-name" class="bgm-name">No file</span>
-        <label style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+        <label class="bgm-control-label">🔊
+          <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
+          <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
+        </label>
+        <label class="bgm-control-label">
           <input type="checkbox" id="bgm-loop" checked> Loop
         </label>
-        <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
-        <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
         <button id="bgm-remove" class="bgm-remove-btn">✕</button>
+      </div>
+      <div id="bgm-timeline-wrap">
+        <canvas id="bgm-waveform-canvas"></canvas>
+        <div id="bgm-playhead-line"></div>
+      </div>
+      <div id="bgm-sel-bar">
+        <span id="bgm-sel-info" style="color:var(--text-muted);flex:1;">Drag to select  •  drag selection to move</span>
+        <button id="bgm-del-sel" class="btn-xs" disabled>Delete</button>
       </div>
     </div>
 
@@ -3311,6 +3373,7 @@ let currentBuffer = null, undoStack = [], activeRegion = null;
 // Background music
 let bgmBuffer = null, bgmVolume = 0.3, bgmLoop = true;
 let bgmGainNode = null, bgmSource = null;
+let bgmSel = null, bgmDragging = null;
 
 // Video series
 let currentSeriesName = '';
@@ -4485,6 +4548,7 @@ projectInput.addEventListener('change', async () => {
         if (bgmVolLbl) bgmVolLbl.textContent = Math.round(bgmVolume * 100) + '%';
         const bgmLp = $('bgm-loop');
         if (bgmLp) bgmLp.checked = bgmLoop;
+        if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
       } catch(e) { console.warn('BGM restore error:', e); }
     } else {
       bgmBuffer = null;
@@ -4727,6 +4791,7 @@ function applyZoom() {
   updateZoomInfo(); drawRuler(); renderPhotos(); renderTexts();
   if (typeof renderSubtitles === 'function') renderSubtitles();
   syncWaveformZoom();
+  if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
 }
 
 function syncWaveformZoom() {
@@ -7299,11 +7364,13 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     // ── Playhead sync (all timelines) ──
     const textPlayheadLine = $('text-playhead-line');
     const subPlayheadLine = $('sub-playhead-line');
+    const bgmPlayheadLine = $('bgm-playhead-line');
     function updatePlayhead() {
       if (!wavesurfer || !wavesurfer.isPlaying()) {
         playheadLine.style.display = 'none';
         textPlayheadLine.style.display = 'none';
         if (subPlayheadLine) subPlayheadLine.style.display = 'none';
+        if (bgmPlayheadLine) bgmPlayheadLine.style.display = 'none';
         return;
       }
       const px = secToPx(wavesurfer.getCurrentTime()) + 'px';
@@ -7312,6 +7379,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       textPlayheadLine.style.left = px;
       textPlayheadLine.style.display = 'block';
       if (subPlayheadLine) { subPlayheadLine.style.left = px; subPlayheadLine.style.display = 'block'; }
+      if (bgmPlayheadLine && bgmBuffer) { bgmPlayheadLine.style.left = px; bgmPlayheadLine.style.display = 'block'; }
       requestAnimationFrame(updatePlayhead);
     }
 
@@ -8346,6 +8414,188 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
+    function drawBgmWaveform() {
+      const canvas = $('bgm-waveform-canvas');
+      if (!canvas || !bgmBuffer) return;
+      const wrap = canvas.parentElement;
+      let w = wrap ? wrap.getBoundingClientRect().width : 0;
+      if (!w) w = timelineContainer.getBoundingClientRect().width || timelineContainer.clientWidth;
+      if (!w) { requestAnimationFrame(drawBgmWaveform); return; }
+      const totalDur = aDur();
+      if (!totalDur) return;
+      const dpr = devicePixelRatio || 1;
+      const h = 64;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, w, h);
+      const data = bgmBuffer.getChannelData(0);
+      const sampleRate = bgmBuffer.sampleRate;
+      const bgmDur = bgmBuffer.duration;
+      const loop = bgmLoopCheckbox ? bgmLoopCheckbox.checked : bgmLoop;
+      const visStart = visibleStart();
+      const visDur = visibleDuration();
+      const samplesPerPx = Math.max(1, Math.floor(sampleRate * visDur / w));
+      for (let px = 0; px < w; px++) {
+        const t = visStart + (px / w) * visDur;
+        if (t < 0 || t > totalDur) continue;
+        const srcT = loop ? (t % bgmDur) : t;
+        if (!loop && srcT >= bgmDur) continue;
+        const startSample = Math.floor(srcT * sampleRate);
+        let peak = 0;
+        const end = Math.min(startSample + samplesPerPx, data.length);
+        for (let i = startSample; i < end; i++) {
+          const abs = Math.abs(data[i]);
+          if (abs > peak) peak = abs;
+        }
+        const barH = Math.max(2, peak * (h - 8));
+        const midY = h / 2;
+        const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
+        ctx.strokeStyle = rep === 0 ? '#6c63ff' : '#8b83ff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 0.5, midY - barH / 2);
+        ctx.lineTo(px + 0.5, midY + barH / 2);
+        ctx.stroke();
+      }
+      if (loop && bgmDur < totalDur) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        for (let t = bgmDur; t < totalDur; t += bgmDur) {
+          const x = ((t - visStart) / visDur) * w;
+          if (x < 0 || x > w) continue;
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+      // Selection overlay
+      if (bgmSel) {
+        const x1 = ((bgmSel.start - visStart) / visDur) * w;
+        const x2 = ((bgmSel.end - visStart) / visDur) * w;
+        if (x2 > 0 && x1 < w) {
+          ctx.fillStyle = 'rgba(108,99,255,0.35)';
+          ctx.fillRect(Math.max(0, x1), 0, Math.min(w, x2) - Math.max(0, x1), h);
+          ctx.strokeStyle = '#a09dff'; ctx.lineWidth = 1.5;
+          if (x1 >= 0 && x1 <= w) { ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, h); ctx.stroke(); }
+          if (x2 >= 0 && x2 <= w) { ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, h); ctx.stroke(); }
+        }
+      }
+      // Move ghost
+      if (bgmDragging && bgmDragging.mode === 'move') {
+        const dur = bgmDragging.origSel.end - bgmDragging.origSel.start;
+        const ns = bgmDragging.newStart;
+        const gx1 = ((ns - visStart) / visDur) * w;
+        const gx2 = ((ns + dur - visStart) / visDur) * w;
+        if (gx2 > 0 && gx1 < w) {
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(Math.max(0, gx1), 0, Math.min(w, gx2) - Math.max(0, gx1), h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+          ctx.setLineDash([4, 3]);
+          if (gx1 >= 0 && gx1 <= w) { ctx.beginPath(); ctx.moveTo(gx1, 0); ctx.lineTo(gx1, h); ctx.stroke(); }
+          if (gx2 >= 0 && gx2 <= w) { ctx.beginPath(); ctx.moveTo(gx2, 0); ctx.lineTo(gx2, h); ctx.stroke(); }
+          ctx.setLineDash([]);
+        }
+      }
+    }
+    window.drawBgmWaveform = drawBgmWaveform;
+
+    function updateBgmSelUI() {
+      const infoEl = $('bgm-sel-info');
+      const btnDel = $('bgm-del-sel');
+      if (bgmSel && (bgmSel.end - bgmSel.start) >= 0.05) {
+        if (infoEl) infoEl.textContent = `${fmtShort(bgmSel.start)} – ${fmtShort(bgmSel.end)} (${fmtShort(bgmSel.end - bgmSel.start)})`;
+        if (btnDel) btnDel.disabled = false;
+      } else {
+        bgmSel = null;
+        if (infoEl) infoEl.textContent = 'Drag to select  •  drag selection to move';
+        if (btnDel) btnDel.disabled = true;
+      }
+    }
+
+    function bgmPxToTime(clientX) {
+      const canvas = $('bgm-waveform-canvas');
+      if (!canvas) return 0;
+      const rect = canvas.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return visibleStart() + frac * visibleDuration();
+    }
+
+    const bgmCanvas = $('bgm-waveform-canvas');
+    if (bgmCanvas) {
+      bgmCanvas.addEventListener('mousedown', e => {
+        if (!bgmBuffer) return;
+        e.preventDefault();
+        const t = bgmPxToTime(e.clientX);
+        if (bgmSel && t >= bgmSel.start - 0.1 && t <= bgmSel.end + 0.1) {
+          bgmDragging = { mode: 'move', startT: t, origSel: { ...bgmSel }, newStart: bgmSel.start };
+          bgmCanvas.style.cursor = 'grabbing';
+        } else {
+          bgmSel = null;
+          bgmDragging = { mode: 'select', anchorT: t };
+          updateBgmSelUI();
+        }
+      });
+    }
+
+    window.addEventListener('mousemove', e => {
+      if (!bgmDragging || !bgmBuffer) return;
+      const t = bgmPxToTime(e.clientX);
+      if (bgmDragging.mode === 'select') {
+        const a = bgmDragging.anchorT;
+        bgmSel = { start: Math.min(a, t), end: Math.max(a, t) };
+        updateBgmSelUI();
+      } else {
+        const dur = bgmDragging.origSel.end - bgmDragging.origSel.start;
+        const offset = t - bgmDragging.startT;
+        const raw = bgmDragging.origSel.start + offset;
+        bgmDragging.newStart = Math.max(0, Math.min(bgmBuffer.duration - dur, raw));
+      }
+      drawBgmWaveform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!bgmDragging) return;
+      if (bgmDragging.mode === 'select') {
+        if (!bgmSel || (bgmSel.end - bgmSel.start) < 0.05) bgmSel = null;
+      } else if (bgmDragging.mode === 'move') {
+        const origSel = bgmDragging.origSel;
+        const newStart = bgmDragging.newStart;
+        const dur = origSel.end - origSel.start;
+        if (Math.abs(newStart - origSel.start) >= 0.05) {
+          const seg = extractRegion(bgmBuffer, origSel.start, origSel.end);
+          const nb = deleteRegion(bgmBuffer, origSel.start, origSel.end);
+          if (nb && seg) {
+            let insertAt = newStart > origSel.start ? Math.max(0, newStart - dur) : newStart;
+            insertAt = Math.min(insertAt, nb.duration);
+            bgmBuffer = insertAudioAt(nb, seg, insertAt);
+            bgmSel = { start: insertAt, end: insertAt + dur };
+          }
+        }
+        if (bgmCanvas) bgmCanvas.style.cursor = 'crosshair';
+      }
+      bgmDragging = null;
+      updateBgmSelUI();
+      drawBgmWaveform();
+    });
+
+    const bgmDelSelBtn = $('bgm-del-sel');
+    if (bgmDelSelBtn) bgmDelSelBtn.addEventListener('click', () => {
+      if (!bgmSel || !bgmBuffer) return;
+      const selDur = bgmSel.end - bgmSel.start;
+      const nb = deleteRegion(bgmBuffer, bgmSel.start, bgmSel.end);
+      if (!nb) { setStatus('Cannot delete: would remove entire BGM audio.'); return; }
+      bgmBuffer = nb;
+      bgmSel = null;
+      updateBgmSelUI();
+      drawBgmWaveform();
+      setStatus(`BGM: deleted ${fmtShort(selDur)}`);
+    });
+
     btnAddBgm.addEventListener('click', () => {
       if (isFree()) { showUpgradePrompt('Upgrade to Pro to add background music.'); return; }
       bgmInputEl.click();
@@ -8357,8 +8607,10 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       try {
         const arrayBuf = await file.arrayBuffer();
         bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+        bgmSel = null; bgmDragging = null;
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
+        drawBgmWaveform();
         setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
     });
@@ -8372,12 +8624,15 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     bgmLoopCheckbox.addEventListener('change', () => {
       bgmLoop = bgmLoopCheckbox.checked;
       if (bgmSource) bgmSource.loop = bgmLoop;
+      drawBgmWaveform();
     });
 
     bgmRemoveBtn.addEventListener('click', () => {
-      bgmBuffer = null;
+      bgmBuffer = null; bgmSel = null; bgmDragging = null;
       bgmSection.style.display = 'none';
       bgmNameEl.textContent = 'No file';
+      const canvas = $('bgm-waveform-canvas');
+      if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
       setStatus('BGM removed');
     });
 
@@ -8708,6 +8963,7 @@ let createOriginalBuffer = null;  // original audio kept until transcribe
 let createAudioFile = null;
 let createTranscript = null;
 let createScenes = null;
+let createBgmUrl = null;
 let cameFromCreate = false;  // tracks if editor was entered via Create flow
 let createInputMode = 'voice';  // 'voice' | 'text'
 let imagePreviewIndex = 0;
@@ -9463,6 +9719,43 @@ function getSceneRefImageParts(scene) {
 // ══════════════════════════════════════════
 //  CREATE CONTENT — Pipeline & Generation
 // ══════════════════════════════════════════
+
+async function runCreateBgm() {
+  const key = getCreateGeminiKey ? getCreateGeminiKey() : null;
+  if (!key) return;
+  const bgmStep = $('create-bgm-step');
+  const bgmStatus = $('create-bgm-status');
+  const bgmPlayer = $('create-bgm-player');
+  if (!bgmStep) return;
+  bgmStep.style.display = '';
+  if (bgmStatus) { bgmStatus.textContent = 'Composing background music with Lyria 3…'; bgmStatus.style.display = ''; }
+  if (bgmPlayer) bgmPlayer.style.display = 'none';
+  try {
+    const text = (createTranscript || '').slice(0, 400).trim();
+    const images = (createScenes || []).filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
+    const arrayBuf = await generateLyriaBgm(key, text || 'video content', images);
+    const blob = new Blob([arrayBuf], { type: 'audio/mp3' });
+    if (createBgmUrl) URL.revokeObjectURL(createBgmUrl);
+    createBgmUrl = URL.createObjectURL(blob);
+    const audioEl = $('create-bgm-audio');
+    if (audioEl) audioEl.src = createBgmUrl;
+    if (bgmStatus) bgmStatus.style.display = 'none';
+    if (bgmPlayer) bgmPlayer.style.display = '';
+  } catch(e) {
+    console.warn('[BGM] Lyria 3 failed for Create Story:', e);
+    if (bgmStatus) bgmStatus.textContent = `BGM generation failed: ${e.message}`;
+  }
+}
+
+const createBgmVolumeEl = $('create-bgm-volume');
+if (createBgmVolumeEl) {
+  createBgmVolumeEl.addEventListener('input', () => {
+    const audioEl = $('create-bgm-audio');
+    if (audioEl) audioEl.volume = parseInt(createBgmVolumeEl.value) / 100;
+    const lbl = $('create-bgm-vol-label');
+    if (lbl) lbl.textContent = createBgmVolumeEl.value + '%';
+  });
+}
 
 createStylePresetEl.addEventListener('change', () => {
   const val = createStylePresetEl.value;
@@ -12722,6 +13015,9 @@ let reelPlaying = false;
 let reelAnimId = null;
 let reelStartTime = 0;
 let reelBgmBuffer = null;
+let reelBgmVolume = 0.5;
+let reelBgmAiBuffer = null;
+let reelBgmAudioEl = null;
 let reelSegments = []; // [{start, end, thumbDataUrl}] — each becomes a separate reel
 let reelOriginalAudioBuffer = null; // preserve full audio for multi-segment extraction
 let reelPendingScenes = null; // scenes awaiting image generation (audio/text mode)
@@ -13960,9 +14256,23 @@ function renderAllReelPreviews() {
       const source = ctx.createBufferSource();
       source.buffer = r.audioBuffer;
       source.connect(ctx.destination);
+      let bgmPreviewSource = null, bgmGainNode = null;
+      if (reelBgmBuffer) {
+        bgmPreviewSource = ctx.createBufferSource();
+        bgmPreviewSource.buffer = reelBgmBuffer;
+        bgmPreviewSource.loop = true;
+        bgmGainNode = ctx.createGain(); bgmGainNode.gain.value = reelBgmVolume;
+        bgmPreviewSource.connect(bgmGainNode); bgmGainNode.connect(ctx.destination);
+        bgmPreviewSource.start();
+      } else if (reelBgmAudioEl) {
+        reelBgmAudioEl.currentTime = 0;
+        reelBgmAudioEl.volume = reelBgmVolume;
+        reelBgmAudioEl.play().catch(() => {});
+      }
       const startedAt = ctx.currentTime;
       source.start();
-      mpState[idx] = { source, startedAt, playing: true, animId: null };
+      mpState[idx] = { source, bgmSource: bgmPreviewSource, bgmGain: bgmGainNode, startedAt, playing: true, animId: null };
+      window._reelMpState = mpState;
       // Start video playback in sync
       if (reelVideoEl && reelVideoEl.videoWidth > 0) {
         const seg = r.segments?.[0];
@@ -14004,6 +14314,8 @@ function renderAllReelPreviews() {
     if (!st) return;
     st.playing = false;
     if (st.source) { try { st.source.stop(); } catch(e) {} }
+    if (st.bgmSource) { try { st.bgmSource.stop(); } catch(e) {} }
+    if (reelBgmAudioEl) { try { reelBgmAudioEl.pause(); } catch(e) {} }
     if (st.animId) cancelAnimationFrame(st.animId);
     if (reelVideoEl) { try { reelVideoEl.pause(); } catch(e) {} }
     const scrub = container.querySelector(`.reel-mp-scrub[data-ri="${idx}"]`);
@@ -14963,6 +15275,169 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
 });
 
 // ── BGM ──
+async function generateLyriaBgm(key, textContext, imageDataUrls = []) {
+  const parts = [];
+  parts.push({ text: `Generate background music for a video about: "${textContext}". Create an atmospheric, melodic instrumental track with no lyrics and no vocals. Match the mood and tone to the visual content.` });
+  for (const dataUrl of imageDataUrls.slice(0, 5)) {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+  }
+  const body = { contents: [{ parts }], generationConfig: { responseModalities: ['AUDIO'] } };
+  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=${key}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err?.error?.message || `Lyria error ${resp.status}`); }
+  const data = await resp.json();
+  const candidate = data?.candidates?.[0];
+  const respParts = candidate?.content?.parts || [];
+  const audioPart = respParts.find(p => p.inlineData?.mimeType?.startsWith('audio/'));
+  if (!audioPart) throw new Error('No audio in Lyria response');
+  const binary = atob(audioPart.inlineData.data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+const BGM_PRESETS = {
+  upbeat:    { label: 'Upbeat',    src: 'audio/bgm/upbeat.mp3' },
+  calm:      { label: 'Calm',      src: 'audio/bgm/calm.mp3' },
+  cinematic: { label: 'Cinematic', src: 'audio/bgm/cinematic.mp3' },
+  corporate: { label: 'Corporate', src: 'audio/bgm/corporate.mp3' },
+  playful:   { label: 'Playful',   src: 'audio/bgm/playful.mp3' },
+};
+
+async function loadBgmPreset(mood) {
+  if (!mood || mood === 'none' || mood === 'custom') {
+    reelBgmBuffer = null;
+    if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; }
+    return;
+  }
+  if (mood === 'ai-generated') { reelBgmBuffer = reelBgmAiBuffer; reelBgmAudioEl = null; return; }
+  const preset = BGM_PRESETS[mood];
+  if (!preset) return;
+  try {
+    const resp = await fetch(preset.src);
+    if (!resp.ok) throw new Error('Not found');
+    const arrayBuf = await resp.arrayBuffer();
+    reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+    reelBgmAudioEl = null;
+    return;
+  } catch(e) { /* fallback to audio element */ }
+  try {
+    reelBgmBuffer = null;
+    const audio = new Audio();
+    audio.src = preset.src; audio.loop = true; audio.volume = reelBgmVolume;
+    await new Promise((resolve, reject) => { audio.oncanplaythrough = resolve; audio.onerror = reject; setTimeout(reject, 5000); });
+    reelBgmAudioEl = audio;
+  } catch(e) { reelBgmAudioEl = null; }
+}
+
+async function autoPickBgm() {
+  if (reelBgmBuffer) return;
+  const key = getReelApiKey ? getReelApiKey() : null;
+  if (!key) return;
+  const bgmStep = $('reel-step-bgm');
+  const bgmStatus = $('reel-bgm-status');
+  const bgmPlayer = $('reel-bgm-player');
+  if (bgmStep) bgmStep.classList.remove('hidden');
+  if (bgmPlayer) bgmPlayer.style.display = 'none';
+  try {
+    const text = ($('reel-text-input')?.value || '').slice(0, 400);
+    const scenes = reelScenes || [];
+    const images = scenes.filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
+    const arrayBuf = await generateLyriaBgm(key, text || 'social media reel', images);
+    const bufCopy = arrayBuf.slice(0);
+    reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+    const blob = new Blob([bufCopy], { type: 'audio/mp3' });
+    const blobUrl = URL.createObjectURL(blob);
+    if (bgmStatus) bgmStatus.style.display = 'none';
+    if (bgmPlayer) bgmPlayer.style.display = '';
+    initReelBgmWaveform(blobUrl);
+    reelBgmAiBuffer = reelBgmBuffer;
+    document.querySelectorAll('.rc-bgm').forEach(sel => {
+      if (!sel.querySelector('option[value="ai-generated"]')) {
+        const opt = document.createElement('option'); opt.value = 'ai-generated'; opt.textContent = 'AI Generated ✨';
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      sel.value = 'ai-generated';
+    });
+    const presetSel = $('reel-bgm-preset');
+    if (presetSel) {
+      if (!presetSel.querySelector('option[value="ai-generated"]')) {
+        const opt = document.createElement('option'); opt.value = 'ai-generated'; opt.textContent = 'AI Generated ✨';
+        presetSel.insertBefore(opt, presetSel.firstChild);
+      }
+      presetSel.value = 'ai-generated';
+    }
+    const lbl = $('reel-bgm-auto-label'); if (lbl) lbl.style.display = '';
+  } catch(e) {
+    console.warn('[BGM] Lyria failed, picking preset:', e);
+    try {
+      const body = { contents: [{ parts: [{ text: `Pick ONE mood from: upbeat, calm, cinematic, corporate, playful for a social media reel. Reply ONLY the single word.` }] }] };
+      const data = await callGeminiAPI(getTranscriptionModels ? getTranscriptionModels() : ['gemini-2.0-flash'], body, key);
+      const mood = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (BGM_PRESETS[mood]) {
+        await loadBgmPreset(mood);
+        const el = $('reel-bgm-preset'); if (el) el.value = mood;
+        const lbl = $('reel-bgm-auto-label'); if (lbl) lbl.style.display = '';
+        if (bgmStatus) bgmStatus.style.display = 'none';
+        if (bgmPlayer) bgmPlayer.style.display = '';
+        initReelBgmWaveform(BGM_PRESETS[mood].src);
+      }
+    } catch(e2) { console.warn('[BGM] Preset fallback failed:', e2); }
+  }
+}
+
+let reelBgmWavesurfer = null;
+
+function initReelBgmWaveform(url) {
+  const container = $('reel-bgm-waveform');
+  if (!container || typeof WaveSurfer === 'undefined') return;
+  if (reelBgmWavesurfer) { try { reelBgmWavesurfer.destroy(); } catch(e) {} reelBgmWavesurfer = null; }
+  reelBgmWavesurfer = WaveSurfer.create({
+    container: '#reel-bgm-waveform',
+    waveColor: 'rgba(167,139,250,0.5)',
+    progressColor: '#7c3aed',
+    height: 72, barWidth: 2, barGap: 1, barRadius: 2,
+    cursorColor: '#fff', cursorWidth: 1,
+  });
+  reelBgmWavesurfer.load(url);
+  const playBtn = $('reel-bgm-play-btn');
+  const stopBtn = $('reel-bgm-stop-btn');
+  if (playBtn) {
+    reelBgmWavesurfer.on('play',   () => { playBtn.textContent = '⏸ Pause'; });
+    reelBgmWavesurfer.on('pause',  () => { playBtn.textContent = '▶ Play'; });
+    reelBgmWavesurfer.on('finish', () => { playBtn.textContent = '▶ Play'; });
+    playBtn.onclick = () => reelBgmWavesurfer?.playPause();
+  }
+  if (stopBtn) {
+    stopBtn.onclick = () => {
+      if (!reelBgmWavesurfer) return;
+      reelBgmWavesurfer.stop();
+      if (playBtn) playBtn.textContent = '▶ Play';
+    };
+  }
+  reelBgmWavesurfer.setVolume(reelBgmVolume);
+}
+
+const reelBgmVolumeSlider = $('reel-bgm-volume-slider');
+if (reelBgmVolumeSlider) {
+  reelBgmVolumeSlider.addEventListener('input', () => {
+    reelBgmVolume = parseInt(reelBgmVolumeSlider.value) / 100;
+    if (reelBgmWavesurfer) reelBgmWavesurfer.setVolume(reelBgmVolume);
+    const lbl = $('reel-bgm-vol-label');
+    if (lbl) lbl.textContent = reelBgmVolumeSlider.value + '%';
+    document.querySelectorAll('.rc-bgm-vol').forEach(el => {
+      el.value = reelBgmVolumeSlider.value;
+      const l = el.parentElement.querySelector('.rc-bgm-vol-label');
+      if (l) l.textContent = reelBgmVolumeSlider.value + '%';
+    });
+    const mpSt = window._reelMpState;
+    if (mpSt) Object.values(mpSt).forEach(st => { if (st.playing && st.bgmGain) st.bgmGain.gain.value = reelBgmVolume; });
+    if (reelBgmAudioEl) reelBgmAudioEl.volume = reelBgmVolume;
+  });
+}
+
 if (btnReelBgm) btnReelBgm.addEventListener('click', () => reelBgmInput.click());
 if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
   const file = reelBgmInput.files[0];
@@ -14970,9 +15445,39 @@ if (reelBgmInput) reelBgmInput.addEventListener('change', async () => {
   reelBgmInput.value = '';
   try {
     const arrayBuf = await file.arrayBuffer();
+    const bufCopy = arrayBuf.slice(0);
     reelBgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
     btnReelBgm.textContent = `♫ ${file.name}`;
+    const blobUrl = URL.createObjectURL(new Blob([bufCopy], { type: 'audio/mp3' }));
+    const bgmPlayer = $('reel-bgm-player'); if (bgmPlayer) bgmPlayer.style.display = '';
+    initReelBgmWaveform(blobUrl);
   } catch(e) { btnReelBgm.textContent = '+ Add BGM (error)'; }
+});
+
+const reelBgmPresetSel = $('reel-bgm-preset');
+if (reelBgmPresetSel) {
+  reelBgmPresetSel.addEventListener('change', async () => {
+    const mood = reelBgmPresetSel.value;
+    if (mood === 'none') { reelBgmBuffer = null; if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; } return; }
+    if (mood === 'custom') { if (reelBgmInput) reelBgmInput.click(); return; }
+    await loadBgmPreset(mood);
+    const bgmPlayer = $('reel-bgm-player'); if (bgmPlayer) bgmPlayer.style.display = '';
+    const src = mood === 'ai-generated' ? null : BGM_PRESETS[mood]?.src;
+    if (src) initReelBgmWaveform(src);
+    const lbl = $('reel-bgm-auto-label'); if (lbl) lbl.style.display = mood === 'ai-generated' ? '' : 'none';
+  });
+}
+
+document.addEventListener('change', async e => {
+  if (!e.target.classList.contains('rc-bgm')) return;
+  const mood = e.target.value;
+  if (mood === 'none') { reelBgmBuffer = null; if (reelBgmAudioEl) { reelBgmAudioEl.pause(); reelBgmAudioEl = null; } return; }
+  if (mood === 'custom') { if (reelBgmInput) reelBgmInput.click(); return; }
+  await loadBgmPreset(mood);
+  document.querySelectorAll('.rc-bgm').forEach(s => { if (s !== e.target && s.value !== mood) s.value = mood; });
+  if (reelBgmPresetSel && reelBgmPresetSel.value !== mood) reelBgmPresetSel.value = mood;
+  const volEls = document.querySelectorAll('.rc-bgm-vol');
+  volEls.forEach(v => { v.value = Math.round(reelBgmVolume * 100); });
 });
 
 // ── Export ──
@@ -15192,7 +15697,14 @@ if (btnReelFullEditor) btnReelFullEditor.addEventListener('click', async () => {
   }
 
   // Transfer BGM
-  if (reelBgmBuffer) bgmBuffer = reelBgmBuffer;
+  if (reelBgmBuffer) {
+    bgmBuffer = reelBgmBuffer;
+    const bgmSec = $('bgm-section');
+    if (bgmSec) bgmSec.style.display = '';
+    const bgmNm = $('bgm-name');
+    if (bgmNm) bgmNm.textContent = `BGM (${fmtShort(bgmBuffer.duration)})`;
+    if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
+  }
 
   // Transfer audio language tracks
   if (reelAudioTracks && reelAudioTracks.length > 0) {

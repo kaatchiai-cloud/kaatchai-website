@@ -424,7 +424,6 @@ function updateCostHints() {
 // ══════════════════════════════════════════
 
 const CREATE_AGENTS_ILLUSTRATED = [
-  { id: 'script',    stepId: 'create-input-step',      icon: '📝', label: 'Script Agent' },
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎨', label: 'Storyboard & Prompt Agent' },
   { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
@@ -434,7 +433,6 @@ const CREATE_AGENTS_ILLUSTRATED = [
 ];
 
 const CREATE_AGENTS_ANIMATED = [
-  { id: 'script',    stepId: 'create-input-step',      icon: '📝', label: 'Script Agent' },
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎬', label: 'Cinematography & Prompt Agent' },
   { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
@@ -552,7 +550,6 @@ function refreshCreateAgentPanel() {
 // ══════════════════════════════════════════
 
 const REEL_AGENTS_ILLUSTRATED = [
-  { id: 'script',   stepId: 'reel-step-input',   icon: '📝', label: 'Script Agent' },
   { id: 'scene',    stepId: 'reel-step-presets',  icon: '🎨', label: 'Storyboard Agent' },
   { id: 'image',    stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',      stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
@@ -560,7 +557,6 @@ const REEL_AGENTS_ILLUSTRATED = [
 ];
 
 const REEL_AGENTS_ANIMATED = [
-  { id: 'script',    stepId: 'reel-step-input',   icon: '📝', label: 'Script Agent' },
   { id: 'scene',     stepId: 'reel-step-presets',  icon: '🎬', label: 'Cinematography Agent' },
   { id: 'image',     stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
   { id: 'animation', stepId: 'reel-step-scenes',   icon: '✨', label: 'Animation Agent' },
@@ -615,13 +611,14 @@ function _renderReelAgentPanel() {
   list.innerHTML = agents.map(a => {
     const s = _reelAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
+    const isLive = s.status === 'running' || s.status === 'error';
     let bodyHtml = '';
-    if (subtasks.length > 0) {
+    if (isLive && subtasks.length > 0) {
       bodyHtml = subtasks.map(t => {
-        const icon = t.status === 'done' ? '✅' : t.status === 'warn' ? '⚠️' : t.status === 'running' ? '⏳' : t.status === 'error' ? '❌' : '○';
+        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '⚠️' : t.status === 'error' ? '❌' : '○';
         return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
       }).join('');
-    } else if (s.detail) {
+    } else if (isLive && s.detail) {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
     return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
@@ -645,6 +642,14 @@ function refreshReelAgentPanel() {
   if (sceneIcon) sceneIcon.textContent = reelVideoMode === 'animated' ? '🎬' : '🎨';
 }
 
+function initAllReelAgentTasks() {
+  const isAnimated = reelVideoMode === 'animated';
+  const ids = ['scene', 'image', 'bgm', 'preview'];
+  if (isAnimated) ids.splice(2, 0, 'animation');
+  ids.forEach(id => { _reelAgentState[id] = { status: 'waiting', detail: '', subtasks: [] }; });
+  _renderReelAgentPanel();
+}
+
 // ══════════════════════════════════════════
 //  INFER AGENT STATES FROM RESTORED PROJECT
 // ══════════════════════════════════════════
@@ -655,10 +660,7 @@ function inferCreateAgentStates() {
 
   if (!createScenes || createScenes.length === 0) return;
 
-  // Script Agent: done if transcript or scenes exist
-  if (createTranscript || createScenes.length > 0) {
-    updateCreateAgent('script', 'done', 'Input ready');
-  }
+
 
   // Storyboard & Prompt Agent: done if transcript exists
   if (createTranscript) {
@@ -725,8 +727,6 @@ function inferReelAgentStates() {
   if (!scenes || scenes.length === 0) return;
 
   // Script Agent: done if scenes exist (transcription ran)
-  updateReelAgent('script', 'done', `${scenes.length} segments`);
-
   // Storyboard / Cinematography Agent: done if scenes have prompts
   if (scenes.some(s => s.prompt || s.sceneDescription)) {
     updateReelAgent('scene', 'done', 'Descriptions ready');
@@ -745,6 +745,11 @@ function inferReelAgentStates() {
     if (animatedCount > 0) {
       updateReelAgent('animation', 'done', `${animatedCount} clips ready`);
     }
+  }
+
+  // BGM Agent: done if BGM buffer is loaded
+  if (reelBgmBuffer) {
+    updateReelAgent('bgm', 'done', 'Music ready');
   }
 
   // Preview Agent: done if editor step is visible

@@ -27,14 +27,22 @@
       try {
         if (window._editorReelSubtitle && window._editorReelSubtitle.words?.length > 0) {
           const rs = window._editorReelSubtitle;
+          console.log('[RenderSubs] using reel subtitle style:', rs.style, 'font:', rs.subFont, 'allCaps:', rs.subAllCaps, 'words:', rs.words?.length);
           const prevSize = reelSubSize, prevPos = reelSubPosition, prevColor = reelSubColor, prevOutline = reelSubOutline, prevBackdrop = reelSubBackdrop;
+          const prevFont = reelSubFont, prevCaps = reelSubAllCaps, prevAccent = reelSubAccent;
           reelSubSize = rs.subSize; reelSubPosition = rs.subPosition; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline; reelSubBackdrop = rs.subBackdrop;
+          if (rs.subFont !== undefined) reelSubFont = rs.subFont;
+          if (rs.subAllCaps !== undefined) reelSubAllCaps = rs.subAllCaps;
+          if (rs.subAccent !== undefined) reelSubAccent = rs.subAccent;
           renderReelSubtitle(ctx, cw, ch, t, rs.words, rs.style);
           reelSubSize = prevSize; reelSubPosition = prevPos; reelSubColor = prevColor; reelSubOutline = prevOutline; reelSubBackdrop = prevBackdrop;
+          reelSubFont = prevFont; reelSubAllCaps = prevCaps; reelSubAccent = prevAccent;
         } else {
+          console.log('[RenderSubs] no reel subtitle (editorReelSubtitle:', !!window._editorReelSubtitle, 'words:', window._editorReelSubtitle?.words?.length, ') — using standard subs');
           renderTextOverlays(ctx, cw, ch, t, sortedSubs);
         }
       } catch(e) {
+        console.warn('[RenderSubs] error:', e);
         renderTextOverlays(ctx, cw, ch, t, sortedSubs);
       }
     }
@@ -77,16 +85,19 @@
       if (!currentBuffer || (photoItems.length === 0 && textItems.length === 0 && videoTimelineItems.length === 0)) return;
       inlinePanel.style.display = '';
       if (previewMode === 'none') {
+        // Use first-word time so word-by-word/karaoke/bold-center subtitles show in static preview
+        const reelWords = window._editorReelSubtitle?.words;
+        const previewT = (reelWords?.length > 0) ? (reelWords[0].start + 0.01) : 0;
         // For video items, seek first then render
         const clip = videoTimelineItems[0];
         if (clip && clip.videoEl) {
           const seekTime = clip.inPoint || 0;
           clip.videoEl.currentTime = seekTime;
-          clip.videoEl.onseeked = () => { clip.videoEl.onseeked = null; renderInlineFrame(0); };
+          clip.videoEl.onseeked = () => { clip.videoEl.onseeked = null; renderInlineFrame(previewT); };
           // Fallback if onseeked doesn't fire
-          setTimeout(() => renderInlineFrame(0), 300);
+          setTimeout(() => renderInlineFrame(previewT), 300);
         } else {
-          renderInlineFrame(0);
+          renderInlineFrame(previewT);
         }
       }
     }
@@ -485,12 +496,28 @@
         reelRow.style.display = rs ? '' : 'none';
         if (rs) {
           const ss = $('sub-reel-style'); if (ss) ss.value = rs.style || 'highlight';
+          const sf = $('sub-reel-font'); if (sf) sf.value = rs.subFont || 'Poppins';
+          const sac = $('sub-reel-all-caps'); if (sac) sac.checked = rs.subAllCaps || false;
           const sc = $('sub-reel-color'); if (sc) sc.value = rs.subColor || '#ffffff';
+          const sacc = $('sub-reel-accent'); if (sacc) sacc.value = rs.subAccent || '#7c3aed';
           const so = $('sub-reel-outline'); if (so) so.value = rs.subOutline || '#000000';
           const sb = $('sub-reel-backdrop'); if (sb) sb.value = rs.subBackdrop || 'dark';
           const sz = $('sub-reel-size'); if (sz) sz.value = rs.subSize || 4;
           const szl = $('sub-reel-size-label'); if (szl) szl.textContent = rs.subSize || 4;
-          const sp = $('sub-reel-pos'); if (sp) sp.value = rs.subPosition || 'bottom';
+          const posNum = typeof rs.subPosition === 'number' ? rs.subPosition : (rs.subPosition === 'top' ? 12 : rs.subPosition === 'center' ? 52 : 85);
+          const sp = $('sub-reel-pos'); if (sp) sp.value = posNum <= 20 ? 'top' : posNum <= 65 ? 'center' : 'bottom';
+          const spn = $('sub-reel-pos-num'); if (spn) { spn.value = posNum; const spl = $('sub-reel-pos-label'); if (spl) spl.textContent = posNum + '%'; }
+          // Reflect preset name in sub-global-preset dropdown
+          if (typeof REEL_SUB_PRESETS !== 'undefined') {
+            const gp = $('sub-global-preset');
+            if (gp) {
+              const match = Object.entries(REEL_SUB_PRESETS).find(([, p]) =>
+                p.subtitleStyle === rs.style && p.subFont === rs.subFont &&
+                p.subAllCaps === rs.subAllCaps && p.subAccent === rs.subAccent
+              );
+              gp.value = match ? match[0] : '';
+            }
+          }
         }
       }
       if (blockRows) blockRows.style.display = rs ? 'none' : '';
@@ -549,25 +576,65 @@
     }
 
     // Subtitle property controls
-    ['sub-reel-style','sub-reel-color','sub-reel-outline','sub-reel-backdrop','sub-reel-size','sub-reel-pos'].forEach(id => {
+    ['sub-reel-style','sub-reel-font','sub-reel-all-caps','sub-reel-color','sub-reel-accent','sub-reel-outline','sub-reel-backdrop','sub-reel-size','sub-reel-pos','sub-reel-pos-num'].forEach(id => {
       const el = $(id);
       if (!el) return;
       const evt = (el.type === 'range' || el.type === 'color') ? 'input' : 'change';
       el.addEventListener(evt, () => {
         if (!window._editorReelSubtitle) return;
         const rs = window._editorReelSubtitle;
-        rs.style = $('sub-reel-style')?.value || rs.style;
-        rs.subColor = $('sub-reel-color')?.value || rs.subColor;
-        rs.subOutline = $('sub-reel-outline')?.value || rs.subOutline;
-        rs.subBackdrop = $('sub-reel-backdrop')?.value || rs.subBackdrop;
-        rs.subSize = parseFloat($('sub-reel-size')?.value) || rs.subSize;
-        rs.subPosition = $('sub-reel-pos')?.value || rs.subPosition;
-        const szl = $('sub-reel-size-label');
-        if (szl) szl.textContent = $('sub-reel-size')?.value;
-        // Sync to reel globals
+        if (id === 'sub-reel-style' && typeof REEL_SUB_PRESETS !== 'undefined') {
+          const newStyle = $('sub-reel-style')?.value;
+          const preset = Object.values(REEL_SUB_PRESETS).find(p => p.subtitleStyle === newStyle);
+          if (preset) {
+            rs.style = newStyle;
+            rs.subFont = preset.subFont; rs.subAllCaps = preset.subAllCaps; rs.subAccent = preset.subAccent;
+            rs.subColor = preset.subColor; rs.subOutline = preset.subOutline;
+            rs.subBackdrop = preset.subBackdrop; rs.subSize = preset.subSize;
+            rs.subPosition = preset.subPosition;
+            const sf = $('sub-reel-font'); if (sf) sf.value = preset.subFont;
+            const sac = $('sub-reel-all-caps'); if (sac) sac.checked = preset.subAllCaps;
+            const sacc = $('sub-reel-accent'); if (sacc) sacc.value = preset.subAccent;
+            const sc = $('sub-reel-color'); if (sc) sc.value = preset.subColor;
+            const so = $('sub-reel-outline'); if (so) so.value = preset.subOutline;
+            const sb = $('sub-reel-backdrop'); if (sb) sb.value = preset.subBackdrop;
+            const sz = $('sub-reel-size'); if (sz) sz.value = preset.subSize;
+            const szl = $('sub-reel-size-label'); if (szl) szl.textContent = preset.subSize;
+            const sp2 = $('sub-reel-pos'); if (sp2) sp2.value = (preset.subPosition <= 20 ? 'top' : preset.subPosition <= 65 ? 'center' : 'bottom');
+            const spn2 = $('sub-reel-pos-num'); if (spn2) { spn2.value = preset.subPosition; const spl2 = $('sub-reel-pos-label'); if (spl2) spl2.textContent = preset.subPosition + '%'; }
+          } else {
+            rs.style = newStyle || rs.style;
+          }
+        } else {
+          rs.style = $('sub-reel-style')?.value || rs.style;
+          rs.subFont = $('sub-reel-font')?.value || rs.subFont;
+          rs.subAllCaps = $('sub-reel-all-caps')?.checked ?? rs.subAllCaps;
+          rs.subColor = $('sub-reel-color')?.value || rs.subColor;
+          rs.subAccent = $('sub-reel-accent')?.value || rs.subAccent;
+          rs.subOutline = $('sub-reel-outline')?.value || rs.subOutline;
+          rs.subBackdrop = $('sub-reel-backdrop')?.value || rs.subBackdrop;
+          rs.subSize = parseFloat($('sub-reel-size')?.value) || rs.subSize;
+          if (id === 'sub-reel-pos') {
+            const posStr = $('sub-reel-pos')?.value || 'bottom';
+            const posN = posStr === 'top' ? 12 : posStr === 'center' ? 52 : 85;
+            rs.subPosition = posN;
+            const spn = $('sub-reel-pos-num'); if (spn) { spn.value = posN; const spl = $('sub-reel-pos-label'); if (spl) spl.textContent = posN + '%'; }
+          } else if (id === 'sub-reel-pos-num') {
+            const posN = parseInt($('sub-reel-pos-num')?.value) || 85;
+            rs.subPosition = posN;
+            const sp = $('sub-reel-pos'); if (sp) sp.value = posN <= 20 ? 'top' : posN <= 65 ? 'center' : 'bottom';
+            const spl = $('sub-reel-pos-label'); if (spl) spl.textContent = posN + '%';
+          } else {
+            rs.subPosition = rs.subPosition;
+          }
+          const szl = $('sub-reel-size-label');
+          if (szl) szl.textContent = $('sub-reel-size')?.value;
+        }
+        // Sync all to reel globals
         if (typeof reelSubtitleStyle !== 'undefined') {
           reelSubtitleStyle = rs.style; reelSubColor = rs.subColor; reelSubOutline = rs.subOutline;
           reelSubBackdrop = rs.subBackdrop; reelSubSize = rs.subSize; reelSubPosition = rs.subPosition;
+          reelSubFont = rs.subFont; reelSubAllCaps = rs.subAllCaps; reelSubAccent = rs.subAccent;
         }
         // Re-render inline preview
         if (!previewPlaying) {
@@ -599,4 +666,11 @@
     // Expose for external callers (openReelInFullEditor, loadProject)
     console.log('[Preview] Registering _showReelPropsPanel');
     window._showReelPropsPanel = showReelPropsPanel;
-    } catch(e) { console.error('[Preview] Reel props init error:', e); window._showReelPropsPanel = function(){}; }
+    // Force a fresh inline canvas render regardless of current previewMode
+    window._forceInlineRender = function() {
+      console.log('[ForceRender] called. _editorReelSubtitle style:', window._editorReelSubtitle?.style, 'words:', window._editorReelSubtitle?.words?.length, 'previewMode was:', previewMode);
+      stopPreview();
+      previewMode = 'none';
+      showInlinePreview();
+    };
+    } catch(e) { console.error('[Preview] Reel props init error:', e); window._showReelPropsPanel = function(){}; window._forceInlineRender = function(){}; }

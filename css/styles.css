@@ -821,7 +821,7 @@ button.warn:hover { background: rgba(245,158,11,0.25); border-color: var(--amber
 input[type="file"] { display: none; }
 
 /* ── Playhead ── */
-#playhead-line, #text-playhead-line, #video-playhead-line, #sub-playhead-line {
+#playhead-line, #text-playhead-line, #video-playhead-line, #sub-playhead-line, #bgm-playhead-line {
   position: absolute; top: 0; bottom: 0; width: 2px;
   background: var(--red); pointer-events: none; z-index: 20; display: none;
   box-shadow: 0 0 6px rgba(239,68,68,0.5);
@@ -1520,18 +1520,29 @@ input:focus, select:focus, textarea:focus {
 .series-new-episode:hover { background: var(--accent); color: #fff; }
 
 /* ── Background Music ── */
+#bgm-section { margin: 4px 0; }
 .bgm-bar {
   display: flex; align-items: center; gap: 8px;
-  padding: 6px 12px; background: var(--bg-elevated);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  margin: 4px 8px; font-size: 0.72rem;
+  padding: 4px 10px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 0.72rem;
 }
 .bgm-label { color: var(--accent); font-weight: 600; white-space: nowrap; }
 .bgm-name { color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
-.bgm-slider { width: 80px; }
-.bgm-vol-label { color: var(--text-muted); min-width: 30px; text-align: right; }
-.bgm-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; }
+.bgm-slider { width: 70px; }
+.bgm-vol-label { color: var(--text-muted); min-width: 28px; }
+.bgm-control-label { display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 0.7rem; white-space: nowrap; }
+.bgm-remove-btn { background: var(--red-soft); color: var(--red); border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; margin-left: auto; }
 .bgm-remove-btn:hover { background: var(--red); color: #fff; }
+#bgm-timeline-wrap {
+  position: relative; width: 100%; height: 64px; overflow: hidden;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  cursor: crosshair;
+}
+#bgm-waveform-canvas { display: block; width: 100%; height: 64px; }
 
 /* ── Reel/Short Creator ── */
 #reel-page { width: 100%; max-width: 1080px; display: none; padding: 72px 12px 0; }

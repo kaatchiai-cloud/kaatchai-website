@@ -749,6 +749,7 @@ projectInput.addEventListener('change', async () => {
             nextPhotoId = project.nextPhotoId || (Math.max(...photoItems.map(x => x.id)) + 1);
             renderPhotos();
             drawRuler();
+            if (typeof showInlinePreview === 'function') showInlinePreview();
             const txtInfo = textItems.length > 0 ? `, ${textItems.length} texts` : '';
             const vidCount = photoItems.filter(x => x.type === 'video').length;
             const photoCount = photoItems.length - vidCount;
@@ -762,6 +763,7 @@ projectInput.addEventListener('change', async () => {
             nextPhotoId = project.nextPhotoId || 1;
             renderPhotos();
             drawRuler();
+            if (typeof showInlinePreview === 'function') showInlinePreview();
             setStatus(`Project loaded. ${totalPhotos - photoItems.length} image(s) could not be restored.`);
           }
         };
@@ -999,6 +1001,7 @@ projectInput.addEventListener('change', async () => {
         if (bgmVolLbl) bgmVolLbl.textContent = Math.round(bgmVolume * 100) + '%';
         const bgmLp = $('bgm-loop');
         if (bgmLp) bgmLp.checked = bgmLoop;
+        if (typeof window.drawBgmWaveform === 'function') window.drawBgmWaveform();
       } catch(e) { console.warn('BGM restore error:', e); }
     } else {
       bgmBuffer = null;
@@ -1139,8 +1142,11 @@ projectInput.addEventListener('change', async () => {
     renderTexts();
     if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
     if (typeof window._showReelPropsPanel === 'function') window._showReelPropsPanel();
-    // Re-render after layout settles
-    requestAnimationFrame(() => { drawRuler(); renderPhotos(); renderSubtitles(); });
+    // Re-render after layout settles; show inline preview if photos already loaded
+    requestAnimationFrame(() => {
+      drawRuler(); renderPhotos(); renderSubtitles();
+      if (typeof showInlinePreview === 'function') showInlinePreview();
+    });
 
     if (!project.photos || project.photos.length === 0) {
       const textInfo = textItems.length > 0 ? `, ${textItems.length} texts` : '';

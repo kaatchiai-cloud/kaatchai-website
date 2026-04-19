@@ -550,13 +550,13 @@
         'bold':    { fontSize: 42, color: '#ffffff', strokeColor: '#000000', strokeWidth: 2, bgAlpha: 0.6, font: 'Poppins', position: 'center',     animation: 'scale', animDur: 0.3, allCaps: true, bold: true },
         'minimal': { fontSize: 28, color: '#ffffff', strokeColor: '#000000', strokeWidth: 0, bgAlpha: 0, font: 'Inter',   position: 'bot-center', animation: 'fade', animDur: 0.3, allCaps: false, bold: false },
       };
-      // Reel word-subtitle properties for each preset
+      // Reel word-subtitle properties for each preset (must match REEL_SUB_PRESETS in 20-reels-creator.js)
       const reelPresets = {
-        'hormozi': { style: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5, subPosition: 'bottom' },
-        'classic': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4, subPosition: 'bottom' },
-        'karaoke': { style: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4, subPosition: 'bottom' },
-        'bold':    { style: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5, subPosition: 'bottom' },
-        'minimal': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3, subPosition: 'bottom' },
+        'hormozi': { style: 'word-by-word', subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'shadow', subSize: 5,   subPosition: 85, subFont: 'Anton',   subAllCaps: true,  subAccent: '#f7c204' },
+        'classic': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 4,   subPosition: 85, subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+        'karaoke': { style: 'karaoke',      subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 3.5, subPosition: 85, subFont: 'Poppins', subAllCaps: false, subAccent: '#7c3aed' },
+        'bold':    { style: 'bold-center',  subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',   subSize: 5,   subPosition: 52, subFont: 'Poppins', subAllCaps: true,  subAccent: '#f7c204' },
+        'minimal': { style: 'highlight',    subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'none',   subSize: 3.5, subPosition: 85, subFont: 'Inter',   subAllCaps: false, subAccent: '#7c3aed' },
       };
       const p = presets[preset];
       if (!p) return;
@@ -577,24 +577,26 @@
       const rp = reelPresets[preset];
       const rs = window._editorReelSubtitle;
       if (rp && rs) {
-        rs.style = rp.style;
-        rs.subColor = rp.subColor;
-        rs.subOutline = rp.subOutline;
-        rs.subBackdrop = rp.subBackdrop;
-        rs.subSize = rp.subSize;
-        rs.subPosition = rp.subPosition;
+        rs.style = rp.style; rs.subColor = rp.subColor; rs.subOutline = rp.subOutline;
+        rs.subBackdrop = rp.subBackdrop; rs.subSize = rp.subSize; rs.subPosition = rp.subPosition;
+        rs.subFont = rp.subFont; rs.subAllCaps = rp.subAllCaps; rs.subAccent = rp.subAccent;
         // Sync sub-reel-row controls
         const srs = $('sub-reel-style'); if (srs) srs.value = rp.style;
+        const srf = $('sub-reel-font'); if (srf) srf.value = rp.subFont;
+        const srca = $('sub-reel-all-caps'); if (srca) srca.checked = rp.subAllCaps;
         const src = $('sub-reel-color'); if (src) src.value = rp.subColor;
+        const sracc = $('sub-reel-accent'); if (sracc) sracc.value = rp.subAccent;
         const sro = $('sub-reel-outline'); if (sro) sro.value = rp.subOutline;
         const srb = $('sub-reel-backdrop'); if (srb) srb.value = rp.subBackdrop;
         const srz = $('sub-reel-size'); if (srz) srz.value = rp.subSize;
         const srl = $('sub-reel-size-label'); if (srl) srl.textContent = rp.subSize;
-        const srp2 = $('sub-reel-pos'); if (srp2) srp2.value = rp.subPosition;
+        const srp2 = $('sub-reel-pos'); if (srp2) srp2.value = (rp.subPosition <= 20 ? 'top' : rp.subPosition <= 65 ? 'center' : 'bottom');
+        const srpn = $('sub-reel-pos-num'); if (srpn) { srpn.value = rp.subPosition; const srpl = $('sub-reel-pos-label'); if (srpl) srpl.textContent = rp.subPosition + '%'; }
         // Sync reel globals
         if (typeof reelSubtitleStyle !== 'undefined') {
           reelSubtitleStyle = rp.style; reelSubColor = rp.subColor; reelSubOutline = rp.subOutline;
           reelSubBackdrop = rp.subBackdrop; reelSubSize = rp.subSize; reelSubPosition = rp.subPosition;
+          reelSubFont = rp.subFont; reelSubAllCaps = rp.subAllCaps; reelSubAccent = rp.subAccent;
         }
         // Re-render inline preview
         if (typeof renderInlineFrame === 'function' && typeof previewPlaying !== 'undefined' && !previewPlaying) {

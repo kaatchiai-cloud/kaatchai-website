@@ -3215,6 +3215,17 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   // ═══════════════════════════════════════════════
 
   // ── IndexedDB helpers (no size limit, works cross-tab same-origin) ──
+  function videoUrlToBase64(url) {
+    return fetch(url)
+      .then(r => r.blob())
+      .then(blob => new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      }));
+  }
+
   function idbSave(key, data) {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open('stori_db', 1);
@@ -3234,37 +3245,50 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     if (job.status !== 'done' || !job.audioBase64 || !job.scenes?.length) {
       toast('Job must be fully complete (audio + images) to open in Reel editor', 'error'); return;
     }
-    // Format to match loadReelProject() in the main app's js/20-reels-creator.js
+    toast('Preparing data for Reel editor…', 'info');
+
+    // Convert each scene's video blob/CDN URL to a base64 data URL so it survives cross-tab transfer
+    const scenesData = await Promise.all(job.scenes.map(async s => {
+      let videoData = null;
+      if (s.videoBlobUrl) {
+        try { videoData = await videoUrlToBase64(s.videoBlobUrl); } catch (_) {}
+      }
+      return {
+        startTime:  s.startTime,
+        endTime:    s.endTime,
+        duration:   s.duration,
+        text:       s.sceneText,
+        words:      s.words || [],
+        imgDataUrl: s.imgDataUrl || null,
+        prompt:     s.prompt || s.sceneDescription,
+        videoData,
+      };
+    }));
+
     const projectData = {
+      type:          'reel',
+      videoMode:     job.videoMode || 'illustrated',
       platform:      job.platform,
       duration:      job.duration,
       subtitleStyle: 'highlight',
       transition:    job.transition || 'whip-pan',
       audio: { data: job.audioBase64 },
       multiResults: [{
-        audioData:        job.audioBase64,
-        videoStart:       0,
-        videoEnd:         job.duration,
-        audioLang:        job.langCode || 'en',
-        subtitleLang:     job.langCode || 'en',
-        audioLangLabel:   job.langLabel || 'English',
+        audioData:         job.audioBase64,
+        videoStart:        0,
+        videoEnd:          job.duration,
+        audioLang:         job.langCode || 'en',
+        subtitleLang:      job.langCode || 'en',
+        audioLangLabel:    job.langLabel || 'English',
         subtitleLangLabel: job.langLabel || 'English',
-        segmentIndex:     0,
+        segmentIndex:      0,
         settings: {
           subtitleStyle: 'highlight', transition: job.transition || 'whip-pan',
           subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',
           subSize: 4, subPosition: 'bottom',
         },
         words:  job.words || [],
-        scenes: job.scenes.map(s => ({
-          startTime:  s.startTime,
-          endTime:    s.endTime,
-          duration:   s.duration,
-          text:       s.sceneText,   // main app uses 'text', not 'sceneText'
-          words:      s.words || [],
-          imgDataUrl: s.imgDataUrl || null,
-          prompt:     s.prompt || s.sceneDescription,
-        })),
+        scenes: scenesData,
       }],
     };
     try {
