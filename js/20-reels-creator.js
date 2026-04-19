@@ -12,8 +12,7 @@ const reelStepActions = $('reel-step-actions');
 function renumberReelSteps() {
   let num = 1;
   reelPage.querySelectorAll('.reel-step').forEach(el => {
-    if (el.classList.contains('hidden') || el.style.display === 'none') return;
-    const numEl = el.querySelector('.step-num');
+    const numEl = el.querySelector('.step-num, .agent-step-icon');
     if (numEl) numEl.textContent = num++;
   });
 }

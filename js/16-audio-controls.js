@@ -21,6 +21,10 @@
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
+    // Segment colors for multi-clip BGM
+    const BGM_SEG_COLORS = ['#6c63ff','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+    let bgmSegments = []; // [{start, end, color}]
+
     function drawBgmWaveform() {
       const canvas = $('bgm-waveform-canvas');
       if (!canvas || !bgmBuffer) return;
@@ -66,13 +70,34 @@
         }
         const barH = Math.max(2, peak * (h - 8));
         const midY = h / 2;
-        const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
-        ctx.strokeStyle = rep === 0 ? '#6c63ff' : '#8b83ff';
+        // Color by segment, fallback to looping purple
+        let segColor = null;
+        if (bgmSegments.length > 0) {
+          const seg = bgmSegments.find(s => srcT >= s.start && srcT < s.end);
+          if (seg) segColor = seg.color;
+        }
+        if (!segColor) {
+          const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
+          segColor = rep === 0 ? '#6c63ff' : '#8b83ff';
+        }
+        ctx.strokeStyle = segColor;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(px + 0.5, midY - barH / 2);
         ctx.lineTo(px + 0.5, midY + barH / 2);
         ctx.stroke();
+      }
+      // Segment boundary dividers
+      if (bgmSegments.length > 1) {
+        bgmSegments.slice(1).forEach(seg => {
+          const x = ((seg.start - visStart) / visDur) * w;
+          if (x < 0 || x > w) return;
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+          ctx.setLineDash([]);
+        });
       }
 
       // Loop divider lines — use local coordinates, not secToPx
@@ -215,6 +240,9 @@
     btnAddBgm.addEventListener('click', () => {
       bgmInputEl.click();
     });
+    const bgmReplaceBtn = $('bgm-replace');
+    if (bgmReplaceBtn) bgmReplaceBtn.addEventListener('click', () => bgmInputEl.click());
+    // Initial load / replace — clears segments
     bgmInputEl.addEventListener('change', async () => {
       const file = bgmInputEl.files[0];
       if (!file) return;
@@ -223,11 +251,34 @@
         const arrayBuf = await file.arrayBuffer();
         bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
         bgmSel = null; bgmDragging = null;
+        bgmSegments = [{ start: 0, end: bgmBuffer.duration, color: BGM_SEG_COLORS[0] }];
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
         drawBgmWaveform();
         setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
+    });
+    // Append — adds new clip at end with next color
+    const bgmAppendBtn = $('bgm-append');
+    const bgmAppendInput = $('bgm-append-input');
+    if (bgmAppendBtn) bgmAppendBtn.addEventListener('click', () => bgmAppendInput && bgmAppendInput.click());
+    if (bgmAppendInput) bgmAppendInput.addEventListener('change', async () => {
+      const file = bgmAppendInput.files[0];
+      if (!file) return;
+      bgmAppendInput.value = '';
+      try {
+        const arrayBuf = await file.arrayBuffer();
+        const newBuf = await ensureAudioCtx().decodeAudioData(arrayBuf);
+        const prevDur = bgmBuffer ? bgmBuffer.duration : 0;
+        bgmBuffer = bgmBuffer ? insertAudioAt(bgmBuffer, newBuf, bgmBuffer.duration) : newBuf;
+        bgmSel = null; bgmDragging = null;
+        const color = BGM_SEG_COLORS[bgmSegments.length % BGM_SEG_COLORS.length];
+        bgmSegments.push({ start: prevDur, end: bgmBuffer.duration, color });
+        bgmNameEl.textContent = `${bgmSegments.length} clips`;
+        bgmSection.style.display = '';
+        drawBgmWaveform();
+        setStatus(`BGM appended: ${file.name} (${fmtShort(newBuf.duration)})`);
+      } catch(e) { setStatus('BGM append error: ' + e.message); }
     });
 
     bgmVolumeSlider.addEventListener('input', () => {
@@ -243,7 +294,7 @@
     });
 
     bgmRemoveBtn.addEventListener('click', () => {
-      bgmBuffer = null; bgmSel = null; bgmDragging = null;
+      bgmBuffer = null; bgmSel = null; bgmDragging = null; bgmSegments = [];
       bgmSection.style.display = 'none';
       bgmNameEl.textContent = 'No file';
       const canvas = $('bgm-waveform-canvas');

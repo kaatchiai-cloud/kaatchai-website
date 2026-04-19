@@ -932,11 +932,10 @@ function updateStepStates() {
   showStep('create-send-step', hasImages);
   markStep('create-send-step', false, hasImages);
 
-  // Renumber visible steps dynamically
+  // Renumber steps (all steps, regardless of visibility)
   let stepNum = 1;
   createPage.querySelectorAll('.create-step').forEach(el => {
-    if (el.style.display === 'none') return;
-    const numEl = el.querySelector('.step-num');
+    const numEl = el.querySelector('.step-num, .agent-step-icon');
     if (numEl) numEl.textContent = stepNum++;
   });
 }
@@ -2435,6 +2434,24 @@ async function runCreateBgm() {
     if (typeof updateCreateAgent === 'function') updateCreateAgent('bgm', 'error', 'Failed');
   }
 }
+
+// Download button for Create Story BGM
+const createBgmDownloadBtn = $('create-bgm-download');
+if (createBgmDownloadBtn) createBgmDownloadBtn.addEventListener('click', async () => {
+  const audioEl = $('create-bgm-audio');
+  const src = createBgmUrl || (audioEl && audioEl.src) || '';
+  if (!src) return;
+  try {
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bgm.mp3';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch(e) { setStatus('BGM download failed: ' + e.message); }
+});
 
 // Volume control for Create Story BGM
 const createBgmVolumeEl = $('create-bgm-volume');

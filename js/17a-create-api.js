@@ -539,10 +539,10 @@ function refreshCreateAgentPanel() {
   // update storyboard step header name based on mode
   const storyboardHeader = document.querySelector('#create-transcribe-step .agent-step-name');
   if (storyboardHeader) {
-    storyboardHeader.textContent = createVideoMode === 'animated' ? 'Cinematography & Prompt Agent' : 'Storyboard & Prompt Agent';
+    storyboardHeader.textContent = 'Script & Scenes';
   }
   const storyboardIcon = document.querySelector('#create-transcribe-step .agent-step-icon');
-  if (storyboardIcon) storyboardIcon.textContent = createVideoMode === 'animated' ? '🎬' : '🎨';
+  if (storyboardIcon) storyboardIcon.textContent = '2';
 }
 
 // ══════════════════════════════════════════
@@ -637,9 +637,9 @@ function refreshReelAgentPanel() {
   Object.keys(_reelAgentState).forEach(k => delete _reelAgentState[k]);
   _renderReelAgentPanel();
   const sceneHeader = document.querySelector('#reel-step-presets .agent-step-name');
-  if (sceneHeader) sceneHeader.textContent = reelVideoMode === 'animated' ? 'Cinematography Agent' : 'Storyboard Agent';
+  if (sceneHeader) sceneHeader.textContent = 'Style & Presets';
   const sceneIcon = document.querySelector('#reel-step-presets .agent-step-icon');
-  if (sceneIcon) sceneIcon.textContent = reelVideoMode === 'animated' ? '🎬' : '🎨';
+  if (sceneIcon) sceneIcon.textContent = '3';
 }
 
 function initAllReelAgentTasks() {
@@ -689,7 +689,7 @@ function inferCreateAgentStates() {
     if (imgSummary) imgSummary.textContent = `✅ ${doneImgs} images generated`;
   }
 
-  // BGM Agent: done if a BGM blob URL has been generated
+  // BGM Agent: done if a BGM blob URL has been generated (restored from project or generated this session)
   if (typeof createBgmUrl !== 'undefined' && createBgmUrl) {
     updateCreateAgent('bgm', 'done', 'Music ready');
     const bgmStep = $('create-bgm-step');

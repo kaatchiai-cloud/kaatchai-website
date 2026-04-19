@@ -1218,8 +1218,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 2: Storyboard & Prompt Agent (results view — triggered from Script Agent) -->
     <div class="create-step" id="create-transcribe-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">🎨</span><span class="agent-step-name">Storyboard & Prompt Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">2</span> Storyboard & Image Prompts</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">2</span><span class="agent-step-name">Script & Scenes</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="create-transcript" id="create-transcript-output"></div>
       <div id="create-storyboard-grid" class="storyboard-grid" style="margin-top:12px;"></div>
       <div class="form-row mt-lg" id="create-storyboard-regen-row" style="display:none;">
@@ -1234,8 +1233,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 3: Chapter Splitting (Podcast only) -->
     <div class="create-step hidden" id="create-chapter-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">📑</span><span class="agent-step-name">Chapter Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">3</span> Chapter Splitting</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">3</span><span class="agent-step-name">Chapters</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <p class="text-sm text-secondary mb-md">
         Split your podcast into chapters. Each chapter will get its own set of images in the storyboard.
       </p>
@@ -1262,8 +1260,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 4: Visual References (optional) -->
     <div class="create-step" id="create-references-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">🔗</span><span class="agent-step-name">Reference Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">5</span> Visual References <span class="text-xs text-muted">(optional)</span></h3>
+      <div class="agent-step-header"><span class="agent-step-icon">4</span><span class="agent-step-name">Visual References</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <p class="text-sm text-secondary mb-md">
         Define characters and environments to maintain visual consistency across scenes. Upload illustrations or describe them — AI will use these as reference when generating images.
       </p>
@@ -1300,8 +1297,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 6: Generate Images -->
     <div class="create-step" id="create-generate-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">🖼️</span><span class="agent-step-name">Image Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">6</span> Generate Scene Images</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">5</span><span class="agent-step-name">Scene Images</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="create-row flex-wrap gap-md">
         <button id="btn-create-pause" class="btn-xs hidden">⏸ Pause</button>
         <button id="btn-create-retry-failed" class="danger btn-xs hidden">🔄 Retry Failed</button>
@@ -1320,8 +1316,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 7: BGM (auto-generated with Lyria 3) -->
     <div class="create-step" id="create-bgm-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">7</span> Background Music</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Background Music</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
       <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
       <div id="create-bgm-player" style="display:none; margin-top:12px;">
@@ -1330,6 +1325,7 @@ body:has(#drop-zone:not(.hidden)) {
           <label class="form-label" style="margin:0;">Vol:</label>
           <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
           <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
+          <button id="create-bgm-download" class="btn-sm" title="Download BGM">⬇ Download BGM</button>
         </div>
       </div>
       <div class="agent-launch-row" id="create-launch-after-bgm">
@@ -1340,8 +1336,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 8: Animated Videos (animated mode only) -->
     <div class="create-step" id="create-video-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">✨</span><span class="agent-step-name">Animation Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">7</span> Animated Videos</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">7</span><span class="agent-step-name">Animate Scenes</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="create-row flex-wrap gap-md">
         <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
       </div>
@@ -1358,8 +1353,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 8: Multi-Language Voiceover (optional) -->
     <div class="create-step" id="create-language-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">🌐</span><span class="agent-step-name">Voiceover Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">7</span> Multi-Language Voiceover <span class="text-xs text-muted">(optional)</span></h3>
+      <div class="agent-step-header"><span class="agent-step-icon">8</span><span class="agent-step-name">Voiceover & Translation</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <p class="text-sm text-secondary mb-md">
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
@@ -1547,8 +1541,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 3: Presets (shown after input is ready) -->
     <div class="reel-step hidden" id="reel-step-presets">
-      <div class="agent-step-header"><span class="agent-step-icon">🎨</span><span class="agent-step-name">Storyboard Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">2</span> Presets</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">3</span><span class="agent-step-name">Style & Presets</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div id="reel-preset-segments" class="mb-md"></div>
       <div id="reel-edit-mode-row" class="form-row mb-md hidden">
         <span class="text-sm text-secondary">Edit mode:</span>
@@ -1604,8 +1597,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 3.5: Scene Images (audio/text mode only) -->
     <div class="reel-step hidden" id="reel-step-scenes">
-      <div class="agent-step-header"><span class="agent-step-icon">🖼️</span><span class="agent-step-name">Image Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">3</span> Scene Images</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">4</span><span class="agent-step-name">Scene Images</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div id="reel-scene-grid"></div>
       <div class="form-row mt-md" style="justify-content:center; gap:8px;">
         <button id="btn-reel-retry-images" class="btn-md" style="display:none;">Retry Failed</button>
@@ -1626,8 +1618,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step BGM: Auto-generated with Lyria 3 -->
     <div class="reel-step hidden" id="reel-step-bgm">
-      <div class="agent-step-header"><span class="agent-step-icon">🎵</span><span class="agent-step-name">BGM Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">4</span> Background Music</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">5</span><span class="agent-step-name">Background Music</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your reel content.</p>
       <div id="reel-bgm-status" class="text-sm text-muted" style="display:none;"></div>
       <div id="reel-bgm-player" style="display:none; margin-top:12px;">
@@ -1643,8 +1634,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 4: Mini Editor + Preview -->
     <div class="reel-step hidden" id="reel-step-editor">
-      <div class="agent-step-header"><span class="agent-step-icon">▶️</span><span class="agent-step-name">Preview Agent</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <h3><span class="step-num">4</span> Preview & Edit</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Preview & Edit</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="reel-editor-vertical">
         <div id="reel-previews-container" style="display:none; width:100%;"></div>
         <div class="reel-scenes mt-md hidden" id="reel-scene-list"></div>
@@ -1658,7 +1648,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Export & Save -->
     <div class="reel-step hidden" id="reel-step-actions">
-      <h3><span class="step-num">6</span> Export & Save</h3>
+      <h3><span class="step-num">7</span> Export & Save</h3>
       <div class="form-row">
         <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
         <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
@@ -1975,110 +1965,6 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- BGM Timeline -->
-    <div id="bgm-section" style="display:none">
-      <div class="bgm-bar">
-        <span class="bgm-label">🎵 BGM</span>
-        <span id="bgm-name" class="bgm-name">No file</span>
-        <label class="bgm-control-label">🔊
-          <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
-          <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
-        </label>
-        <label class="bgm-control-label">
-          <input type="checkbox" id="bgm-loop" checked> Loop
-        </label>
-        <button id="bgm-remove" class="bgm-remove-btn">✕</button>
-      </div>
-      <div id="bgm-timeline-wrap">
-        <canvas id="bgm-waveform-canvas"></canvas>
-        <div id="bgm-playhead-line"></div>
-      </div>
-    </div>
-    <div id="video-props">
-      <button id="vprop-close" class="props-close-btn" title="Close">✕</button>
-      <span class="text-sm font-semibold" style="color:var(--accent);">🎬 Video Clip</span>
-      <label>Start: <input type="number" id="vprop-start" step="0.1" min="0">s</label>
-      <label>Duration: <input type="number" id="vprop-duration" step="0.1" min="0.5">s</label>
-      <label>End: <span id="vprop-end">—</span></label>
-      <div style="border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
-        <span class="text-xs text-muted">Video Trim</span>
-        <div class="form-row mt-xs">
-          <label>In: <input type="number" id="vprop-in-point" step="0.1" min="0">s</label>
-          <label>Out: <input type="number" id="vprop-out-point" step="0.1" min="0">s</label>
-          <label>Source: <span id="vprop-video-dur" class="text-secondary">—</span></label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Text Timeline -->
-    <div class="section-label mt-md">
-      Text Timeline
-      <span class="badge" id="text-count">0 texts</span>
-      <button id="btn-delete-selected-texts" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
-      <button id="btn-add-text" class="btn-sm">+ Add Text</button>
-    </div>
-    <div id="text-drop-zone" class="empty">
-      <div id="text-timeline-container">
-        <div id="text-playhead-line"></div>
-        <div id="text-marquee-box" style="position:absolute;border:1px dashed var(--accent);background:var(--accent-soft);pointer-events:none;z-index:15;border-radius:3px;display:none;"></div>
-      </div>
-    </div>
-
-    <div id="text-props">
-      <button id="tprop-close" class="props-close-btn" title="Close">✕</button>
-      <label>Text:
-        <textarea id="tprop-text" placeholder="Type here..."></textarea>
-      </label>
-      <label>Font:
-        <select id="tprop-font">
-          <optgroup label="Tamil Fonts">
-            <option value="'Noto Sans Tamil', sans-serif">Noto Sans Tamil</option>
-            <option value="'Catamaran', sans-serif">Catamaran</option>
-            <option value="'Mukta Malar', sans-serif">Mukta Malar</option>
-            <option value="'Hind Madurai', sans-serif">Hind Madurai</option>
-          </optgroup>
-          <optgroup label="English Fonts">
-            <option value="'Poppins', sans-serif">Poppins</option>
-            <option value="'Playfair Display', serif">Playfair Display</option>
-            <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-            <option value="'Oswald', sans-serif">Oswald</option>
-            <option value="Arial, sans-serif">Arial</option>
-            <option value="'Georgia', serif">Georgia</option>
-            <option value="'Courier New', monospace">Courier New</option>
-          </optgroup>
-        </select>
-      </label>
-      <label>Size: <input type="number" id="tprop-size" min="12" max="200" value="48">px</label>
-      <label>Color: <input type="color" id="tprop-color" value="#ffffff"></label>
-      <label>Stroke: <input type="color" id="tprop-stroke" value="#000000"></label>
-      <label>Stroke W: <input type="number" id="tprop-stroke-w" min="0" max="20" step="1" value="2">px</label>
-      <label>BG: <input type="color" id="tprop-bg" value="#000000"></label>
-      <label>BG α: <input type="number" id="tprop-bg-alpha" min="0" max="1" step="0.1" value="0">  </label>
-      <label>Bold: <input type="checkbox" id="tprop-bold"></label>
-      <label>Position:
-        <div class="text-position-grid" id="tprop-position">
-          <button data-pos="top-left">↖</button><button data-pos="top-center">↑</button><button data-pos="top-right">↗</button>
-          <button data-pos="mid-left">←</button><button data-pos="center" class="active">●</button><button data-pos="mid-right">→</button>
-          <button data-pos="bot-left">↙</button><button data-pos="bot-center">↓</button><button data-pos="bot-right">↘</button>
-        </div>
-      </label>
-      <label>Start: <input type="number" id="tprop-start" step="0.1" min="0">s</label>
-      <label>Dur: <input type="number" id="tprop-duration" step="0.1" min="0.3">s</label>
-      <label>Anim:
-        <select id="tprop-anim">
-          <option value="none">None</option>
-          <option value="fade">Fade In/Out</option>
-          <option value="typewriter">Typewriter</option>
-          <option value="slide-up">Slide Up</option>
-          <option value="slide-down">Slide Down</option>
-          <option value="scale">Scale Pop</option>
-          <option value="blur-in">Blur In</option>
-        </select>
-      </label>
-      <label>Anim dur: <input type="number" id="tprop-anim-dur" step="0.1" min="0.1" max="5" value="0.5">s</label>
-      <button id="tprop-delete" class="danger btn-sm">Remove</button>
-    </div>
-
     <!-- Subtitle Timeline -->
     <div class="section-label mt-md" id="subtitle-section-label">
       Subtitle Timeline
@@ -2182,6 +2068,115 @@ body:has(#drop-zone:not(.hidden)) {
       <label>Start: <input type="number" id="sprop-start" step="0.1" min="0">s</label>
       <label>Dur: <input type="number" id="sprop-duration" step="0.1" min="0.3">s</label>
       <button id="sprop-delete" class="danger btn-sm">Remove</button>
+    </div>
+
+    <!-- BGM Timeline -->
+    <div id="bgm-section" style="display:none">
+      <div class="bgm-bar">
+        <span class="bgm-label">🎵 BGM</span>
+        <span id="bgm-name" class="bgm-name">No file</span>
+        <label class="bgm-control-label">🔊
+          <input type="range" id="bgm-volume" min="0" max="100" value="30" class="bgm-slider">
+          <span id="bgm-volume-label" class="bgm-vol-label">30%</span>
+        </label>
+        <label class="bgm-control-label">
+          <input type="checkbox" id="bgm-loop" checked> Loop
+        </label>
+        <button id="bgm-append" class="btn-xs" title="Append another BGM clip at end">+ Append</button>
+        <input type="file" id="bgm-append-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
+        <button id="bgm-replace" class="btn-xs" title="Replace BGM file">↺ Replace</button>
+        <button id="bgm-del-sel" class="btn-xs" disabled title="Delete selected region">✂ Delete Sel</button>
+        <button id="bgm-remove" class="bgm-remove-btn">✕</button>
+      </div>
+      <div id="bgm-sel-info" style="font-size:0.68rem; color:var(--text-muted); padding:2px 8px;">Drag to select  •  drag selection to move</div>
+      <div id="bgm-timeline-wrap">
+        <canvas id="bgm-waveform-canvas"></canvas>
+        <div id="bgm-playhead-line"></div>
+      </div>
+    </div>
+    <div id="video-props">
+      <button id="vprop-close" class="props-close-btn" title="Close">✕</button>
+      <span class="text-sm font-semibold" style="color:var(--accent);">🎬 Video Clip</span>
+      <label>Start: <input type="number" id="vprop-start" step="0.1" min="0">s</label>
+      <label>Duration: <input type="number" id="vprop-duration" step="0.1" min="0.5">s</label>
+      <label>End: <span id="vprop-end">—</span></label>
+      <div style="border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
+        <span class="text-xs text-muted">Video Trim</span>
+        <div class="form-row mt-xs">
+          <label>In: <input type="number" id="vprop-in-point" step="0.1" min="0">s</label>
+          <label>Out: <input type="number" id="vprop-out-point" step="0.1" min="0">s</label>
+          <label>Source: <span id="vprop-video-dur" class="text-secondary">—</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Text Timeline -->
+    <div class="section-label mt-md">
+      Text Timeline
+      <span class="badge" id="text-count">0 texts</span>
+      <button id="btn-delete-selected-texts" class="danger" style="margin-left:auto; font-size:0.7rem; padding:3px 10px; display:none;">🗑 Delete Selected</button>
+      <button id="btn-add-text" class="btn-sm">+ Add Text</button>
+    </div>
+    <div id="text-drop-zone" class="empty">
+      <div id="text-timeline-container">
+        <div id="text-playhead-line"></div>
+        <div id="text-marquee-box" style="position:absolute;border:1px dashed var(--accent);background:var(--accent-soft);pointer-events:none;z-index:15;border-radius:3px;display:none;"></div>
+      </div>
+    </div>
+
+    <div id="text-props">
+      <button id="tprop-close" class="props-close-btn" title="Close">✕</button>
+      <label>Text:
+        <textarea id="tprop-text" placeholder="Type here..."></textarea>
+      </label>
+      <label>Font:
+        <select id="tprop-font">
+          <optgroup label="Tamil Fonts">
+            <option value="'Noto Sans Tamil', sans-serif">Noto Sans Tamil</option>
+            <option value="'Catamaran', sans-serif">Catamaran</option>
+            <option value="'Mukta Malar', sans-serif">Mukta Malar</option>
+            <option value="'Hind Madurai', sans-serif">Hind Madurai</option>
+          </optgroup>
+          <optgroup label="English Fonts">
+            <option value="'Poppins', sans-serif">Poppins</option>
+            <option value="'Playfair Display', serif">Playfair Display</option>
+            <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+            <option value="'Oswald', sans-serif">Oswald</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="'Georgia', serif">Georgia</option>
+            <option value="'Courier New', monospace">Courier New</option>
+          </optgroup>
+        </select>
+      </label>
+      <label>Size: <input type="number" id="tprop-size" min="12" max="200" value="48">px</label>
+      <label>Color: <input type="color" id="tprop-color" value="#ffffff"></label>
+      <label>Stroke: <input type="color" id="tprop-stroke" value="#000000"></label>
+      <label>Stroke W: <input type="number" id="tprop-stroke-w" min="0" max="20" step="1" value="2">px</label>
+      <label>BG: <input type="color" id="tprop-bg" value="#000000"></label>
+      <label>BG α: <input type="number" id="tprop-bg-alpha" min="0" max="1" step="0.1" value="0">  </label>
+      <label>Bold: <input type="checkbox" id="tprop-bold"></label>
+      <label>Position:
+        <div class="text-position-grid" id="tprop-position">
+          <button data-pos="top-left">↖</button><button data-pos="top-center">↑</button><button data-pos="top-right">↗</button>
+          <button data-pos="mid-left">←</button><button data-pos="center" class="active">●</button><button data-pos="mid-right">→</button>
+          <button data-pos="bot-left">↙</button><button data-pos="bot-center">↓</button><button data-pos="bot-right">↘</button>
+        </div>
+      </label>
+      <label>Start: <input type="number" id="tprop-start" step="0.1" min="0">s</label>
+      <label>Dur: <input type="number" id="tprop-duration" step="0.1" min="0.3">s</label>
+      <label>Anim:
+        <select id="tprop-anim">
+          <option value="none">None</option>
+          <option value="fade">Fade In/Out</option>
+          <option value="typewriter">Typewriter</option>
+          <option value="slide-up">Slide Up</option>
+          <option value="slide-down">Slide Down</option>
+          <option value="scale">Scale Pop</option>
+          <option value="blur-in">Blur In</option>
+        </select>
+      </label>
+      <label>Anim dur: <input type="number" id="tprop-anim-dur" step="0.1" min="0.1" max="5" value="0.5">s</label>
+      <button id="tprop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Reel Frame + Overlays Section (shown when reel data transferred) -->

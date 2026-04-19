@@ -541,6 +541,16 @@ async function saveProjectToFile(audioBuf, statusFn) {
         selectedTemplate: selectedTemplate || '',
         characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
         environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
+        bgmData: await (async () => {
+          try {
+            if (typeof createBgmUrl !== 'undefined' && createBgmUrl) {
+              const resp = await fetch(createBgmUrl);
+              const blob = await resp.blob();
+              return await blobToBase64(blob);
+            }
+          } catch(e) {}
+          return null;
+        })(),
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -954,6 +964,16 @@ projectInput.addEventListener('change', async () => {
           return { ...e, imgEl: img };
         });
         nextEnvId = Math.max(1, ...storyEnvironments.map(e => e.id)) + 1;
+      }
+      // Restore Create Story BGM
+      if (project.createState.bgmData) {
+        try {
+          const blob = base64ToBlob(project.createState.bgmData, 'audio/mp3');
+          if (typeof createBgmUrl !== 'undefined' && createBgmUrl) URL.revokeObjectURL(createBgmUrl);
+          createBgmUrl = URL.createObjectURL(blob);
+          const bgmAudio = $('create-bgm-audio');
+          if (bgmAudio) bgmAudio.src = createBgmUrl;
+        } catch(e) { console.warn('BGM restore error:', e); }
       }
       // Render animated video cards if applicable
       if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {
