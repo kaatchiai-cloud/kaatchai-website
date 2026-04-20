@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Poppins:wght@300;400;600;700&family=Montserrat:wght@400;700;900&family=Anton&family=Inter:wght@400;600;700&family=Noto+Sans+Tamil:wght@100..900&family=Catamaran:wght@100..900&family=Mukta+Malar:wght@200..800&family=Hind+Madurai:wght@300..700&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
 :root {
   --bg-primary: #0f0f13;
@@ -1903,544 +1904,586 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   </script>
 <style>
 /* ═══════════════════════════════════════════════
-   KAATCHI — Celestial Editor Landing Page Styles
+   KAATCHI — Aurora Landing Page Styles
    All classes prefixed lp- to avoid app conflicts
 ════════════════════════════════════════════════ */
 :root {
-  --lp-bg:      #05070a;
-  --lp-bg-low:  #0b1325;
-  --lp-bg-card: #171f32;
-  --lp-bg-high: #222a3d;
-  --lp-primary: #ddb8ff;
-  --lp-pc:      #9333ea;
-  --lp-op:      #490080;
-  --lp-surf:    #dae2fc;
-  --lp-muted:   #cfc2d7;
-  --lp-bdr:     rgba(255,255,255,0.05);
-  --lp-bdr-p:   rgba(147,51,234,0.15);
+  /* Aurora dark tokens */
+  --lp-bg:         #050814;
+  --lp-bg2:        #0a0f20;
+  --lp-card:       rgba(255,255,255,0.035);
+  --lp-card-bdr:   rgba(255,255,255,0.08);
+  --lp-card-bdr-h: rgba(120,220,255,0.40);
+  --lp-text:       #eef4ff;
+  --lp-dim:        rgba(238,244,255,0.65);
+  --lp-faint:      rgba(238,244,255,0.38);
+  --lp-accent:     oklch(80% 0.14 200);
+  --lp-accent2:    oklch(72% 0.19 340);
+  --lp-glow:       rgba(120,220,255,0.22);
+  --lp-bdr:        rgba(255,255,255,0.08);
+  --lp-bdr-h:      rgba(120,220,255,0.40);
+  /* Legacy aliases — keep app JS working */
+  --lp-primary:    oklch(80% 0.14 200);
+  --lp-surf:       #eef4ff;
+  --lp-op:         #050814;
+  --lp-muted:      rgba(238,244,255,0.65);
+  --lp-pc:         oklch(80% 0.14 200);
+  --lp-bdr-p:      rgba(120,220,255,0.22);
+  --lp-bg-low:     #0a0f20;
+  --lp-bg-card:    rgba(255,255,255,0.035);
+  /* Font stack */
+  --lp-font-display: 'Space Grotesk', sans-serif;
+  --lp-font-ui:      'Geist', sans-serif;
+  --lp-font-mono:    'Geist Mono', monospace;
+}
+
+/* ── GLOBAL BASE ── */
+html, body { background: #050814; color: #eef4ff; }
+body {
+  font-family: var(--lp-font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
+::selection { background: rgba(120,220,255,0.28); color: #eef4ff; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #050814; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; border: 2px solid #050814; }
+::-webkit-scrollbar-thumb:hover { background: rgba(120,220,255,0.35); }
+
+/* ── LANDING LAYOUT OVERRIDES ── */
+body:has(#drop-zone:not(.hidden)) {
+  padding: 0 !important;
+  background: #050814 !important;
+  display: block !important;        /* kill flex centering from css/styles.css */
+  align-items: unset !important;
+}
+#drop-zone:not(.hidden) {
+  max-width: 100% !important; width: 100% !important;
+  background: transparent !important; border: none !important;
+  border-radius: 0 !important; padding: 0 !important;
+  margin: 0 !important; box-shadow: none !important;
+  text-align: left !important; outline: none !important; animation: none !important;
+}
+
+/* ── BG ART ── */
+.lp-bgart {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 35% at 20% 10%, rgba(120,220,255,0.20), transparent 55%),
+    radial-gradient(ellipse 60% 35% at 80% 30%, rgba(220,120,255,0.18), transparent 55%),
+    radial-gradient(ellipse 80% 40% at 50% 90%, rgba(120,255,200,0.10), transparent 55%),
+    #050814;
+}
+.lp-hero, .lp-section, .lp-nav, .lp-modes, .lp-marquee,
+.lp-pillars, .lp-scrubber-sec, .lp-storyboard-sec,
+.lp-styles-sec, .lp-pipeline, .lp-pricing, .lp-footer {
+  position: relative; z-index: 1;
 }
 
 /* ── NAV ── */
 .lp-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-  background: rgba(5,7,10,0.85); backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--lp-bdr); height: 64px;
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(5,8,20,0.75); backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,0.08); height: 67px;
 }
 .lp-nav-inner {
-  max-width: 1200px; margin: 0 auto; padding: 0 28px;
+  max-width: 1280px; margin: 0 auto; padding: 0 36px;
   height: 100%; display: flex; align-items: center; justify-content: space-between;
 }
 .lp-nav-left { display: flex; align-items: center; }
 .lp-logo {
-  font-family: 'Manrope', sans-serif; font-size: 1.35rem;
-  font-weight: 800; letter-spacing: -0.04em; color: #fff; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--lp-font-display); font-size: 19.2px; font-weight: 600;
+  letter-spacing: -0.005em; color: #eef4ff; text-decoration: none;
 }
-.lp-nav-links { display: flex; gap: 32px; margin-left: 40px; }
+.lp-logo-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  background: radial-gradient(circle at 30% 30%, oklch(72% 0.19 340), oklch(80% 0.14 200) 55%, transparent 78%);
+  box-shadow: 0 0 12px rgba(120,220,255,0.5);
+}
+.lp-nav-links { display: flex; gap: 4px; margin-left: 32px; }
 .lp-nav-links a {
-  font-size: 0.875rem; font-weight: 500; color: var(--lp-muted);
-  text-decoration: none; transition: color 0.2s;
+  font-family: var(--lp-font-ui); font-size: 13.5px; font-weight: 400;
+  color: rgba(238,244,255,0.65); text-decoration: none;
+  padding: 8px 14px; border-radius: 999px; transition: background 0.15s, color 0.15s;
 }
-.lp-nav-links a:hover { color: var(--lp-primary); }
+.lp-nav-links a:hover { background: rgba(255,255,255,0.04); color: #eef4ff; }
 .lp-nav-right { display: flex; align-items: center; gap: 10px; }
 #btn-sign-in.lp-nav-login {
-  background: transparent; color: var(--lp-muted); border: none;
-  padding: 8px 16px; font-size: 0.875rem; font-weight: 500; cursor: pointer;
-  transition: color 0.2s; font-family: inherit;
+  background: transparent; color: rgba(238,244,255,0.65);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+  padding: 7px 14px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
 }
-#btn-sign-in.lp-nav-login:hover { color: #fff; }
-.lp-nav-cta {
-  background: var(--lp-primary); color: var(--lp-op); border: none;
-  border-radius: 8px; padding: 8px 20px; font-size: 0.875rem; font-weight: 700;
-  cursor: pointer; transition: filter 0.2s; font-family: inherit;
-}
-.lp-nav-cta:hover { filter: brightness(1.1); }
+#btn-sign-in.lp-nav-login:hover { border-color: rgba(120,220,255,0.40); color: #eef4ff; }
 
-/* ── SHARED ── */
-.lp-gradient {
-  background: linear-gradient(135deg, #ddb8ff 0%, #9333ea 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+/* ── REUSABLE COMPONENTS ── */
+.lp-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(238,244,255,0.65);
+  padding: 6px 14px; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px; background: rgba(255,255,255,0.035);
 }
-.lp-glass {
-  background: rgba(23,31,50,0.4); backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(147,51,234,0.1); border-radius: 16px;
+.lp-eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: oklch(80% 0.14 200); box-shadow: 0 0 8px rgba(120,220,255,0.5);
 }
+.lp-btn-primary {
+  background: oklch(80% 0.14 200); color: #05101a; border: none;
+  padding: 14px 28px; border-radius: 999px; font-family: var(--lp-font-ui);
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(120,220,255,0.28);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.lp-btn-primary:hover { background: oklch(85% 0.16 200); color: #030d14; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(120,220,255,0.50); }
+.lp-btn-solid {
+  background: #eef4ff; color: #050814; border: none;
+  padding: 14px 28px; border-radius: 999px; font-family: var(--lp-font-ui);
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.lp-btn-solid:hover { background: #ffffff; color: #050814; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(238,244,255,0.20); }
+.lp-btn-outline {
+  background: transparent; color: #eef4ff;
+  border: 1px solid rgba(255,255,255,0.08); padding: 11px 20px;
+  border-radius: 999px; font-family: var(--lp-font-ui); font-size: 13.5px; font-weight: 500;
+  cursor: pointer; transition: border-color 0.15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.lp-btn-outline:hover { border-color: rgba(120,220,255,0.40); }
+.lp-btn-ghost {
+  background: transparent; color: rgba(238,244,255,0.65);
+  border: 1px solid transparent; padding: 7px 14px;
+  border-radius: 999px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.lp-btn-ghost:hover { background: rgba(255,255,255,0.04); color: #eef4ff; }
+.lp-btn-sm { padding: 7px 14px !important; font-size: 12px !important; }
+.lp-chk { display: flex; align-items: center; gap: 10px; font-family: var(--lp-font-ui); font-size: 13px; color: rgba(238,244,255,0.65); }
+.lp-chk-i { color: oklch(80% 0.14 200); flex-shrink: 0; }
 
 /* ── HERO ── */
-.lp-hero {
-  position: relative; min-height: 100vh;
-  display: flex; align-items: center;
-  padding: 96px 28px 64px; overflow: hidden;
-  background: var(--lp-bg);
-}
-.lp-glow {
-  position: absolute; border-radius: 50%; pointer-events: none;
-  filter: blur(110px);
-}
-.lp-glow-1 { width: 700px; height: 700px; background: rgba(221,184,255,0.07); top: 5%; left: -20%; }
-.lp-glow-2 { width: 500px; height: 500px; background: rgba(111,0,190,0.06); bottom: 0; right: -5%; }
-.lp-hero-inner {
-  max-width: 1200px; margin: 0 auto; width: 100%;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center;
-}
-.lp-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 5px 14px; border-radius: 40px;
-  border: 1px solid rgba(221,184,255,0.2); background: rgba(221,184,255,0.05);
-  margin-bottom: 28px;
-}
-.lp-badge-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--lp-primary);
-  animation: lp-pulse 2s ease-in-out infinite;
-}
-@keyframes lp-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
-.lp-badge-text { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--lp-primary); }
+.lp-hero { padding: 100px 36px 120px; max-width: 1280px; margin: 0 auto; }
+.lp-hero-text { text-align: center; }   /* NO max-width — h1 uses full section width */
 .lp-h1 {
-  font-family: 'Manrope', sans-serif; font-size: 3.8rem; font-weight: 800;
-  line-height: 1.1; letter-spacing: -0.04em; color: var(--lp-surf); margin-bottom: 24px;
+  font-family: var(--lp-font-display); font-size: clamp(52px, 9vw, 128px); font-weight: 600;
+  line-height: 0.95; letter-spacing: -0.04em; color: #eef4ff; margin: 24px 0 28px;
+}
+.lp-h1 em {
+  font-style: normal; font-weight: 700;
+  background: linear-gradient(90deg, oklch(80% 0.14 200), oklch(72% 0.19 340));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .lp-hero-sub {
-  font-size: 1.05rem; color: var(--lp-muted); line-height: 1.75;
-  max-width: 460px; margin-bottom: 36px;
+  font-family: var(--lp-font-ui); font-size: 18px; line-height: 1.5;
+  color: rgba(238,244,255,0.65); max-width: 620px; margin: 0 auto 36px;
 }
-.lp-hero-ctas { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
-.lp-hero-extras { display: flex; gap: 10px; margin-bottom: 36px; flex-wrap: wrap; }
-.lp-btn-primary {
-  background: var(--lp-primary); color: var(--lp-op); border: none;
-  border-radius: 10px; padding: 14px 30px; font-weight: 700; font-size: 1rem;
-  cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
-  font-family: inherit;
+.lp-hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+.lp-hero-extras { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.lp-sec-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: rgba(238,244,255,0.65);
+  padding: 7px 12px 7px 8px; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px; background: rgba(255,255,255,0.035); cursor: pointer;
+  text-decoration: none; transition: border-color 0.15s, color 0.15s;
 }
-.lp-btn-primary:hover { filter: brightness(1.1); box-shadow: 0 0 28px rgba(147,51,234,0.35); }
-.lp-btn-glass {
-  background: rgba(23,31,50,0.5); backdrop-filter: blur(12px);
-  color: var(--lp-surf); border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 10px; padding: 14px 30px; font-weight: 700; font-size: 1rem;
-  cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
-  font-family: inherit;
+.lp-sec-pill:hover { border-color: rgba(120,220,255,0.40); color: #eef4ff; }
+.lp-sec-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; font-size: 11px; color: oklch(80% 0.14 200);
+  background: rgba(120,220,255,0.14);
 }
-.lp-btn-glass:hover { background: rgba(255,255,255,0.06); }
-.lp-btn-extra {
-  background: rgba(255,255,255,0.04); color: var(--lp-muted);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
-  padding: 8px 16px; font-size: 0.8rem; font-weight: 500;
-  cursor: pointer; transition: all 0.2s; font-family: inherit;
-}
-.lp-btn-extra:hover { background: rgba(255,255,255,0.08); color: var(--lp-surf); }
-.lp-stats { display: flex; align-items: center; gap: 28px; padding-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); }
-.lp-stat-val { font-family: 'Manrope', sans-serif; font-size: 1.5rem; font-weight: 800; color: #fff; }
-.lp-stat-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--lp-muted); }
-.lp-stat-div { width: 1px; height: 36px; background: rgba(255,255,255,0.1); }
+.lp-sec-ico.circle { border-radius: 50%; }
+.lp-sec-ico.square { border-radius: 6px; }
+.lp-sec-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(238,244,255,0.38); }
 
-/* Hero visual */
-.lp-hero-visual { position: relative; }
-.lp-hero-card {
-  border-radius: 2rem; overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 40px 100px rgba(0,0,0,0.6);
-  aspect-ratio: 1; position: relative;
+/* ── HERO PREVIEW WINDOW ── */
+.lp-hero-preview { max-width: 1100px; margin: 48px auto 0; }
+.lp-preview-window {
+  border-radius: 20px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08); background: #0a0f20;
+  box-shadow: rgba(120,220,255,0.22) 0 50px 120px -30px, rgba(0,0,0,0.5) 0 20px 60px;
 }
-.lp-hero-art {
-  width: 100%; height: 100%;
-  background: radial-gradient(circle at 35% 45%, #1a0830 0%, #0d1228 40%, #05070a 100%);
+.lp-preview-titlebar {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: color-mix(in srgb, #0a0f20 92%, transparent);
+}
+.lp-preview-dots { display: flex; gap: 6px; }
+.lp-preview-dot { width: 12px; height: 12px; border-radius: 50%; }
+.lp-preview-url {
+  flex: 1; text-align: center;
+  font-family: var(--lp-font-mono); font-size: 11px; color: rgba(238,244,255,0.38);
+}
+.lp-preview-chip {
+  font-family: var(--lp-font-mono); font-size: 10px; color: rgba(238,244,255,0.65);
+  padding: 4px 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+}
+.lp-preview-chip-dot { color: oklch(80% 0.14 200); margin-right: 4px; }
+.lp-preview-body { display: grid; grid-template-columns: 220px 1fr; min-height: 460px; }
+.lp-preview-sidebar {
+  border-right: 1px solid rgba(255,255,255,0.08); padding: 20px;
+  background: color-mix(in srgb, #0a0f20 60%, transparent);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.lp-sidebar-lbl {
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: rgba(238,244,255,0.38);
+  margin-bottom: 8px; display: block;
+}
+.lp-sidebar-title {
+  font-family: var(--lp-font-display); font-size: 22px; font-weight: 600; color: #eef4ff;
+  line-height: 1.2;
+}
+.lp-sidebar-title em { font-style: normal; font-weight: 700; color: oklch(80% 0.14 200); }
+.lp-sidebar-sub { font-family: var(--lp-font-ui); font-size: 11px; color: rgba(238,244,255,0.65); margin-top: 4px; }
+.lp-cast-row { display: flex; align-items: center; gap: 10px; }
+.lp-cast-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+}
+.lp-cast-name { font-family: var(--lp-font-ui); font-size: 12px; color: #eef4ff; }
+.lp-cast-role { font-family: var(--lp-font-ui); font-size: 10px; color: rgba(238,244,255,0.38); }
+.lp-tone-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.lp-tone-chip {
+  font-family: var(--lp-font-mono); font-size: 11.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em; color: rgba(238,244,255,0.38);
+  padding: 4px 9px; border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+}
+.lp-preview-stage {
+  padding: 22px; display: flex; flex-direction: column; gap: 14px;
+}
+.lp-scene-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.lp-scene-cell { position: relative; }
+.lp-fauxscene {
+  position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 16/9;
+  background: linear-gradient(160deg, var(--c1, #1a0b2e), var(--c2, #4a1b6d) 60%, var(--c3, #ff6b9d));
+}
+.lp-fauxscene svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.35; mix-blend-mode: screen; }
+.lp-scn-label {
+  position: absolute; bottom: 6px; left: 6px; z-index: 1;
+  font-family: var(--lp-font-mono); font-size: 9px; color: rgba(255,255,255,0.85);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  background: rgba(0,0,0,0.35); padding: 2px 6px;
+  border-radius: 999px; backdrop-filter: blur(4px);
+}
+.lp-timecode-pill {
+  position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+  font-family: var(--lp-font-mono); font-size: 9px; color: rgba(238,244,255,0.38);
+  padding: 2px 8px; background: var(--lp-bg2);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+  white-space: nowrap; z-index: 2;
+}
+
+/* CelestialScrubber */
+.lp-scrubber-widget { position: relative; }
+.lp-waves {
+  position: relative; display: flex; align-items: flex-end; gap: 1px; height: 80px; overflow: hidden;
+}
+.lp-bar { flex: 1; border-radius: 2px; background: rgba(238,244,255,0.18); }
+.lp-bar.passed { background: oklch(80% 0.14 200); box-shadow: 0 0 6px rgba(120,220,255,0.4); }
+.lp-scrubber-playhead {
+  position: absolute; top: -4px; bottom: -4px; width: 2px;
+  background: oklch(80% 0.14 200); transform: translateX(-50%);
+}
+.lp-scrubber-knob {
+  position: absolute; top: -7px; left: -6px; width: 14px; height: 14px;
+  border-radius: 50%; background: oklch(80% 0.14 200);
+  box-shadow: 0 0 12px rgba(120,220,255,0.45);
+}
+.lp-axis {
+  position: relative; margin-top: 12px; padding-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,0.12); height: 20px;
+}
+.lp-axis-mark {
+  position: absolute; top: 8px; transform: translateX(-50%);
+  font-family: var(--lp-font-mono); font-size: 9px; color: rgba(238,244,255,0.38);
+}
+.lp-stage-actions { display: flex; align-items: center; gap: 10px; }
+.lp-stage-tail {
+  margin-left: auto; font-family: var(--lp-font-mono); font-size: 10px;
+  color: rgba(238,244,255,0.38);
+}
+
+/* ── MODES SECTION ── */
+.lp-modes { padding: 90px 36px 40px; max-width: 1200px; margin: 0 auto; }
+.lp-section-header { text-align: center; margin-bottom: 44px; }
+.lp-section-header .lp-eyebrow { margin-bottom: 16px; }
+.lp-sec-h2 {
+  font-family: var(--lp-font-display); font-weight: 600; color: #eef4ff; margin: 0;
+  letter-spacing: -0.018em;
+}
+.lp-sec-h2 em { font-style: normal; font-weight: 700; color: oklch(80% 0.14 200); }
+.lp-modes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.lp-mode-card {
+  border-radius: 22px; padding: 32px 30px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.lp-mode-card.feat {
+  background: linear-gradient(160deg, color-mix(in srgb, oklch(80% 0.14 200) 12%, rgba(255,255,255,0.035)), rgba(255,255,255,0.035));
+  border: 1px solid oklch(80% 0.14 200);
+  box-shadow: 0 30px 80px -30px rgba(120,220,255,0.22);
+}
+.lp-mode-card.std { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); }
+.lp-mode-kicker {
+  font-family: var(--lp-font-mono); font-size: 10.5px; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.lp-mode-kicker.accent { color: oklch(80% 0.14 200); }
+.lp-mode-kicker.faint { color: rgba(238,244,255,0.38); }
+.lp-mode-h3 {
+  font-family: var(--lp-font-display); font-size: 34px; font-weight: 600;
+  letter-spacing: -0.015em; color: #eef4ff; margin: 0;
+}
+.lp-mode-body { font-family: var(--lp-font-ui); font-size: 14.5px; line-height: 1.55; color: rgba(238,244,255,0.65); margin: 0; }
+.lp-mode-checks { display: flex; flex-direction: column; gap: 10px; }
+.lp-mode-cta { margin-top: 4px; align-self: flex-start; }
+
+/* ── MARQUEE ── */
+.lp-marquee {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 20px 0; overflow: hidden;
+  background: color-mix(in srgb, #050814 80%, transparent);
+}
+.lp-marquee-inner {
+  display: flex; gap: 50px; justify-content: space-around;
+  white-space: nowrap; flex-wrap: nowrap;
+}
+.lp-marquee-item {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--lp-font-mono); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase; color: rgba(238,244,255,0.38);
+  white-space: nowrap;
+}
+.lp-marquee-dot { width: 4px; height: 4px; border-radius: 50%; background: oklch(80% 0.14 200); }
+
+/* ── PILLARS ── */
+.lp-pillars { padding: 120px 36px 60px; max-width: 1200px; margin: 0 auto; }
+.lp-pillars-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.lp-pillar-card {
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px; padding: 32px 28px; min-height: 260px;
   position: relative; overflow: hidden;
+  transition: border-color 0.15s;
 }
-.lp-hero-art-glow {
+.lp-pillar-card:hover { border-color: rgba(120,220,255,0.40); }
+.lp-pillar-card::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(120,220,255,0.22), transparent 70%);
+  pointer-events: none;
+}
+.lp-pillar-num {
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase; color: oklch(80% 0.14 200);
+  margin-bottom: 20px; display: block;
+}
+.lp-pillar-h3 {
+  font-family: var(--lp-font-display); font-size: 38px; font-weight: 600;
+  letter-spacing: -0.018em; color: #eef4ff; margin: 0 0 14px;
+}
+.lp-pillar-body { font-family: var(--lp-font-ui); font-size: 14.5px; line-height: 1.55; color: rgba(238,244,255,0.65); max-width: 280px; margin: 0; }
+
+/* ── CELESTIAL SCRUBBER SHOWCASE ── */
+.lp-scrubber-sec { padding: 100px 36px; max-width: 1200px; margin: 0 auto; }
+.lp-scrubber-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; align-items: center; }
+.lp-showcase-text { display: flex; flex-direction: column; gap: 20px; }
+.lp-showcase-h2 {
+  font-family: var(--lp-font-display); font-size: 56px; font-weight: 600;
+  line-height: 1.05; letter-spacing: -0.018em; color: #eef4ff; margin: 0;
+}
+.lp-showcase-h2 em { font-style: normal; font-weight: 700; color: oklch(80% 0.14 200); }
+.lp-showcase-body { font-family: var(--lp-font-ui); font-size: 16px; line-height: 1.6; color: rgba(238,244,255,0.65); max-width: 480px; margin: 0; }
+.lp-showcase-checks { display: flex; flex-direction: column; gap: 10px; }
+.lp-scrubber-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.035), transparent);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 22px;
+  box-shadow: 0 30px 80px -30px rgba(120,220,255,0.22);
+}
+.lp-scrubber-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+/* ── STORYBOARD SHOWCASE ── */
+.lp-storyboard-sec { padding: 100px 36px; max-width: 1200px; margin: 0 auto; }
+.lp-storyboard-header { margin-bottom: 40px; }
+.lp-storyboard-h2 {
+  font-family: var(--lp-font-display); font-size: 56px; font-weight: 600;
+  line-height: 1.05; max-width: 700px; color: #eef4ff; margin: 12px 0 0;
+}
+.lp-storyboard-h2 em { font-style: normal; font-weight: 700; color: oklch(80% 0.14 200); }
+.lp-scene-rows { display: flex; flex-direction: column; gap: 14px; }
+.lp-scene-row {
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 18px 22px;
+  display: grid; grid-template-columns: 80px 280px 1fr auto; gap: 20px; align-items: center;
+}
+.lp-scene-tc {
+  font-family: var(--lp-font-mono); font-size: 11px; color: rgba(238,244,255,0.38);
+  letter-spacing: 0.1em; white-space: nowrap;
+}
+.lp-scene-thumb { border-radius: 10px; overflow: hidden; aspect-ratio: 16/9; }
+.lp-scene-prompt-label {
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: oklch(80% 0.14 200);
+  margin-bottom: 6px; display: block;
+}
+.lp-scene-prompt-text { font-family: var(--lp-font-ui); font-size: 14.5px; line-height: 1.5; color: #eef4ff; margin: 0; }
+
+/* ── STYLES GRID ── */
+.lp-styles-sec { padding: 100px 36px; max-width: 1200px; margin: 0 auto; }
+.lp-styles-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 40px; }
+.lp-style-card {
+  aspect-ratio: 4/5; border-radius: 14px; overflow: hidden;
+  cursor: pointer; position: relative;
+}
+.lp-style-overlay {
   position: absolute; inset: 0;
-  background:
-    radial-gradient(circle at 45% 35%, rgba(147,51,234,0.35) 0%, transparent 55%),
-    radial-gradient(circle at 65% 70%, rgba(59,130,246,0.15) 0%, transparent 40%);
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65));
 }
-.lp-hero-art-struct {
-  position: absolute; top: 12%; left: 50%; transform: translateX(-50%);
-  width: 0; height: 0;
-  border-left: 90px solid transparent;
-  border-right: 90px solid transparent;
-  border-bottom: 220px solid rgba(147,51,234,0.15);
-  filter: blur(1px);
+.lp-style-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 14px; }
+.lp-style-num {
+  font-family: var(--lp-font-mono); font-size: 10px; color: rgba(255,255,255,0.6);
+  letter-spacing: 0.1em; display: block; margin-bottom: 4px;
 }
-.lp-hero-art-struct2 {
-  position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
-  width: 0; height: 0;
-  border-left: 60px solid transparent;
-  border-right: 60px solid transparent;
-  border-bottom: 160px solid rgba(180,100,255,0.1);
-}
-.lp-hero-art-base {
-  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 55%; height: 38%;
-  background: linear-gradient(to top, rgba(147,51,234,0.12), transparent);
-  border-top: 1px solid rgba(221,184,255,0.08);
-}
-.lp-hero-art-fade {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 50%;
-  background: linear-gradient(to top, rgba(5,7,10,0.75), transparent);
-}
-.lp-hero-overlay-wrap { position: absolute; bottom: 24px; left: 20px; right: 20px; }
-.lp-hero-overlay {
-  background: rgba(23,31,50,0.55); backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px;
-}
-.lp-overlay-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.lp-overlay-icon { color: var(--lp-primary); font-size: 1rem; }
-.lp-overlay-quote { font-size: 0.75rem; color: rgba(255,255,255,0.55); font-style: italic; }
-.lp-progress-bg { height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
-.lp-progress-fill { height: 100%; width: 65%; background: var(--lp-primary); border-radius: 3px; box-shadow: 0 0 8px #9333ea; }
-
-/* ── GALLERY ── */
-.lp-gallery {
-  padding: 80px 28px;
-  background: #020408;
-  border-top: 1px solid var(--lp-bdr);
-  border-bottom: 1px solid var(--lp-bdr);
-}
-.lp-gallery-inner { max-width: 1200px; margin: 0 auto; }
-.lp-gallery-header {
-  display: flex; justify-content: space-between; align-items: flex-end;
-  margin-bottom: 48px; flex-wrap: wrap; gap: 16px;
-}
-.lp-gallery-heading { }
-.lp-gallery-title {
-  font-family: 'Manrope', sans-serif; font-size: 2.8rem; font-weight: 800;
-  letter-spacing: -0.03em; color: var(--lp-surf); margin: 0 0 8px;
-}
-.lp-gallery-title em { font-style: italic; color: var(--lp-primary); }
-.lp-gallery-sub { color: var(--lp-muted); font-size: 0.95rem; margin: 0; }
-.lp-gallery-link {
-  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--lp-primary); text-decoration: none; white-space: nowrap;
-  display: flex; align-items: center; gap: 6px;
-}
-.lp-gallery-link:hover { gap: 10px; }
-.lp-gallery-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.lp-gallery-card {
-  aspect-ratio: 4/5; border-radius: 16px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.05);
-  box-shadow: inset 0 1px 0 rgba(221,184,255,0.08);
-  position: relative; cursor: pointer; transition: transform 0.3s;
-}
-.lp-gallery-card:hover { transform: translateY(-4px); }
-.lp-gallery-card:hover .lp-card-art { transform: scale(1.06); }
-.lp-card-art { width: 100%; height: 100%; transition: transform 0.5s; }
-.lp-card-a1 { background: radial-gradient(circle at 40% 60%, #1a0830 0%, #0a0a1e 50%, #030510 100%); }
-.lp-card-a2 { background: radial-gradient(circle at 60% 40%, #0f1a0a 0%, #0a1510 50%, #040a05 100%); }
-.lp-card-a3 { background: radial-gradient(circle at 50% 50%, #1a0c05 0%, #0f0a15 50%, #050308 100%); }
-.lp-card-a4 { background: radial-gradient(circle at 30% 70%, #05050a 0%, #0a0810 50%, #030305 100%); }
-.lp-card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(2,4,8,0.92) 0%, transparent 55%); }
-.lp-card-info { position: absolute; bottom: 0; left: 0; padding: 20px; width: 100%; }
-.lp-card-tags { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.lp-card-tag {
-  padding: 2px 8px; border-radius: 3px;
-  background: rgba(147,51,234,0.25); color: var(--lp-primary);
-  font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-}
-.lp-card-model { font-size: 0.62rem; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.08em; }
-.lp-card-name { font-family: 'Manrope', sans-serif; font-size: 1rem; font-weight: 700; color: #fff; }
-
-/* Gallery card art — visible gradients */
-.lp-card-a1 { background: radial-gradient(circle at 40% 55%, #3d1270 0%, #1a0a3a 45%, #0a0820 100%) !important; }
-.lp-card-a2 { background: radial-gradient(circle at 55% 35%, #0d2e18 0%, #0a2010 45%, #050f08 100%) !important; }
-.lp-card-a3 { background: radial-gradient(circle at 50% 50%, #2e1a04 0%, #1a0e02 45%, #0a0805 100%) !important; }
-.lp-card-a4 { background: radial-gradient(circle at 35% 65%, #051520 0%, #0a0d18 45%, #050508 100%) !important; }
-/* Gallery glow accents */
-.lp-card-a1::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at 40% 55%, rgba(147,51,234,0.45) 0%, transparent 65%); }
-.lp-card-a2::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at 55% 30%, rgba(34,197,94,0.3) 0%, transparent 65%); }
-.lp-card-a3::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(245,158,11,0.3) 0%, transparent 65%); }
-.lp-card-a4::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at 35% 65%, rgba(6,182,212,0.25) 0%, transparent 65%); }
-
-/* ── FEATURES ── */
-.lp-features { padding: 100px 28px; background: var(--lp-bg); }
-.lp-features-inner { max-width: 1200px; margin: 0 auto; }
-.lp-eyebrow {
-  display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.35em; color: var(--lp-primary); text-align: center; margin-bottom: 16px;
-}
-.lp-sec-title {
-  font-family: 'Manrope', sans-serif; font-size: 3rem; font-weight: 800;
-  letter-spacing: -0.04em; color: var(--lp-surf); text-align: center; margin: 0 0 16px;
-}
-.lp-sec-sub {
-  color: var(--lp-muted); text-align: center; max-width: 500px;
-  margin: 0 auto 80px; font-size: 0.95rem; line-height: 1.75;
-}
-.lp-feat-row {
-  display: grid; grid-template-columns: 5fr 7fr; gap: 64px;
-  align-items: center; margin-bottom: 96px;
-}
-.lp-feat-row.rev { grid-template-columns: 7fr 5fr; }
-.lp-feat-row.rev .lp-feat-text { order: 2; }
-.lp-feat-row.rev .lp-feat-mock { order: 1; }
-.lp-feat-num {
-  width: 48px; height: 48px; border-radius: 10px;
-  background: rgba(221,184,255,0.08); border: 1px solid rgba(221,184,255,0.18);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; color: var(--lp-primary); margin-bottom: 28px; font-size: 0.85rem;
-}
-.lp-feat-h { font-family: 'Manrope', sans-serif; font-size: 2rem; font-weight: 700; color: #fff; margin: 0 0 18px; }
-.lp-feat-p { color: var(--lp-muted); line-height: 1.75; margin: 0 0 24px; font-size: 0.95rem; }
-.lp-feat-checks { display: flex; flex-direction: column; gap: 14px; }
-.lp-chk { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; color: var(--lp-muted); }
-.lp-chk-i { color: var(--lp-primary); flex-shrink: 0; font-size: 1rem; }
-.lp-feat-mock {
-  background: rgba(23,31,50,0.45); backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
-  padding: 24px; box-shadow: 0 32px 64px rgba(0,0,0,0.45);
-}
-.lp-mock-sec {
-  background: var(--lp-bg-low); border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 12px; padding: 16px; margin-bottom: 16px;
-}
-.lp-mock-lbl {
-  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--lp-primary); margin-bottom: 12px; display: block;
-}
-.lp-mock-row { display: flex; gap: 10px; }
-.lp-mock-inp {
-  flex: 1; background: var(--lp-bg); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px; padding: 9px 14px; color: rgba(255,255,255,0.35); font-size: 0.78rem;
-}
-.lp-mock-savebtn {
-  background: rgba(221,184,255,0.12); color: var(--lp-primary);
-  border: 1px solid rgba(221,184,255,0.22); border-radius: 8px;
-  padding: 9px 14px; font-size: 0.72rem; font-weight: 700; cursor: pointer; white-space: nowrap;
-}
-.lp-mock-tabs { display: flex; gap: 8px; margin-top: 12px; }
-.lp-mock-tab-on {
-  flex: 1; background: var(--lp-primary); color: var(--lp-op); border: none;
-  border-radius: 8px; padding: 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-}
-.lp-mock-tab-off {
-  flex: 1; background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.55);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px;
-  font-size: 0.72rem; font-weight: 700; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-}
-.lp-mock-drop {
-  margin-top: 12px; border: 2px dashed rgba(255,255,255,0.1);
-  border-radius: 10px; padding: 22px; text-align: center; cursor: pointer;
-  transition: border-color 0.2s;
-}
-.lp-mock-drop:hover { border-color: rgba(221,184,255,0.3); }
-.lp-mock-drop-icon { font-size: 1.6rem; display: block; margin-bottom: 6px; opacity: 0.3; }
-.lp-mock-drop-txt { font-size: 0.72rem; color: rgba(255,255,255,0.3); }
-/* Waveform mock */
-.lp-wave-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.lp-wave-lbl { font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.6); }
-.lp-wave-btns { display: flex; gap: 6px; }
-.lp-wave-btn {
-  background: rgba(221,184,255,0.08); border: 1px solid rgba(221,184,255,0.18);
-  border-radius: 6px; padding: 5px 7px; color: var(--lp-primary); cursor: pointer; font-size: 0.8rem;
-}
-.lp-wave-track {
-  height: 80px; background: rgba(5,7,10,0.85); border-radius: 10px;
-  position: relative; overflow: hidden; display: flex; align-items: center; padding: 0 14px; gap: 2px;
-}
-.lp-wbar { border-radius: 3px; flex: 1; background: rgba(221,184,255,0.25); }
-.lp-wbar.on { background: var(--lp-primary); box-shadow: 0 0 5px #9333ea; }
-.lp-wave-cur {
-  position: absolute; left: 33%; top: 0; bottom: 0; width: 2px;
-  background: #fff; box-shadow: 0 0 8px #fff;
-}
-.lp-wave-acts { display: flex; gap: 8px; margin-top: 12px; }
-.lp-wave-act {
-  flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px; padding: 8px; font-size: 0.68rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.07em; color: rgba(255,255,255,0.5); cursor: pointer;
-}
-.lp-quote { margin-top: 16px; padding: 14px 16px; border-left: 2px solid rgba(221,184,255,0.25); background: rgba(221,184,255,0.04); border-radius: 0 8px 8px 0; }
-.lp-quote p { font-size: 0.82rem; color: var(--lp-muted); font-style: italic; margin: 0; }
-/* Storyboard mock */
-.lp-scene { display: flex; gap: 14px; padding: 14px; border-radius: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05); background: rgba(5,7,10,0.5); }
-.lp-scene.hi { background: rgba(221,184,255,0.04); border-color: rgba(221,184,255,0.14); }
-.lp-scene-thumb {
-  width: 68px; height: 68px; border-radius: 8px; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-}
-.lp-scene.hi .lp-scene-thumb { background: rgba(221,184,255,0.08); border-color: rgba(221,184,255,0.18); }
-.lp-scene-time { font-size: 0.62rem; font-weight: 700; color: var(--lp-primary); }
-.lp-scene-dur { font-size: 0.58rem; color: rgba(255,255,255,0.3); text-transform: uppercase; margin-top: 2px; }
-.lp-scene-body { flex: 1; min-width: 0; }
-.lp-scene-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lp-primary); margin-bottom: 6px; }
-.lp-scene-txt { font-size: 0.76rem; color: rgba(255,255,255,0.65); line-height: 1.5; background: rgba(255,255,255,0.04); padding: 8px; border-radius: 6px; margin: 0; font-style: italic; }
-.lp-scene-add {
-  width: 100%; padding: 10px; border: 2px dashed rgba(255,255,255,0.1); border-radius: 10px;
-  background: transparent; color: rgba(255,255,255,0.3); font-size: 0.78rem;
-  cursor: pointer; transition: all 0.2s;
-}
-.lp-scene-add:hover { border-color: rgba(221,184,255,0.3); color: var(--lp-primary); }
+.lp-style-name { font-family: var(--lp-font-display); font-size: 22px; font-weight: 600; color: #fff; }
 
 /* ── PIPELINE ── */
-.lp-pipeline { padding: 72px 28px; background: #020408; overflow: hidden; }
-.lp-pipeline-inner { max-width: 1100px; margin: 0 auto; }
-.lp-pipe-title {
-  font-family: 'Manrope', sans-serif; font-size: 2rem; font-weight: 700;
-  color: var(--lp-surf); text-align: center; margin: 0 0 48px;
-}
-.lp-pipe-steps { display: flex; gap: 20px; position: relative; }
-.lp-pipe-steps::before {
-  content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px;
-  background: linear-gradient(to right, transparent, rgba(147,51,234,0.3), transparent);
-  pointer-events: none; z-index: 0;
+.lp-pipeline { padding: 80px 36px; max-width: 1200px; margin: 0 auto; }
+.lp-pipeline-header { text-align: center; margin-bottom: 40px; }
+.lp-pipeline-box {
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; overflow: hidden;
+  display: grid; grid-template-columns: repeat(4, 1fr);
 }
 .lp-pipe-step {
-  flex: 1; background: rgba(23,31,50,0.45); backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 22px;
-  position: relative; z-index: 1;
+  padding: 28px 24px; background: rgba(255,255,255,0.035);
+  border-right: 1px solid rgba(255,255,255,0.08);
 }
-.lp-pipe-step.on { border-color: rgba(221,184,255,0.22); background: rgba(221,184,255,0.025); }
-.lp-pipe-num { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--lp-primary); margin-bottom: 12px; }
-.lp-pipe-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
-.lp-pipe-fill { height: 100%; background: var(--lp-primary); border-radius: 2px; }
-.lp-pipe-fill.anim { animation: lp-shimmer 2s ease-in-out infinite; }
-@keyframes lp-shimmer { 0%{width:20%} 50%{width:80%} 100%{width:20%} }
-.lp-pipe-desc { font-size: 0.8rem; color: rgba(255,255,255,0.45); margin: 0; }
+.lp-pipe-step:last-child { border-right: none; }
+.lp-pipe-num {
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: oklch(80% 0.14 200);
+  margin-bottom: 14px; display: block;
+}
+.lp-pipe-title-text {
+  font-family: var(--lp-font-display); font-size: 28px; font-weight: 600;
+  letter-spacing: -0.015em; color: #eef4ff; margin: 0 0 10px;
+}
+.lp-pipe-body { font-family: var(--lp-font-ui); font-size: 13px; line-height: 1.5; color: rgba(238,244,255,0.65); margin: 0; }
 
 /* ── PRICING ── */
-.lp-pricing { padding: 100px 28px; background: var(--lp-bg); }
-.lp-pricing-inner { max-width: 1100px; margin: 0 auto; }
-.lp-pricing-title {
-  font-family: 'Manrope', sans-serif; font-size: 2.8rem; font-weight: 800;
-  letter-spacing: -0.03em; color: #fff; text-align: center; margin: 0 0 64px;
+.lp-pricing { padding: 100px 36px; max-width: 1200px; margin: 0 auto; }
+.lp-pricing-header { text-align: center; margin-bottom: 48px; }
+.lp-pricing-h2 {
+  font-family: var(--lp-font-display); font-size: 64px; font-weight: 600;
+  letter-spacing: -0.02em; color: #eef4ff; margin: 12px 0 0;
 }
-.lp-price-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;
-  max-width: 940px; margin: 0 auto;
-}
+.lp-price-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lp-price-card {
-  background: rgba(23,31,50,0.45); backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.06); border-radius: 24px;
-  padding: 32px; display: flex; flex-direction: column;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 32px 28px 28px;
+  display: flex; flex-direction: column; position: relative;
 }
 .lp-price-card.feat {
-  border-width: 2px; border-color: var(--lp-primary);
-  background: rgba(221,184,255,0.02);
-  transform: scale(1.04); position: relative;
+  background: linear-gradient(180deg, color-mix(in srgb, oklch(80% 0.14 200) 14%, rgba(255,255,255,0.035)), rgba(255,255,255,0.035));
+  border-color: oklch(80% 0.14 200);
+  box-shadow: 0 20px 60px -20px rgba(120,220,255,0.22);
 }
 .lp-price-pill {
-  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
-  background: var(--lp-primary); color: var(--lp-op);
-  font-size: 0.62rem; font-weight: 700; padding: 4px 14px;
-  border-radius: 40px; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap;
+  position: absolute; top: -12px; right: 20px;
+  background: oklch(80% 0.14 200); color: #05101a;
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 500;
+  padding: 4px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.1em;
 }
-.lp-price-name { font-family: 'Manrope', sans-serif; font-size: 1.1rem; font-weight: 700; color: #fff; margin: 0 0 16px; }
-.lp-price-amt { display: flex; align-items: baseline; gap: 4px; margin-bottom: 0; }
-.lp-price-val { font-family: 'Manrope', sans-serif; font-size: 2.2rem; font-weight: 700; color: #fff; }
-.lp-price-per { font-size: 0.875rem; color: var(--lp-muted); }
-.lp-price-items { list-style: none; padding: 0; margin: 24px 0 32px; flex: 1; display: flex; flex-direction: column; gap: 13px; }
-.lp-price-item { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; color: var(--lp-muted); }
-.lp-price-item.on { color: #fff; }
-.lp-price-item .lp-chk-i { font-size: 0.85rem; }
+.lp-price-name {
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: rgba(238,244,255,0.38);
+  margin-bottom: 16px;
+}
+.lp-price-amt { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; }
+.lp-price-val {
+  font-family: var(--lp-font-display); font-size: 56px; font-weight: 600;
+  letter-spacing: -0.03em; color: #eef4ff; line-height: 1;
+}
+.lp-price-per { font-family: var(--lp-font-mono); font-size: 13px; color: rgba(238,244,255,0.38); }
+.lp-price-items { list-style: none; padding: 0; margin: 24px 0 32px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.lp-price-item { display: flex; align-items: center; gap: 10px; font-family: var(--lp-font-ui); font-size: 13.5px; color: rgba(238,244,255,0.65); }
 .lp-price-btn {
-  width: 100%; padding: 12px; border-radius: 12px;
-  font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 0.9rem;
-  cursor: pointer; transition: all 0.2s;
-  border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #fff;
+  width: 100%; padding: 12px; border-radius: 999px;
+  font-family: var(--lp-font-ui); font-weight: 500; font-size: 14px;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid rgba(255,255,255,0.08); background: transparent; color: #eef4ff;
 }
-.lp-price-btn:hover { background: rgba(255,255,255,0.05); }
-.lp-price-btn.main { background: var(--lp-primary); color: var(--lp-op); border: none; box-shadow: 0 0 22px rgba(147,51,234,0.28); }
-.lp-price-btn.main:hover { filter: brightness(1.1); }
-.lp-price-dev { text-align: center; margin-top: 28px; }
-.lp-price-dev label { font-size: 0.78rem; color: var(--lp-muted); }
-.lp-price-dev select {
-  background: var(--lp-bg-card); border: 1px solid var(--lp-bdr-p);
-  color: var(--lp-surf); border-radius: 6px; padding: 4px 8px; font-size: 0.78rem; margin-left: 8px;
+.lp-price-btn:hover { border-color: rgba(120,220,255,0.40); }
+.lp-price-btn.main {
+  background: oklch(80% 0.14 200); color: #05101a; border: none;
+  box-shadow: 0 4px 16px rgba(120,220,255,0.28);
 }
-
-/* ── CTA ── */
-.lp-cta { padding: 130px 28px; background: #020408; text-align: center; position: relative; overflow: hidden; }
-.lp-cta-glow { position: absolute; inset: 0; background: rgba(147,51,234,0.04); filter: blur(100px); border-radius: 50%; transform: translateY(-40%); pointer-events: none; }
-.lp-cta-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
-.lp-cta-h { font-family: 'Manrope', sans-serif; font-size: 4rem; font-weight: 800; letter-spacing: -0.04em; color: #fff; line-height: 1.1; margin: 0 0 48px; }
-.lp-cta-btns { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; }
-.lp-btn-white {
-  background: #fff; color: #05070a; border: none; border-radius: 40px;
-  padding: 18px 44px; font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 1.1rem;
-  cursor: pointer; transition: transform 0.2s;
-}
-.lp-btn-white:hover { transform: scale(1.04); }
-.lp-btn-outline {
-  background: transparent; color: #fff;
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 40px;
-  padding: 18px 44px; font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 1.1rem;
-  cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px);
-}
-.lp-btn-outline:hover { background: rgba(255,255,255,0.05); }
-
+.lp-price-btn.main:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(120,220,255,0.40); }
 /* ── FOOTER ── */
-.lp-footer { padding: 64px 28px; background: #020408; border-top: 1px solid var(--lp-bdr); }
-.lp-footer-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; gap: 48px; flex-wrap: wrap; }
-.lp-footer-brand { max-width: 280px; }
-.lp-footer-logo { font-family: 'Manrope', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.04em; color: #fff; display: block; margin-bottom: 14px; text-decoration: none; }
-.lp-footer-tag { font-size: 0.875rem; color: var(--lp-muted); line-height: 1.65; margin: 0 0 22px; }
-.lp-footer-socials { display: flex; gap: 10px; }
-.lp-footer-soc {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: rgba(23,31,50,0.4); border: 1px solid rgba(255,255,255,0.05);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--lp-muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s;
+.lp-footer {
+  margin-top: 80px; border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 60px 36px 40px;
 }
-.lp-footer-soc:hover { color: var(--lp-primary); }
-.lp-footer-links { display: grid; grid-template-columns: repeat(3, 110px); gap: 32px; }
-.lp-footer-col { display: flex; flex-direction: column; gap: 14px; }
-.lp-footer-col-ttl { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #fff; }
-.lp-footer-lnk { font-size: 0.875rem; color: var(--lp-muted); text-decoration: none; transition: color 0.2s; }
-.lp-footer-lnk:hover { color: var(--lp-primary); }
-.lp-footer-bottom {
-  max-width: 1200px; margin: 40px auto 0; padding-top: 24px;
-  border-top: 1px solid var(--lp-bdr);
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+.lp-footer-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;
 }
-.lp-footer-copy { font-size: 0.75rem; color: rgba(255,255,255,0.28); }
-
-/* ── LANDING LAYOUT OVERRIDES ── */
-/* Strip the drop-zone card frame so landing sections go full-width */
-body:has(#drop-zone:not(.hidden)) {
-  padding: 0 !important;
+.lp-footer-logo {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--lp-font-display); font-size: 19.2px; font-weight: 600;
+  letter-spacing: -0.005em; color: #eef4ff; text-decoration: none;
 }
-#drop-zone:not(.hidden) {
-  max-width: 100% !important;
-  width: 100% !important;
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  box-shadow: none !important;
-  text-align: left !important;
-  outline: none !important;
-  animation: none !important;
+.lp-footer-nav { display: flex; gap: 24px; }
+.lp-footer-nav a {
+  font-family: var(--lp-font-mono); font-size: 12.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em; color: rgba(238,244,255,0.38);
+  text-decoration: none; transition: color 0.15s;
+}
+.lp-footer-nav a:hover { color: #eef4ff; }
+.lp-footer-copy {
+  font-family: var(--lp-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.1em; color: rgba(238,244,255,0.38);
 }
 
 /* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .lp-scrubber-grid { grid-template-columns: 1fr; }
+  .lp-scene-row { grid-template-columns: auto 200px 1fr auto; }
+}
 @media (max-width: 900px) {
-  .lp-hero-inner { grid-template-columns: 1fr; gap: 48px; }
-  .lp-hero-visual { display: none; }
-  .lp-h1 { font-size: 2.8rem; }
-  .lp-gallery-grid { grid-template-columns: repeat(2, 1fr); }
-  .lp-feat-row, .lp-feat-row.rev { grid-template-columns: 1fr; gap: 32px; }
-  .lp-feat-row.rev .lp-feat-text, .lp-feat-row.rev .lp-feat-mock { order: unset; }
-  .lp-pipe-steps { flex-direction: column; }
-  .lp-pipe-steps::before { display: none; }
-  .lp-price-grid { grid-template-columns: 1fr; max-width: 380px; }
-  .lp-price-card.feat { transform: none; }
-  .lp-cta-h { font-size: 2.5rem; }
+  .lp-h1 { font-size: clamp(40px, 10vw, 80px); }
+  .lp-modes-grid { grid-template-columns: 1fr; }
+  .lp-pillars-grid { grid-template-columns: 1fr; }
+  .lp-styles-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-pipeline-box { grid-template-columns: 1fr 1fr; }
+  .lp-pipe-step:nth-child(2) { border-right: none; }
+  .lp-pipe-step:nth-child(3) { border-top: 1px solid rgba(255,255,255,0.08); }
+  .lp-pipe-step:nth-child(4) { border-top: 1px solid rgba(255,255,255,0.08); border-right: none; }
+  .lp-price-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
   .lp-nav-links { display: none; }
-  .lp-footer-links { grid-template-columns: repeat(2, 100px); }
+  .lp-preview-body { grid-template-columns: 1fr; }
+  .lp-preview-sidebar { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .lp-scene-row { grid-template-columns: 1fr; }
+  .lp-scene-tc { display: none; }
 }
 @media (max-width: 600px) {
-  .lp-h1 { font-size: 2.1rem; }
-  .lp-hero-ctas { flex-direction: column; }
-  .lp-gallery-grid { grid-template-columns: repeat(2, 1fr); }
-  .lp-gallery-title { font-size: 1.8rem; }
-  .lp-sec-title { font-size: 2rem; }
-  .lp-cta-h { font-size: 1.9rem; }
-  .lp-pricing-title { font-size: 2rem; }
+  .lp-hero { padding: 80px 20px 80px; }
+  .lp-modes, .lp-pillars, .lp-scrubber-sec, .lp-storyboard-sec, .lp-styles-sec,
+  .lp-pipeline, .lp-pricing, .lp-footer { padding-left: 20px; padding-right: 20px; }
+  .lp-showcase-h2, .lp-storyboard-h2 { font-size: 40px; }
+  .lp-pricing-h2 { font-size: 44px; }
+  .lp-styles-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-pipeline-box { grid-template-columns: 1fr; }
+  .lp-pipe-step { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .lp-pipe-step:last-child { border-bottom: none; }
+  .lp-footer-nav { display: none; }
+  .lp-footer-inner { justify-content: center; text-align: center; }
 }
 </style>
 </head>
@@ -2451,18 +2494,21 @@ body:has(#drop-zone:not(.hidden)) {
   <nav class="lp-nav">
     <div class="lp-nav-inner">
       <div class="lp-nav-left">
-        <a class="lp-logo" href="#">KAATCHI</a>
+        <a class="lp-logo" href="#">
+          <span class="lp-logo-dot"></span>
+          <span class="lp-logo-text">Kaatchi</span>
+        </a>
         <div class="lp-nav-links">
           <a href="#lp-features">Studio</a>
-          <a href="#lp-gallery">Gallery</a>
+          <a href="#">Gallery</a>
+          <a href="#">Craft</a>
           <a href="#lp-pricing">Pricing</a>
         </div>
       </div>
       <div id="user-section" class="lp-nav-right">
         <span id="session-cost" class="session-cost" style="display:none;" title="Estimated API cost this session. Actual billing may differ based on your API provider."></span>
         <div id="user-signed-out">
-          <button id="btn-sign-in" class="lp-nav-login">Login</button>
-          <button class="lp-nav-cta" onclick="document.getElementById('btn-create-content').click()">Start Creating</button>
+          <button id="btn-sign-in" class="lp-nav-login">Sign in</button>
         </div>
         <div id="user-signed-in" class="hidden">
           <button id="btn-user-menu" class="btn-xs user-avatar-btn">
@@ -2503,61 +2549,126 @@ body:has(#drop-zone:not(.hidden)) {
 
   <div id="drop-zone">
 
+    <!-- ═══ BgArt ═══ -->
+    <div class="lp-bgart" aria-hidden="true"></div>
+
     <!-- ═══ Hero ═══ -->
     <section class="lp-hero">
-      <div class="lp-glow lp-glow-1"></div>
-      <div class="lp-glow lp-glow-2"></div>
-      <div class="lp-hero-inner">
-        <div class="lp-hero-text">
-          <div class="lp-badge">
-            <span class="lp-badge-dot"></span>
-            <span class="lp-badge-text">AI-Powered Storytelling</span>
-          </div>
-          <h1 class="lp-h1">Turn Your Voice into<br><span class="lp-gradient">Illustrated Videos</span></h1>
-          <p class="lp-hero-sub">Your voice becomes illustrated video. Kaatchi's cinematic AI generates unique visuals for every scene — no stock footage, no design skills needed. Just authentic storytelling.</p>
-          <div class="lp-hero-ctas">
-            <button id="btn-create-content" class="lp-btn-primary">🤖 Copilot — Long Video</button>
-            <button id="btn-create-reel" class="lp-btn-glass">⚡ Autopilot — Short Reel</button>
-          </div>
-          <div class="lp-hero-extras">
-            <button id="btn-new-project" class="lp-btn-extra">✏️ Edit Content</button>
-            <button id="btn-load-project-home" class="lp-btn-extra">📂 Open Project</button>
-          </div>
-          <div class="lp-stats">
-            <div class="lp-stat">
-              <div class="lp-stat-val">HD</div>
-              <div class="lp-stat-label">Exports</div>
-            </div>
-            <div class="lp-stat-div"></div>
-            <div class="lp-stat">
-              <div class="lp-stat-val">120+</div>
-              <div class="lp-stat-label">AI Voices</div>
-            </div>
-            <div class="lp-stat-div"></div>
-            <div class="lp-stat">
-              <div class="lp-stat-val">∞</div>
-              <div class="lp-stat-label">Creativity</div>
-            </div>
-          </div>
+      <div class="lp-hero-text">
+        <span class="lp-eyebrow"><span class="lp-eyebrow-dot"></span>AI-POWERED STORYTELLING · V4.1</span>
+        <h1 class="lp-h1">Turn your voice into<br><em>illustrated videos.</em></h1>
+        <p class="lp-hero-sub">Kaatchi reads your script, storyboards every beat, and renders scenes in your chosen look — so you ship a finished short, not a to-do list.</p>
+        <div class="lp-hero-ctas">
+          <button id="btn-create-content" class="lp-btn-primary">🎬 Copilot — Long Video</button>
+          <button id="btn-create-reel" class="lp-btn-solid">⚡ Autopilot — Short Reel</button>
         </div>
-        <div class="lp-hero-visual">
-          <div class="lp-hero-card">
-            <div class="lp-hero-art">
-              <div class="lp-hero-art-glow"></div>
-              <div class="lp-hero-art-struct"></div>
-              <div class="lp-hero-art-struct2"></div>
-              <div class="lp-hero-art-base"></div>
-              <div class="lp-hero-art-fade"></div>
+        <div class="lp-hero-extras">
+          <a class="lp-sec-pill" id="btn-new-project" href="#"><span class="lp-sec-ico circle">✦</span>OPEN STUDIO →</a>
+          <span class="lp-sec-dot"></span>
+          <a class="lp-sec-pill" id="btn-load-project-home" href="#"><span class="lp-sec-ico square">⧉</span>Resume project <span style="font-family:var(--lp-font-ui);font-size:11px;opacity:0.7;text-transform:none;letter-spacing:0">· lighthouse-07</span></a>
+        </div>
+      </div>
+
+      <div class="lp-hero-preview">
+        <div class="lp-preview-window">
+          <!-- Titlebar -->
+          <div class="lp-preview-titlebar">
+            <div class="lp-preview-dots">
+              <span class="lp-preview-dot" style="background:#ff5f57"></span>
+              <span class="lp-preview-dot" style="background:#febc2e"></span>
+              <span class="lp-preview-dot" style="background:#28c840"></span>
             </div>
-            <div class="lp-hero-overlay-wrap">
-              <div class="lp-hero-overlay">
-                <div class="lp-overlay-top">
-                  <span class="lp-overlay-icon">♪</span>
-                  <span class="lp-overlay-quote">"The city breathed neon and steam..."</span>
+            <span class="lp-preview-url">kaatchi.studio / project · untitled-07</span>
+            <span class="lp-preview-chip"><span class="lp-preview-chip-dot">●</span>RENDERING · 42%</span>
+          </div>
+          <!-- Body -->
+          <div class="lp-preview-body">
+            <!-- Sidebar -->
+            <div class="lp-preview-sidebar">
+              <div>
+                <span class="lp-sidebar-lbl">PROJECT</span>
+                <div class="lp-sidebar-title">The Lighthouse<br><em>Keeper</em></div>
+                <div class="lp-sidebar-sub">00:48 · 12 scenes · Cinematic</div>
+              </div>
+              <div>
+                <span class="lp-sidebar-lbl">CAST</span>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <div class="lp-cast-row">
+                    <div class="lp-cast-avatar" style="background:linear-gradient(135deg,#e8a87c,#d4696a)"></div>
+                    <div><div class="lp-cast-name">Elena</div><div class="lp-cast-role">64 · Keeper</div></div>
+                  </div>
+                  <div class="lp-cast-row">
+                    <div class="lp-cast-avatar" style="background:linear-gradient(135deg,#c8a96e,#a07840)"></div>
+                    <div><div class="lp-cast-name">Morse</div><div class="lp-cast-role">Her dog</div></div>
+                  </div>
+                  <div class="lp-cast-row">
+                    <div class="lp-cast-avatar" style="background:linear-gradient(135deg,#8ab4d4,#5580a8)"></div>
+                    <div><div class="lp-cast-name">The Tenant</div><div class="lp-cast-role">Unknown</div></div>
+                  </div>
                 </div>
-                <div class="lp-progress-bg">
-                  <div class="lp-progress-fill"></div>
+              </div>
+              <div>
+                <span class="lp-sidebar-lbl">TONE</span>
+                <div class="lp-tone-chips">
+                  <span class="lp-tone-chip">melancholic</span>
+                  <span class="lp-tone-chip">warm</span>
+                  <span class="lp-tone-chip">hushed</span>
                 </div>
+              </div>
+            </div>
+            <!-- Stage -->
+            <div class="lp-preview-stage">
+              <!-- Scene strip -->
+              <div class="lp-scene-strip" id="lp-hero-strip">
+                <div class="lp-scene-cell">
+                  <div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d">
+                    <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 75 Q 40 45, 80 60 T 160 55 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/><circle cx="30" cy="20" r="8" fill="rgba(255,255,255,0.15)"/></svg>
+                    <span class="lp-scn-label">SCN 01</span>
+                  </div>
+                  <span class="lp-timecode-pill">0:00 · est.</span>
+                </div>
+                <div class="lp-scene-cell">
+                  <div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a">
+                    <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 80 Q 50 55, 100 65 T 160 60 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.35)"/></svg>
+                    <span class="lp-scn-label">SCN 02</span>
+                  </div>
+                  <span class="lp-timecode-pill">0:04 · est.</span>
+                </div>
+                <div class="lp-scene-cell">
+                  <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc">
+                    <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 70 Q 60 50, 110 62 T 160 58 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/><rect x="65" y="10" width="30" height="50" rx="2" fill="rgba(255,255,255,0.08)"/></svg>
+                    <span class="lp-scn-label">SCN 03</span>
+                  </div>
+                  <span class="lp-timecode-pill">0:11 · gen.</span>
+                </div>
+                <div class="lp-scene-cell">
+                  <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261">
+                    <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 72 Q 45 48, 90 60 T 160 56 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
+                    <span class="lp-scn-label">SCN 04</span>
+                  </div>
+                  <span class="lp-timecode-pill">0:18 · gen.</span>
+                </div>
+              </div>
+              <!-- Scrubber -->
+              <div class="lp-scrubber-widget" id="lp-hero-scrubber">
+                <div class="lp-waves" id="lp-scrubber-waves">
+                  <!-- bars injected by JS -->
+                </div>
+                <div class="lp-axis" id="lp-scrubber-axis">
+                  <span class="lp-axis-mark" style="left:8%">◆ 01</span>
+                  <span class="lp-axis-mark" style="left:22%">◆ 02</span>
+                  <span class="lp-axis-mark" style="left:41%">◆ 03</span>
+                  <span class="lp-axis-mark" style="left:58%">◆ 04</span>
+                  <span class="lp-axis-mark" style="left:71%">◆ 05</span>
+                  <span class="lp-axis-mark" style="left:85%">◆ 06</span>
+                </div>
+              </div>
+              <!-- Actions -->
+              <div class="lp-stage-actions">
+                <button class="lp-btn-primary lp-btn-sm">Regenerate scene 03</button>
+                <button class="lp-btn-outline lp-btn-sm">Restyle</button>
+                <button class="lp-btn-ghost lp-btn-sm">Preview full</button>
+                <span class="lp-stage-tail">00:48 · 4K · 24fps</span>
               </div>
             </div>
           </div>
@@ -2565,262 +2676,258 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </section>
 
-    <!-- ═══ Gallery ═══ -->
-    <section class="lp-gallery" id="lp-gallery">
-      <div class="lp-gallery-inner">
-        <div class="lp-gallery-header">
-          <div class="lp-gallery-heading">
-            <h2 class="lp-gallery-title">Cinematic <em>Gallery</em></h2>
-            <p class="lp-gallery-sub">Pushing the boundaries of generative storytelling with cinematic AI visuals.</p>
+    <!-- ═══ Modes ═══ -->
+    <section class="lp-modes">
+      <div class="lp-section-header">
+        <span class="lp-eyebrow">TWO WAYS TO CREATE</span>
+        <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">Choose your <em>tempo</em>.</h2>
+      </div>
+      <div class="lp-modes-grid">
+        <!-- Copilot -->
+        <div class="lp-mode-card feat">
+          <div class="lp-mode-kicker accent">🎬 COPILOT · LONG VIDEO</div>
+          <h3 class="lp-mode-h3">You direct. Kaatchi illustrates.</h3>
+          <p class="lp-mode-body">Write or dictate a full script. Kaatchi builds a scene-by-scene storyboard you can edit, re-shoot, and re-order — like a calm assistant who knows the craft.</p>
+          <div class="lp-mode-checks">
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Editable storyboard</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Per-scene prompts &amp; takes</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Character &amp; style continuity</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Up to 30 minutes</div>
           </div>
-          <a class="lp-gallery-link" href="#">View All Creators →</a>
+          <div class="lp-mode-cta">
+            <button class="lp-btn-primary" onclick="document.getElementById('btn-create-content').click()">Enter Copilot</button>
+          </div>
         </div>
-        <div class="lp-gallery-grid">
-          <div class="lp-gallery-card">
-            <div class="lp-card-art lp-card-a1"></div>
-            <div class="lp-card-overlay"></div>
-            <div class="lp-card-info">
-              <div class="lp-card-tags"><span class="lp-card-tag">Cyberpunk</span><span class="lp-card-model">Kaatchi AI</span></div>
-              <div class="lp-card-name">Neon Drifter</div>
-            </div>
+        <!-- Autopilot -->
+        <div class="lp-mode-card std">
+          <div class="lp-mode-kicker faint">⚡ AUTOPILOT · SHORT REEL</div>
+          <h3 class="lp-mode-h3">One prompt. One finished reel.</h3>
+          <p class="lp-mode-body">Drop an idea and Kaatchi handles script, scenes, voice, and cut in under a minute. Vertical-ready, captioned, sound-designed — post immediately.</p>
+          <div class="lp-mode-checks">
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Fully automated pipeline</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> 9:16 social-ready</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Auto voice + captions</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Under 60 seconds, end-to-end</div>
           </div>
-          <div class="lp-gallery-card">
-            <div class="lp-card-art lp-card-a2"></div>
-            <div class="lp-card-overlay"></div>
-            <div class="lp-card-info">
-              <div class="lp-card-tags"><span class="lp-card-tag">Watercolor</span><span class="lp-card-model">Kaatchi AI</span></div>
-              <div class="lp-card-name">Morning Raga</div>
-            </div>
-          </div>
-          <div class="lp-gallery-card">
-            <div class="lp-card-art lp-card-a3"></div>
-            <div class="lp-card-overlay"></div>
-            <div class="lp-card-info">
-              <div class="lp-card-tags"><span class="lp-card-tag">Cinematic</span><span class="lp-card-model">Kaatchi AI</span></div>
-              <div class="lp-card-name">The Ancient Temple</div>
-            </div>
-          </div>
-          <div class="lp-gallery-card">
-            <div class="lp-card-art lp-card-a4"></div>
-            <div class="lp-card-overlay"></div>
-            <div class="lp-card-info">
-              <div class="lp-card-tags"><span class="lp-card-tag">Anime</span><span class="lp-card-model">Kaatchi AI</span></div>
-              <div class="lp-card-name">Forest Spirit</div>
-            </div>
+          <div class="lp-mode-cta">
+            <button class="lp-btn-outline" onclick="document.getElementById('btn-create-reel').click()">Launch Autopilot</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ═══ Creator Suite ═══ -->
-    <section class="lp-features" id="lp-features">
-      <div class="lp-features-inner">
-        <span class="lp-eyebrow">Engineered for Visionaries</span>
-        <h2 class="lp-sec-title">The Creator Suite</h2>
-        <p class="lp-sec-sub">A professional grade workspace where state-of-the-art AI meets surgical creative control.</p>
+    <!-- ═══ Marquee ═══ -->
+    <div class="lp-marquee">
+      <div class="lp-marquee-inner">
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>Pixar-educated DP</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>A24 color</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>IMAX-ratio presets</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>Dolby-grade mix</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>Cannes entry kit</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>Auto subtitle pass</span>
+        <span class="lp-marquee-item"><span class="lp-marquee-dot"></span>Per-scene lens control</span>
+      </div>
+    </div>
 
-        <!-- Step 1 -->
-        <div class="lp-feat-row">
-          <div class="lp-feat-text">
-            <div class="lp-feat-num">01</div>
-            <h3 class="lp-feat-h">Your Story Starts Here</h3>
-            <p class="lp-feat-p">Just add your voice. Kaatchi handles everything else — scene generation, visuals, and editing — using credits from your account.</p>
-            <div class="lp-feat-checks">
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> No setup, no API keys needed</div>
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> Multi-modal input — Voice, Podcast, or Text</div>
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> Any language, any accent</div>
-            </div>
-          </div>
-          <div class="lp-feat-mock">
-            <div class="lp-mock-sec">
-              <span class="lp-mock-lbl">Your Credits</span>
-              <div class="lp-mock-row">
-                <div class="lp-mock-inp" style="color:rgba(221,184,255,0.7)">✦ 250 credits available</div>
-                <button class="lp-mock-savebtn">Top Up</button>
-              </div>
-            </div>
-            <div class="lp-mock-sec">
-              <span class="lp-mock-lbl">Input Mode</span>
-              <div class="lp-mock-tabs">
-                <button class="lp-mock-tab-on">🎵 Audio</button>
-                <button class="lp-mock-tab-off">🎙️ Podcast</button>
-                <button class="lp-mock-tab-off">✏️ Text</button>
-              </div>
-              <div class="lp-mock-drop">
-                <span class="lp-mock-drop-icon">⬆</span>
-                <span class="lp-mock-drop-txt">Drop your audio file here or click to browse</span>
-              </div>
-            </div>
+    <!-- ═══ Pillars ═══ -->
+    <section class="lp-pillars" id="lp-features">
+      <div class="lp-section-header">
+        <span class="lp-eyebrow">THE CRAFT</span>
+        <h2 class="lp-sec-h2" style="font-size:64px;margin-top:16px">Three gestures. One film.</h2>
+      </div>
+      <div class="lp-pillars-grid">
+        <div class="lp-pillar-card">
+          <span class="lp-pillar-num">— 01</span>
+          <h3 class="lp-pillar-h3">Speak</h3>
+          <p class="lp-pillar-body">Dictate, upload, or paste a script. Kaatchi reads between lines — pacing, beats, tone.</p>
+        </div>
+        <div class="lp-pillar-card">
+          <span class="lp-pillar-num">— 02</span>
+          <h3 class="lp-pillar-h3">Storyboard</h3>
+          <p class="lp-pillar-body">Every sentence becomes a frame you can edit, recompose, or replace.</p>
+        </div>
+        <div class="lp-pillar-card">
+          <span class="lp-pillar-num">— 03</span>
+          <h3 class="lp-pillar-h3">Render</h3>
+          <p class="lp-pillar-body">Scenes generate with your cast, your style, your aspect — end-to-end, no handoffs.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Celestial Scrubber showcase ═══ -->
+    <section class="lp-scrubber-sec">
+      <div class="lp-scrubber-grid">
+        <div class="lp-showcase-text">
+          <span class="lp-eyebrow">THE CELESTIAL SCRUBBER</span>
+          <h2 class="lp-showcase-h2">Edit the <em>breath</em><br>between your words.</h2>
+          <p class="lp-showcase-body">Audio-first editing means scenes don't drift. Trim silence, nudge timing, swap a take — the storyboard recomposes in real time, locked to your voice.</p>
+          <div class="lp-showcase-checks">
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Sub-frame audio alignment</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Scene markers auto-snap to sentence ends</div>
+            <div class="lp-chk"><span class="lp-chk-i">✓</span> Non-destructive takes — A/B any line</div>
           </div>
         </div>
-
-        <!-- Step 2 -->
-        <div class="lp-feat-row rev">
-          <div class="lp-feat-text">
-            <div class="lp-feat-num">02</div>
-            <h3 class="lp-feat-h">Celestial Scrubber</h3>
-            <p class="lp-feat-p">The industry's first AI-assisted audio scrubber. Automatically identify silence, remove fillers, and sync narrative beats with surgical precision.</p>
-            <div class="lp-quote">
-              <p>"The waveform isn't just data; it's the heartbeat of your story."</p>
+        <div class="lp-scrubber-card">
+          <div class="lp-scrubber-widget">
+            <div class="lp-waves" id="lp-showcase-waves"></div>
+            <div class="lp-axis">
+              <span class="lp-axis-mark" style="left:8%">◆ 01</span>
+              <span class="lp-axis-mark" style="left:22%">◆ 02</span>
+              <span class="lp-axis-mark" style="left:41%">◆ 03</span>
+              <span class="lp-axis-mark" style="left:58%">◆ 04</span>
+              <span class="lp-axis-mark" style="left:71%">◆ 05</span>
+              <span class="lp-axis-mark" style="left:85%">◆ 06</span>
             </div>
           </div>
-          <div class="lp-feat-mock">
-            <div class="lp-wave-hdr">
-              <span class="lp-wave-lbl">Audio Track: 4:42.595</span>
-              <div class="lp-wave-btns">
-                <button class="lp-wave-btn">🔊</button>
-                <button class="lp-wave-btn">✂</button>
-              </div>
-            </div>
-            <div class="lp-wave-track">
-              <div class="lp-wbar" style="height:40%"></div>
-              <div class="lp-wbar" style="height:65%"></div>
-              <div class="lp-wbar on" style="height:90%"></div>
-              <div class="lp-wbar" style="height:55%"></div>
-              <div class="lp-wbar" style="height:75%"></div>
-              <div class="lp-wbar" style="height:30%"></div>
-              <div class="lp-wbar" style="height:60%"></div>
-              <div class="lp-wbar" style="height:20%"></div>
-              <div class="lp-wbar on" style="height:85%"></div>
-              <div class="lp-wbar" style="height:50%"></div>
-              <div class="lp-wbar" style="height:70%"></div>
-              <div class="lp-wbar" style="height:35%"></div>
-              <div class="lp-wbar" style="height:80%"></div>
-              <div class="lp-wbar" style="height:45%"></div>
-              <div class="lp-wave-cur"></div>
-            </div>
-            <div class="lp-wave-acts">
-              <button class="lp-wave-act">Detect Silence</button>
-              <button class="lp-wave-act">Remove Gaps</button>
-            </div>
+          <div class="lp-scrubber-actions">
+            <button class="lp-btn-outline lp-btn-sm">Detect silence</button>
+            <button class="lp-btn-ghost lp-btn-sm">Split at beat</button>
+            <button class="lp-btn-ghost lp-btn-sm">Ripple scenes</button>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- Step 3 -->
-        <div class="lp-feat-row" style="margin-bottom:0">
-          <div class="lp-feat-text">
-            <div class="lp-feat-num">03</div>
-            <h3 class="lp-feat-h">Semantic Storyboarding</h3>
-            <p class="lp-feat-p">Watch AI decompose your audio into visual prompts. Refine, remix, and regenerate until every frame matches your imagination.</p>
-            <div class="lp-feat-checks">
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> Auto-prompting via LLM analysis</div>
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> Fine-grained style &amp; mood control</div>
-              <div class="lp-chk"><span class="lp-chk-i">✓</span> 20 visual styles — Watercolor to Cinematic</div>
+    <!-- ═══ Storyboard showcase ═══ -->
+    <section class="lp-storyboard-sec">
+      <div class="lp-storyboard-header">
+        <span class="lp-eyebrow">SEMANTIC STORYBOARDING</span>
+        <h2 class="lp-storyboard-h2">Every scene is <em>an argument</em> with the script.</h2>
+      </div>
+      <div class="lp-scene-rows">
+        <div class="lp-scene-row">
+          <span class="lp-scene-tc">0:00 · 00:04</span>
+          <div class="lp-scene-thumb">
+            <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc">
+              <svg viewBox="0 0 160 90"><path d="M0 70 Q 60 50, 110 62 T 160 58 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
             </div>
           </div>
-          <div class="lp-feat-mock">
-            <div class="lp-scene">
-              <div class="lp-scene-thumb">
-                <span class="lp-scene-time">0:00.000</span>
-                <span class="lp-scene-dur">1.8s</span>
-              </div>
-              <div class="lp-scene-body">
-                <div class="lp-scene-lbl">Image Prompt</div>
-                <p class="lp-scene-txt">"A Tamil youth standing in front of a dark background with a microphone, looking serious..."</p>
-              </div>
-            </div>
-            <div class="lp-scene hi">
-              <div class="lp-scene-thumb">
-                <span class="lp-scene-time">0:01.780</span>
-                <span class="lp-scene-dur">3.0s</span>
-              </div>
-              <div class="lp-scene-body">
-                <div class="lp-scene-lbl">Image Prompt</div>
-                <p class="lp-scene-txt">"A split screen showing two cities. One side, a bustling American skyline; other side, a European cityscape..."</p>
-              </div>
-            </div>
-            <button class="lp-scene-add">+ Add New Scene Marker</button>
+          <div>
+            <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
+            <p class="lp-scene-prompt-text">Wide shot. Coastal night. A lighthouse beam sweeps through fog. Distant foghorn.</p>
           </div>
+          <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
         </div>
+        <div class="lp-scene-row">
+          <span class="lp-scene-tc">0:04 · 00:07</span>
+          <div class="lp-scene-thumb">
+            <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261">
+              <svg viewBox="0 0 160 90"><path d="M0 72 Q 45 48, 90 60 T 160 56 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
+            </div>
+          </div>
+          <div>
+            <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
+            <p class="lp-scene-prompt-text">Close on Elena's hands, cradling a cracked teacup. Kitchen lamp, amber spill.</p>
+          </div>
+          <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
+        </div>
+        <div class="lp-scene-row">
+          <span class="lp-scene-tc">0:11 · 00:07</span>
+          <div class="lp-scene-thumb">
+            <div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff">
+              <svg viewBox="0 0 160 90"><path d="M0 78 Q 50 55, 100 65 T 160 62 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.35)"/></svg>
+            </div>
+          </div>
+          <div>
+            <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
+            <p class="lp-scene-prompt-text">Knock at the door. Morse the dog looks up from the hearth rug. Slow push.</p>
+          </div>
+          <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
+        </div>
+      </div>
+    </section>
 
+    <!-- ═══ Styles Grid ═══ -->
+    <section class="lp-styles-sec">
+      <div class="lp-section-header">
+        <span class="lp-eyebrow">VISUAL VOCABULARY</span>
+        <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">Twenty signature looks.</h2>
+      </div>
+      <div class="lp-styles-grid">
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
+        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
       </div>
     </section>
 
     <!-- ═══ Pipeline ═══ -->
     <section class="lp-pipeline">
-      <div class="lp-pipeline-inner">
-        <h2 class="lp-pipe-title">The Galactic Pipeline</h2>
-        <div class="lp-pipe-steps">
-          <div class="lp-pipe-step">
-            <div class="lp-pipe-num">01. INGEST</div>
-            <div class="lp-pipe-bar"><div class="lp-pipe-fill" style="width:100%"></div></div>
-            <p class="lp-pipe-desc">Voice analysis &amp; silence stripping</p>
-          </div>
-          <div class="lp-pipe-step on">
-            <div class="lp-pipe-num">02. GENERATE</div>
-            <div class="lp-pipe-bar"><div class="lp-pipe-fill anim"></div></div>
-            <p class="lp-pipe-desc">AI scene generation &amp; illustration</p>
-          </div>
-          <div class="lp-pipe-step">
-            <div class="lp-pipe-num">03. RENDER</div>
-            <div class="lp-pipe-bar"><div class="lp-pipe-fill" style="width:100%"></div></div>
-            <p class="lp-pipe-desc">Video assembly &amp; cinematic export</p>
-          </div>
+      <div class="lp-pipeline-header">
+        <span class="lp-eyebrow">THE PIPELINE</span>
+      </div>
+      <div class="lp-pipeline-box">
+        <div class="lp-pipe-step">
+          <span class="lp-pipe-num">— 01</span>
+          <div class="lp-pipe-title-text">Ingest</div>
+          <p class="lp-pipe-body">Voice, upload, or pasted script. Speaker diarization, pacing beats.</p>
+        </div>
+        <div class="lp-pipe-step">
+          <span class="lp-pipe-num">— 02</span>
+          <div class="lp-pipe-title-text">Imagine</div>
+          <p class="lp-pipe-body">Scenes composed against your cast bible and style sheet.</p>
+        </div>
+        <div class="lp-pipe-step">
+          <span class="lp-pipe-num">— 03</span>
+          <div class="lp-pipe-title-text">Render</div>
+          <p class="lp-pipe-body">Per-scene generation queued with overflow credits. Never lost.</p>
+        </div>
+        <div class="lp-pipe-step">
+          <span class="lp-pipe-num">— 04</span>
+          <div class="lp-pipe-title-text">Deliver</div>
+          <p class="lp-pipe-body">MP4, ProRes, VTT captions, and a Kaatchi edit link.</p>
         </div>
       </div>
     </section>
 
     <!-- ═══ Pricing ═══ -->
     <section class="lp-pricing" id="lp-pricing">
-      <div class="lp-pricing-inner">
-        <h2 class="lp-pricing-title">Choose Your Vision</h2>
-        <div class="lp-price-grid">
-          <!-- Free -->
-          <div class="lp-price-card">
-            <div class="lp-price-name">Creator</div>
-            <div class="lp-price-amt"><span class="lp-price-val">$0</span><span class="lp-price-per">/mo</span></div>
-            <ul class="lp-price-items">
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> 5 Visual Styles</li>
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> Up to 1 min at 720p</li>
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> 3 Saved Projects</li>
-            </ul>
-            <button class="lp-price-btn" onclick="document.getElementById('btn-create-content').click()">Start Free</button>
-          </div>
-          <!-- Pro -->
-          <div class="lp-price-card feat">
-            <div class="lp-price-pill">Most Popular</div>
-            <div class="lp-price-name">Pro Suite</div>
-            <div class="lp-price-amt"><span class="lp-price-val">$10</span><span class="lp-price-per">/mo</span></div>
-            <ul class="lp-price-items">
-              <li class="lp-price-item on"><span class="lp-chk-i">✓</span> All 20 Visual Styles</li>
-              <li class="lp-price-item on"><span class="lp-chk-i">✓</span> Up to 30 min at 1080p</li>
-              <li class="lp-price-item on"><span class="lp-chk-i">✓</span> Unlimited Magic Credits</li>
-              <li class="lp-price-item on"><span class="lp-chk-i">✓</span> Multi-language Voiceover</li>
-            </ul>
-            <button class="lp-price-btn main">Get Pro Access</button>
-          </div>
-          <!-- Studio -->
-          <div class="lp-price-card">
-            <div class="lp-price-name">Studio</div>
-            <div class="lp-price-amt"><span class="lp-price-val" style="font-size:1.6rem">Custom</span></div>
-            <ul class="lp-price-items">
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> Enterprise API Access</li>
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> Team Workspaces</li>
-              <li class="lp-price-item"><span class="lp-chk-i" style="color:rgba(255,255,255,0.2)">✓</span> Priority Support</li>
-            </ul>
-            <button class="lp-price-btn">Contact Sales</button>
-          </div>
-        </div>
-        <!-- Dev plan toggle -->
-        <div class="lp-price-dev">
-          <label>Dev — Current plan:
-            <select id="plan-selector">
-              <option value="free">Free</option>
-              <option value="pro">Pro</option>
-            </select>
-          </label>
-        </div>
+      <div class="lp-pricing-header">
+        <span class="lp-eyebrow">PRICING</span>
+        <h2 class="lp-pricing-h2">Choose your vision.</h2>
       </div>
-    </section>
-
-    <!-- ═══ CTA ═══ -->
-    <section class="lp-cta">
-      <div class="lp-cta-glow"></div>
-      <div class="lp-cta-inner">
-        <h2 class="lp-cta-h">Ready to <span class="lp-gradient">Eclipse</span><br>the ordinary?</h2>
-        <div class="lp-cta-btns">
-          <button class="lp-btn-white" onclick="document.getElementById('btn-create-content').click()">Launch Studio Now</button>
-          <button class="lp-btn-outline" onclick="document.getElementById('lp-gallery').scrollIntoView({behavior:'smooth'})">See Examples</button>
+      <div class="lp-price-grid">
+        <!-- Creator -->
+        <div class="lp-price-card">
+          <div class="lp-price-name">CREATOR</div>
+          <div class="lp-price-amt"><span class="lp-price-val">$0</span><span class="lp-price-per">/mo</span></div>
+          <ul class="lp-price-items">
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> 5 visual styles</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Up to 1 min at 720p</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> 3 saved projects</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Community renders</li>
+          </ul>
+          <button class="lp-price-btn" onclick="document.getElementById('btn-create-content').click()">Choose Creator</button>
+        </div>
+        <!-- Pro Suite -->
+        <div class="lp-price-card feat">
+          <div class="lp-price-pill">MOST POPULAR</div>
+          <div class="lp-price-name">PRO SUITE</div>
+          <div class="lp-price-amt"><span class="lp-price-val">$24</span><span class="lp-price-per">/mo</span></div>
+          <ul class="lp-price-items">
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> All 20 styles</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Up to 30 min at 1080p</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Unlimited projects</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Priority queue</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Celestial Scrubber Pro</li>
+          </ul>
+          <button class="lp-price-btn main">Choose Pro Suite</button>
+        </div>
+        <!-- Studio -->
+        <div class="lp-price-card">
+          <div class="lp-price-name">STUDIO</div>
+          <div class="lp-price-amt"><span class="lp-price-val" style="font-size:40px">Custom</span></div>
+          <ul class="lp-price-items">
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Enterprise API</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Team workspaces</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Dedicated GPU pool</li>
+            <li class="lp-price-item"><span class="lp-chk-i">✓</span> SOC2 · SSO</li>
+          </ul>
+          <button class="lp-price-btn">Talk to us</button>
         </div>
       </div>
     </section>
@@ -2828,38 +2935,18 @@ body:has(#drop-zone:not(.hidden)) {
     <!-- ═══ Footer ═══ -->
     <footer class="lp-footer">
       <div class="lp-footer-inner">
-        <div class="lp-footer-brand">
-          <a class="lp-footer-logo" href="#">KAATCHI</a>
-          <p class="lp-footer-tag">Empowering the next generation of storytellers with multi-modal AI cinema tools.</p>
-          <div class="lp-footer-socials">
-            <a class="lp-footer-soc" href="#" title="Website">🌐</a>
-            <a class="lp-footer-soc" href="#" title="Instagram">📷</a>
-            <a class="lp-footer-soc" href="#" title="YouTube">▶</a>
-          </div>
-        </div>
-        <div class="lp-footer-links">
-          <div class="lp-footer-col">
-            <span class="lp-footer-col-ttl">Platform</span>
-            <a class="lp-footer-lnk" href="#">The Studio</a>
-            <a class="lp-footer-lnk" href="#">Gallery</a>
-            <a class="lp-footer-lnk" href="#">Magic API</a>
-          </div>
-          <div class="lp-footer-col">
-            <span class="lp-footer-col-ttl">Company</span>
-            <a class="lp-footer-lnk" href="#">Vision</a>
-            <a class="lp-footer-lnk" href="#">Careers</a>
-            <a class="lp-footer-lnk" href="#">Community</a>
-          </div>
-          <div class="lp-footer-col">
-            <span class="lp-footer-col-ttl">Legal</span>
-            <a class="lp-footer-lnk" href="#">Terms</a>
-            <a class="lp-footer-lnk" href="#">Privacy</a>
-          </div>
-        </div>
-      </div>
-      <div class="lp-footer-bottom">
-        <span class="lp-footer-copy">© 2026 Kaatchi. All rights reserved.</span>
-        <span class="lp-footer-copy">Made with ♥ for storytellers everywhere</span>
+        <a class="lp-footer-logo" href="#">
+          <span class="lp-logo-dot"></span>
+          <span>Kaatchi</span>
+        </a>
+        <nav class="lp-footer-nav">
+          <a href="#">STUDIO</a>
+          <a href="#">GALLERY</a>
+          <a href="#">CRAFT</a>
+          <a href="#">CHANGELOG</a>
+          <a href="#">CONTACT</a>
+        </nav>
+        <span class="lp-footer-copy">© MMXXVI · KAATCHI</span>
       </div>
     </footer>
 
@@ -4212,6 +4299,32 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
   </div>
+
+  <!-- Landing page scrubber initialisation -->
+  <script>
+  (function() {
+    function buildScrubber(containerId, playheadPct) {
+      var el = document.getElementById(containerId);
+      if (!el) return;
+      var count = 96;
+      var pIdx = Math.floor(count * playheadPct / 100);
+      var bars = '';
+      for (var i = 0; i < count; i++) {
+        var h = Math.max(6, Math.min(72,
+          20 + Math.abs(Math.sin(i * 0.14)) * 60 + Math.sin(i * 0.35) * 10
+        ));
+        var cls = i < pIdx ? 'lp-bar passed' : 'lp-bar';
+        bars += '<span class="' + cls + '" style="height:' + Math.round(h) + 'px"></span>';
+      }
+      var playhead = '<span class="lp-scrubber-playhead" style="left:' + playheadPct + '%"><span class="lp-scrubber-knob"></span></span>';
+      el.innerHTML = bars + playhead;
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      buildScrubber('lp-scrubber-waves', 42);
+      buildScrubber('lp-showcase-waves', 35);
+    });
+  })();
+  </script>
 
   <!-- Critical: globals + gallery (landing page) -->
   <!-- All other scripts loaded on demand when user navigates -->
