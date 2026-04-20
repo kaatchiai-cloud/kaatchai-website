@@ -14130,7 +14130,9 @@ async function runCreateBgm() {
   if (bgmPlayer) bgmPlayer.style.display = 'none';
 
   try {
-    const text = (createTranscript || '').slice(0, 400).trim();
+    const text = (Array.isArray(createTranscript)
+      ? createTranscript.map(s => s.text || '').join(' ')
+      : (createTranscript || '')).slice(0, 400).trim();
     const images = (createScenes || []).filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
     const arrayBuf = await generateLyriaBgm(key, text || 'video content', images);
 
