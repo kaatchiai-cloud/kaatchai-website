@@ -632,6 +632,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
             subtitleLang: t.subtitleLang || 'none',
             subtitleTexts: t.subtitleTexts || undefined,
             photoTimings: t.photoTimings || undefined,
+            subtitleTimings: t.subtitleTimings || undefined,
           };
         } catch(e) { return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
@@ -978,8 +979,7 @@ projectInput.addEventListener('change', async () => {
           const blob = base64ToBlob(project.createState.bgmData, 'audio/mp3');
           if (typeof createBgmUrl !== 'undefined' && createBgmUrl) URL.revokeObjectURL(createBgmUrl);
           createBgmUrl = URL.createObjectURL(blob);
-          const bgmAudio = $('create-bgm-audio');
-          if (bgmAudio) bgmAudio.src = createBgmUrl;
+          // Waveform init deferred to Back to Create (page must be visible for WaveSurfer to measure width)
         } catch(e) { console.warn('BGM restore error:', e); }
       }
       // Restore generated subtitle data (timings + text) so Send to Editor works without regeneration
@@ -1123,6 +1123,7 @@ projectInput.addEventListener('change', async () => {
             subtitleLang: t.subtitleLang || 'none',
             subtitleTexts: t.subtitleTexts || undefined,
             photoTimings: t.photoTimings || undefined,
+            subtitleTimings: t.subtitleTimings || undefined,
           });
         } catch(e) { /* skip failed track */ }
       }
@@ -1141,6 +1142,23 @@ projectInput.addEventListener('change', async () => {
       if (typeof setupEditorLanguageSelector === 'function') setupEditorLanguageSelector();
       const exportAllBtn = $('btn-export-all-langs');
       if (exportAllBtn) exportAllBtn.style.display = editorLanguageTracks.length > 0 ? '' : 'none';
+    }
+
+    // Fix 3: Snapshot original photo timings so language switcher can restore them
+    window._editorOriginalPhotos = (project.photos || []).map(p => ({ startTime: p.startTime, duration: p.duration }));
+
+    // Fix 4a: Restore Create Story agent state so Back to Create shows all completed sections
+    if (typeof updateCreateAgent === 'function' && project.createState) {
+      if (createScenes && createScenes.length > 0) {
+        const doneImages = createScenes.filter(s => s.imgDataUrl).length;
+        updateCreateAgent('storyboard', 'done', `${createScenes.length} scenes`);
+        if (doneImages > 0) updateCreateAgent('image', 'done', `${doneImages} image${doneImages > 1 ? 's' : ''}`);
+      }
+      if (project.createState.bgmData) updateCreateAgent('bgm', 'done', 'BGM ready');
+      if (editorLanguageTracks.length > 0) {
+        updateCreateAgent('voiceover', 'done',
+          `${editorLanguageTracks.length} track${editorLanguageTracks.length > 1 ? 's' : ''} ready`);
+      }
     }
 
     // Show editor — ensure editor scripts are loaded first

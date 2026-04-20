@@ -1057,8 +1057,8 @@ btnBackToCreate.addEventListener('click', () => {
     }
   }
 
-  // Restore language tracks from editor to create flow
-  if (editorLanguageTracks.length > 0 && languageTracks.length === 0) {
+  // Restore language tracks from editor to create flow (always re-sync to avoid stale state)
+  if (editorLanguageTracks.length > 0) {
     languageTracks = editorLanguageTracks.map(t => {
       createVoiceSelections[t.langCode] = t.voiceName || 'Kore';
       return {
@@ -1077,6 +1077,12 @@ btnBackToCreate.addEventListener('click', () => {
   }
 
   navigateTo('create');
+  // Trigger section visibility based on restored agent state
+  if (typeof updateStepStates === 'function') updateStepStates();
+  // Init BGM waveform now that create page is visible (deferred from project load)
+  if (typeof createBgmUrl !== 'undefined' && createBgmUrl && typeof initCreateBgmWaveform === 'function') {
+    initCreateBgmWaveform(createBgmUrl);
+  }
 
   // Restore all completed steps visibility
   if (createAudioBuffer) {
