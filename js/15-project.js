@@ -551,6 +551,13 @@ async function saveProjectToFile(audioBuf, statusFn) {
           } catch(e) {}
           return null;
         })(),
+        generatedSubtitles: (typeof createGeneratedSubtitles !== 'undefined' && createGeneratedSubtitles.size > 0)
+          ? Object.fromEntries([...createGeneratedSubtitles.entries()].map(([k, subs]) =>
+              [k, subs.map(s => ({ text: s.text, startTime: s.startTime, duration: s.duration }))]))
+          : undefined,
+        subtitleSelections: (typeof createSubtitleSelections !== 'undefined')
+          ? { ...createSubtitleSelections }
+          : undefined,
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -974,6 +981,16 @@ projectInput.addEventListener('change', async () => {
           const bgmAudio = $('create-bgm-audio');
           if (bgmAudio) bgmAudio.src = createBgmUrl;
         } catch(e) { console.warn('BGM restore error:', e); }
+      }
+      // Restore generated subtitle data (timings + text) so Send to Editor works without regeneration
+      if (project.createState.generatedSubtitles && typeof createGeneratedSubtitles !== 'undefined') {
+        createGeneratedSubtitles.clear();
+        for (const [k, subs] of Object.entries(project.createState.generatedSubtitles)) {
+          createGeneratedSubtitles.set(k, subs);
+        }
+      }
+      if (project.createState.subtitleSelections && typeof createSubtitleSelections !== 'undefined') {
+        Object.assign(createSubtitleSelections, project.createState.subtitleSelections);
       }
       // Render animated video cards if applicable
       if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {

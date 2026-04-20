@@ -326,12 +326,14 @@ async function callGeminiAPI(models, body, apiKey) {
 function updateCreateButtons() {
   const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
-  btnCreateTranscribe.disabled = !(hasKey && hasAudio);
+  const hasTemplate = !!selectedTemplate;
+  btnCreateTranscribe.disabled = !(hasKey && hasAudio && hasTemplate);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
     if (createTranscript) hint.textContent = 'Storyboard generated ✅';
     else if (!hasAudio) hint.textContent = 'Import audio to begin';
+    else if (!hasTemplate) hint.textContent = 'Select a template to begin';
     else if (!hasKey) hint.textContent = 'API key required';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
@@ -419,13 +421,26 @@ function updateCostHints() {
   }
 }
 
+function updateCreateCostEstimate() {
+  const el = $('create-cost-estimate');
+  if (!el) return;
+  const n = typeof createScenes !== 'undefined' && createScenes ? createScenes.length : 0;
+  if (n === 0) { el.style.display = 'none'; return; }
+  let cost = 0, rem = n;
+  while (rem > 0) {
+    if (rem >= 4) { cost += 0.134; rem -= Math.min(rem, 9); }
+    else { cost += rem * 0.039; rem = 0; }
+  }
+  el.textContent = `Est. image generation: ~$${cost.toFixed(3)} for ${n} scenes`;
+  el.style.display = '';
+}
+
 // ══════════════════════════════════════════
 //  AGENT PANEL — Create Story (Copilot)
 // ══════════════════════════════════════════
 
 const CREATE_AGENTS_ILLUSTRATED = [
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎨', label: 'Storyboard & Prompt Agent' },
-  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
@@ -434,7 +449,6 @@ const CREATE_AGENTS_ILLUSTRATED = [
 
 const CREATE_AGENTS_ANIMATED = [
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎬', label: 'Cinematography & Prompt Agent' },
-  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
@@ -447,12 +461,16 @@ const CREATE_AGENTS_ANIMATED = [
 const _createAgentState = {};
 
 function updateCreateAgent(id, status, detail = '') {
+  const prev = _createAgentState[id]?.status;
   if (!_createAgentState[id]) _createAgentState[id] = { status: 'waiting', detail: '', subtasks: [] };
   _createAgentState[id].status = status;
   _createAgentState[id].detail = detail;
   _renderCreateAgentPanel();
   _syncAgentStepHeader('create', id, status);
-  if (status === 'done') _showCreateLaunchRow(id);
+  if (status === 'done') {
+    _showCreateLaunchRow(id);
+    if (prev === 'running') _scrollToCreateStep(id);
+  }
 }
 
 function _getCreateAgents() {
@@ -509,6 +527,7 @@ function updateCreateAgentTask(agentId, taskId, taskStatus, taskLabel) {
   } else if (tasks.length > 0 && tasks.every(t => t.status === 'done' || t.status === 'warn')) {
     _createAgentState[agentId].status = 'done';
     _showCreateLaunchRow(agentId);
+    _scrollToCreateStep(agentId);
   }
   _renderCreateAgentPanel();
   _syncAgentStepHeader('create', agentId, _createAgentState[agentId].status);
@@ -521,15 +540,28 @@ function _syncAgentStepHeader(pipeline, agentId, status) {
   const step = $(agent.stepId);
   if (!step) return;
   const badge = step.querySelector('.agent-step-status-badge');
-  if (!badge) return;
   const labels = { waiting: 'Waiting', running: 'Running…', done: 'Done', error: 'Error' };
-  badge.className = `agent-step-status-badge ${status}`;
-  badge.textContent = labels[status] || status;
+  if (badge) {
+    badge.className = `agent-step-status-badge ${status}`;
+    badge.textContent = labels[status] || status;
+  }
+  const header = step.querySelector('.agent-step-header');
+  if (header) {
+    header.classList.remove('waiting', 'running', 'done', 'error');
+    header.classList.add(status);
+  }
 }
 
 function _showCreateLaunchRow(agentId) {
   const row = $(`create-launch-after-${agentId}`);
   if (row) row.classList.add('visible');
+}
+
+function _scrollToCreateStep(agentId) {
+  const agent = _getCreateAgents().find(a => a.id === agentId);
+  if (!agent) return;
+  const step = $(agent.stepId);
+  if (step) step.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Call when video mode changes to re-render panel with correct agent names
@@ -758,3 +790,6 @@ function inferReelAgentStates() {
     updateReelAgent('preview', 'done', 'Reel ready');
   }
 }
+
+// Init video mode to set button labels correctly
+setCreateVideoMode(createVideoMode);

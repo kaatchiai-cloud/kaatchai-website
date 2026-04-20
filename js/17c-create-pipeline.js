@@ -903,9 +903,9 @@ function updateStepStates() {
   // Step 1: Input & Template — always visible
   markStep('create-input-step', hasAudio && hasTemplate, !hasAudio || !hasTemplate);
 
-  // Step 2: Storyboard & Prompt — show when audio + template ready
-  showStep('create-transcribe-step', hasKey && hasAudio && hasTemplate);
-  markStep('create-transcribe-step', hasScenes, hasAudio && !hasScenes);
+  // Step 2: Storyboard & Prompt — show only when output exists
+  showStep('create-transcribe-step', hasScenes);
+  markStep('create-transcribe-step', hasScenes, false);
 
   // Step 3: Chapter Splitting — podcast only, after transcript
   showStep('create-chapter-step', isPodcast && hasTranscript);
@@ -924,19 +924,34 @@ function updateStepStates() {
   showStep('create-video-step', createVideoMode === 'animated' && hasImages);
   if (hasVideos) markStep('create-video-step', createScenes.every(s => s.videoUrl || s.status === 'error'), true);
 
-  // Step 8: Multi-Language — after images generated
-  showStep('create-language-step', hasImages);
-  if (hasImages && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Steps 8 & 9: only shown after BGM agent marks done or error
+  const bgmState = _createAgentState && _createAgentState['bgm']?.status;
+  const hasBgm = bgmState === 'done' || bgmState === 'error';
 
-  // Step 9: Send to Editor — after images generated
-  showStep('create-send-step', hasImages);
-  markStep('create-send-step', false, hasImages);
+  // Step 8: Multi-Language — after BGM done
+  showStep('create-language-step', hasBgm);
+  if (hasBgm && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Voiceover: default to done when visible and nothing is generating
+  if (hasBgm) {
+    const voState = _createAgentState && _createAgentState['voiceover'];
+    const isGenerating = typeof langGenerating !== 'undefined' && langGenerating;
+    if (!isGenerating && (!voState || voState.status === 'waiting')) {
+      const doneTracks = (typeof languageTracks !== 'undefined' ? languageTracks : []).filter(t => t.status === 'done').length;
+      updateCreateAgent('voiceover', 'done', doneTracks > 0 ? `${doneTracks} track${doneTracks > 1 ? 's' : ''} ready` : '');
+    }
+  }
 
-  // Renumber steps (all steps, regardless of visibility)
+  // Step 9: Send to Editor — after BGM done
+  showStep('create-send-step', hasBgm);
+  markStep('create-send-step', false, hasBgm);
+
+  // Renumber only visible steps sequentially; Video Mode step is unnumbered
   let stepNum = 1;
   createPage.querySelectorAll('.create-step').forEach(el => {
+    if (el.id === 'create-mode-step') return;
     const numEl = el.querySelector('.step-num, .agent-step-icon');
-    if (numEl) numEl.textContent = stepNum++;
+    if (!numEl) return;
+    if (el.style.display !== 'none') numEl.textContent = stepNum++;
   });
 }
 
@@ -987,6 +1002,15 @@ btnCreateTranscribe.addEventListener('click', async () => {
   btnCreateTranscribe.disabled = true;
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
+  // Pre-register all expected subtasks so "all done" check doesn't fire prematurely
+  if (createInputMode === 'text') {
+    updateCreateAgentTask('storyboard', 'segment', 'pending', 'Segmenting text…');
+    updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
+  } else {
+    updateCreateAgentTask('storyboard', 'audio', 'pending', 'Processing audio…');
+    updateCreateAgentTask('storyboard', 'transcribe', 'pending', 'Transcribing…');
+    updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
+  }
 
   try {
     let segments;
@@ -1114,7 +1138,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       const totalDur = createAudioBuffer.duration;
       const maxSegDur = getSegmentDuration().max;
 
-      updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Transcribing with Gemini…');
+      updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Transcribing…');
       const data = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1201,6 +1225,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
     updateCreateButtons();
     updateStepStates();
     autoSaveCreateState();
+    if (typeof updateCreateCostEstimate === 'function') updateCreateCostEstimate();
     const launchSummary = $('create-launch-storyboard-summary');
     if (launchSummary) launchSummary.textContent = `✅ ${segments.length} scenes identified`;
 
@@ -2413,35 +2438,74 @@ async function runCreateBgm() {
   if (bgmPlayer) bgmPlayer.style.display = 'none';
 
   try {
-    const text = (Array.isArray(createTranscript)
-      ? createTranscript.map(s => s.text || '').join(' ')
-      : (createTranscript || '')).slice(0, 400).trim();
+    const styleName = (typeof createStylePreset !== 'undefined' && createStylePreset) || '';
+    const tplName = (typeof selectedTemplate !== 'undefined' && selectedTemplate) || '';
+    const musicContext = (styleName || tplName || 'cinematic video').replace(/-/g, ' ');
+    const musicPrompt = `Atmospheric instrumental background music for a ${musicContext} video. No vocals, no lyrics, no singing. Melodic and emotional.`;
     const images = (createScenes || []).filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
-    const arrayBuf = await generateLyriaBgm(key, text || 'video content', images);
+    const arrayBuf = await generateLyriaBgm(key, musicPrompt, images);
 
     const blob = new Blob([arrayBuf], { type: 'audio/mp3' });
     if (createBgmUrl) URL.revokeObjectURL(createBgmUrl);
     createBgmUrl = URL.createObjectURL(blob);
 
-    const audioEl = $('create-bgm-audio');
-    if (audioEl) audioEl.src = createBgmUrl;
     if (bgmStatus) bgmStatus.style.display = 'none';
     if (bgmPlayer) bgmPlayer.style.display = '';
+    initCreateBgmWaveform(createBgmUrl);
     if (typeof updateCreateAgentTask === 'function') updateCreateAgentTask('bgm', 'compose', 'done', 'Music ready · Lyria 3');
+    updateStepStates();
     console.log('[BGM] Lyria 3 BGM generated for Create Story');
   } catch (e) {
     console.warn('[BGM] Lyria 3 failed for Create Story:', e);
     if (bgmStatus) bgmStatus.textContent = `BGM generation failed: ${e.message}`;
     if (typeof updateCreateAgentTask === 'function') updateCreateAgentTask('bgm', 'compose', 'error', 'Lyria 3 failed');
     if (typeof updateCreateAgent === 'function') updateCreateAgent('bgm', 'error', 'Failed');
+    updateStepStates();
   }
+}
+
+let createBgmWavesurfer = null;
+
+function initCreateBgmWaveform(url) {
+  const container = $('create-bgm-waveform');
+  if (!container || typeof WaveSurfer === 'undefined') return;
+  if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
+  createBgmWavesurfer = WaveSurfer.create({
+    container: '#create-bgm-waveform',
+    waveColor: 'rgba(167,139,250,0.5)',
+    progressColor: '#7c3aed',
+    height: 72,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 2,
+    cursorColor: '#fff',
+    cursorWidth: 1,
+  });
+  createBgmWavesurfer.load(url);
+  const playBtn = $('create-bgm-play-btn');
+  if (playBtn) {
+    createBgmWavesurfer.on('play', () => { playBtn.textContent = '⏸ Pause'; });
+    createBgmWavesurfer.on('pause', () => { playBtn.textContent = '▶ Play'; });
+    createBgmWavesurfer.on('finish', () => { playBtn.textContent = '▶ Play'; });
+    playBtn.onclick = () => createBgmWavesurfer?.playPause();
+  }
+  const volSlider = $('create-bgm-volume');
+  if (volSlider) createBgmWavesurfer.setVolume(parseInt(volSlider.value) / 100);
+}
+
+function launchBgmAgent() {
+  const bgmStep = $('create-bgm-step');
+  if (bgmStep) {
+    bgmStep.style.display = '';
+    bgmStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
 }
 
 // Download button for Create Story BGM
 const createBgmDownloadBtn = $('create-bgm-download');
 if (createBgmDownloadBtn) createBgmDownloadBtn.addEventListener('click', async () => {
-  const audioEl = $('create-bgm-audio');
-  const src = createBgmUrl || (audioEl && audioEl.src) || '';
+  const src = createBgmUrl || '';
   if (!src) return;
   try {
     const resp = await fetch(src);
@@ -2459,8 +2523,7 @@ if (createBgmDownloadBtn) createBgmDownloadBtn.addEventListener('click', async (
 const createBgmVolumeEl = $('create-bgm-volume');
 if (createBgmVolumeEl) {
   createBgmVolumeEl.addEventListener('input', () => {
-    const audioEl = $('create-bgm-audio');
-    if (audioEl) audioEl.volume = parseInt(createBgmVolumeEl.value) / 100;
+    if (createBgmWavesurfer) createBgmWavesurfer.setVolume(parseInt(createBgmVolumeEl.value) / 100);
     const lbl = $('create-bgm-vol-label');
     if (lbl) lbl.textContent = createBgmVolumeEl.value + '%';
   });
@@ -2627,7 +2690,7 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
   const { width, height } = getSelectedImageSize();
-  const applyRateLimit = true; // rate-limit wait for API (2 images/min)
+  const applyRateLimit = false;
 
   // Partition: scenes with reference images go individual; rest go grid
   const refScenes = scenesToGen.filter(s =>
@@ -2682,12 +2745,14 @@ async function runImageGeneration(scenesToGen) {
   const key = getImageKey() || getCreateGeminiKey();
 
   // ── Grid Batches ──
+  let imgOffset = 0;
   for (let b = 0; b < gridBatches.length; b++) {
     if (!await checkPause(`${gridBatches.length - b} batch(es) + ${individualScenes.length} individual remaining.`)) break;
 
     const batch = gridBatches[b];
-    const batchLabel = `batch ${b + 1}/${gridBatches.length} (${batch.length} images, grid mode)`;
-    updateCreateAgentTask('image', 'gen', 'running', `Generating ${batchLabel}…`);
+    const batchStart = imgOffset + 1;
+    const batchEnd = imgOffset + batch.length;
+    updateCreateAgentTask('image', 'gen', 'running', `Generating images ${batchStart}–${batchEnd} of ${scenesToGen.length}…`);
 
     // Mark all batch scenes as generating
     batch.forEach(scene => {
@@ -2760,11 +2825,12 @@ async function runImageGeneration(scenesToGen) {
 
     autoSaveCreateState();
     completedUnits++;
+    imgOffset += batch.length;
 
     // Free tier: wait 30s between batches (not per-image)
     if (applyRateLimit && (b < gridBatches.length - 1 || individualScenes.length > 0)) {
       for (let wait = 30; wait > 0; wait--) {
-        updateCreateAgentTask('image', 'gen', 'running', `Batch ${b + 1} done. Next in ${wait}s (rate limit)…`);
+        updateCreateAgentTask('image', 'gen', 'running', `Images ${batchStart}–${batchEnd} done. Next in ${wait}s…`);
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }
@@ -2778,7 +2844,7 @@ async function runImageGeneration(scenesToGen) {
 
     const scene = individualScenes[i];
     const idx = createScenes.indexOf(scene);
-    updateCreateAgentTask('image', 'gen', 'running', `Generating image ${i + 1}/${individualScenes.length} (individual)…`);
+    updateCreateAgentTask('image', 'gen', 'running', `Generating image ${imgOffset + i + 1} of ${scenesToGen.length}…`);
 
     await generateSceneImage(idx);
     autoSaveCreateState();
@@ -2787,7 +2853,7 @@ async function runImageGeneration(scenesToGen) {
     // Free tier: wait 30s between images
     if (applyRateLimit && i < individualScenes.length - 1) {
       for (let wait = 30; wait > 0; wait--) {
-        updateCreateAgentTask('image', 'gen', 'running', `Image ${i + 1} done. Next in ${wait}s (rate limit)…`);
+        updateCreateAgentTask('image', 'gen', 'running', `Image ${imgOffset + i + 1} done. Next in ${wait}s…`);
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }
@@ -2815,11 +2881,6 @@ async function runImageGeneration(scenesToGen) {
   }
   updateCreateButtons();
   updateStepStates();
-
-  // Auto-generate BGM with Lyria 3 after images are ready
-  if (doneCount > 0) {
-    runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
-  }
 
   // Animated mode: run Kling animation after image generation
   if (createVideoMode === 'animated' && typeof animateScenes === 'function') {

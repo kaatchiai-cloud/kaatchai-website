@@ -1624,6 +1624,14 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--border);
 }
 .agent-step-icon { font-size: 1.1rem; line-height: 1; }
+.agent-step-header .agent-step-icon {
+  background: var(--accent); color: #fff; width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; flex-shrink: 0; transition: background 0.3s;
+}
+.agent-step-header.done .agent-step-icon    { background: #10b981; }
+.agent-step-header.running .agent-step-icon { background: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.3); }
+.agent-step-header.error .agent-step-icon   { background: #ef4444; }
 .agent-step-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); flex: 1; }
 .agent-step-status-badge {
   font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
@@ -3105,6 +3113,7 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="btn-create-regenerate-prompts" class="btn-sm">🔄 Regenerate All Prompts</button>
         <span class="text-sm text-muted">Edit any prompt before generating images →</span>
       </div>
+      <div id="create-cost-estimate" class="text-sm text-muted" style="display:none; margin-top:10px;"></div>
       <div class="agent-launch-row" id="create-launch-after-storyboard">
         <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
         <button class="agent-launch-btn" onclick="launchImageAgent()">Launch Image Agent →</button>
@@ -3190,7 +3199,7 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="scene-grid" id="create-scene-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-image">
         <span class="agent-launch-summary" id="create-launch-image-summary"></span>
-        <button class="agent-launch-btn" id="create-launch-image-btn" onclick="document.getElementById('create-bgm-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch BGM Agent →</button>
+        <button class="agent-launch-btn" id="create-launch-image-btn" onclick="launchBgmAgent()">Launch BGM Agent →</button>
       </div>
     </div>
 
@@ -3200,8 +3209,9 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
       <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
       <div id="create-bgm-player" style="display:none; margin-top:12px;">
-        <audio id="create-bgm-audio" controls loop style="width:100%; max-width:420px;"></audio>
+        <div id="create-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <button id="create-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
           <label class="form-label" style="margin:0;">Vol:</label>
           <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
           <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
@@ -3243,7 +3253,6 @@ body:has(#drop-zone:not(.hidden)) {
       <div id="language-checkboxes" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <button id="btn-generate-languages" class="primary btn-md" disabled>🌐 Generate Language Tracks</button>
-        <span id="language-status" class="text-sm text-muted"></span>
       </div>
     </div>
 
@@ -3253,42 +3262,6 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-sm text-secondary mb-md">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
-      <!-- Subtitle style for Create Story -->
-      <div id="create-sub-style-panel" style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:14px; font-size:0.72rem;">
-        <div style="font-weight:600; margin-bottom:8px; font-size:0.78rem;">Subtitle Style</div>
-        <div class="form-row" style="margin-bottom:6px;">
-          <label class="text-secondary">Preset: <select id="create-sub-preset">
-            <option value="">Custom</option>
-            <option value="hormozi">Hormozi</option>
-            <option value="classic" selected>Classic</option>
-            <option value="karaoke">Karaoke</option>
-            <option value="bold">Bold Center</option>
-            <option value="minimal">Minimal</option>
-          </select></label>
-          <label class="text-secondary">Font: <select id="create-sub-font">
-            <option value="'Noto Sans Tamil', sans-serif" selected>Noto Sans Tamil</option>
-            <option value="Poppins">Poppins</option>
-            <option value="Montserrat">Montserrat</option>
-            <option value="Anton">Anton</option>
-            <option value="Bebas Neue">Bebas Neue</option>
-            <option value="Oswald">Oswald</option>
-            <option value="Inter">Inter</option>
-          </select></label>
-          <label class="text-secondary">Position: <select id="create-sub-position">
-            <option value="bot-center" selected>Bottom</option>
-            <option value="center">Center</option>
-            <option value="top-center">Top</option>
-          </select></label>
-          <label class="text-secondary"><input type="checkbox" id="create-sub-all-caps"> ALL CAPS</label>
-          <label class="text-secondary"><input type="checkbox" id="create-sub-bold" checked> Bold</label>
-        </div>
-        <div class="form-row">
-          <label class="text-secondary">Size: <input type="number" id="create-sub-size" min="16" max="72" value="32" style="width:45px;">px</label>
-          <label class="text-secondary">Color: <input type="color" id="create-sub-color" value="#ffffff"></label>
-          <label class="text-secondary">Stroke W: <input type="number" id="create-sub-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
-          <label class="text-secondary">BG α: <input type="number" id="create-sub-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
-        </div>
-      </div>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
@@ -5156,6 +5129,13 @@ async function saveProjectToFile(audioBuf, statusFn) {
           } catch(e) {}
           return null;
         })(),
+        generatedSubtitles: (typeof createGeneratedSubtitles !== 'undefined' && createGeneratedSubtitles.size > 0)
+          ? Object.fromEntries([...createGeneratedSubtitles.entries()].map(([k, subs]) =>
+              [k, subs.map(s => ({ text: s.text, startTime: s.startTime, duration: s.duration }))]))
+          : undefined,
+        subtitleSelections: (typeof createSubtitleSelections !== 'undefined')
+          ? { ...createSubtitleSelections }
+          : undefined,
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -5579,6 +5559,16 @@ projectInput.addEventListener('change', async () => {
           const bgmAudio = $('create-bgm-audio');
           if (bgmAudio) bgmAudio.src = createBgmUrl;
         } catch(e) { console.warn('BGM restore error:', e); }
+      }
+      // Restore generated subtitle data (timings + text) so Send to Editor works without regeneration
+      if (project.createState.generatedSubtitles && typeof createGeneratedSubtitles !== 'undefined') {
+        createGeneratedSubtitles.clear();
+        for (const [k, subs] of Object.entries(project.createState.generatedSubtitles)) {
+          createGeneratedSubtitles.set(k, subs);
+        }
+      }
+      if (project.createState.subtitleSelections && typeof createSubtitleSelections !== 'undefined') {
+        Object.assign(createSubtitleSelections, project.createState.subtitleSelections);
       }
       // Render animated video cards if applicable
       if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {
@@ -10964,12 +10954,14 @@ async function callGeminiAPI(models, body, apiKey) {
 function updateCreateButtons() {
   const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
-  btnCreateTranscribe.disabled = !(hasKey && hasAudio);
+  const hasTemplate = !!selectedTemplate;
+  btnCreateTranscribe.disabled = !(hasKey && hasAudio && hasTemplate);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
     if (createTranscript) hint.textContent = 'Storyboard generated ✅';
     else if (!hasAudio) hint.textContent = 'Import audio to begin';
+    else if (!hasTemplate) hint.textContent = 'Select a template to begin';
     else if (!hasKey) hint.textContent = 'API key required';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
@@ -11057,13 +11049,26 @@ function updateCostHints() {
   }
 }
 
+function updateCreateCostEstimate() {
+  const el = $('create-cost-estimate');
+  if (!el) return;
+  const n = typeof createScenes !== 'undefined' && createScenes ? createScenes.length : 0;
+  if (n === 0) { el.style.display = 'none'; return; }
+  let cost = 0, rem = n;
+  while (rem > 0) {
+    if (rem >= 4) { cost += 0.134; rem -= Math.min(rem, 9); }
+    else { cost += rem * 0.039; rem = 0; }
+  }
+  el.textContent = `Est. image generation: ~${cost.toFixed(3)} for ${n} scenes`;
+  el.style.display = '';
+}
+
 // ══════════════════════════════════════════
 //  AGENT PANEL — Create Story (Copilot)
 // ══════════════════════════════════════════
 
 const CREATE_AGENTS_ILLUSTRATED = [
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎨', label: 'Storyboard & Prompt Agent' },
-  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
@@ -11072,7 +11077,6 @@ const CREATE_AGENTS_ILLUSTRATED = [
 
 const CREATE_AGENTS_ANIMATED = [
   { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎬', label: 'Cinematography & Prompt Agent' },
-  { id: 'chapter',   stepId: 'create-chapter-step',    icon: '📑', label: 'Chapter Agent' },
   // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
@@ -11085,12 +11089,16 @@ const CREATE_AGENTS_ANIMATED = [
 const _createAgentState = {};
 
 function updateCreateAgent(id, status, detail = '') {
+  const prev = _createAgentState[id]?.status;
   if (!_createAgentState[id]) _createAgentState[id] = { status: 'waiting', detail: '', subtasks: [] };
   _createAgentState[id].status = status;
   _createAgentState[id].detail = detail;
   _renderCreateAgentPanel();
   _syncAgentStepHeader('create', id, status);
-  if (status === 'done') _showCreateLaunchRow(id);
+  if (status === 'done') {
+    _showCreateLaunchRow(id);
+    if (prev === 'running') _scrollToCreateStep(id);
+  }
 }
 
 function _getCreateAgents() {
@@ -11147,6 +11155,7 @@ function updateCreateAgentTask(agentId, taskId, taskStatus, taskLabel) {
   } else if (tasks.length > 0 && tasks.every(t => t.status === 'done' || t.status === 'warn')) {
     _createAgentState[agentId].status = 'done';
     _showCreateLaunchRow(agentId);
+    _scrollToCreateStep(agentId);
   }
   _renderCreateAgentPanel();
   _syncAgentStepHeader('create', agentId, _createAgentState[agentId].status);
@@ -11159,15 +11168,28 @@ function _syncAgentStepHeader(pipeline, agentId, status) {
   const step = $(agent.stepId);
   if (!step) return;
   const badge = step.querySelector('.agent-step-status-badge');
-  if (!badge) return;
   const labels = { waiting: 'Waiting', running: 'Running…', done: 'Done', error: 'Error' };
-  badge.className = `agent-step-status-badge ${status}`;
-  badge.textContent = labels[status] || status;
+  if (badge) {
+    badge.className = `agent-step-status-badge ${status}`;
+    badge.textContent = labels[status] || status;
+  }
+  const header = step.querySelector('.agent-step-header');
+  if (header) {
+    header.classList.remove('waiting', 'running', 'done', 'error');
+    header.classList.add(status);
+  }
 }
 
 function _showCreateLaunchRow(agentId) {
   const row = $(`create-launch-after-${agentId}`);
   if (row) row.classList.add('visible');
+}
+
+function _scrollToCreateStep(agentId) {
+  const agent = _getCreateAgents().find(a => a.id === agentId);
+  if (!agent) return;
+  const step = $(agent.stepId);
+  if (step) step.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Call when video mode changes to re-render panel with correct agent names
@@ -11396,6 +11418,9 @@ function inferReelAgentStates() {
     updateReelAgent('preview', 'done', 'Reel ready');
   }
 }
+
+// Init video mode to set button labels correctly
+setCreateVideoMode(createVideoMode);
 
 
     // ── 17b-create-references.js ──
@@ -12620,9 +12645,9 @@ function updateStepStates() {
   // Step 1: Input & Template — always visible
   markStep('create-input-step', hasAudio && hasTemplate, !hasAudio || !hasTemplate);
 
-  // Step 2: Storyboard & Prompt — show when audio + template ready
-  showStep('create-transcribe-step', hasKey && hasAudio && hasTemplate);
-  markStep('create-transcribe-step', hasScenes, hasAudio && !hasScenes);
+  // Step 2: Storyboard & Prompt — show only when output exists
+  showStep('create-transcribe-step', hasScenes);
+  markStep('create-transcribe-step', hasScenes, false);
 
   // Step 3: Chapter Splitting — podcast only, after transcript
   showStep('create-chapter-step', isPodcast && hasTranscript);
@@ -12641,19 +12666,34 @@ function updateStepStates() {
   showStep('create-video-step', createVideoMode === 'animated' && hasImages);
   if (hasVideos) markStep('create-video-step', createScenes.every(s => s.videoUrl || s.status === 'error'), true);
 
-  // Step 8: Multi-Language — after images generated
-  showStep('create-language-step', hasImages);
-  if (hasImages && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Steps 8 & 9: only shown after BGM agent marks done or error
+  const bgmState = _createAgentState && _createAgentState['bgm']?.status;
+  const hasBgm = bgmState === 'done' || bgmState === 'error';
 
-  // Step 9: Send to Editor — after images generated
-  showStep('create-send-step', hasImages);
-  markStep('create-send-step', false, hasImages);
+  // Step 8: Multi-Language — after BGM done
+  showStep('create-language-step', hasBgm);
+  if (hasBgm && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Voiceover: default to done when visible and nothing is generating
+  if (hasBgm) {
+    const voState = _createAgentState && _createAgentState['voiceover'];
+    const isGenerating = typeof langGenerating !== 'undefined' && langGenerating;
+    if (!isGenerating && (!voState || voState.status === 'waiting')) {
+      const doneTracks = (typeof languageTracks !== 'undefined' ? languageTracks : []).filter(t => t.status === 'done').length;
+      updateCreateAgent('voiceover', 'done', doneTracks > 0 ? `${doneTracks} track${doneTracks > 1 ? 's' : ''} ready` : '');
+    }
+  }
 
-  // Renumber steps (all steps, regardless of visibility)
+  // Step 9: Send to Editor — after BGM done
+  showStep('create-send-step', hasBgm);
+  markStep('create-send-step', false, hasBgm);
+
+  // Renumber only visible steps sequentially; Video Mode step is unnumbered
   let stepNum = 1;
   createPage.querySelectorAll('.create-step').forEach(el => {
+    if (el.id === 'create-mode-step') return;
     const numEl = el.querySelector('.step-num, .agent-step-icon');
-    if (numEl) numEl.textContent = stepNum++;
+    if (!numEl) return;
+    if (el.style.display !== 'none') numEl.textContent = stepNum++;
   });
 }
 
@@ -12704,6 +12744,15 @@ btnCreateTranscribe.addEventListener('click', async () => {
   btnCreateTranscribe.disabled = true;
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
+  // Pre-register all expected subtasks so "all done" check doesn't fire prematurely
+  if (createInputMode === 'text') {
+    updateCreateAgentTask('storyboard', 'segment', 'pending', 'Segmenting text…');
+    updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
+  } else {
+    updateCreateAgentTask('storyboard', 'audio', 'pending', 'Processing audio…');
+    updateCreateAgentTask('storyboard', 'transcribe', 'pending', 'Transcribing…');
+    updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
+  }
 
   try {
     let segments;
@@ -12831,7 +12880,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       const totalDur = createAudioBuffer.duration;
       const maxSegDur = getSegmentDuration().max;
 
-      updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Transcribing with Gemini…');
+      updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Transcribing…');
       const data = await callGeminiAPI(getTranscriptionModels(), transcribeBody);
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -12918,6 +12967,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
     updateCreateButtons();
     updateStepStates();
     autoSaveCreateState();
+    if (typeof updateCreateCostEstimate === 'function') updateCreateCostEstimate();
     const launchSummary = $('create-launch-storyboard-summary');
     if (launchSummary) launchSummary.textContent = `✅ ${segments.length} scenes identified`;
 
@@ -14130,35 +14180,74 @@ async function runCreateBgm() {
   if (bgmPlayer) bgmPlayer.style.display = 'none';
 
   try {
-    const text = (Array.isArray(createTranscript)
-      ? createTranscript.map(s => s.text || '').join(' ')
-      : (createTranscript || '')).slice(0, 400).trim();
+    const styleName = (typeof createStylePreset !== 'undefined' && createStylePreset) || '';
+    const tplName = (typeof selectedTemplate !== 'undefined' && selectedTemplate) || '';
+    const musicContext = (styleName || tplName || 'cinematic video').replace(/-/g, ' ');
+    const musicPrompt = `Atmospheric instrumental background music for a ${musicContext} video. No vocals, no lyrics, no singing. Melodic and emotional.`;
     const images = (createScenes || []).filter(s => s.imgDataUrl).slice(0, 5).map(s => s.imgDataUrl);
-    const arrayBuf = await generateLyriaBgm(key, text || 'video content', images);
+    const arrayBuf = await generateLyriaBgm(key, musicPrompt, images);
 
     const blob = new Blob([arrayBuf], { type: 'audio/mp3' });
     if (createBgmUrl) URL.revokeObjectURL(createBgmUrl);
     createBgmUrl = URL.createObjectURL(blob);
 
-    const audioEl = $('create-bgm-audio');
-    if (audioEl) audioEl.src = createBgmUrl;
     if (bgmStatus) bgmStatus.style.display = 'none';
     if (bgmPlayer) bgmPlayer.style.display = '';
+    initCreateBgmWaveform(createBgmUrl);
     if (typeof updateCreateAgentTask === 'function') updateCreateAgentTask('bgm', 'compose', 'done', 'Music ready · Lyria 3');
+    updateStepStates();
     console.log('[BGM] Lyria 3 BGM generated for Create Story');
   } catch (e) {
     console.warn('[BGM] Lyria 3 failed for Create Story:', e);
     if (bgmStatus) bgmStatus.textContent = `BGM generation failed: ${e.message}`;
     if (typeof updateCreateAgentTask === 'function') updateCreateAgentTask('bgm', 'compose', 'error', 'Lyria 3 failed');
     if (typeof updateCreateAgent === 'function') updateCreateAgent('bgm', 'error', 'Failed');
+    updateStepStates();
   }
+}
+
+let createBgmWavesurfer = null;
+
+function initCreateBgmWaveform(url) {
+  const container = $('create-bgm-waveform');
+  if (!container || typeof WaveSurfer === 'undefined') return;
+  if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
+  createBgmWavesurfer = WaveSurfer.create({
+    container: '#create-bgm-waveform',
+    waveColor: 'rgba(167,139,250,0.5)',
+    progressColor: '#7c3aed',
+    height: 72,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 2,
+    cursorColor: '#fff',
+    cursorWidth: 1,
+  });
+  createBgmWavesurfer.load(url);
+  const playBtn = $('create-bgm-play-btn');
+  if (playBtn) {
+    createBgmWavesurfer.on('play', () => { playBtn.textContent = '⏸ Pause'; });
+    createBgmWavesurfer.on('pause', () => { playBtn.textContent = '▶ Play'; });
+    createBgmWavesurfer.on('finish', () => { playBtn.textContent = '▶ Play'; });
+    playBtn.onclick = () => createBgmWavesurfer?.playPause();
+  }
+  const volSlider = $('create-bgm-volume');
+  if (volSlider) createBgmWavesurfer.setVolume(parseInt(volSlider.value) / 100);
+}
+
+function launchBgmAgent() {
+  const bgmStep = $('create-bgm-step');
+  if (bgmStep) {
+    bgmStep.style.display = '';
+    bgmStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
 }
 
 // Download button for Create Story BGM
 const createBgmDownloadBtn = $('create-bgm-download');
 if (createBgmDownloadBtn) createBgmDownloadBtn.addEventListener('click', async () => {
-  const audioEl = $('create-bgm-audio');
-  const src = createBgmUrl || (audioEl && audioEl.src) || '';
+  const src = createBgmUrl || '';
   if (!src) return;
   try {
     const resp = await fetch(src);
@@ -14176,8 +14265,7 @@ if (createBgmDownloadBtn) createBgmDownloadBtn.addEventListener('click', async (
 const createBgmVolumeEl = $('create-bgm-volume');
 if (createBgmVolumeEl) {
   createBgmVolumeEl.addEventListener('input', () => {
-    const audioEl = $('create-bgm-audio');
-    if (audioEl) audioEl.volume = parseInt(createBgmVolumeEl.value) / 100;
+    if (createBgmWavesurfer) createBgmWavesurfer.setVolume(parseInt(createBgmVolumeEl.value) / 100);
     const lbl = $('create-bgm-vol-label');
     if (lbl) lbl.textContent = createBgmVolumeEl.value + '%';
   });
@@ -14344,7 +14432,7 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
   const { width, height } = getSelectedImageSize();
-  const applyRateLimit = true; // rate-limit wait for API (2 images/min)
+  const applyRateLimit = false;
 
   // Partition: scenes with reference images go individual; rest go grid
   const refScenes = scenesToGen.filter(s =>
@@ -14399,12 +14487,14 @@ async function runImageGeneration(scenesToGen) {
   const key = getImageKey() || getCreateGeminiKey();
 
   // ── Grid Batches ──
+  let imgOffset = 0;
   for (let b = 0; b < gridBatches.length; b++) {
     if (!await checkPause(`${gridBatches.length - b} batch(es) + ${individualScenes.length} individual remaining.`)) break;
 
     const batch = gridBatches[b];
-    const batchLabel = `batch ${b + 1}/${gridBatches.length} (${batch.length} images, grid mode)`;
-    updateCreateAgentTask('image', 'gen', 'running', `Generating ${batchLabel}…`);
+    const batchStart = imgOffset + 1;
+    const batchEnd = imgOffset + batch.length;
+    updateCreateAgentTask('image', 'gen', 'running', `Generating images ${batchStart}–${batchEnd} of ${scenesToGen.length}…`);
 
     // Mark all batch scenes as generating
     batch.forEach(scene => {
@@ -14477,11 +14567,12 @@ async function runImageGeneration(scenesToGen) {
 
     autoSaveCreateState();
     completedUnits++;
+    imgOffset += batch.length;
 
     // Free tier: wait 30s between batches (not per-image)
     if (applyRateLimit && (b < gridBatches.length - 1 || individualScenes.length > 0)) {
       for (let wait = 30; wait > 0; wait--) {
-        updateCreateAgentTask('image', 'gen', 'running', `Batch ${b + 1} done. Next in ${wait}s (rate limit)…`);
+        updateCreateAgentTask('image', 'gen', 'running', `Images ${batchStart}–${batchEnd} done. Next in ${wait}s…`);
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }
@@ -14495,7 +14586,7 @@ async function runImageGeneration(scenesToGen) {
 
     const scene = individualScenes[i];
     const idx = createScenes.indexOf(scene);
-    updateCreateAgentTask('image', 'gen', 'running', `Generating image ${i + 1}/${individualScenes.length} (individual)…`);
+    updateCreateAgentTask('image', 'gen', 'running', `Generating image ${imgOffset + i + 1} of ${scenesToGen.length}…`);
 
     await generateSceneImage(idx);
     autoSaveCreateState();
@@ -14504,7 +14595,7 @@ async function runImageGeneration(scenesToGen) {
     // Free tier: wait 30s between images
     if (applyRateLimit && i < individualScenes.length - 1) {
       for (let wait = 30; wait > 0; wait--) {
-        updateCreateAgentTask('image', 'gen', 'running', `Image ${i + 1} done. Next in ${wait}s (rate limit)…`);
+        updateCreateAgentTask('image', 'gen', 'running', `Image ${imgOffset + i + 1} done. Next in ${wait}s…`);
         await new Promise(r => setTimeout(r, 1000));
         if (!generateRunning) break;
       }
@@ -14532,11 +14623,6 @@ async function runImageGeneration(scenesToGen) {
   }
   updateCreateButtons();
   updateStepStates();
-
-  // Auto-generate BGM with Lyria 3 after images are ready
-  if (doneCount > 0) {
-    runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
-  }
 
   // Animated mode: run Kling animation after image generation
   if (createVideoMode === 'animated' && typeof animateScenes === 'function') {
@@ -14913,6 +14999,21 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
 
   if (!createScenes) return;
 
+  // Show processing on the language card and left panel
+  const subLang = SUPPORTED_LANGUAGES.find(l => l.code === trackId);
+  if (subLang) {
+    renderLanguageCard(subLang, 'working', 'Generating subtitles…');
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', `Generating subtitles for ${subLang.name}…`);
+  } else if (trackId === 'primary') {
+    const primaryCard = $('language-primary') && $('language-primary').querySelector('.language-card');
+    if (primaryCard) {
+      primaryCard.className = 'language-card';
+      const statusEl = primaryCard.querySelector('.lang-status');
+      if (statusEl) statusEl.textContent = 'Generating subtitles…';
+    }
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', 'Generating subtitles…');
+  }
+
   langGenerating = true;
   updateCreateButtons();
 
@@ -14941,8 +15042,6 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
       const langName = langInfo ? langInfo.name : subtitleLang;
       if (key) {
         try {
-          const statusEl = $('language-status');
-          if (statusEl) { statusEl.textContent = `Translating subtitles to ${langName}...`; statusEl.style.color = ''; }
           const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
           const translated = await translateText(fullText, langName, key);
           const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
@@ -14988,23 +15087,30 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
   langGenerating = false;
   updateCreateButtons();
   updateSubtitlePreviewCount();
+
+  // Restore card to done and update left panel
+  const voiceCount = languageTracks.filter(t => t.status === 'done').length;
+  const subCount = createGeneratedSubtitles.size;
+  const parts = [];
+  if (voiceCount > 0) parts.push(`${voiceCount} voice${voiceCount > 1 ? 's' : ''} ready`);
+  if (subCount > 0) parts.push(`${subCount} subtitle track${subCount > 1 ? 's' : ''}`);
+  if (subLang) {
+    const track = languageTracks.find(t => t.langCode === trackId);
+    const doneLabel = track ? `Done (${fmtShort(track.audioBuffer.duration)})` : 'Done';
+    renderLanguageCard(subLang, 'done', doneLabel);
+  } else if (trackId === 'primary') {
+    const primaryCard = $('language-primary') && $('language-primary').querySelector('.language-card');
+    if (primaryCard) {
+      primaryCard.className = 'language-card done';
+      const statusEl = primaryCard.querySelector('.lang-status');
+      const label = createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio';
+      if (statusEl) statusEl.textContent = `Primary · ${createAudioBuffer ? fmtShort(createAudioBuffer.duration) : ''}`;
+    }
+  }
+  if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'done', parts.join(' · ') || 'Done');
 }
 
 function updateSubtitlePreviewCount() {
-  let total = 0;
-  for (const [, subs] of createGeneratedSubtitles) total += subs.length;
-  const statusEl = $('language-status');
-  if (statusEl) {
-    const doneCount = languageTracks.filter(t => t.status === 'done').length;
-    const trackCount = createGeneratedSubtitles.size;
-    if (trackCount > 0) {
-      statusEl.textContent = `${doneCount} voice(s) · ${trackCount} subtitle track${trackCount > 1 ? 's' : ''} ready`;
-      statusEl.style.color = '#10b981';
-    } else if (doneCount > 0) {
-      statusEl.textContent = `${doneCount} voice(s) ready · No subtitles selected`;
-      statusEl.style.color = '';
-    }
-  }
 }
 
 function renderPrimaryAudioCard() {
@@ -15120,8 +15226,11 @@ btnGenerateLanguages.addEventListener('click', async () => {
     voiceSelections[lang.code] = voiceEl ? voiceEl.value : 'Kore';
   }
 
-  for (const lang of selectedLangs) {
+  for (let li = 0; li < selectedLangs.length; li++) {
+    const lang = selectedLangs[li];
     const voiceName = voiceSelections[lang.code];
+    const langProgress = `${lang.name} (${li + 1}/${selectedLangs.length})`;
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', `Generating ${langProgress}…`);
     try {
       renderLanguageCard(lang, 'working', 'Translating...');
       const translated = await translateText(fullText, lang.name, key);
@@ -15233,14 +15342,16 @@ btnGenerateLanguages.addEventListener('click', async () => {
   updateLangButtons();
   const doneTracks = languageTracks.filter(t => t.status === 'done');
   const failedCount = selectedLangs.length - doneTracks.filter(t => selectedLangs.some(l => l.code === t.langCode)).length;
-  if (failedCount > 0) {
-    languageStatus.textContent = `${doneTracks.length} track(s) ready · ${failedCount} failed`;
-    languageStatus.style.color = '#f59e0b';
-    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', failedCount === selectedLangs.length ? 'error' : 'done', `${doneTracks.length} ready · ${failedCount} failed`);
-  } else {
-    languageStatus.textContent = `${doneTracks.length} language track(s) ready`;
-    languageStatus.style.color = '#10b981';
-    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'done', `${doneTracks.length} track${doneTracks.length > 1 ? 's' : ''} ready`);
+  const subCount = createGeneratedSubtitles ? createGeneratedSubtitles.size : 0;
+  const voiceCount = doneTracks.length;
+  const summaryParts = [];
+  if (voiceCount > 0) summaryParts.push(`${voiceCount} voice${voiceCount > 1 ? 's' : ''} ready`);
+  if (subCount > 0) summaryParts.push(`${subCount} subtitle track${subCount > 1 ? 's' : ''}`);
+  if (failedCount > 0) summaryParts.push(`${failedCount} failed`);
+  const summaryText = summaryParts.join(' · ') || 'Done';
+  if (typeof updateCreateAgent === 'function') {
+    const agentStatus = failedCount === selectedLangs.length ? 'error' : 'done';
+    updateCreateAgent('voiceover', agentStatus, summaryText);
   }
 });
 

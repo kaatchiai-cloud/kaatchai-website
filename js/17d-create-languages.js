@@ -193,6 +193,21 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
 
   if (!createScenes) return;
 
+  // Show processing on the language card and left panel
+  const subLang = SUPPORTED_LANGUAGES.find(l => l.code === trackId);
+  if (subLang) {
+    renderLanguageCard(subLang, 'working', 'Generating subtitles…');
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', `Generating subtitles for ${subLang.name}…`);
+  } else if (trackId === 'primary') {
+    const primaryCard = $('language-primary') && $('language-primary').querySelector('.language-card');
+    if (primaryCard) {
+      primaryCard.className = 'language-card';
+      const statusEl = primaryCard.querySelector('.lang-status');
+      if (statusEl) statusEl.textContent = 'Generating subtitles…';
+    }
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', 'Generating subtitles…');
+  }
+
   langGenerating = true;
   updateCreateButtons();
 
@@ -221,8 +236,6 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
       const langName = langInfo ? langInfo.name : subtitleLang;
       if (key) {
         try {
-          const statusEl = $('language-status');
-          if (statusEl) { statusEl.textContent = `Translating subtitles to ${langName}...`; statusEl.style.color = ''; }
           const fullText = createScenes.map(s => s.text).filter(Boolean).join('\n\n');
           const translated = await translateText(fullText, langName, key);
           const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
@@ -268,23 +281,30 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
   langGenerating = false;
   updateCreateButtons();
   updateSubtitlePreviewCount();
+
+  // Restore card to done and update left panel
+  const voiceCount = languageTracks.filter(t => t.status === 'done').length;
+  const subCount = createGeneratedSubtitles.size;
+  const parts = [];
+  if (voiceCount > 0) parts.push(`${voiceCount} voice${voiceCount > 1 ? 's' : ''} ready`);
+  if (subCount > 0) parts.push(`${subCount} subtitle track${subCount > 1 ? 's' : ''}`);
+  if (subLang) {
+    const track = languageTracks.find(t => t.langCode === trackId);
+    const doneLabel = track ? `Done (${fmtShort(track.audioBuffer.duration)})` : 'Done';
+    renderLanguageCard(subLang, 'done', doneLabel);
+  } else if (trackId === 'primary') {
+    const primaryCard = $('language-primary') && $('language-primary').querySelector('.language-card');
+    if (primaryCard) {
+      primaryCard.className = 'language-card done';
+      const statusEl = primaryCard.querySelector('.lang-status');
+      const label = createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio';
+      if (statusEl) statusEl.textContent = `Primary · ${createAudioBuffer ? fmtShort(createAudioBuffer.duration) : ''}`;
+    }
+  }
+  if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'done', parts.join(' · ') || 'Done');
 }
 
 function updateSubtitlePreviewCount() {
-  let total = 0;
-  for (const [, subs] of createGeneratedSubtitles) total += subs.length;
-  const statusEl = $('language-status');
-  if (statusEl) {
-    const doneCount = languageTracks.filter(t => t.status === 'done').length;
-    const trackCount = createGeneratedSubtitles.size;
-    if (trackCount > 0) {
-      statusEl.textContent = `${doneCount} voice(s) · ${trackCount} subtitle track${trackCount > 1 ? 's' : ''} ready`;
-      statusEl.style.color = '#10b981';
-    } else if (doneCount > 0) {
-      statusEl.textContent = `${doneCount} voice(s) ready · No subtitles selected`;
-      statusEl.style.color = '';
-    }
-  }
 }
 
 function renderPrimaryAudioCard() {
@@ -400,8 +420,11 @@ btnGenerateLanguages.addEventListener('click', async () => {
     voiceSelections[lang.code] = voiceEl ? voiceEl.value : 'Kore';
   }
 
-  for (const lang of selectedLangs) {
+  for (let li = 0; li < selectedLangs.length; li++) {
+    const lang = selectedLangs[li];
     const voiceName = voiceSelections[lang.code];
+    const langProgress = `${lang.name} (${li + 1}/${selectedLangs.length})`;
+    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'running', `Generating ${langProgress}…`);
     try {
       renderLanguageCard(lang, 'working', 'Translating...');
       const translated = await translateText(fullText, lang.name, key);
@@ -513,14 +536,16 @@ btnGenerateLanguages.addEventListener('click', async () => {
   updateLangButtons();
   const doneTracks = languageTracks.filter(t => t.status === 'done');
   const failedCount = selectedLangs.length - doneTracks.filter(t => selectedLangs.some(l => l.code === t.langCode)).length;
-  if (failedCount > 0) {
-    languageStatus.textContent = `${doneTracks.length} track(s) ready · ${failedCount} failed`;
-    languageStatus.style.color = '#f59e0b';
-    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', failedCount === selectedLangs.length ? 'error' : 'done', `${doneTracks.length} ready · ${failedCount} failed`);
-  } else {
-    languageStatus.textContent = `${doneTracks.length} language track(s) ready`;
-    languageStatus.style.color = '#10b981';
-    if (typeof updateCreateAgent === 'function') updateCreateAgent('voiceover', 'done', `${doneTracks.length} track${doneTracks.length > 1 ? 's' : ''} ready`);
+  const subCount = createGeneratedSubtitles ? createGeneratedSubtitles.size : 0;
+  const voiceCount = doneTracks.length;
+  const summaryParts = [];
+  if (voiceCount > 0) summaryParts.push(`${voiceCount} voice${voiceCount > 1 ? 's' : ''} ready`);
+  if (subCount > 0) summaryParts.push(`${subCount} subtitle track${subCount > 1 ? 's' : ''}`);
+  if (failedCount > 0) summaryParts.push(`${failedCount} failed`);
+  const summaryText = summaryParts.join(' · ') || 'Done';
+  if (typeof updateCreateAgent === 'function') {
+    const agentStatus = failedCount === selectedLangs.length ? 'error' : 'done';
+    updateCreateAgent('voiceover', agentStatus, summaryText);
   }
 });
 

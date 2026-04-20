@@ -1225,6 +1225,7 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="btn-create-regenerate-prompts" class="btn-sm">🔄 Regenerate All Prompts</button>
         <span class="text-sm text-muted">Edit any prompt before generating images →</span>
       </div>
+      <div id="create-cost-estimate" class="text-sm text-muted" style="display:none; margin-top:10px;"></div>
       <div class="agent-launch-row" id="create-launch-after-storyboard">
         <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
         <button class="agent-launch-btn" onclick="launchImageAgent()">Launch Image Agent →</button>
@@ -1310,7 +1311,7 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="scene-grid" id="create-scene-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-image">
         <span class="agent-launch-summary" id="create-launch-image-summary"></span>
-        <button class="agent-launch-btn" id="create-launch-image-btn" onclick="document.getElementById('create-bgm-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch BGM Agent →</button>
+        <button class="agent-launch-btn" id="create-launch-image-btn" onclick="launchBgmAgent()">Launch BGM Agent →</button>
       </div>
     </div>
 
@@ -1320,8 +1321,9 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
       <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
       <div id="create-bgm-player" style="display:none; margin-top:12px;">
-        <audio id="create-bgm-audio" controls loop style="width:100%; max-width:420px;"></audio>
+        <div id="create-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
+          <button id="create-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
           <label class="form-label" style="margin:0;">Vol:</label>
           <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
           <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
@@ -1363,7 +1365,6 @@ body:has(#drop-zone:not(.hidden)) {
       <div id="language-checkboxes" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <button id="btn-generate-languages" class="primary btn-md" disabled>🌐 Generate Language Tracks</button>
-        <span id="language-status" class="text-sm text-muted"></span>
       </div>
     </div>
 
@@ -1373,42 +1374,6 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-sm text-secondary mb-md">
         Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
       </p>
-      <!-- Subtitle style for Create Story -->
-      <div id="create-sub-style-panel" style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:14px; font-size:0.72rem;">
-        <div style="font-weight:600; margin-bottom:8px; font-size:0.78rem;">Subtitle Style</div>
-        <div class="form-row" style="margin-bottom:6px;">
-          <label class="text-secondary">Preset: <select id="create-sub-preset">
-            <option value="">Custom</option>
-            <option value="hormozi">Hormozi</option>
-            <option value="classic" selected>Classic</option>
-            <option value="karaoke">Karaoke</option>
-            <option value="bold">Bold Center</option>
-            <option value="minimal">Minimal</option>
-          </select></label>
-          <label class="text-secondary">Font: <select id="create-sub-font">
-            <option value="'Noto Sans Tamil', sans-serif" selected>Noto Sans Tamil</option>
-            <option value="Poppins">Poppins</option>
-            <option value="Montserrat">Montserrat</option>
-            <option value="Anton">Anton</option>
-            <option value="Bebas Neue">Bebas Neue</option>
-            <option value="Oswald">Oswald</option>
-            <option value="Inter">Inter</option>
-          </select></label>
-          <label class="text-secondary">Position: <select id="create-sub-position">
-            <option value="bot-center" selected>Bottom</option>
-            <option value="center">Center</option>
-            <option value="top-center">Top</option>
-          </select></label>
-          <label class="text-secondary"><input type="checkbox" id="create-sub-all-caps"> ALL CAPS</label>
-          <label class="text-secondary"><input type="checkbox" id="create-sub-bold" checked> Bold</label>
-        </div>
-        <div class="form-row">
-          <label class="text-secondary">Size: <input type="number" id="create-sub-size" min="16" max="72" value="32" style="width:45px;">px</label>
-          <label class="text-secondary">Color: <input type="color" id="create-sub-color" value="#ffffff"></label>
-          <label class="text-secondary">Stroke W: <input type="number" id="create-sub-stroke-w" min="0" max="10" value="2" style="width:40px;">px</label>
-          <label class="text-secondary">BG α: <input type="number" id="create-sub-bg-alpha" min="0" max="1" step="0.1" value="0.5" style="width:45px;"></label>
-        </div>
-      </div>
       <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
         <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
         <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
