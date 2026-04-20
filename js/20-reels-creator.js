@@ -72,6 +72,7 @@ let reelScenes = null;
 let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
+let reelBgmBlobUrl = null;
 let reelWavesurfer = null;
 let reelRegion = null;
 let reelPlaying = false;
@@ -456,6 +457,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
   if (reelGenerateStatus) reelGenerateStatus.textContent = '';
   showPageLoader('Loading video...');
   try {
+    if (reelVideoSrc) URL.revokeObjectURL(reelVideoSrc);
     const blobUrl = URL.createObjectURL(file);
     reelPreviewVideo.src = blobUrl;
     reelVideoSrc = blobUrl;
@@ -716,7 +718,7 @@ function renderReelJobCards() {
     const statusBadge = job.status === 'done' ? '<span style="color:#10b981;">✓ Done</span>'
       : job.status === 'transcribing' ? '<span style="color:#f59e0b;">⏳ Transcribing</span>'
       : job.status === 'generating-images' ? '<span style="color:#f59e0b;">⏳ Generating images</span>'
-      : job.status === 'error' ? `<span style="color:#ef4444;">✗ ${job.error || 'Error'}</span>`
+      : job.status === 'error' ? `<span style="color:#ef4444;">✗ ${sanitize(job.error || 'Error')}</span>`
       : '<span style="color:var(--text-muted);">○ Pending</span>';
     const varHtml = varJobs.map(vj => `
       <div class="reel-var-card" style="display:flex;align-items:center;gap:6px;margin-top:4px;padding:4px 8px;background:var(--bg-input);border-radius:4px;font-size:0.72rem;" data-vid="${vj.id}">
@@ -4260,10 +4262,11 @@ async function autoPickBgm() {
 
     // Create Blob URL for the waveform player
     const blob = new Blob([bufCopy], { type: 'audio/mp3' });
-    const blobUrl = URL.createObjectURL(blob);
+    if (reelBgmBlobUrl) URL.revokeObjectURL(reelBgmBlobUrl);
+    reelBgmBlobUrl = URL.createObjectURL(blob);
     if (bgmStatus) bgmStatus.style.display = 'none';
     if (bgmPlayer) bgmPlayer.style.display = '';
-    initReelBgmWaveform(blobUrl);
+    initReelBgmWaveform(reelBgmBlobUrl);
     reelBgmAiBuffer = reelBgmBuffer; // save for "AI Generated" option
     // Select "AI Generated" in all preview music dropdowns
     document.querySelectorAll('.rc-bgm').forEach(sel => {
@@ -5158,6 +5161,7 @@ async function loadReelProject(project) {
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'video/mp4' });
+      if (reelVideoSrc) URL.revokeObjectURL(reelVideoSrc);
       const blobUrl = URL.createObjectURL(blob);
       reelVideoSrc = blobUrl;
       if (!reelVideoEl) {
@@ -5229,7 +5233,7 @@ async function loadReelProject(project) {
       try {
         const wavBlob = audioBufferToWavBlob(reelBgmBuffer);
         initReelBgmWaveform(URL.createObjectURL(wavBlob));
-      } catch(e) {}
+      } catch(e) { console.warn('[BGM] waveform init error:', e); }
     } catch(e) { console.warn('[Project] Could not restore BGM:', e); }
   }
   // Sync to editor globals

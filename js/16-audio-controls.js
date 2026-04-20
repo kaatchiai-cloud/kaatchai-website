@@ -367,7 +367,7 @@
         const tag = document.createElement('span');
         tag.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-size:0.68rem; margin-right:4px; cursor:pointer;';
         if (selectedPipId === pip.id) tag.style.borderColor = 'var(--accent)';
-        tag.innerHTML = `${pip.name || 'PiP'} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
+        tag.innerHTML = `${sanitize(pip.name || 'PiP')} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
         tag.addEventListener('click', (e) => {
           if (e.target.dataset.pipDel) {
             pipItems = pipItems.filter(p => p.id !== pip.id);

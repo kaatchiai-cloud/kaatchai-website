@@ -151,7 +151,7 @@ function createGalleryCard(p) {
   card.innerHTML = `
     ${thumbSrc ? `<img class="gallery-card-thumb" src="${thumbSrc}" alt="">` : `<div class="gallery-card-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem;">🎬</div>`}
     <div class="gallery-card-info">
-      <div class="gallery-card-name">${p.name}</div>
+      <div class="gallery-card-name">${sanitize(p.name)}</div>
       <div class="gallery-card-meta">${epLabel}${durStr} · ${p.photoCount || 0} photos · ${dateStr}</div>
     </div>
     <button class="gallery-card-delete" title="Delete">✕</button>
@@ -227,7 +227,7 @@ async function loadGalleryCards() {
       const header = document.createElement('div');
       header.className = 'series-header';
       header.innerHTML = `
-        <span class="series-title">${name}</span>
+        <span class="series-title">${sanitize(name)}</span>
         <span class="series-ep-count">${episodes.length} episode${episodes.length > 1 ? 's' : ''}</span>
         <button class="series-new-episode">+ New Episode</button>
       `;
@@ -679,11 +679,21 @@ btnLoadProject.addEventListener('click', () => projectInput.click());
 const btnLoadProjectHome = $('btn-load-project-home');
 if (btnLoadProjectHome) btnLoadProjectHome.addEventListener('click', (e) => { e.stopPropagation(); projectInput.click(); });
 
+function clearProjectBlobs() {
+  (videoTimelineItems || []).forEach(item => { if (item.videoSrc) URL.revokeObjectURL(item.videoSrc); });
+  (pipItems || []).forEach(item => { if (item.videoSrc) URL.revokeObjectURL(item.videoSrc); });
+  (createScenes || []).forEach(s => {
+    if (s.videoUrl) URL.revokeObjectURL(s.videoUrl);
+    (s.videoClips || []).forEach(c => { if (c.url) URL.revokeObjectURL(c.url); });
+  });
+}
+
 projectInput.addEventListener('change', async () => {
   const file = projectInput.files[0];
   if (!file) return;
   projectInput.value = '';
 
+  clearProjectBlobs();
   showPageLoader('Loading project...');
   setStatus('Loading project...', true);
   try {

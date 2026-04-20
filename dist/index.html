@@ -4459,6 +4459,16 @@ let createVideoMode = 'illustrated'; // 'illustrated' | 'animated'
 let reelVideoMode   = 'illustrated'; // 'illustrated' | 'animated'
 let klingProvider   = 'runware';     // 'runware' | 'official'
 
+// ── Production: silence debug logs outside localhost ──
+if (location.hostname !== 'localhost' && !location.search.includes('debug=1')) {
+  console.log = () => {};
+}
+
+// ── HTML sanitizer for user-provided strings in innerHTML ──
+function sanitize(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Plan (single tier — stubs kept for compatibility) ──
 function isPro() { return true; }
 function isFree() { return false; }
@@ -4766,7 +4776,7 @@ function createGalleryCard(p) {
   card.innerHTML = `
     ${thumbSrc ? `<img class="gallery-card-thumb" src="${thumbSrc}" alt="">` : `<div class="gallery-card-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:1.5rem;">🎬</div>`}
     <div class="gallery-card-info">
-      <div class="gallery-card-name">${p.name}</div>
+      <div class="gallery-card-name">${sanitize(p.name)}</div>
       <div class="gallery-card-meta">${epLabel}${durStr} · ${p.photoCount || 0} photos · ${dateStr}</div>
     </div>
     <button class="gallery-card-delete" title="Delete">✕</button>
@@ -4842,7 +4852,7 @@ async function loadGalleryCards() {
       const header = document.createElement('div');
       header.className = 'series-header';
       header.innerHTML = `
-        <span class="series-title">${name}</span>
+        <span class="series-title">${sanitize(name)}</span>
         <span class="series-ep-count">${episodes.length} episode${episodes.length > 1 ? 's' : ''}</span>
         <button class="series-new-episode">+ New Episode</button>
       `;
@@ -5294,11 +5304,21 @@ btnLoadProject.addEventListener('click', () => projectInput.click());
 const btnLoadProjectHome = $('btn-load-project-home');
 if (btnLoadProjectHome) btnLoadProjectHome.addEventListener('click', (e) => { e.stopPropagation(); projectInput.click(); });
 
+function clearProjectBlobs() {
+  (videoTimelineItems || []).forEach(item => { if (item.videoSrc) URL.revokeObjectURL(item.videoSrc); });
+  (pipItems || []).forEach(item => { if (item.videoSrc) URL.revokeObjectURL(item.videoSrc); });
+  (createScenes || []).forEach(s => {
+    if (s.videoUrl) URL.revokeObjectURL(s.videoUrl);
+    (s.videoClips || []).forEach(c => { if (c.url) URL.revokeObjectURL(c.url); });
+  });
+}
+
 projectInput.addEventListener('change', async () => {
   const file = projectInput.files[0];
   if (!file) return;
   projectInput.value = '';
 
+  clearProjectBlobs();
   showPageLoader('Loading project...');
   setStatus('Loading project...', true);
   try {
@@ -10480,7 +10500,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         const tag = document.createElement('span');
         tag.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; font-size:0.68rem; margin-right:4px; cursor:pointer;';
         if (selectedPipId === pip.id) tag.style.borderColor = 'var(--accent)';
-        tag.innerHTML = `${pip.name || 'PiP'} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
+        tag.innerHTML = `${sanitize(pip.name || 'PiP')} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
         tag.addEventListener('click', (e) => {
           if (e.target.dataset.pipDel) {
             pipItems = pipItems.filter(p => p.id !== pip.id);
@@ -13365,7 +13385,7 @@ function renderChapterCards() {
     card.innerHTML = `
       <div class="chapter-card-header">
         <span class="chapter-card-num">${i + 1}</span>
-        <input type="text" class="chapter-card-title" value="${ch.title}" data-idx="${i}">
+        <input type="text" class="chapter-card-title" value="${sanitize(ch.title)}" data-idx="${i}">
         <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.duration)}</span>
         <button class="chapter-delete" data-idx="${i}" title="Delete chapter">✕</button>
       </div>
@@ -13625,7 +13645,7 @@ function renderStoryboard() {
       const needsRegen = currentSceneCount !== ch.splits;
       header.innerHTML = `
         <span class="storyboard-chapter-toggle">▼</span>
-        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span class="storyboard-chapter-title">${sanitize(ch.title)}</span>
         <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.startTime)}-${fmtShort(ch.endTime)}</span>
         <div class="chapter-splits-control">
           <button class="chapter-splits-btn" data-ch="${ch.id}" data-dir="-1">−</button>
@@ -13775,7 +13795,7 @@ function renderSceneCard(scene, idx, ratio) {
       </div>
       <div class="scene-body">
         <div class="scene-time">🕐 ${fmt(scene.startTime)} – ${fmt(scene.endTime)}</div>
-        <div class="scene-text">"${scene.text}"</div>
+        <div class="scene-text">"${sanitize(scene.text)}"</div>
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
         <div class="scene-actions">
           <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
@@ -13894,7 +13914,7 @@ function renderCreateSceneCards() {
       header.className = 'storyboard-chapter-header';
       header.innerHTML = `
         <span class="storyboard-chapter-toggle">▼</span>
-        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span class="storyboard-chapter-title">${sanitize(ch.title)}</span>
         <span class="storyboard-chapter-count">${doneCount}/${chScenes.length} images</span>
         <button class="btn-gen-chapter primary" data-ch="${ch.id}" style="font-size:0.68rem; padding:3px 10px;">Generate Chapter</button>
       `;
@@ -14393,7 +14413,11 @@ function launchBgmAgent() {
     bgmStep.style.display = '';
     bgmStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
+  runCreateBgm().catch(e => {
+    console.warn('[BGM] runCreateBgm error:', e);
+    const st = $('create-bgm-status');
+    if (st) { st.textContent = 'BGM generation failed.'; st.style.color = 'var(--error, #ef4444)'; }
+  });
 }
 
 // Download button for Create Story BGM
@@ -16195,6 +16219,7 @@ let reelScenes = null;
 let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
+let reelBgmBlobUrl = null;
 let reelWavesurfer = null;
 let reelRegion = null;
 let reelPlaying = false;
@@ -16579,6 +16604,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
   if (reelGenerateStatus) reelGenerateStatus.textContent = '';
   showPageLoader('Loading video...');
   try {
+    if (reelVideoSrc) URL.revokeObjectURL(reelVideoSrc);
     const blobUrl = URL.createObjectURL(file);
     reelPreviewVideo.src = blobUrl;
     reelVideoSrc = blobUrl;
@@ -16839,7 +16865,7 @@ function renderReelJobCards() {
     const statusBadge = job.status === 'done' ? '<span style="color:#10b981;">✓ Done</span>'
       : job.status === 'transcribing' ? '<span style="color:#f59e0b;">⏳ Transcribing</span>'
       : job.status === 'generating-images' ? '<span style="color:#f59e0b;">⏳ Generating images</span>'
-      : job.status === 'error' ? `<span style="color:#ef4444;">✗ ${job.error || 'Error'}</span>`
+      : job.status === 'error' ? `<span style="color:#ef4444;">✗ ${sanitize(job.error || 'Error')}</span>`
       : '<span style="color:var(--text-muted);">○ Pending</span>';
     const varHtml = varJobs.map(vj => `
       <div class="reel-var-card" style="display:flex;align-items:center;gap:6px;margin-top:4px;padding:4px 8px;background:var(--bg-input);border-radius:4px;font-size:0.72rem;" data-vid="${vj.id}">
@@ -20383,10 +20409,11 @@ async function autoPickBgm() {
 
     // Create Blob URL for the waveform player
     const blob = new Blob([bufCopy], { type: 'audio/mp3' });
-    const blobUrl = URL.createObjectURL(blob);
+    if (reelBgmBlobUrl) URL.revokeObjectURL(reelBgmBlobUrl);
+    reelBgmBlobUrl = URL.createObjectURL(blob);
     if (bgmStatus) bgmStatus.style.display = 'none';
     if (bgmPlayer) bgmPlayer.style.display = '';
-    initReelBgmWaveform(blobUrl);
+    initReelBgmWaveform(reelBgmBlobUrl);
     reelBgmAiBuffer = reelBgmBuffer; // save for "AI Generated" option
     // Select "AI Generated" in all preview music dropdowns
     document.querySelectorAll('.rc-bgm').forEach(sel => {
@@ -21281,6 +21308,7 @@ async function loadReelProject(project) {
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'video/mp4' });
+      if (reelVideoSrc) URL.revokeObjectURL(reelVideoSrc);
       const blobUrl = URL.createObjectURL(blob);
       reelVideoSrc = blobUrl;
       if (!reelVideoEl) {
@@ -21352,7 +21380,7 @@ async function loadReelProject(project) {
       try {
         const wavBlob = audioBufferToWavBlob(reelBgmBuffer);
         initReelBgmWaveform(URL.createObjectURL(wavBlob));
-      } catch(e) {}
+      } catch(e) { console.warn('[BGM] waveform init error:', e); }
     } catch(e) { console.warn('[Project] Could not restore BGM:', e); }
   }
   // Sync to editor globals

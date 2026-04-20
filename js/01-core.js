@@ -161,6 +161,16 @@ let createVideoMode = 'illustrated'; // 'illustrated' | 'animated'
 let reelVideoMode   = 'illustrated'; // 'illustrated' | 'animated'
 let klingProvider   = 'runware';     // 'runware' | 'official'
 
+// ── Production: silence debug logs outside localhost ──
+if (location.hostname !== 'localhost' && !location.search.includes('debug=1')) {
+  console.log = () => {};
+}
+
+// ── HTML sanitizer for user-provided strings in innerHTML ──
+function sanitize(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Plan (single tier — stubs kept for compatibility) ──
 function isPro() { return true; }
 function isFree() { return false; }

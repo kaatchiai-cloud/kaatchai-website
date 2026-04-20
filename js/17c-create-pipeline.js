@@ -1525,7 +1525,7 @@ function renderChapterCards() {
     card.innerHTML = `
       <div class="chapter-card-header">
         <span class="chapter-card-num">${i + 1}</span>
-        <input type="text" class="chapter-card-title" value="${ch.title}" data-idx="${i}">
+        <input type="text" class="chapter-card-title" value="${sanitize(ch.title)}" data-idx="${i}">
         <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.duration)}</span>
         <button class="chapter-delete" data-idx="${i}" title="Delete chapter">✕</button>
       </div>
@@ -1785,7 +1785,7 @@ function renderStoryboard() {
       const needsRegen = currentSceneCount !== ch.splits;
       header.innerHTML = `
         <span class="storyboard-chapter-toggle">▼</span>
-        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span class="storyboard-chapter-title">${sanitize(ch.title)}</span>
         <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${fmtShort(ch.startTime)}-${fmtShort(ch.endTime)}</span>
         <div class="chapter-splits-control">
           <button class="chapter-splits-btn" data-ch="${ch.id}" data-dir="-1">−</button>
@@ -1935,7 +1935,7 @@ function renderSceneCard(scene, idx, ratio) {
       </div>
       <div class="scene-body">
         <div class="scene-time">🕐 ${fmt(scene.startTime)} – ${fmt(scene.endTime)}</div>
-        <div class="scene-text">"${scene.text}"</div>
+        <div class="scene-text">"${sanitize(scene.text)}"</div>
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
         <div class="scene-actions">
           <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
@@ -2054,7 +2054,7 @@ function renderCreateSceneCards() {
       header.className = 'storyboard-chapter-header';
       header.innerHTML = `
         <span class="storyboard-chapter-toggle">▼</span>
-        <span class="storyboard-chapter-title">${ch.title}</span>
+        <span class="storyboard-chapter-title">${sanitize(ch.title)}</span>
         <span class="storyboard-chapter-count">${doneCount}/${chScenes.length} images</span>
         <button class="btn-gen-chapter primary" data-ch="${ch.id}" style="font-size:0.68rem; padding:3px 10px;">Generate Chapter</button>
       `;
@@ -2553,7 +2553,11 @@ function launchBgmAgent() {
     bgmStep.style.display = '';
     bgmStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  runCreateBgm().catch(e => console.warn('[BGM] runCreateBgm error:', e));
+  runCreateBgm().catch(e => {
+    console.warn('[BGM] runCreateBgm error:', e);
+    const st = $('create-bgm-status');
+    if (st) { st.textContent = 'BGM generation failed.'; st.style.color = 'var(--error, #ef4444)'; }
+  });
 }
 
 // Download button for Create Story BGM
