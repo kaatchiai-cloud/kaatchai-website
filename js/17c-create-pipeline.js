@@ -27,6 +27,10 @@ createStylePromptEl.addEventListener('input', () => {
 // BGM state
 let createBgmUrl = null;
 
+// Output language state (set at agent launch from Input step dropdowns)
+let createOutputLanguage = '';
+let createSubtitleLanguage = '';
+
 // Audio Editor state
 let createWavesurfer = null;
 let createRegionsPlugin = null;
@@ -290,65 +294,6 @@ const createVoiceSection = $('create-voice-section');
 const createVideoSection = $('create-video-section');
 const createTextSection = $('create-text-section');
 const createTtsText = $('create-tts-text');
-const createTtsProvider = $('create-tts-provider');
-const createTtsVoice = $('create-tts-voice');
-const createGcloudKeyRow = $('create-gcloud-key-row');
-const createGcloudTtsKey = $('create-gcloud-tts-key');
-const btnCreateGenerateTts = $('btn-create-generate-tts');
-const createTtsStatus = $('create-tts-status');
-
-const GEMINI_TTS_VOICES = [
-  { value: 'Kore', label: 'Kore (Female)' },
-  { value: 'Charon', label: 'Charon (Male)' },
-  { value: 'Fenrir', label: 'Fenrir (Male)' },
-  { value: 'Aoede', label: 'Aoede (Female)' },
-  { value: 'Puck', label: 'Puck (Male)' },
-  { value: 'Leda', label: 'Leda (Female)' },
-  { value: 'Orus', label: 'Orus (Male)' },
-  { value: 'Zephyr', label: 'Zephyr (Female)' },
-];
-
-const GCLOUD_TTS_VOICES = [
-  { value: 'ta-IN-Standard-A', label: 'Tamil - Standard A (Female)' },
-  { value: 'ta-IN-Standard-B', label: 'Tamil - Standard B (Male)' },
-  { value: 'ta-IN-Standard-C', label: 'Tamil - Standard C (Female)' },
-  { value: 'ta-IN-Standard-D', label: 'Tamil - Standard D (Male)' },
-  { value: 'ta-IN-Wavenet-A', label: 'Tamil - Wavenet A (Female)' },
-  { value: 'ta-IN-Wavenet-B', label: 'Tamil - Wavenet B (Male)' },
-  { value: 'ta-IN-Wavenet-C', label: 'Tamil - Wavenet C (Female)' },
-  { value: 'ta-IN-Wavenet-D', label: 'Tamil - Wavenet D (Male)' },
-  { value: 'en-US-Casual-K', label: 'English US - Casual K (Male)' },
-  { value: 'en-US-Standard-C', label: 'English US - Standard C (Female)' },
-  { value: 'en-US-Standard-D', label: 'English US - Standard D (Male)' },
-  { value: 'en-US-Wavenet-D', label: 'English US - Wavenet D (Male)' },
-  { value: 'en-US-Wavenet-F', label: 'English US - Wavenet F (Female)' },
-];
-
-function populateVoiceDropdown() {
-  createTtsVoice.innerHTML = '';
-  const voices = createTtsProvider.value === 'gemini' ? GEMINI_TTS_VOICES : GCLOUD_TTS_VOICES;
-  voices.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.value; opt.textContent = v.label;
-    createTtsVoice.appendChild(opt);
-  });
-}
-populateVoiceDropdown();
-
-createTtsProvider.addEventListener('change', () => {
-  populateVoiceDropdown();
-  createGcloudKeyRow.style.display = createTtsProvider.value === 'gcloud' ? '' : 'none';
-  // Restore saved gcloud key
-  if (createTtsProvider.value === 'gcloud') {
-    createGcloudTtsKey.value = localStorage.getItem('stori_gcloud_tts_key') || '';
-  }
-});
-
-// Save gcloud key on blur
-createGcloudTtsKey.addEventListener('blur', () => {
-  const k = createGcloudTtsKey.value.trim();
-  if (k) localStorage.setItem('stori_gcloud_tts_key', k);
-});
 
 function setCreateInputMode(mode) {
   createInputMode = mode === 'video' ? 'podcast' : mode; // video tab = podcast mode
@@ -358,6 +303,16 @@ function setCreateInputMode(mode) {
   createVoiceSection.classList.toggle('hidden', mode !== 'voice');
   createVideoSection.classList.toggle('hidden', mode !== 'video');
   createTextSection.classList.toggle('hidden', mode !== 'text');
+  // Language row: show for text mode or animated mode
+  const langRow = $('create-language-selection-row');
+  if (langRow) langRow.style.display = (mode === 'text' || createVideoMode === 'animated') ? '' : 'none';
+  // Reset language selections when leaving text mode (unless animated keeps them)
+  if (mode !== 'text' && createVideoMode !== 'animated') {
+    if ($('create-output-language')) $('create-output-language').value = '';
+    if ($('create-subtitle-language')) $('create-subtitle-language').value = '';
+    if (typeof createOutputLanguage !== 'undefined') createOutputLanguage = '';
+    if (typeof createSubtitleLanguage !== 'undefined') createSubtitleLanguage = '';
+  }
   updateCreateButtons();
   updateStepStates();
   // Auto-filter templates: podcast tab → show podcast category, others → show all
@@ -483,55 +438,6 @@ async function decodeBase64Audio(base64, mimeType) {
   return { audioBuffer, blob };
 }
 
-btnCreateGenerateTts.addEventListener('click', async () => {
-  const text = createTtsText.value.trim();
-  if (!text) { createTtsStatus.textContent = 'Please enter some text'; return; }
-
-  const provider = createTtsProvider.value;
-  const voiceName = createTtsVoice.value;
-  let apiKey;
-
-  if (provider === 'gemini') {
-    apiKey = getCreateGeminiKey();
-    if (!apiKey) { createTtsStatus.textContent = 'Enter your Gemini API key in Step 1 first'; return; }
-  } else {
-    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('stori_gcloud_tts_key');
-    if (!apiKey) { createTtsStatus.textContent = 'Enter your Google Cloud TTS API key'; return; }
-  }
-
-  btnCreateGenerateTts.disabled = true;
-  btnCreateGenerateTts.innerHTML = '<span class="spinner"></span> Generating...';
-  createTtsStatus.textContent = '';
-
-  try {
-    let result;
-    if (provider === 'gemini') {
-      result = await generateTTSGemini(text, voiceName, apiKey);
-    } else {
-      result = await generateTTSGCloud(text, voiceName, apiKey);
-    }
-
-    const { audioBuffer, blob } = await decodeBase64Audio(result.base64, result.mimeType);
-    createAudioBuffer = audioBuffer;
-    createOriginalBuffer = audioBuffer;
-
-    trackCost('tts', 1);
-    createTtsStatus.textContent = `Audio generated (${audioBuffer.duration.toFixed(1)}s)`;
-    btnCreateGenerateTts.textContent = '🔊 Regenerate Audio';
-    updateCreateButtons();
-    updateStepStates();
-    await showCreateAudioEditor();
-  } catch (e) {
-    createTtsStatus.textContent = 'Audio generation failed. ' + friendlyApiError(e.message);
-    createTtsStatus.style.color = '#ef4444';
-    console.error('TTS error:', e);
-  } finally {
-    btnCreateGenerateTts.disabled = false;
-    if (!btnCreateGenerateTts.innerHTML.includes('Regenerate')) {
-      btnCreateGenerateTts.textContent = '🔊 Generate Audio';
-    }
-  }
-});
 
 // ══════════════════════════════════════════
 //  AUDIO EDITOR (WaveSurfer in Step 2)
@@ -928,11 +834,11 @@ function updateStepStates() {
   const bgmState = _createAgentState && _createAgentState['bgm']?.status;
   const hasBgm = bgmState === 'done' || bgmState === 'error';
 
-  // Step 8: Multi-Language — after BGM done
-  showStep('create-language-step', hasBgm);
-  if (hasBgm && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
-  // Voiceover: default to done when visible and nothing is generating
-  if (hasBgm) {
+  // Step 8: Multi-Language — illustrated only (animated uses upfront language selection)
+  showStep('create-language-step', hasBgm && createVideoMode !== 'animated');
+  if (hasBgm && createVideoMode !== 'animated' && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Voiceover: default to done when visible and nothing is generating (illustrated only)
+  if (hasBgm && createVideoMode !== 'animated') {
     const voState = _createAgentState && _createAgentState['voiceover'];
     const isGenerating = typeof langGenerating !== 'undefined' && langGenerating;
     if (!isGenerating && (!voState || voState.status === 'waiting')) {
@@ -997,13 +903,20 @@ function restoreAutoSaveIfAvailable() {
 // Transcribe
 btnCreateTranscribe.addEventListener('click', async () => {
   const key = getCreateGeminiKey();
-  if (!key || !createAudioBuffer) return;
+  if (!key) return;
+  if (createInputMode !== 'text' && !createAudioBuffer) return;
+
+  // Capture language selections at launch time
+  createOutputLanguage = $('create-output-language')?.value || '';
+  createSubtitleLanguage = $('create-subtitle-language')?.value || '';
 
   btnCreateTranscribe.disabled = true;
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
   // Pre-register all expected subtasks so "all done" check doesn't fire prematurely
   if (createInputMode === 'text') {
+    updateCreateAgentTask('storyboard', 'translate', 'pending', 'Translating to English…');
+    updateCreateAgentTask('storyboard', 'tts', 'pending', 'Generating audio…');
     updateCreateAgentTask('storyboard', 'segment', 'pending', 'Segmenting text…');
     updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
   } else {
@@ -1011,45 +924,71 @@ btnCreateTranscribe.addEventListener('click', async () => {
     updateCreateAgentTask('storyboard', 'transcribe', 'pending', 'Transcribing…');
     updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
   }
+  // Translate/TTS/subtitles tasks for animated audio/podcast mode
+  if (createVideoMode === 'animated' && createInputMode !== 'text') {
+    if (createOutputLanguage && createOutputLanguage !== 'original') {
+      updateCreateAgentTask('storyboard', 'translate', 'pending', 'Translating…');
+      updateCreateAgentTask('storyboard', 'tts', 'pending', 'Generating speech…');
+    }
+    if (createSubtitleLanguage) {
+      updateCreateAgentTask('storyboard', 'subtitles', 'pending', 'Generating subtitles…');
+    }
+  }
 
   try {
     let segments;
 
     if (createInputMode === 'text') {
-      // ── Text mode: segment text + generate scene descriptions ──
-      updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
-      const inputText = createTtsText.value.trim();
+      // ── Text mode: translate → TTS → segment → scene descriptions ──
+      const inputText = $('create-tts-text')?.value?.trim();
       if (!inputText) throw new Error('No text entered');
 
-      segments = segmentTextForStoryboard(inputText, createAudioBuffer.duration);
+      // Step 1: Translate to English (Gemini handles detection + translation)
+      updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
+      const translateResp = await callGeminiAPI(['gemini-2.5-flash'], {
+        contents: [{ parts: [{ text: `If the following text is not in English, translate it to English. If it is already in English, return it exactly as-is. Return only the text, no explanations.\n\n${inputText}` }] }]
+      }, key);
+      const englishText = translateResp.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || inputText;
+      updateCreateAgentTask('storyboard', 'translate', 'done', 'Text ready');
+
+      // Step 2: Translate English → output language, then TTS
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Preparing audio…');
+      const outputLangEl = $('create-output-language');
+      const outputLangCode = createOutputLanguage;
+      const outputLangName = outputLangEl?.options[outputLangEl?.selectedIndex]?.text?.replace(/^[^\w]+/, '').trim() || outputLangCode;
+      let ttsText = englishText;
+      if (outputLangCode && outputLangCode !== 'en') {
+        updateCreateAgentTask('storyboard', 'tts', 'running', 'Translating…');
+        const outTransResp = await callGeminiAPI(['gemini-2.5-flash'], {
+          contents: [{ parts: [{ text: `Translate the following text to ${outputLangName}. Return only the translated text, no explanations.\n\n${englishText}` }] }]
+        }, key);
+        ttsText = outTransResp.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || englishText;
+      }
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Generating audio…');
+      const ttsResult = await generateTTSGemini(ttsText, 'Kore', key);
+      const { audioBuffer: ttsAudioBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      createAudioBuffer = ttsAudioBuf;
+      createOriginalBuffer = ttsAudioBuf;
+      trackCost('tts', 1);
+      updateCreateAgentTask('storyboard', 'tts', 'done', `${fmtShort(ttsAudioBuf.duration)} audio ready`);
+
+      // Step 3: Segment English text using real TTS duration
+      updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
+      segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
 
-      // Call Gemini to generate scene descriptions for each segment
+      // Step 4: Generate scene descriptions from English segments
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
-            }]
-          })
-        }
-      );
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API error ${resp.status}`);
-      }
+      const resp = await callGeminiAPI(['gemini-2.5-flash'], {
+        contents: [{
+          parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+        }]
+      }, key);
 
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Processing scene descriptions…');
-
-      const data = await resp.json();
-      const respText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const respText = resp.candidates?.[0]?.content?.parts?.[0]?.text;
       if (respText) {
         try {
           const descriptions = parseGeminiJson(respText);
@@ -1063,7 +1002,6 @@ btnCreateTranscribe.addEventListener('click', async () => {
           console.warn('Could not parse scene descriptions, using defaults:', e);
         }
       }
-      // Fill any empty descriptions
       segments.forEach(s => {
         if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`;
       });
@@ -1190,6 +1128,67 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       segments = fixed;
     }
 
+    // ── Translation + TTS fork (animated mode only, when output language differs from source) ──
+    if (createVideoMode === 'animated' && createOutputLanguage && createOutputLanguage !== 'original') {
+      const targetLangName = SUPPORTED_LANGUAGES.find(l => l.code === createOutputLanguage)?.name || createOutputLanguage;
+
+      // Step A: Translate all segment texts in one Gemini call (auto-detects source language)
+      updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
+      const segTextsForTranslation = segments.map((s, i) => `${i}: ${s.text}`).join('\n');
+      const transResp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Translate these numbered text segments to ${targetLangName}. Preserve the numbering. Return ONLY a valid JSON array:\n[{"index":0,"text":"translated text"}]\n\n${segTextsForTranslation}` }] }]
+          })
+        }
+      );
+      if (!transResp.ok) throw new Error(`Translation error ${transResp.status}`);
+      const transData = await transResp.json();
+      const transRaw = transData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const translations = transRaw ? parseGeminiJson(transRaw) : [];
+      if (Array.isArray(translations)) {
+        translations.forEach(t => { if (segments[t.index] !== undefined) segments[t.index].translatedText = t.text; });
+      }
+      segments.forEach(s => { if (!s.translatedText) s.translatedText = s.text; });
+      updateCreateAgentTask('storyboard', 'translate', 'done', `${segments.length} segments translated`);
+
+      // Step B: Generate per-scene TTS using Gemini Flash TTS
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Generating speech…');
+      const ttsBuffers = [];
+      for (let i = 0; i < segments.length; i++) {
+        updateCreateAgentTask('storyboard', 'tts', 'running', `Speech ${i + 1}/${segments.length}…`);
+        const ttsResult = await generateTTSGemini(segments[i].translatedText, 'Kore', key);
+        const { audioBuffer: segBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+        ttsBuffers.push(segBuf);
+      }
+
+      // Step C: Rebuild segment timings from TTS durations
+      let ttsCursor = 0;
+      for (let i = 0; i < segments.length; i++) {
+        segments[i].startTime = ttsCursor;
+        segments[i].endTime = ttsCursor + ttsBuffers[i].duration;
+        segments[i].originalText = segments[i].text; // preserve source language text for subtitles
+        segments[i].text = segments[i].translatedText;
+        ttsCursor = segments[i].endTime;
+      }
+
+      // Step D: Concatenate TTS buffers → replace createAudioBuffer
+      const ttsSr = ttsBuffers[0].sampleRate;
+      const totalTtsFrames = ttsBuffers.reduce((s, b) => s + b.length, 0);
+      const combinedTts = ensureAudioCtx().createBuffer(1, totalTtsFrames, ttsSr);
+      let ttsOff = 0;
+      for (const buf of ttsBuffers) {
+        combinedTts.getChannelData(0).set(buf.getChannelData(0), ttsOff);
+        ttsOff += buf.length;
+      }
+      createAudioBuffer = combinedTts;
+      trackCost('tts', segments.length);
+      updateCreateAgentTask('storyboard', 'tts', 'done', `${fmtShort(combinedTts.duration)} audio ready`);
+    }
+
     // ── Common: save raw transcript ──
     trackCost('transcription', 1);
     createTranscript = segments;
@@ -1213,6 +1212,61 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         status: 'pending',
       }));
       renderStoryboard();
+
+      // ── Phase 4: Subtitle generation (animated mode only) ──
+      if (createVideoMode === 'animated' && createSubtitleLanguage) {
+        const subtitleLangName = createSubtitleLanguage === 'original'
+          ? 'source language'
+          : (SUPPORTED_LANGUAGES.find(l => l.code === createSubtitleLanguage)?.name || createSubtitleLanguage);
+        updateCreateAgentTask('storyboard', 'subtitles', 'running', `Generating ${subtitleLangName} subtitles…`);
+        try {
+          let subtitleItems;
+          if (createSubtitleLanguage === 'original') {
+            // Use original source text with current timings
+            subtitleItems = segments.map(s => ({
+              text: s.originalText || s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          } else if (createSubtitleLanguage === createOutputLanguage) {
+            // Same language as output audio — use translated/current segment text
+            subtitleItems = segments.map(s => ({
+              text: s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          } else {
+            // Different language — translate segments to subtitle language
+            const subTexts = segments.map((s, i) => `${i}: ${s.originalText || s.text}`).join('\n');
+            const subResp = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Translate these numbered text segments to ${subtitleLangName}. Return ONLY a valid JSON array:\n[{"index":0,"text":"translated text"}]\n\n${subTexts}` }] }]
+                })
+              }
+            );
+            if (!subResp.ok) throw new Error(`Subtitle translation error ${subResp.status}`);
+            const subData = await subResp.json();
+            const subRaw = subData.candidates?.[0]?.content?.parts?.[0]?.text;
+            const subTranslations = subRaw ? parseGeminiJson(subRaw) : [];
+            subtitleItems = segments.map((s, i) => ({
+              text: (Array.isArray(subTranslations) ? subTranslations.find(t => t.index === i)?.text : null) || s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          }
+          if (typeof createGeneratedSubtitles !== 'undefined') {
+            createGeneratedSubtitles.set('primary', subtitleItems);
+          }
+          updateCreateAgentTask('storyboard', 'subtitles', 'done', `${subtitleItems.length} subtitles ready`);
+        } catch (subErr) {
+          console.warn('[subtitles] generation error:', subErr);
+          updateCreateAgentTask('storyboard', 'subtitles', 'error', 'Subtitle generation failed');
+        }
+      }
     }
     btnCreateSaveEarly.style.display = '';
 
@@ -1236,7 +1290,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
     btnCreateTranscribe.textContent = createInputMode === 'text' ? '🔄 Retry Storyboard' : '🔄 Retry Transcription';
   } finally {
     updateCreateButtons();
-    if (getCreateGeminiKey() && createAudioBuffer) btnCreateTranscribe.disabled = false;
+    if (getCreateGeminiKey() && (createAudioBuffer || createInputMode === 'text')) btnCreateTranscribe.disabled = false;
   }
 });
 

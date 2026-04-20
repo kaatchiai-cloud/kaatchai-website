@@ -4,13 +4,30 @@
 
 // ── Multi-Language Voiceover ──
 const SUPPORTED_LANGUAGES = [
-  { code: 'ta', name: 'Tamil', flag: '🇮🇳', gcloudVoice: 'ta-IN-Standard-A', gcloudLang: 'ta-IN' },
-  { code: 'hi', name: 'Hindi', flag: '🇮🇳', gcloudVoice: 'hi-IN-Standard-A', gcloudLang: 'hi-IN' },
-  { code: 'te', name: 'Telugu', flag: '🇮🇳', gcloudVoice: 'te-IN-Standard-A', gcloudLang: 'te-IN' },
-  { code: 'ml', name: 'Malayalam', flag: '🇮🇳', gcloudVoice: 'ml-IN-Standard-A', gcloudLang: 'ml-IN' },
-  { code: 'en', name: 'English', flag: '🇺🇸', gcloudVoice: 'en-US-Standard-D', gcloudLang: 'en-US' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', gcloudVoice: 'es-ES-Standard-A', gcloudLang: 'es-ES' },
-  { code: 'fr', name: 'French', flag: '🇫🇷', gcloudVoice: 'fr-FR-Standard-A', gcloudLang: 'fr-FR' },
+  { code: 'ar', name: 'Arabic',              flag: '🇸🇦', gcloudVoice: null, gcloudLang: null },
+  { code: 'bn', name: 'Bengali',             flag: '🇧🇩', gcloudVoice: null, gcloudLang: null },
+  { code: 'zh', name: 'Chinese (Simplified)',flag: '🇨🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'nl', name: 'Dutch',               flag: '🇳🇱', gcloudVoice: null, gcloudLang: null },
+  { code: 'en', name: 'English',             flag: '🇺🇸', gcloudVoice: 'en-US-Standard-D', gcloudLang: 'en-US' },
+  { code: 'fr', name: 'French',              flag: '🇫🇷', gcloudVoice: 'fr-FR-Standard-A', gcloudLang: 'fr-FR' },
+  { code: 'de', name: 'German',              flag: '🇩🇪', gcloudVoice: null, gcloudLang: null },
+  { code: 'gu', name: 'Gujarati',            flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'hi', name: 'Hindi',               flag: '🇮🇳', gcloudVoice: 'hi-IN-Standard-A', gcloudLang: 'hi-IN' },
+  { code: 'id', name: 'Indonesian',          flag: '🇮🇩', gcloudVoice: null, gcloudLang: null },
+  { code: 'it', name: 'Italian',             flag: '🇮🇹', gcloudVoice: null, gcloudLang: null },
+  { code: 'ja', name: 'Japanese',            flag: '🇯🇵', gcloudVoice: null, gcloudLang: null },
+  { code: 'kn', name: 'Kannada',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'ko', name: 'Korean',              flag: '🇰🇷', gcloudVoice: null, gcloudLang: null },
+  { code: 'ml', name: 'Malayalam',           flag: '🇮🇳', gcloudVoice: 'ml-IN-Standard-A', gcloudLang: 'ml-IN' },
+  { code: 'mr', name: 'Marathi',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'pl', name: 'Polish',              flag: '🇵🇱', gcloudVoice: null, gcloudLang: null },
+  { code: 'pt', name: 'Portuguese',          flag: '🇧🇷', gcloudVoice: null, gcloudLang: null },
+  { code: 'pa', name: 'Punjabi',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'ro', name: 'Romanian',            flag: '🇷🇴', gcloudVoice: null, gcloudLang: null },
+  { code: 'es', name: 'Spanish',             flag: '🇪🇸', gcloudVoice: 'es-ES-Standard-A', gcloudLang: 'es-ES' },
+  { code: 'ta', name: 'Tamil',               flag: '🇮🇳', gcloudVoice: 'ta-IN-Standard-A', gcloudLang: 'ta-IN' },
+  { code: 'te', name: 'Telugu',              flag: '🇮🇳', gcloudVoice: 'te-IN-Standard-A', gcloudLang: 'te-IN' },
+  { code: 'tr', name: 'Turkish',             flag: '🇹🇷', gcloudVoice: null, gcloudLang: null },
 ];
 
 let languageTracks = []; // [{lang, langCode, audioBuffer, translatedText, status}]

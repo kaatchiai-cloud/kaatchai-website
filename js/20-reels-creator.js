@@ -25,16 +25,13 @@ function showReelEditorStep() {
 
 // Input mode
 const reelModeAudio = $('reel-mode-audio');
-const reelModeText = $('reel-mode-text');
 const reelModeVideo = $('reel-mode-video');
 const reelAudioSection = $('reel-audio-section');
-const reelTextSection = $('reel-text-section');
 const reelVideoSection = $('reel-video-section');
 const reelAudioInput = $('reel-audio-input');
 const reelAudioName = $('reel-audio-name');
 const reelVideoInput = $('reel-video-input');
 const reelVideoName = $('reel-video-name');
-const reelTextInput = $('reel-text-input');
 const btnReelImportAudio = $('btn-reel-import-audio');
 const btnReelImportVideo = $('btn-reel-import-video');
 
@@ -72,7 +69,7 @@ const btnReelBgm = $('btn-reel-bgm');
 // State
 let reelAudioBuffer = null;
 let reelScenes = null;
-let reelInputMode = 'audio'; // audio | text | video
+let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
 let reelWavesurfer = null;
@@ -244,18 +241,11 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
 function setReelInputMode(mode) {
   reelInputMode = mode;
   reelModeAudio.classList.toggle('active', mode === 'audio');
-  reelModeText.classList.toggle('active', mode === 'text');
   reelModeVideo.classList.toggle('active', mode === 'video');
   reelAudioSection.classList.toggle('hidden', mode !== 'audio');
-  reelTextSection.classList.toggle('hidden', mode !== 'text');
   reelVideoSection.classList.toggle('hidden', mode !== 'video');
-  // Video mode: show edit mode toggle, hide visual style (video has its own visuals)
   const editModeRow = $('reel-edit-mode-row');
   if (editModeRow) editModeRow.classList.toggle('hidden', mode !== 'video');
-  // Hide style + transition for video mode (not needed — video is the visual)
-  // Duration only relevant for text mode (audio/video have inherent duration)
-  const durLabel = $('reel-duration-label');
-  if (durLabel) durLabel.style.display = mode === 'text' ? '' : 'none';
   if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
   if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
   updateReelCostEstimate();
@@ -270,7 +260,6 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 });
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
-if (reelModeText) reelModeText.addEventListener('click', () => setReelInputMode('text'));
 // Apply initial mode visibility
 setReelInputMode(reelInputMode);
 
@@ -331,10 +320,6 @@ function renderReelTemplateGrid() {
   });
 }
 
-// Show presets when text is entered
-if (reelTextInput) reelTextInput.addEventListener('input', () => {
-  if (reelTextInput.value.trim().length > 10) showReelPresets();
-});
 if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
 
 // ── Audio Import + Editor ──
@@ -1123,38 +1108,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   }
 
 
-  // Get audio — from text input if text mode
-  if (reelInputMode === 'text') {
-    const text = reelTextInput.value.trim();
-    if (!text) { reelGenerateStatus.textContent = 'Enter some text.'; return; }
-    reelGenerateStatus.textContent = 'Generating audio from text...';
-    setStatus('Generating TTS...', true);
-    try {
-      const ttsModels = getTTSModels();
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text }] }],
-            generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-          })
-        }
-      );
-      if (!resp.ok) { const errText = await resp.text(); throw new Error(`TTS ${resp.status}: ${errText.slice(0, 300)}`); }
-      const data = await resp.json();
-      const part = data.candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) throw new Error('No audio returned — model may not support TTS');
-      const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
-      reelAudioBuffer = decoded.audioBuffer;
-      trackCost('tts', 1);
-    } catch(e) {
-      console.error('[ReelGen] TTS error:', e.message, e);
-      reelGenerateStatus.textContent = 'TTS error: ' + e.message;
-      setStatus('TTS failed');
-      return;
-    }
-  }
-
-  if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio or enter text first.'; return; }
+  if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio first.'; return; }
 
   // Trim audio to selected duration if longer
   const maxDur = reelDuration;
@@ -4107,7 +4061,6 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       subAllCaps: reelSubAllCaps,
       subAccent: reelSubAccent,
       inputMode: reelInputMode,
-      inputText: reelTextInput ? reelTextInput.value : '',
       segments: reelSegments,
       jobs: reelJobs.map(j => ({
         id: j.id, type: j.type, parentId: j.parentId, status: j.status,
@@ -5161,8 +5114,7 @@ async function loadReelProject(project) {
   reelSubFont = project.subFont || 'Poppins';
   reelSubAllCaps = project.subAllCaps ?? false;
   reelSubAccent = project.subAccent || '#7c3aed';
-  if (project.inputMode) reelInputMode = project.inputMode;
-  if (reelTextInput && project.inputText) reelTextInput.value = project.inputText;
+  if (project.inputMode && project.inputMode !== 'text') reelInputMode = project.inputMode;
   if (project.segments) reelSegments = project.segments;
   reelJobs = [];
 

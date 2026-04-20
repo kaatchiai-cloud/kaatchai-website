@@ -521,6 +521,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
       createState: createScenes ? {
         transcript: createTranscript,
         videoMode: createVideoMode || 'illustrated',
+        inputMode: (typeof createInputMode !== 'undefined') ? createInputMode : 'voice',
         scenes: await Promise.all(createScenes.map(async s => {
           const base = { prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
           const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
@@ -558,6 +559,8 @@ async function saveProjectToFile(audioBuf, statusFn) {
         subtitleSelections: (typeof createSubtitleSelections !== 'undefined')
           ? { ...createSubtitleSelections }
           : undefined,
+        outputLanguage: (typeof createOutputLanguage !== 'undefined') ? createOutputLanguage : '',
+        subtitleLanguage: (typeof createSubtitleLanguage !== 'undefined') ? createSubtitleLanguage : '',
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -920,6 +923,9 @@ projectInput.addEventListener('change', async () => {
     if (project.createState) {
       createTranscript = project.createState.transcript;
       createVideoMode = project.createState.videoMode || 'illustrated';
+      if (project.createState.inputMode && typeof setCreateInputMode === 'function') {
+        setCreateInputMode(project.createState.inputMode);
+      }
       // Restore scenes, decoding per-scene videoData → blob URL
       createScenes = await Promise.all((project.createState.scenes || []).map(async s => {
         const scene = { ...s };
@@ -992,6 +998,17 @@ projectInput.addEventListener('change', async () => {
       if (project.createState.subtitleSelections && typeof createSubtitleSelections !== 'undefined') {
         Object.assign(createSubtitleSelections, project.createState.subtitleSelections);
       }
+      // Restore output/subtitle language selections
+      if (typeof createOutputLanguage !== 'undefined') {
+        createOutputLanguage = project.createState.outputLanguage || '';
+        createSubtitleLanguage = project.createState.subtitleLanguage || '';
+        const outEl = $('create-output-language');
+        const subEl = $('create-subtitle-language');
+        if (outEl) outEl.value = createOutputLanguage;
+        if (subEl) subEl.value = createSubtitleLanguage;
+      }
+      // Apply video mode UI now that language dropdowns are already populated
+      if (typeof setCreateVideoMode === 'function') setCreateVideoMode(createVideoMode);
       // Render animated video cards if applicable
       if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {
         const videoStep = $('create-video-step');

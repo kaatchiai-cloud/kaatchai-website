@@ -291,6 +291,14 @@ if (btnSaveKeyPaid) btnSaveKeyPaid.addEventListener('click', () => {
   updateCreateButtons(); updateStepStates();
 });
 
+// Output / subtitle language dropdowns
+const createOutputLanguageEl = $('create-output-language');
+const createSubtitleLanguageEl = $('create-subtitle-language');
+if (createOutputLanguageEl) createOutputLanguageEl.addEventListener('change', updateCreateButtons);
+// Text input: re-check button when user types (animated text mode)
+const createTtsTextEl = $('create-tts-text');
+if (createTtsTextEl) createTtsTextEl.addEventListener('input', updateCreateButtons);
+
 // ── Model Selection ──
 function getTextModels() { return ['gemini-2.5-flash']; }
 function getTranscriptionModels() { return ['gemini-2.5-flash']; }
@@ -326,14 +334,20 @@ async function callGeminiAPI(models, body, apiKey) {
 function updateCreateButtons() {
   const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
+  const isTextMode = typeof createInputMode !== 'undefined' && createInputMode === 'text';
+  const hasInput = isTextMode ? !!($('create-tts-text')?.value?.trim()) : hasAudio;
   const hasTemplate = !!selectedTemplate;
-  btnCreateTranscribe.disabled = !(hasKey && hasAudio && hasTemplate);
+  // Output language required for animated mode or text mode
+  const needsOutputLang = createVideoMode === 'animated' || isTextMode;
+  const hasOutputLanguage = !needsOutputLang || !!($('create-output-language')?.value);
+  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
     if (createTranscript) hint.textContent = 'Storyboard generated ✅';
-    else if (!hasAudio) hint.textContent = 'Import audio to begin';
+    else if (!hasInput) hint.textContent = isTextMode ? 'Enter text to begin' : 'Import audio to begin';
     else if (!hasTemplate) hint.textContent = 'Select a template to begin';
+    else if (needsOutputLang && !hasOutputLanguage) hint.textContent = 'Select output language to begin';
     else if (!hasKey) hint.textContent = 'API key required';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
@@ -356,7 +370,19 @@ function setCreateVideoMode(mode) {
   if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
   const section = $('create-kling-provider-section');
   if (section) section.style.display = mode === 'animated' ? '' : 'none';
+  // Show/hide language dropdowns — animated mode or text input mode
+  const langRow = $('create-language-selection-row');
+  const isTextInput = typeof createInputMode !== 'undefined' && createInputMode === 'text';
+  if (langRow) langRow.style.display = (mode === 'animated' || isTextInput) ? '' : 'none';
+  // Reset language selections when switching away from animated (keep for text mode)
+  if (mode !== 'animated' && !isTextInput) {
+    if ($('create-output-language')) $('create-output-language').value = '';
+    if ($('create-subtitle-language')) $('create-subtitle-language').value = '';
+    if (typeof createOutputLanguage !== 'undefined') createOutputLanguage = '';
+    if (typeof createSubtitleLanguage !== 'undefined') createSubtitleLanguage = '';
+  }
   refreshCreateAgentPanel();
+  updateCreateButtons();
   // Image launch always goes to BGM (runs in both modes)
   const imgBtn = $('create-launch-image-btn');
   if (imgBtn) imgBtn.textContent = 'Launch BGM Agent →';
@@ -453,7 +479,7 @@ const CREATE_AGENTS_ANIMATED = [
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
   { id: 'animation', stepId: 'create-video-step',      icon: '✨', label: 'Animation Agent' },
-  { id: 'voiceover', stepId: 'create-language-step',   icon: '🌐', label: 'Voiceover Agent' },
+  // voiceover removed — language handled at Input step for animated mode
 ];
 
 // status: 'waiting' | 'running' | 'done' | 'error'

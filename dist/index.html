@@ -2973,26 +2973,6 @@ body:has(#drop-zone:not(.hidden)) {
       <!-- Text Input -->
       <div id="create-text-section" class="hidden">
         <textarea id="create-tts-text" placeholder="Type or paste your script here..." rows="6" class="w-full"></textarea>
-        <div class="form-row mt-md">
-          <label class="form-label">TTS Provider:
-            <select id="create-tts-provider">
-              <option value="gemini" selected>Gemini Flash TTS</option>
-              <option value="gcloud">Google Cloud TTS</option>
-            </select>
-          </label>
-          <label class="form-label">Voice:
-            <select id="create-tts-voice"></select>
-          </label>
-        </div>
-        <div id="create-gcloud-key-row" class="hidden mt-md">
-          <label class="form-label">Google Cloud TTS API Key:
-            <input type="password" id="create-gcloud-tts-key" placeholder="Enter Google Cloud API key" style="width:280px;">
-          </label>
-        </div>
-        <div class="form-row mt-md">
-          <button id="btn-create-generate-tts" class="primary btn-md">🔊 Generate Audio</button>
-          <span id="create-tts-status" class="text-sm text-muted"></span>
-        </div>
       </div>
 
       <!-- Audio Editor (shown after audio import or TTS generation) -->
@@ -3095,6 +3075,67 @@ body:has(#drop-zone:not(.hidden)) {
           <select id="create-image-text-mode" class="text-sm">
             <option value="no-text" selected>No text</option>
             <option value="english-only">English only</option>
+          </select>
+        </label>
+      </div>
+      <div id="create-language-selection-row" class="create-row flex-wrap gap-md mt-md" style="display:none;">
+        <label class="text-secondary">Output Language:
+          <select id="create-output-language" class="text-sm">
+            <option value="">— Select language —</option>
+            <option value="ar">🇸🇦 Arabic</option>
+            <option value="bn">🇧🇩 Bengali</option>
+            <option value="zh">🇨🇳 Chinese (Simplified)</option>
+            <option value="nl">🇳🇱 Dutch</option>
+            <option value="en">🇺🇸 English</option>
+            <option value="fr">🇫🇷 French</option>
+            <option value="de">🇩🇪 German</option>
+            <option value="gu">🇮🇳 Gujarati</option>
+            <option value="hi">🇮🇳 Hindi</option>
+            <option value="id">🇮🇩 Indonesian</option>
+            <option value="it">🇮🇹 Italian</option>
+            <option value="ja">🇯🇵 Japanese</option>
+            <option value="kn">🇮🇳 Kannada</option>
+            <option value="ko">🇰🇷 Korean</option>
+            <option value="ml">🇮🇳 Malayalam</option>
+            <option value="mr">🇮🇳 Marathi</option>
+            <option value="pl">🇵🇱 Polish</option>
+            <option value="pt">🇧🇷 Portuguese</option>
+            <option value="pa">🇮🇳 Punjabi</option>
+            <option value="ro">🇷🇴 Romanian</option>
+            <option value="es">🇪🇸 Spanish</option>
+            <option value="ta">🇮🇳 Tamil</option>
+            <option value="te">🇮🇳 Telugu</option>
+            <option value="tr">🇹🇷 Turkish</option>
+          </select>
+        </label>
+        <label class="text-secondary">Subtitle Language:
+          <select id="create-subtitle-language" class="text-sm">
+            <option value="">None</option>
+            <option value="original">Original (same as source)</option>
+            <option value="ar">🇸🇦 Arabic</option>
+            <option value="bn">🇧🇩 Bengali</option>
+            <option value="zh">🇨🇳 Chinese (Simplified)</option>
+            <option value="nl">🇳🇱 Dutch</option>
+            <option value="en">🇺🇸 English</option>
+            <option value="fr">🇫🇷 French</option>
+            <option value="de">🇩🇪 German</option>
+            <option value="gu">🇮🇳 Gujarati</option>
+            <option value="hi">🇮🇳 Hindi</option>
+            <option value="id">🇮🇩 Indonesian</option>
+            <option value="it">🇮🇹 Italian</option>
+            <option value="ja">🇯🇵 Japanese</option>
+            <option value="kn">🇮🇳 Kannada</option>
+            <option value="ko">🇰🇷 Korean</option>
+            <option value="ml">🇮🇳 Malayalam</option>
+            <option value="mr">🇮🇳 Marathi</option>
+            <option value="pl">🇵🇱 Polish</option>
+            <option value="pt">🇧🇷 Portuguese</option>
+            <option value="pa">🇮🇳 Punjabi</option>
+            <option value="ro">🇷🇴 Romanian</option>
+            <option value="es">🇪🇸 Spanish</option>
+            <option value="ta">🇮🇳 Tamil</option>
+            <option value="te">🇮🇳 Telugu</option>
+            <option value="tr">🇹🇷 Turkish</option>
           </select>
         </label>
       </div>
@@ -3335,7 +3376,6 @@ body:has(#drop-zone:not(.hidden)) {
       <h3><span class="step-num">1</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
-        <button id="reel-mode-text" class="mode-btn">📝 Text</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
       </div>
       <div id="reel-audio-section">
@@ -3360,9 +3400,6 @@ body:has(#drop-zone:not(.hidden)) {
             <button id="btn-reel-add-audio-segment" class="btn-xs primary">+ Add Segment</button>
           </div>
         </div>
-      </div>
-      <div id="reel-text-section" class="hidden">
-        <textarea id="reel-text-input" placeholder="Type or paste your script (keep it short — 30 to 120 seconds)..." rows="4" class="w-full"></textarea>
       </div>
       <div id="reel-video-section" class="hidden">
         <div class="form-row">
@@ -3411,7 +3448,7 @@ body:has(#drop-zone:not(.hidden)) {
             <option value="tiktok">TikTok</option>
           </select>
         </label>
-        <label class="form-label" id="reel-duration-label" style="display:none">Duration:
+        <label class="form-label" id="reel-duration-label" style="display:none;">Duration:
           <select id="reel-duration">
             <option value="30">30 seconds</option>
             <option value="60" selected>60 seconds</option>
@@ -5099,6 +5136,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
       createState: createScenes ? {
         transcript: createTranscript,
         videoMode: createVideoMode || 'illustrated',
+        inputMode: (typeof createInputMode !== 'undefined') ? createInputMode : 'voice',
         scenes: await Promise.all(createScenes.map(async s => {
           const base = { prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
           const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
@@ -5136,6 +5174,8 @@ async function saveProjectToFile(audioBuf, statusFn) {
         subtitleSelections: (typeof createSubtitleSelections !== 'undefined')
           ? { ...createSubtitleSelections }
           : undefined,
+        outputLanguage: (typeof createOutputLanguage !== 'undefined') ? createOutputLanguage : '',
+        subtitleLanguage: (typeof createSubtitleLanguage !== 'undefined') ? createSubtitleLanguage : '',
       } : undefined,
       // BGM
       bgm: bgmBuffer ? {
@@ -5498,6 +5538,9 @@ projectInput.addEventListener('change', async () => {
     if (project.createState) {
       createTranscript = project.createState.transcript;
       createVideoMode = project.createState.videoMode || 'illustrated';
+      if (project.createState.inputMode && typeof setCreateInputMode === 'function') {
+        setCreateInputMode(project.createState.inputMode);
+      }
       // Restore scenes, decoding per-scene videoData → blob URL
       createScenes = await Promise.all((project.createState.scenes || []).map(async s => {
         const scene = { ...s };
@@ -5570,6 +5613,17 @@ projectInput.addEventListener('change', async () => {
       if (project.createState.subtitleSelections && typeof createSubtitleSelections !== 'undefined') {
         Object.assign(createSubtitleSelections, project.createState.subtitleSelections);
       }
+      // Restore output/subtitle language selections
+      if (typeof createOutputLanguage !== 'undefined') {
+        createOutputLanguage = project.createState.outputLanguage || '';
+        createSubtitleLanguage = project.createState.subtitleLanguage || '';
+        const outEl = $('create-output-language');
+        const subEl = $('create-subtitle-language');
+        if (outEl) outEl.value = createOutputLanguage;
+        if (subEl) subEl.value = createSubtitleLanguage;
+      }
+      // Apply video mode UI now that language dropdowns are already populated
+      if (typeof setCreateVideoMode === 'function') setCreateVideoMode(createVideoMode);
       // Render animated video cards if applicable
       if (createVideoMode === 'animated' && createScenes.some(s => s.videoUrl)) {
         const videoStep = $('create-video-step');
@@ -10937,6 +10991,14 @@ if (btnSaveKeyPaid) btnSaveKeyPaid.addEventListener('click', () => {
   updateCreateButtons(); updateStepStates();
 });
 
+// Output / subtitle language dropdowns
+const createOutputLanguageEl = $('create-output-language');
+const createSubtitleLanguageEl = $('create-subtitle-language');
+if (createOutputLanguageEl) createOutputLanguageEl.addEventListener('change', updateCreateButtons);
+// Text input: re-check button when user types (animated text mode)
+const createTtsTextEl = $('create-tts-text');
+if (createTtsTextEl) createTtsTextEl.addEventListener('input', updateCreateButtons);
+
 // ── Model Selection ──
 function getTextModels() { return ['gemini-2.5-flash']; }
 function getTranscriptionModels() { return ['gemini-2.5-flash']; }
@@ -10972,14 +11034,20 @@ async function callGeminiAPI(models, body, apiKey) {
 function updateCreateButtons() {
   const hasKey = !!(getFreeKey() || getPaidKey());
   const hasAudio = !!createAudioBuffer;
+  const isTextMode = typeof createInputMode !== 'undefined' && createInputMode === 'text';
+  const hasInput = isTextMode ? !!($('create-tts-text')?.value?.trim()) : hasAudio;
   const hasTemplate = !!selectedTemplate;
-  btnCreateTranscribe.disabled = !(hasKey && hasAudio && hasTemplate);
+  // Output language required for animated mode or text mode
+  const needsOutputLang = createVideoMode === 'animated' || isTextMode;
+  const hasOutputLanguage = !needsOutputLang || !!($('create-output-language')?.value);
+  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
     if (createTranscript) hint.textContent = 'Storyboard generated ✅';
-    else if (!hasAudio) hint.textContent = 'Import audio to begin';
+    else if (!hasInput) hint.textContent = isTextMode ? 'Enter text to begin' : 'Import audio to begin';
     else if (!hasTemplate) hint.textContent = 'Select a template to begin';
+    else if (needsOutputLang && !hasOutputLanguage) hint.textContent = 'Select output language to begin';
     else if (!hasKey) hint.textContent = 'API key required';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
@@ -11002,7 +11070,19 @@ function setCreateVideoMode(mode) {
   if (cardAni) cardAni.classList.toggle('active', mode === 'animated');
   const section = $('create-kling-provider-section');
   if (section) section.style.display = mode === 'animated' ? '' : 'none';
+  // Show/hide language dropdowns — animated mode or text input mode
+  const langRow = $('create-language-selection-row');
+  const isTextInput = typeof createInputMode !== 'undefined' && createInputMode === 'text';
+  if (langRow) langRow.style.display = (mode === 'animated' || isTextInput) ? '' : 'none';
+  // Reset language selections when switching away from animated (keep for text mode)
+  if (mode !== 'animated' && !isTextInput) {
+    if ($('create-output-language')) $('create-output-language').value = '';
+    if ($('create-subtitle-language')) $('create-subtitle-language').value = '';
+    if (typeof createOutputLanguage !== 'undefined') createOutputLanguage = '';
+    if (typeof createSubtitleLanguage !== 'undefined') createSubtitleLanguage = '';
+  }
   refreshCreateAgentPanel();
+  updateCreateButtons();
   // Image launch always goes to BGM (runs in both modes)
   const imgBtn = $('create-launch-image-btn');
   if (imgBtn) imgBtn.textContent = 'Launch BGM Agent →';
@@ -11099,7 +11179,7 @@ const CREATE_AGENTS_ANIMATED = [
   { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
   { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
   { id: 'animation', stepId: 'create-video-step',      icon: '✨', label: 'Animation Agent' },
-  { id: 'voiceover', stepId: 'create-language-step',   icon: '🌐', label: 'Voiceover Agent' },
+  // voiceover removed — language handled at Input step for animated mode
 ];
 
 // status: 'waiting' | 'running' | 'done' | 'error'
@@ -11787,6 +11867,10 @@ createStylePromptEl.addEventListener('input', () => {
 // BGM state
 let createBgmUrl = null;
 
+// Output language state (set at agent launch from Input step dropdowns)
+let createOutputLanguage = '';
+let createSubtitleLanguage = '';
+
 // Audio Editor state
 let createWavesurfer = null;
 let createRegionsPlugin = null;
@@ -12050,65 +12134,6 @@ const createVoiceSection = $('create-voice-section');
 const createVideoSection = $('create-video-section');
 const createTextSection = $('create-text-section');
 const createTtsText = $('create-tts-text');
-const createTtsProvider = $('create-tts-provider');
-const createTtsVoice = $('create-tts-voice');
-const createGcloudKeyRow = $('create-gcloud-key-row');
-const createGcloudTtsKey = $('create-gcloud-tts-key');
-const btnCreateGenerateTts = $('btn-create-generate-tts');
-const createTtsStatus = $('create-tts-status');
-
-const GEMINI_TTS_VOICES = [
-  { value: 'Kore', label: 'Kore (Female)' },
-  { value: 'Charon', label: 'Charon (Male)' },
-  { value: 'Fenrir', label: 'Fenrir (Male)' },
-  { value: 'Aoede', label: 'Aoede (Female)' },
-  { value: 'Puck', label: 'Puck (Male)' },
-  { value: 'Leda', label: 'Leda (Female)' },
-  { value: 'Orus', label: 'Orus (Male)' },
-  { value: 'Zephyr', label: 'Zephyr (Female)' },
-];
-
-const GCLOUD_TTS_VOICES = [
-  { value: 'ta-IN-Standard-A', label: 'Tamil - Standard A (Female)' },
-  { value: 'ta-IN-Standard-B', label: 'Tamil - Standard B (Male)' },
-  { value: 'ta-IN-Standard-C', label: 'Tamil - Standard C (Female)' },
-  { value: 'ta-IN-Standard-D', label: 'Tamil - Standard D (Male)' },
-  { value: 'ta-IN-Wavenet-A', label: 'Tamil - Wavenet A (Female)' },
-  { value: 'ta-IN-Wavenet-B', label: 'Tamil - Wavenet B (Male)' },
-  { value: 'ta-IN-Wavenet-C', label: 'Tamil - Wavenet C (Female)' },
-  { value: 'ta-IN-Wavenet-D', label: 'Tamil - Wavenet D (Male)' },
-  { value: 'en-US-Casual-K', label: 'English US - Casual K (Male)' },
-  { value: 'en-US-Standard-C', label: 'English US - Standard C (Female)' },
-  { value: 'en-US-Standard-D', label: 'English US - Standard D (Male)' },
-  { value: 'en-US-Wavenet-D', label: 'English US - Wavenet D (Male)' },
-  { value: 'en-US-Wavenet-F', label: 'English US - Wavenet F (Female)' },
-];
-
-function populateVoiceDropdown() {
-  createTtsVoice.innerHTML = '';
-  const voices = createTtsProvider.value === 'gemini' ? GEMINI_TTS_VOICES : GCLOUD_TTS_VOICES;
-  voices.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.value; opt.textContent = v.label;
-    createTtsVoice.appendChild(opt);
-  });
-}
-populateVoiceDropdown();
-
-createTtsProvider.addEventListener('change', () => {
-  populateVoiceDropdown();
-  createGcloudKeyRow.style.display = createTtsProvider.value === 'gcloud' ? '' : 'none';
-  // Restore saved gcloud key
-  if (createTtsProvider.value === 'gcloud') {
-    createGcloudTtsKey.value = localStorage.getItem('stori_gcloud_tts_key') || '';
-  }
-});
-
-// Save gcloud key on blur
-createGcloudTtsKey.addEventListener('blur', () => {
-  const k = createGcloudTtsKey.value.trim();
-  if (k) localStorage.setItem('stori_gcloud_tts_key', k);
-});
 
 function setCreateInputMode(mode) {
   createInputMode = mode === 'video' ? 'podcast' : mode; // video tab = podcast mode
@@ -12118,6 +12143,16 @@ function setCreateInputMode(mode) {
   createVoiceSection.classList.toggle('hidden', mode !== 'voice');
   createVideoSection.classList.toggle('hidden', mode !== 'video');
   createTextSection.classList.toggle('hidden', mode !== 'text');
+  // Language row: show for text mode or animated mode
+  const langRow = $('create-language-selection-row');
+  if (langRow) langRow.style.display = (mode === 'text' || createVideoMode === 'animated') ? '' : 'none';
+  // Reset language selections when leaving text mode (unless animated keeps them)
+  if (mode !== 'text' && createVideoMode !== 'animated') {
+    if ($('create-output-language')) $('create-output-language').value = '';
+    if ($('create-subtitle-language')) $('create-subtitle-language').value = '';
+    if (typeof createOutputLanguage !== 'undefined') createOutputLanguage = '';
+    if (typeof createSubtitleLanguage !== 'undefined') createSubtitleLanguage = '';
+  }
   updateCreateButtons();
   updateStepStates();
   // Auto-filter templates: podcast tab → show podcast category, others → show all
@@ -12243,55 +12278,6 @@ async function decodeBase64Audio(base64, mimeType) {
   return { audioBuffer, blob };
 }
 
-btnCreateGenerateTts.addEventListener('click', async () => {
-  const text = createTtsText.value.trim();
-  if (!text) { createTtsStatus.textContent = 'Please enter some text'; return; }
-
-  const provider = createTtsProvider.value;
-  const voiceName = createTtsVoice.value;
-  let apiKey;
-
-  if (provider === 'gemini') {
-    apiKey = getCreateGeminiKey();
-    if (!apiKey) { createTtsStatus.textContent = 'Enter your Gemini API key in Step 1 first'; return; }
-  } else {
-    apiKey = createGcloudTtsKey.value.trim() || localStorage.getItem('stori_gcloud_tts_key');
-    if (!apiKey) { createTtsStatus.textContent = 'Enter your Google Cloud TTS API key'; return; }
-  }
-
-  btnCreateGenerateTts.disabled = true;
-  btnCreateGenerateTts.innerHTML = '<span class="spinner"></span> Generating...';
-  createTtsStatus.textContent = '';
-
-  try {
-    let result;
-    if (provider === 'gemini') {
-      result = await generateTTSGemini(text, voiceName, apiKey);
-    } else {
-      result = await generateTTSGCloud(text, voiceName, apiKey);
-    }
-
-    const { audioBuffer, blob } = await decodeBase64Audio(result.base64, result.mimeType);
-    createAudioBuffer = audioBuffer;
-    createOriginalBuffer = audioBuffer;
-
-    trackCost('tts', 1);
-    createTtsStatus.textContent = `Audio generated (${audioBuffer.duration.toFixed(1)}s)`;
-    btnCreateGenerateTts.textContent = '🔊 Regenerate Audio';
-    updateCreateButtons();
-    updateStepStates();
-    await showCreateAudioEditor();
-  } catch (e) {
-    createTtsStatus.textContent = 'Audio generation failed. ' + friendlyApiError(e.message);
-    createTtsStatus.style.color = '#ef4444';
-    console.error('TTS error:', e);
-  } finally {
-    btnCreateGenerateTts.disabled = false;
-    if (!btnCreateGenerateTts.innerHTML.includes('Regenerate')) {
-      btnCreateGenerateTts.textContent = '🔊 Generate Audio';
-    }
-  }
-});
 
 // ══════════════════════════════════════════
 //  AUDIO EDITOR (WaveSurfer in Step 2)
@@ -12688,11 +12674,11 @@ function updateStepStates() {
   const bgmState = _createAgentState && _createAgentState['bgm']?.status;
   const hasBgm = bgmState === 'done' || bgmState === 'error';
 
-  // Step 8: Multi-Language — after BGM done
-  showStep('create-language-step', hasBgm);
-  if (hasBgm && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
-  // Voiceover: default to done when visible and nothing is generating
-  if (hasBgm) {
+  // Step 8: Multi-Language — illustrated only (animated uses upfront language selection)
+  showStep('create-language-step', hasBgm && createVideoMode !== 'animated');
+  if (hasBgm && createVideoMode !== 'animated' && typeof renderPrimaryAudioCard === 'function') renderPrimaryAudioCard();
+  // Voiceover: default to done when visible and nothing is generating (illustrated only)
+  if (hasBgm && createVideoMode !== 'animated') {
     const voState = _createAgentState && _createAgentState['voiceover'];
     const isGenerating = typeof langGenerating !== 'undefined' && langGenerating;
     if (!isGenerating && (!voState || voState.status === 'waiting')) {
@@ -12757,13 +12743,20 @@ function restoreAutoSaveIfAvailable() {
 // Transcribe
 btnCreateTranscribe.addEventListener('click', async () => {
   const key = getCreateGeminiKey();
-  if (!key || !createAudioBuffer) return;
+  if (!key) return;
+  if (createInputMode !== 'text' && !createAudioBuffer) return;
+
+  // Capture language selections at launch time
+  createOutputLanguage = $('create-output-language')?.value || '';
+  createSubtitleLanguage = $('create-subtitle-language')?.value || '';
 
   btnCreateTranscribe.disabled = true;
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
   // Pre-register all expected subtasks so "all done" check doesn't fire prematurely
   if (createInputMode === 'text') {
+    updateCreateAgentTask('storyboard', 'translate', 'pending', 'Translating to English…');
+    updateCreateAgentTask('storyboard', 'tts', 'pending', 'Generating audio…');
     updateCreateAgentTask('storyboard', 'segment', 'pending', 'Segmenting text…');
     updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
   } else {
@@ -12771,45 +12764,71 @@ btnCreateTranscribe.addEventListener('click', async () => {
     updateCreateAgentTask('storyboard', 'transcribe', 'pending', 'Transcribing…');
     updateCreateAgentTask('storyboard', 'prompts', 'pending', 'Writing scene descriptions…');
   }
+  // Translate/TTS/subtitles tasks for animated audio/podcast mode
+  if (createVideoMode === 'animated' && createInputMode !== 'text') {
+    if (createOutputLanguage && createOutputLanguage !== 'original') {
+      updateCreateAgentTask('storyboard', 'translate', 'pending', 'Translating…');
+      updateCreateAgentTask('storyboard', 'tts', 'pending', 'Generating speech…');
+    }
+    if (createSubtitleLanguage) {
+      updateCreateAgentTask('storyboard', 'subtitles', 'pending', 'Generating subtitles…');
+    }
+  }
 
   try {
     let segments;
 
     if (createInputMode === 'text') {
-      // ── Text mode: segment text + generate scene descriptions ──
-      updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
-      const inputText = createTtsText.value.trim();
+      // ── Text mode: translate → TTS → segment → scene descriptions ──
+      const inputText = $('create-tts-text')?.value?.trim();
       if (!inputText) throw new Error('No text entered');
 
-      segments = segmentTextForStoryboard(inputText, createAudioBuffer.duration);
+      // Step 1: Translate to English (Gemini handles detection + translation)
+      updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
+      const translateResp = await callGeminiAPI(['gemini-2.5-flash'], {
+        contents: [{ parts: [{ text: `If the following text is not in English, translate it to English. If it is already in English, return it exactly as-is. Return only the text, no explanations.\n\n${inputText}` }] }]
+      }, key);
+      const englishText = translateResp.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || inputText;
+      updateCreateAgentTask('storyboard', 'translate', 'done', 'Text ready');
+
+      // Step 2: Translate English → output language, then TTS
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Preparing audio…');
+      const outputLangEl = $('create-output-language');
+      const outputLangCode = createOutputLanguage;
+      const outputLangName = outputLangEl?.options[outputLangEl?.selectedIndex]?.text?.replace(/^[^\w]+/, '').trim() || outputLangCode;
+      let ttsText = englishText;
+      if (outputLangCode && outputLangCode !== 'en') {
+        updateCreateAgentTask('storyboard', 'tts', 'running', 'Translating…');
+        const outTransResp = await callGeminiAPI(['gemini-2.5-flash'], {
+          contents: [{ parts: [{ text: `Translate the following text to ${outputLangName}. Return only the translated text, no explanations.\n\n${englishText}` }] }]
+        }, key);
+        ttsText = outTransResp.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || englishText;
+      }
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Generating audio…');
+      const ttsResult = await generateTTSGemini(ttsText, 'Kore', key);
+      const { audioBuffer: ttsAudioBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      createAudioBuffer = ttsAudioBuf;
+      createOriginalBuffer = ttsAudioBuf;
+      trackCost('tts', 1);
+      updateCreateAgentTask('storyboard', 'tts', 'done', `${fmtShort(ttsAudioBuf.duration)} audio ready`);
+
+      // Step 3: Segment English text using real TTS duration
+      updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
+      segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
 
-      // Call Gemini to generate scene descriptions for each segment
+      // Step 4: Generate scene descriptions from English segments
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
-            }]
-          })
-        }
-      );
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API error ${resp.status}`);
-      }
+      const resp = await callGeminiAPI(['gemini-2.5-flash'], {
+        contents: [{
+          parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+        }]
+      }, key);
 
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Processing scene descriptions…');
-
-      const data = await resp.json();
-      const respText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const respText = resp.candidates?.[0]?.content?.parts?.[0]?.text;
       if (respText) {
         try {
           const descriptions = parseGeminiJson(respText);
@@ -12823,7 +12842,6 @@ btnCreateTranscribe.addEventListener('click', async () => {
           console.warn('Could not parse scene descriptions, using defaults:', e);
         }
       }
-      // Fill any empty descriptions
       segments.forEach(s => {
         if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`;
       });
@@ -12950,6 +12968,67 @@ Important: sceneDescription should describe what should be SEEN, not just what i
       segments = fixed;
     }
 
+    // ── Translation + TTS fork (animated mode only, when output language differs from source) ──
+    if (createVideoMode === 'animated' && createOutputLanguage && createOutputLanguage !== 'original') {
+      const targetLangName = SUPPORTED_LANGUAGES.find(l => l.code === createOutputLanguage)?.name || createOutputLanguage;
+
+      // Step A: Translate all segment texts in one Gemini call (auto-detects source language)
+      updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
+      const segTextsForTranslation = segments.map((s, i) => `${i}: ${s.text}`).join('\n');
+      const transResp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Translate these numbered text segments to ${targetLangName}. Preserve the numbering. Return ONLY a valid JSON array:\n[{"index":0,"text":"translated text"}]\n\n${segTextsForTranslation}` }] }]
+          })
+        }
+      );
+      if (!transResp.ok) throw new Error(`Translation error ${transResp.status}`);
+      const transData = await transResp.json();
+      const transRaw = transData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const translations = transRaw ? parseGeminiJson(transRaw) : [];
+      if (Array.isArray(translations)) {
+        translations.forEach(t => { if (segments[t.index] !== undefined) segments[t.index].translatedText = t.text; });
+      }
+      segments.forEach(s => { if (!s.translatedText) s.translatedText = s.text; });
+      updateCreateAgentTask('storyboard', 'translate', 'done', `${segments.length} segments translated`);
+
+      // Step B: Generate per-scene TTS using Gemini Flash TTS
+      updateCreateAgentTask('storyboard', 'tts', 'running', 'Generating speech…');
+      const ttsBuffers = [];
+      for (let i = 0; i < segments.length; i++) {
+        updateCreateAgentTask('storyboard', 'tts', 'running', `Speech ${i + 1}/${segments.length}…`);
+        const ttsResult = await generateTTSGemini(segments[i].translatedText, 'Kore', key);
+        const { audioBuffer: segBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+        ttsBuffers.push(segBuf);
+      }
+
+      // Step C: Rebuild segment timings from TTS durations
+      let ttsCursor = 0;
+      for (let i = 0; i < segments.length; i++) {
+        segments[i].startTime = ttsCursor;
+        segments[i].endTime = ttsCursor + ttsBuffers[i].duration;
+        segments[i].originalText = segments[i].text; // preserve source language text for subtitles
+        segments[i].text = segments[i].translatedText;
+        ttsCursor = segments[i].endTime;
+      }
+
+      // Step D: Concatenate TTS buffers → replace createAudioBuffer
+      const ttsSr = ttsBuffers[0].sampleRate;
+      const totalTtsFrames = ttsBuffers.reduce((s, b) => s + b.length, 0);
+      const combinedTts = ensureAudioCtx().createBuffer(1, totalTtsFrames, ttsSr);
+      let ttsOff = 0;
+      for (const buf of ttsBuffers) {
+        combinedTts.getChannelData(0).set(buf.getChannelData(0), ttsOff);
+        ttsOff += buf.length;
+      }
+      createAudioBuffer = combinedTts;
+      trackCost('tts', segments.length);
+      updateCreateAgentTask('storyboard', 'tts', 'done', `${fmtShort(combinedTts.duration)} audio ready`);
+    }
+
     // ── Common: save raw transcript ──
     trackCost('transcription', 1);
     createTranscript = segments;
@@ -12973,6 +13052,61 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         status: 'pending',
       }));
       renderStoryboard();
+
+      // ── Phase 4: Subtitle generation (animated mode only) ──
+      if (createVideoMode === 'animated' && createSubtitleLanguage) {
+        const subtitleLangName = createSubtitleLanguage === 'original'
+          ? 'source language'
+          : (SUPPORTED_LANGUAGES.find(l => l.code === createSubtitleLanguage)?.name || createSubtitleLanguage);
+        updateCreateAgentTask('storyboard', 'subtitles', 'running', `Generating ${subtitleLangName} subtitles…`);
+        try {
+          let subtitleItems;
+          if (createSubtitleLanguage === 'original') {
+            // Use original source text with current timings
+            subtitleItems = segments.map(s => ({
+              text: s.originalText || s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          } else if (createSubtitleLanguage === createOutputLanguage) {
+            // Same language as output audio — use translated/current segment text
+            subtitleItems = segments.map(s => ({
+              text: s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          } else {
+            // Different language — translate segments to subtitle language
+            const subTexts = segments.map((s, i) => `${i}: ${s.originalText || s.text}`).join('\n');
+            const subResp = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Translate these numbered text segments to ${subtitleLangName}. Return ONLY a valid JSON array:\n[{"index":0,"text":"translated text"}]\n\n${subTexts}` }] }]
+                })
+              }
+            );
+            if (!subResp.ok) throw new Error(`Subtitle translation error ${subResp.status}`);
+            const subData = await subResp.json();
+            const subRaw = subData.candidates?.[0]?.content?.parts?.[0]?.text;
+            const subTranslations = subRaw ? parseGeminiJson(subRaw) : [];
+            subtitleItems = segments.map((s, i) => ({
+              text: (Array.isArray(subTranslations) ? subTranslations.find(t => t.index === i)?.text : null) || s.text,
+              startTime: s.startTime,
+              duration: s.endTime - s.startTime,
+            }));
+          }
+          if (typeof createGeneratedSubtitles !== 'undefined') {
+            createGeneratedSubtitles.set('primary', subtitleItems);
+          }
+          updateCreateAgentTask('storyboard', 'subtitles', 'done', `${subtitleItems.length} subtitles ready`);
+        } catch (subErr) {
+          console.warn('[subtitles] generation error:', subErr);
+          updateCreateAgentTask('storyboard', 'subtitles', 'error', 'Subtitle generation failed');
+        }
+      }
     }
     btnCreateSaveEarly.style.display = '';
 
@@ -12996,7 +13130,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
     btnCreateTranscribe.textContent = createInputMode === 'text' ? '🔄 Retry Storyboard' : '🔄 Retry Transcription';
   } finally {
     updateCreateButtons();
-    if (getCreateGeminiKey() && createAudioBuffer) btnCreateTranscribe.disabled = false;
+    if (getCreateGeminiKey() && (createAudioBuffer || createInputMode === 'text')) btnCreateTranscribe.disabled = false;
   }
 });
 
@@ -14828,13 +14962,30 @@ btnCreateRetryFailed.addEventListener('click', async () => {
 
 // ── Multi-Language Voiceover ──
 const SUPPORTED_LANGUAGES = [
-  { code: 'ta', name: 'Tamil', flag: '🇮🇳', gcloudVoice: 'ta-IN-Standard-A', gcloudLang: 'ta-IN' },
-  { code: 'hi', name: 'Hindi', flag: '🇮🇳', gcloudVoice: 'hi-IN-Standard-A', gcloudLang: 'hi-IN' },
-  { code: 'te', name: 'Telugu', flag: '🇮🇳', gcloudVoice: 'te-IN-Standard-A', gcloudLang: 'te-IN' },
-  { code: 'ml', name: 'Malayalam', flag: '🇮🇳', gcloudVoice: 'ml-IN-Standard-A', gcloudLang: 'ml-IN' },
-  { code: 'en', name: 'English', flag: '🇺🇸', gcloudVoice: 'en-US-Standard-D', gcloudLang: 'en-US' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', gcloudVoice: 'es-ES-Standard-A', gcloudLang: 'es-ES' },
-  { code: 'fr', name: 'French', flag: '🇫🇷', gcloudVoice: 'fr-FR-Standard-A', gcloudLang: 'fr-FR' },
+  { code: 'ar', name: 'Arabic',              flag: '🇸🇦', gcloudVoice: null, gcloudLang: null },
+  { code: 'bn', name: 'Bengali',             flag: '🇧🇩', gcloudVoice: null, gcloudLang: null },
+  { code: 'zh', name: 'Chinese (Simplified)',flag: '🇨🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'nl', name: 'Dutch',               flag: '🇳🇱', gcloudVoice: null, gcloudLang: null },
+  { code: 'en', name: 'English',             flag: '🇺🇸', gcloudVoice: 'en-US-Standard-D', gcloudLang: 'en-US' },
+  { code: 'fr', name: 'French',              flag: '🇫🇷', gcloudVoice: 'fr-FR-Standard-A', gcloudLang: 'fr-FR' },
+  { code: 'de', name: 'German',              flag: '🇩🇪', gcloudVoice: null, gcloudLang: null },
+  { code: 'gu', name: 'Gujarati',            flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'hi', name: 'Hindi',               flag: '🇮🇳', gcloudVoice: 'hi-IN-Standard-A', gcloudLang: 'hi-IN' },
+  { code: 'id', name: 'Indonesian',          flag: '🇮🇩', gcloudVoice: null, gcloudLang: null },
+  { code: 'it', name: 'Italian',             flag: '🇮🇹', gcloudVoice: null, gcloudLang: null },
+  { code: 'ja', name: 'Japanese',            flag: '🇯🇵', gcloudVoice: null, gcloudLang: null },
+  { code: 'kn', name: 'Kannada',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'ko', name: 'Korean',              flag: '🇰🇷', gcloudVoice: null, gcloudLang: null },
+  { code: 'ml', name: 'Malayalam',           flag: '🇮🇳', gcloudVoice: 'ml-IN-Standard-A', gcloudLang: 'ml-IN' },
+  { code: 'mr', name: 'Marathi',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'pl', name: 'Polish',              flag: '🇵🇱', gcloudVoice: null, gcloudLang: null },
+  { code: 'pt', name: 'Portuguese',          flag: '🇧🇷', gcloudVoice: null, gcloudLang: null },
+  { code: 'pa', name: 'Punjabi',             flag: '🇮🇳', gcloudVoice: null, gcloudLang: null },
+  { code: 'ro', name: 'Romanian',            flag: '🇷🇴', gcloudVoice: null, gcloudLang: null },
+  { code: 'es', name: 'Spanish',             flag: '🇪🇸', gcloudVoice: 'es-ES-Standard-A', gcloudLang: 'es-ES' },
+  { code: 'ta', name: 'Tamil',               flag: '🇮🇳', gcloudVoice: 'ta-IN-Standard-A', gcloudLang: 'ta-IN' },
+  { code: 'te', name: 'Telugu',              flag: '🇮🇳', gcloudVoice: 'te-IN-Standard-A', gcloudLang: 'te-IN' },
+  { code: 'tr', name: 'Turkish',             flag: '🇹🇷', gcloudVoice: null, gcloudLang: null },
 ];
 
 let languageTracks = []; // [{lang, langCode, audioBuffer, translatedText, status}]
@@ -15997,16 +16148,13 @@ function showReelEditorStep() {
 
 // Input mode
 const reelModeAudio = $('reel-mode-audio');
-const reelModeText = $('reel-mode-text');
 const reelModeVideo = $('reel-mode-video');
 const reelAudioSection = $('reel-audio-section');
-const reelTextSection = $('reel-text-section');
 const reelVideoSection = $('reel-video-section');
 const reelAudioInput = $('reel-audio-input');
 const reelAudioName = $('reel-audio-name');
 const reelVideoInput = $('reel-video-input');
 const reelVideoName = $('reel-video-name');
-const reelTextInput = $('reel-text-input');
 const btnReelImportAudio = $('btn-reel-import-audio');
 const btnReelImportVideo = $('btn-reel-import-video');
 
@@ -16044,7 +16192,7 @@ const btnReelBgm = $('btn-reel-bgm');
 // State
 let reelAudioBuffer = null;
 let reelScenes = null;
-let reelInputMode = 'audio'; // audio | text | video
+let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
 let reelWavesurfer = null;
@@ -16216,18 +16364,11 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
 function setReelInputMode(mode) {
   reelInputMode = mode;
   reelModeAudio.classList.toggle('active', mode === 'audio');
-  reelModeText.classList.toggle('active', mode === 'text');
   reelModeVideo.classList.toggle('active', mode === 'video');
   reelAudioSection.classList.toggle('hidden', mode !== 'audio');
-  reelTextSection.classList.toggle('hidden', mode !== 'text');
   reelVideoSection.classList.toggle('hidden', mode !== 'video');
-  // Video mode: show edit mode toggle, hide visual style (video has its own visuals)
   const editModeRow = $('reel-edit-mode-row');
   if (editModeRow) editModeRow.classList.toggle('hidden', mode !== 'video');
-  // Hide style + transition for video mode (not needed — video is the visual)
-  // Duration only relevant for text mode (audio/video have inherent duration)
-  const durLabel = $('reel-duration-label');
-  if (durLabel) durLabel.style.display = mode === 'text' ? '' : 'none';
   if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
   if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
   updateReelCostEstimate();
@@ -16242,7 +16383,6 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 });
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
-if (reelModeText) reelModeText.addEventListener('click', () => setReelInputMode('text'));
 // Apply initial mode visibility
 setReelInputMode(reelInputMode);
 
@@ -16303,10 +16443,6 @@ function renderReelTemplateGrid() {
   });
 }
 
-// Show presets when text is entered
-if (reelTextInput) reelTextInput.addEventListener('input', () => {
-  if (reelTextInput.value.trim().length > 10) showReelPresets();
-});
 if (reelModeVideo) reelModeVideo.addEventListener('click', () => setReelInputMode('video'));
 
 // ── Audio Import + Editor ──
@@ -17095,38 +17231,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   }
 
 
-  // Get audio — from text input if text mode
-  if (reelInputMode === 'text') {
-    const text = reelTextInput.value.trim();
-    if (!text) { reelGenerateStatus.textContent = 'Enter some text.'; return; }
-    reelGenerateStatus.textContent = 'Generating audio from text...';
-    setStatus('Generating TTS...', true);
-    try {
-      const ttsModels = getTTSModels();
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModels[0]}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text }] }],
-            generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } }
-          })
-        }
-      );
-      if (!resp.ok) { const errText = await resp.text(); throw new Error(`TTS ${resp.status}: ${errText.slice(0, 300)}`); }
-      const data = await resp.json();
-      const part = data.candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) throw new Error('No audio returned — model may not support TTS');
-      const decoded = await decodeBase64Audio(part.inlineData.data, part.inlineData.mimeType || 'audio/wav');
-      reelAudioBuffer = decoded.audioBuffer;
-      trackCost('tts', 1);
-    } catch(e) {
-      console.error('[ReelGen] TTS error:', e.message, e);
-      reelGenerateStatus.textContent = 'TTS error: ' + e.message;
-      setStatus('TTS failed');
-      return;
-    }
-  }
-
-  if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio or enter text first.'; return; }
+  if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio first.'; return; }
 
   // Trim audio to selected duration if longer
   const maxDur = reelDuration;
@@ -20079,7 +20184,6 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       subAllCaps: reelSubAllCaps,
       subAccent: reelSubAccent,
       inputMode: reelInputMode,
-      inputText: reelTextInput ? reelTextInput.value : '',
       segments: reelSegments,
       jobs: reelJobs.map(j => ({
         id: j.id, type: j.type, parentId: j.parentId, status: j.status,
@@ -21133,8 +21237,7 @@ async function loadReelProject(project) {
   reelSubFont = project.subFont || 'Poppins';
   reelSubAllCaps = project.subAllCaps ?? false;
   reelSubAccent = project.subAccent || '#7c3aed';
-  if (project.inputMode) reelInputMode = project.inputMode;
-  if (reelTextInput && project.inputText) reelTextInput.value = project.inputText;
+  if (project.inputMode && project.inputMode !== 'text') reelInputMode = project.inputMode;
   if (project.segments) reelSegments = project.segments;
   reelJobs = [];
 
