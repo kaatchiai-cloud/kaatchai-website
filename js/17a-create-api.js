@@ -607,20 +607,84 @@ function refreshCreateAgentPanel() {
 //  AGENT PANEL — Create Reel (Autopilot)
 // ══════════════════════════════════════════
 
+// Aurora SVG icons (from Kaatchi reference)
+const REEL_AGENT_ICONS = {
+  mic:    '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="5" y="1.5" width="4" height="7" rx="2"/><path d="M3 7a4 4 0 0 0 8 0M7 11v1.5M5 12.5h4"/></svg>',
+  layers: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 1 L13 4 L7 7 L1 4 Z"/><path d="M1 7 L7 10 L13 7"/><path d="M1 10 L7 13 L13 10"/></svg>',
+  film:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="2" width="11" height="10" rx="1"/><path d="M4 2v10M10 2v10M1.5 5h2.5M10 5h2.5M1.5 9h2.5M10 9h2.5"/></svg>',
+  sparkle:'<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 4L12.5 6.5 8.5 8 7 12 5.5 8 1.5 6.5 5.5 5 7 1z" fill="currentColor"/></svg>',
+  wave:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 7 L3 4 L5 10 L7 3 L9 11 L11 5 L13 7"/></svg>',
+  eye:    '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1 7s2.5-4.5 6-4.5S13 7 13 7s-2.5 4.5-6 4.5S1 7 1 7z"/><circle cx="7" cy="7" r="1.7"/></svg>'
+};
+
 const REEL_AGENTS_ILLUSTRATED = [
-  { id: 'scene',    stepId: 'reel-step-presets',  icon: '🎨', label: 'Storyboard Agent' },
-  { id: 'image',    stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'bgm',      stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
-  { id: 'preview',  stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+  { id: 'script',   stepId: 'reel-step-input',    iconSvg: REEL_AGENT_ICONS.mic,    icon: '🎙️', label: 'Script Agent' },
+  { id: 'scene',    stepId: 'reel-step-presets',  iconSvg: REEL_AGENT_ICONS.layers, icon: '🎨', label: 'Storyboard Agent' },
+  { id: 'image',    stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.film,   icon: '🖼️', label: 'Image Agent' },
+  { id: 'bgm',      stepId: 'reel-step-bgm',      iconSvg: REEL_AGENT_ICONS.wave,   icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',  stepId: 'reel-step-editor',   iconSvg: REEL_AGENT_ICONS.eye,    icon: '▶️', label: 'Preview Agent' },
 ];
 
 const REEL_AGENTS_ANIMATED = [
-  { id: 'scene',     stepId: 'reel-step-presets',  icon: '🎬', label: 'Cinematography Agent' },
-  { id: 'image',     stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'animation', stepId: 'reel-step-scenes',   icon: '✨', label: 'Animation Agent' },
-  { id: 'bgm',       stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
-  { id: 'preview',   stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+  { id: 'script',    stepId: 'reel-step-input',    iconSvg: REEL_AGENT_ICONS.mic,     icon: '🎙️', label: 'Script Agent' },
+  { id: 'scene',     stepId: 'reel-step-presets',  iconSvg: REEL_AGENT_ICONS.layers,  icon: '🎬', label: 'Cinematography Agent' },
+  { id: 'image',     stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.film,    icon: '🖼️', label: 'Image Agent' },
+  { id: 'animation', stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.sparkle, icon: '✨', label: 'Animation Agent' },
+  { id: 'bgm',       stepId: 'reel-step-bgm',      iconSvg: REEL_AGENT_ICONS.wave,    icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',   stepId: 'reel-step-editor',   iconSvg: REEL_AGENT_ICONS.eye,     icon: '▶️', label: 'Preview Agent' },
 ];
+
+// Aurora preset-card selection — stores chosen theme preset in a global
+// and updates card selected state. Pure visual binding; the value can be
+// consumed by generation logic in future passes.
+var reelActivePreset = 'blank';
+function selectReelPreset(cardEl, preset) {
+  reelActivePreset = preset;
+  const grid = document.getElementById('reel-preset-grid');
+  if (grid) grid.querySelectorAll('.reel-preset-card').forEach(c => c.classList.remove('selected'));
+  if (cardEl) cardEl.classList.add('selected');
+}
+
+// Render the faux BGM waveform (140 magenta bars) — deterministic per reference
+function renderReelBgmFauxWave() {
+  const host = document.getElementById('reel-bgm-faux-wave');
+  if (!host || host.dataset.rendered === '1') return;
+  const BARS = 140;
+  const parts = [];
+  for (let i = 0; i < BARS; i++) {
+    const h = Math.min(40, 6 + (Math.sin(i * 0.3) * 0.5 + 0.5) * 28 + (i * 11) % 8);
+    const opacity = 0.5 + (i % 5) / 10;
+    parts.push(`<span class="reel-bgm-wave-bar" style="height:${h}px;opacity:${opacity.toFixed(2)};"></span>`);
+  }
+  host.innerHTML = parts.join('');
+  host.dataset.rendered = '1';
+}
+
+// Aurora dual-slider wiring — keeps thumb + fill in sync with the hidden <input type=range>
+function wireReelVolSlider(inputId, labelId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const track = input.closest('.reel-vol-slider-track');
+  if (!track) return;
+  const fill = track.querySelector('.reel-vol-slider-fill');
+  const thumb = track.querySelector('.reel-vol-slider-thumb');
+  const label = document.getElementById(labelId);
+  const sync = () => {
+    const v = input.value;
+    if (fill) fill.style.width = v + '%';
+    if (thumb) thumb.style.left = v + '%';
+    if (label) label.textContent = v + '%';
+  };
+  input.addEventListener('input', sync);
+  sync();
+}
+
+// Bootstrap all Aurora preview affordances once the DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  renderReelBgmFauxWave();
+  wireReelVolSlider('reel-bgm-volume-slider', 'reel-bgm-vol-label');
+  wireReelVolSlider('reel-voice-volume-slider', 'reel-voice-vol-label');
+});
 
 const _reelAgentState = {};
 
@@ -669,24 +733,24 @@ function _renderReelAgentPanel() {
   list.innerHTML = agents.map(a => {
     const s = _reelAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
-    const isLive = s.status === 'running' || s.status === 'error';
+    // Render subtasks whenever they exist (not only when live) — matches Aurora reference behaviour
     let bodyHtml = '';
-    if (isLive && subtasks.length > 0) {
+    if (subtasks.length > 0) {
       bodyHtml = subtasks.map(t => {
-        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '⚠️' : t.status === 'error' ? '❌' : '○';
+        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '!' : t.status === 'error' ? '×' : '';
         return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
       }).join('');
-    } else if (isLive && s.detail) {
+    } else if ((s.status === 'running' || s.status === 'error') && s.detail) {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
+    // Prefer Aurora SVG icon if available; fall back to emoji
+    const iconHtml = a.iconSvg || a.icon || '';
     return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
       onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
-      <div class="agent-row-top">
-        <span class="agent-row-icon">${a.icon}</span>
-        <span class="agent-row-label">${a.label}</span>
-        <span class="agent-status-dot ${s.status}"></span>
-      </div>
-      ${bodyHtml}
+      <span class="agent-row-icon">${iconHtml}</span>
+      <span class="agent-row-label">${a.label}</span>
+      <span class="agent-status-dot ${s.status}"></span>
+      ${bodyHtml ? `<div class="agent-row-body">${bodyHtml}</div>` : ''}
     </div>`;
   }).join('');
 }

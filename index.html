@@ -1515,9 +1515,13 @@ body:has(#drop-zone:not(.hidden)) {
   <!-- ═══ Reel/Short Creator ═══ -->
   <div id="reel-page">
     <div class="reel-header">
-      <button id="btn-reel-back" class="btn-sm">← Back</button>
-      <h2>⚡ Autopilot — Short Reel</h2>
-      <div class="create-api-bar">
+      <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
+      <div class="reel-header-divider"></div>
+      <span class="reel-header-breadcrumb">/ autopilot / short-reel</span>
+      <span class="reel-auto-pill">⚡ AUTOPILOT</span>
+      <div class="reel-header-spacer"></div>
+      <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
+      <div class="create-api-bar reel-header-keybar">
         <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
         <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
         <div id="reel-key-expand" style="display:none;">
@@ -1527,33 +1531,49 @@ body:has(#drop-zone:not(.hidden)) {
           <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
         </div>
       </div>
-      <button id="btn-reel-save-top" class="btn-sm">💾 Save</button>
+      <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
+    </div>
+
+    <!-- Main heading row (below top bar) -->
+    <div class="reel-main-heading">
+      <h2>Autopilot <em>— Short Reel</em></h2>
+      <span class="reel-meta-chip">· AUTOPILOT · 9:16</span>
     </div>
 
     <!-- Agent UI: side panel + scrollable workflow -->
     <div id="reel-body">
       <div id="reel-agent-panel">
-        <div class="agent-panel-label">AI Agents</div>
-        <div class="agent-panel-mode-badge" id="reel-agent-mode-badge">Autopilot</div>
+        <div class="agent-panel-label">
+          <span>AI Agents</span>
+          <span class="agent-panel-mode-badge" id="reel-agent-mode-badge">⚡ AUTO</span>
+        </div>
         <div class="agent-list" id="reel-agent-list"></div>
       </div>
       <div id="reel-workflow">
 
-    <!-- Reel Step 0: Video Mode Selection -->
+    <!-- Reel Step 1: Video Mode Selection -->
     <div class="reel-step" id="reel-video-mode-step">
-      <h3><span class="step-num">0</span> Video Mode</h3>
+      <h3><span class="step-num">1</span> Video Mode</h3>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
-          <div class="video-mode-icon">🖼</div>
-          <div class="video-mode-title">Illustrated Video</div>
-          <div class="video-mode-desc">AI-generated scene images</div>
-          <div class="video-mode-cost">1X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Illustrated Video</div>
+            <div class="video-mode-desc">AI-generated scene images</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">1× token</span>
+            <span class="video-mode-badge">SELECTED</span>
+          </div>
         </div>
         <div class="video-mode-card" id="reel-card-animated" onclick="setReelVideoMode('animated')">
-          <div class="video-mode-icon">🎬</div>
-          <div class="video-mode-title">Animated Video</div>
-          <div class="video-mode-desc">Images → Kling AI video</div>
-          <div class="video-mode-cost">16X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Animated Video</div>
+            <div class="video-mode-desc">Images → Kling AI video</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">16× token</span>
+            <span class="video-mode-badge">SWITCH</span>
+          </div>
         </div>
       </div>
       <div id="reel-kling-provider-section" style="display:none; margin-top:12px;">
@@ -1570,9 +1590,9 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- Reel Step 1: Input -->
+    <!-- Reel Step 2: Input -->
     <div class="reel-step" id="reel-step-input">
-      <h3><span class="step-num">1</span> Input</h3>
+      <h3><span class="step-num">2</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
@@ -1631,35 +1651,48 @@ body:has(#drop-zone:not(.hidden)) {
     <!-- Reel Step 3: Presets (shown after input is ready) -->
     <div class="reel-step hidden" id="reel-step-presets">
       <div class="agent-step-header"><span class="agent-step-icon">3</span><span class="agent-step-name">Style & Presets</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <div id="reel-preset-segments" class="mb-md"></div>
-      <div id="reel-edit-mode-row" class="form-row mb-md hidden">
+      <div id="reel-preset-segments" class="reel-preset-segments mb-md"></div>
+
+      <!-- Preset section: category chips + gradient cards with descriptions (driven by TEMPLATES data) -->
+      <div class="reel-preset-section">
+        <div class="reel-preset-eyebrow">Preset</div>
+        <div id="reel-template-categories" class="template-categories"></div>
+        <div id="reel-template-grid" class="template-grid"></div>
+      </div>
+
+      <!-- Orphaned edit-mode radio — hidden in Aurora -->
+      <div id="reel-edit-mode-row" class="form-row mb-md hidden reel-orphan">
         <span class="text-sm text-secondary">Edit mode:</span>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="auto-cut"> Auto-cut + Subtitles</label>
       </div>
-      <div id="reel-template-categories" class="template-categories mb-sm"></div>
-      <div id="reel-template-grid" class="template-grid mb-md" style="grid-template-columns:repeat(5,1fr);max-height:200px;"></div>
-      <div class="reel-presets-row">
-        <label class="form-label">Platform:
-          <select id="reel-platform">
+
+      <!-- Aurora OptRow grid (reskin of the old .reel-presets-row) -->
+      <div class="reel-optrow-grid">
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Platform</span>
+          <select id="reel-platform" class="reel-optrow-select">
             <option value="instagram">Instagram Reel</option>
             <option value="youtube">YouTube Short</option>
             <option value="tiktok">TikTok</option>
           </select>
         </label>
-        <label class="form-label" id="reel-duration-label" style="display:none;">Duration:
-          <select id="reel-duration">
+        <label class="reel-optrow" id="reel-duration-label" style="display:none;">
+          <span class="reel-optrow-label">Duration</span>
+          <select id="reel-duration" class="reel-optrow-select">
             <option value="30">30 seconds</option>
             <option value="60" selected>60 seconds</option>
             <option value="90">90 seconds</option>
             <option value="120">120 seconds</option>
           </select>
         </label>
-        <label class="form-label">Visual style:
-          <select id="reel-style"></select>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Visual style</span>
+          <select id="reel-style" class="reel-optrow-select"></select>
         </label>
-        <label class="form-label">Transition:
-          <select id="reel-transition">
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Transition</span>
+          <select id="reel-transition" class="reel-optrow-select">
             <option value="quick-cut">Quick Cut</option>
             <option value="whip-pan" selected>Whip Pan</option>
             <option value="zoom-in">Zoom In</option>
@@ -1667,16 +1700,47 @@ body:has(#drop-zone:not(.hidden)) {
             <option value="flash">Flash</option>
           </select>
         </label>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Audio</span>
+          <select id="reel-audio-lang" class="reel-optrow-select var-audio" data-vi="0">
+            <option value="original">Same as Input</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </label>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Subtitle</span>
+          <select id="reel-subtitle-lang" class="reel-optrow-select var-subtitle" data-vi="0">
+            <option value="none">None</option>
+            <option value="original">Same as Input</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Variation list container (kept for JS; extra variation rows render below as Aurora OptRows) -->
+      <div class="reel-presets-row reel-orphan" style="display:none;">
         <span id="reel-variation-list" style="display:contents;"></span>
       </div>
-      <div style="margin-top:8px; display:flex; justify-content:center;">
+      <div class="reel-orphan" style="margin-top:8px; display:flex; justify-content:center;">
         <button id="btn-add-variation" class="btn-sm" style="background:var(--bg-elevated); border:1px dashed var(--accent); color:var(--accent);">+ Add Variation</button>
       </div>
 
-      <div class="form-row mt-md" style="align-items:center; gap:8px;">
-        <button id="btn-reel-generate" class="primary btn-md">🚀 Launch Agents →</button>
+      <div class="reel-launch-row">
         <span id="reel-generate-status" class="text-sm text-muted"></span>
-        <span id="reel-cost-estimate" class="text-sm text-muted" style="margin-left:auto; display:none;"></span>
+        <span id="reel-cost-estimate" class="reel-cost-chip" style="display:none;"></span>
+        <button id="btn-reel-generate" class="primary btn-md reel-launch-btn">✨ Launch agents</button>
       </div>
       <div class="create-progress hidden" id="reel-progress">
         <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
@@ -1705,44 +1769,183 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- Reel Step BGM: Auto-generated with Lyria 3 -->
+    <!-- Reel Step BGM: Aurora — magenta waveform + dual BGM/Voice sliders -->
     <div class="reel-step hidden" id="reel-step-bgm">
-      <div class="agent-step-header"><span class="agent-step-icon">5</span><span class="agent-step-name">Background Music</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your reel content.</p>
-      <div id="reel-bgm-status" class="text-sm text-muted" style="display:none;"></div>
-      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
+      <div class="agent-step-header">
+        <span class="agent-step-icon">5</span>
+        <span class="agent-step-name">BGM agent</span>
+        <span class="agent-step-status-badge waiting">Waiting</span>
+        <button type="button" class="reel-bgm-browse-btn">Browse library</button>
+      </div>
+
+      <!-- Track info row -->
+      <div class="reel-bgm-track-row">
+        <span class="reel-bgm-track-name">♪ Cinematic Hopeful · 1:18</span>
+        <span class="reel-bgm-track-mood">· auto-matched to mood: hopeful</span>
+      </div>
+
+      <!-- Faux magenta waveform (140 bars) - rendered by JS at runtime -->
+      <div class="reel-bgm-wave" id="reel-bgm-faux-wave"></div>
+
+      <!-- Dual sliders -->
+      <div class="reel-vol-grid">
+        <div class="reel-vol-slider">
+          <div class="reel-vol-slider-head">
+            <span class="reel-vol-slider-label">BGM volume</span>
+            <span class="reel-vol-slider-value" id="reel-bgm-vol-label">40%</span>
+          </div>
+          <div class="reel-vol-slider-track">
+            <div class="reel-vol-slider-fill" style="width:40%;"></div>
+            <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="40" class="reel-vol-slider-input">
+            <span class="reel-vol-slider-thumb" style="left:40%;"></span>
+          </div>
+        </div>
+        <div class="reel-vol-slider">
+          <div class="reel-vol-slider-head">
+            <span class="reel-vol-slider-label">Voice volume</span>
+            <span class="reel-vol-slider-value" id="reel-voice-vol-label">85%</span>
+          </div>
+          <div class="reel-vol-slider-track">
+            <div class="reel-vol-slider-fill" style="width:85%;"></div>
+            <input type="range" id="reel-voice-volume-slider" min="0" max="100" value="85" class="reel-vol-slider-input">
+            <span class="reel-vol-slider-thumb" style="left:85%;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy BGM status/player (kept for JS compatibility) -->
+      <div id="reel-bgm-status" class="text-sm text-muted reel-orphan" style="display:none;"></div>
+      <div id="reel-bgm-player" class="reel-orphan" style="display:none; margin-top:12px;">
         <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
           <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
-          <label class="form-label" style="margin:0;">Vol:</label>
-          <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="50" style="width:80px;">
-          <span id="reel-bgm-vol-label" class="text-sm text-muted">50%</span>
         </div>
       </div>
     </div>
 
-    <!-- Reel Step 4: Mini Editor + Preview -->
+    <!-- Reel Step 4: Mini Editor + Preview (Aurora: phone frame + CtrlRow grid) -->
     <div class="reel-step hidden" id="reel-step-editor">
-      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Preview & Edit</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <div class="reel-editor-vertical">
+      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Preview &amp; Edit</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+
+      <div class="reel-preview-layout">
+        <!-- 9/16 phone frame (left column, 240px) -->
+        <div class="reel-phone-frame">
+          <div class="reel-phone-screen" id="reel-phone-screen">
+            <div class="reel-phone-placeholder">Preview will appear here</div>
+          </div>
+          <div class="reel-phone-transport">
+            <button class="reel-phone-play" type="button">▶</button>
+            <span class="reel-phone-time">0:00 / 0:48</span>
+          </div>
+        </div>
+
+        <!-- Right column: CtrlRow grid + overlay pills -->
+        <div class="reel-ctrl-column">
+          <div class="reel-ctrl-grid">
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Transition</span>
+              <span class="reel-ctrl-value">Whip Pan</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Duration</span>
+              <span class="reel-ctrl-value">0.3s</span>
+            </div>
+            <div class="reel-ctrl-row reel-ctrl-row-wide">
+              <span class="reel-ctrl-label">Motion</span>
+              <span class="reel-ctrl-value">Slow Zoom In</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Subtitle Preset</span>
+              <span class="reel-ctrl-value">Custom</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Style</span>
+              <span class="reel-ctrl-value">Word by Word</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Font</span>
+              <span class="reel-ctrl-value">Poppins</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">ALL CAPS</span>
+              <span class="reel-ctrl-checkbox" aria-hidden="true"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Color</span>
+              <span class="reel-ctrl-swatch" style="background:#eef4ff;"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Accent</span>
+              <span class="reel-ctrl-swatch" style="background:var(--lp-accent);"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Outline</span>
+              <span class="reel-ctrl-swatch" style="background:#050814;"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Backdrop</span>
+              <span class="reel-ctrl-value">Dark</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Size</span>
+              <span class="reel-ctrl-value">4</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Position</span>
+              <span class="reel-ctrl-value">Bottom</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">BGM</span>
+              <span class="reel-ctrl-value">None</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Vol</span>
+              <span class="reel-ctrl-value">50%</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Frame</span>
+              <span class="reel-ctrl-value">None</span>
+            </div>
+          </div>
+
+          <!-- Overlay pill buttons -->
+          <div class="reel-overlay-pills">
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">🔔</span>Subscribe</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">❤</span>Follow</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">▭</span>Lower Third</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">↓</span>CTA</button>
+            <button type="button" class="reel-title-pill">Title</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy preview container (kept for JS compatibility) -->
+      <div class="reel-editor-vertical reel-orphan">
         <div id="reel-previews-container" style="display:none; width:100%;"></div>
         <div class="reel-scenes mt-md hidden" id="reel-scene-list"></div>
-        <!-- BGM/Frame hidden inputs (used by JS handlers) -->
-        <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
-        <input type="file" id="reel-frame-input" accept="image/*" class="hidden">
-        <select id="reel-bgm-preset" class="hidden"><option value="none">None</option></select>
-        <select id="reel-frame-template" class="hidden"><option value="none">None</option></select>
       </div>
+      <!-- Hidden inputs for BGM/Frame (used by JS handlers) -->
+      <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
+      <input type="file" id="reel-frame-input" accept="image/*" class="hidden">
+      <select id="reel-bgm-preset" class="hidden"><option value="none">None</option></select>
+      <select id="reel-frame-template" class="hidden"><option value="none">None</option></select>
     </div>
 
     <!-- Export & Save -->
     <div class="reel-step hidden" id="reel-step-actions">
-      <h3><span class="step-num">7</span> Export & Save</h3>
-      <div class="form-row">
-        <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
-        <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
-        <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
-        <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
+      <div class="reel-export-eyebrow">EXPORT &amp; RENDER</div>
+      <div class="reel-export-cost-row">
+        <span class="reel-export-cost-chip">✨ 4 credits</span>
+        <span class="reel-export-cost-meta">· 38 seconds</span>
+        <span class="reel-export-cost-meta">· 1080 × 1920</span>
+      </div>
+      <div class="reel-export-actions">
+        <button id="btn-reel-save-preset" class="reel-ghost-btn" type="button">Save preset</button>
+        <button id="btn-reel-save-project" class="reel-ghost-btn" type="button">💾 Save Project</button>
+        <button id="btn-reel-export" class="primary btn-md reel-launch-btn">⬇ Export Reel</button>
+        <!-- Legacy orphans kept for JS compat -->
+        <button id="btn-reel-export-all" class="btn-md reel-orphan">⬇ Export All</button>
+        <button id="btn-reel-full-editor" class="btn-sm reel-orphan">Open in Full Editor</button>
       </div>
     </div>
 

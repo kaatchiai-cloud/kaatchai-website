@@ -1559,16 +1559,37 @@ input:focus, select:focus, textarea:focus {
 #bgm-waveform-canvas { display: block; width: 100%; height: 64px; }
 
 /* ── Reel/Short Creator ── */
+
+/* Aurora token overrides — scoped to Autopilot page only.
+   These shadow the legacy :root vars for all #reel-page descendants.
+   Other pages (home, editor, modals) are unaffected. */
+#reel-page {
+  --accent:       var(--lp-accent);
+  --accent-hover: color-mix(in oklch, var(--lp-accent) 80%, white);
+  --accent-glow:  var(--lp-glow);
+  --accent2:      var(--lp-accent2);
+  --bg-primary:   var(--lp-bg);
+  --bg-card:      var(--lp-card);
+  --bg-elevated:  color-mix(in oklch, var(--lp-bg) 55%, transparent);
+  --bg-input:     var(--lp-bg2);
+  --border:       var(--lp-card-bdr);
+  --border-hover: var(--lp-card-bdr-h);
+  --text-primary:   var(--lp-text);
+  --text-secondary: var(--lp-dim);
+  --text-muted:     var(--lp-faint);
+  --radius-lg:    18px;
+}
+
 #reel-page { width: 100%; max-width: 1080px; display: none; padding: 72px 12px 0; }
 #reel-page.visible { display: flex; flex-direction: column; }
 #reel-body { display: flex; align-items: flex-start; }
 #reel-agent-panel {
   position: sticky; top: 72px;
-  width: 196px; flex-shrink: 0;
+  width: 260px; flex-shrink: 0;
   height: calc(100vh - 72px); overflow-y: auto;
   border-right: 1px solid var(--border);
-  padding: 20px 14px;
-  background: var(--bg-elevated);
+  padding: 18px;
+  background: color-mix(in oklch, var(--lp-bg) 60%, transparent);
 }
 #reel-workflow { flex: 1; min-width: 0; padding: 0 4px; }
 
@@ -1578,9 +1599,12 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 6px;
 }
 .agent-panel-mode-badge {
-  display: inline-block; font-size: 0.65rem; font-weight: 700;
-  padding: 2px 8px; border-radius: 20px; margin-bottom: 16px;
-  background: var(--accent); color: #fff; letter-spacing: 0.05em;
+  display: inline-block; font-size: 0.6rem; font-weight: 700;
+  padding: 3px 8px; border-radius: 999px; margin-bottom: 16px;
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+  color: var(--lp-accent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent) 35%, transparent);
+  letter-spacing: 0.14em; text-transform: uppercase;
 }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-row {
@@ -1610,12 +1634,26 @@ input:focus, select:focus, textarea:focus {
   width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto;
 }
 .agent-status-dot.waiting  { background: var(--border); }
-.agent-status-dot.running  { background: var(--accent); animation: agent-pulse 1.4s ease-in-out infinite; }
-.agent-status-dot.done     { background: #22c55e; }
+.agent-status-dot.running  { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: agent-pulse 1.4s ease-in-out infinite; }
+.agent-status-dot.done     { background: var(--lp-accent); }
 .agent-status-dot.error    { background: #ef4444; }
 @keyframes agent-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes aurora-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* step-num inside reel-page: match Aurora number-badge spec */
+#reel-page .step-num {
+  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+  color: var(--lp-accent);
+  width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--lp-font-mono); font-size: 0.69rem; font-weight: 600;
+  flex-shrink: 0; transition: background 0.3s;
 }
 
 /* ── Agent Step Header ── */
@@ -1626,21 +1664,24 @@ input:focus, select:focus, textarea:focus {
 }
 .agent-step-icon { font-size: 1.1rem; line-height: 1; }
 .agent-step-header .agent-step-icon {
-  background: var(--accent); color: #fff; width: 22px; height: 22px; border-radius: 50%;
+  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+  color: var(--lp-accent);
+  width: 24px; height: 24px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.7rem; font-weight: 700; flex-shrink: 0; transition: background 0.3s;
+  font-family: var(--lp-font-mono); font-size: 0.69rem; font-weight: 600;
+  flex-shrink: 0; transition: background 0.3s, box-shadow 0.3s;
 }
-.agent-step-header.done .agent-step-icon    { background: #10b981; }
-.agent-step-header.running .agent-step-icon { background: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.3); }
-.agent-step-header.error .agent-step-icon   { background: #ef4444; }
+.agent-step-header.done .agent-step-icon    { background: color-mix(in oklch, var(--lp-accent) 22%, transparent); color: var(--lp-accent); }
+.agent-step-header.running .agent-step-icon { background: color-mix(in oklch, var(--lp-accent) 22%, transparent); color: var(--lp-accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--lp-accent) 28%, transparent); }
+.agent-step-header.error .agent-step-icon   { background: rgba(239,68,68,0.18); color: #ef4444; }
 .agent-step-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); flex: 1; }
 .agent-step-status-badge {
   font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;
 }
 .agent-step-status-badge.waiting  { background: var(--bg-input); color: var(--text-muted); }
-.agent-step-status-badge.running  { background: rgba(99,102,241,0.15); color: var(--accent); }
-.agent-step-status-badge.done     { background: rgba(34,197,94,0.12); color: #22c55e; }
+.agent-step-status-badge.running  { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.agent-step-status-badge.done     { background: color-mix(in oklch, var(--lp-accent) 12%, transparent); color: var(--lp-accent); }
 .agent-step-status-badge.error    { background: rgba(239,68,68,0.12); color: #ef4444; }
 
 /* ── Launch Button Row ── */
@@ -1660,11 +1701,74 @@ input:focus, select:focus, textarea:focus {
 .agent-launch-btn:hover { filter: brightness(1.12); }
 .agent-launch-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
-.reel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.reel-header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  height: 56px; padding: 0 20px; margin: -72px -12px 0;
+  background: color-mix(in oklch, var(--lp-bg) 70%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--lp-card-bdr);
+  position: sticky; top: 67px; z-index: 100;
+}
 .reel-header h2 { font-size: var(--text-xl); font-weight: 600; }
+
+/* Aurora top-bar components */
+.reel-header-btn {
+  background: transparent; color: var(--lp-dim);
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 7px 14px; font-size: 12px; font-weight: 500;
+  font-family: var(--lp-font-ui); cursor: pointer;
+  transition: all 180ms cubic-bezier(.2,.9,.3,1);
+}
+.reel-header-btn:hover { background: var(--lp-card); color: var(--lp-text); }
+.reel-header-divider {
+  width: 1px; height: 22px; background: var(--lp-card-bdr);
+}
+.reel-header-breadcrumb {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-faint); letter-spacing: 0.06em;
+}
+.reel-auto-pill {
+  padding: 4px 10px; font-size: 10px; font-family: var(--lp-font-mono);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--lp-accent);
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent) 35%, transparent);
+  border-radius: 999px;
+}
+.reel-header-spacer { flex: 1; }
+.reel-credits-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--lp-card-bdr);
+  font-family: var(--lp-font-mono); font-size: 10px; color: var(--lp-dim);
+}
+.reel-credits-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lp-accent); box-shadow: 0 0 6px var(--lp-accent);
+}
+.reel-header-keybar { display: flex; align-items: center; gap: 6px; }
+
+/* Main heading row (below top bar) */
+.reel-main-heading {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 28px 4px 22px;
+}
+.reel-main-heading h2 {
+  margin: 0;
+  font-family: var(--lp-font-display);
+  font-size: 36px; font-weight: 600;
+  letter-spacing: -0.02em; color: var(--lp-text);
+}
+.reel-main-heading h2 em {
+  font-style: normal; opacity: 0.7;
+}
+.reel-meta-chip {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-faint); letter-spacing: 0.12em;
+}
 .reel-step {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 18px 22px; margin-bottom: 12px;
+  padding: 24px; margin-bottom: 18px;
 }
 .reel-step h3 { font-size: var(--text-md); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .reel-presets-row {
@@ -1828,6 +1932,656 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   .reel-canvas-wrap { width: 180px; }
   .reel-presets-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════
+   P2 Aurora restyle — scoped to #reel-page
+   All selectors below are scoped so other pages
+   are untouched.
+   ═══════════════════════════════════════════════ */
+
+/* Video mode cards — left-aligned with SELECTED/SWITCH badge */
+#reel-page .video-mode-cards { gap: 12px; }
+#reel-page .video-mode-card {
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 14px; padding: 18px 20px;
+  flex-direction: row; align-items: center; text-align: left; gap: 14px;
+  transition: all 180ms cubic-bezier(.2,.9,.3,1);
+}
+#reel-page .video-mode-card:hover { border-color: var(--lp-card-bdr-h); background: var(--lp-card); }
+#reel-page .video-mode-card .video-mode-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#reel-page .video-mode-card .video-mode-title {
+  font-family: var(--lp-font-ui); font-size: 14px; font-weight: 600;
+  color: var(--lp-text); letter-spacing: -0.005em;
+}
+#reel-page .video-mode-card .video-mode-desc {
+  font-family: var(--lp-font-ui); font-size: 12px;
+  color: var(--lp-dim); font-weight: 400;
+}
+#reel-page .video-mode-card .video-mode-meta {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;
+}
+#reel-page .video-mode-card .video-mode-cost {
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 500;
+  padding: 3px 8px; border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+  color: var(--lp-accent); border: 1px solid color-mix(in oklch, var(--lp-accent) 30%, transparent);
+  letter-spacing: 0.04em;
+}
+#reel-page .video-mode-card .video-mode-badge {
+  font-family: var(--lp-font-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px;
+  color: var(--lp-faint); border: 1px solid var(--lp-card-bdr);
+  background: transparent;
+}
+#reel-page .video-mode-card.active {
+  border-color: var(--lp-accent);
+  background: color-mix(in oklch, var(--lp-accent) 6%, var(--lp-bg2));
+  box-shadow: none;
+}
+#reel-page .video-mode-card.active .video-mode-title { color: var(--lp-text); }
+#reel-page .video-mode-card.active .video-mode-badge {
+  color: var(--lp-accent);
+  border-color: color-mix(in oklch, var(--lp-accent) 45%, transparent);
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+}
+/* override the legacy #reel-card-illustrated/animated purple/cyan-specific rules */
+#reel-page #reel-card-illustrated,
+#reel-page #reel-card-animated {
+  border-color: var(--lp-card-bdr);
+  background: var(--lp-bg2);
+}
+#reel-page #reel-card-illustrated .video-mode-desc,
+#reel-page #reel-card-animated .video-mode-desc { color: var(--lp-dim); }
+#reel-page #reel-card-illustrated:hover,
+#reel-page #reel-card-animated:hover {
+  border-color: var(--lp-card-bdr-h);
+  background: var(--lp-card);
+}
+#reel-page #reel-card-illustrated.active,
+#reel-page #reel-card-animated.active {
+  border-color: var(--lp-accent);
+  background: color-mix(in oklch, var(--lp-accent) 6%, var(--lp-bg2));
+  box-shadow: none;
+}
+#reel-page #reel-card-illustrated.active .video-mode-title,
+#reel-page #reel-card-animated.active .video-mode-title { color: var(--lp-text); }
+
+/* Input tab pills (Audio/Video toggle) */
+#reel-page .input-mode-toggle {
+  display: inline-flex; gap: 4px; padding: 4px;
+  border-radius: 999px; border: 1px solid var(--lp-card-bdr);
+  background: var(--lp-bg2);
+  margin-bottom: 14px;
+}
+#reel-page .input-mode-toggle .mode-btn {
+  padding: 6px 14px; font-size: 12px; border-radius: 999px;
+  background: transparent; color: var(--lp-dim);
+  border: none; font-weight: 500; cursor: pointer;
+  transition: all 150ms ease;
+}
+#reel-page .input-mode-toggle .mode-btn:hover:not(.active) {
+  color: var(--lp-text); background: var(--lp-card);
+}
+#reel-page .input-mode-toggle .mode-btn.active {
+  background: var(--lp-text); color: var(--lp-bg);
+}
+
+/* Agent rail — Aurora icon boxes (for SVG icons) */
+#reel-page .agent-row {
+  display: grid; grid-template-columns: 32px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 10px; border-radius: 12px;
+  background: transparent; border: 1px solid transparent;
+  margin-bottom: 4px;
+  transition: all 150ms ease;
+}
+#reel-page .agent-row-top {
+  display: contents;
+}
+#reel-page .agent-row:hover { background: var(--lp-card); }
+#reel-page .agent-row.active {
+  background: var(--lp-card); border-color: var(--lp-card-bdr-h);
+}
+#reel-page .agent-row-icon {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  color: var(--lp-dim);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1; flex-shrink: 0;
+  transition: all 150ms ease;
+}
+#reel-page .agent-row-icon svg { display: block; }
+#reel-page .agent-row.active .agent-row-icon {
+  background: color-mix(in oklch, var(--lp-accent) 16%, transparent);
+  border-color: var(--lp-accent);
+  color: var(--lp-accent);
+}
+#reel-page .agent-row-label {
+  font-family: var(--lp-font-ui); font-size: 13px; font-weight: 600;
+  color: var(--lp-text); line-height: 1.3;
+}
+#reel-page .agent-status-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  margin-left: 0;
+}
+
+/* Agent subtasks — rendered below the agent row */
+#reel-page .agent-row-body {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 12px 8px 52px;
+}
+#reel-page .agent-subtask {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; line-height: 1.45;
+  color: var(--lp-dim);
+}
+#reel-page .agent-subtask.warn  { color: #f59e0b; }
+#reel-page .agent-subtask.waiting { color: var(--lp-faint); }
+#reel-page .agent-subtask.error { color: #ef4444; }
+#reel-page .agent-subtask-icon {
+  width: 12px; height: 12px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 12px; font-size: 8px; font-weight: 700;
+  background: transparent; border: 1px solid var(--lp-card-bdr);
+  color: var(--lp-dim);
+}
+#reel-page .agent-subtask.done .agent-subtask-icon {
+  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+  border-color: transparent; color: var(--lp-accent);
+}
+#reel-page .agent-subtask.warn .agent-subtask-icon {
+  border-color: #f59e0b; color: #f59e0b;
+}
+#reel-page .agent-subtask.error .agent-subtask-icon {
+  border-color: #ef4444; color: #ef4444;
+}
+#reel-page .agent-subtask.running .agent-subtask-icon {
+  border-color: #f59e0b; color: #f59e0b;
+  animation: aurora-pulse 1.4s ease-in-out infinite;
+}
+
+/* AI AGENTS label — mono caps */
+#reel-page .agent-panel-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--lp-font-mono);
+  font-size: 10px; font-weight: 400;
+  color: var(--lp-faint); letter-spacing: 0.16em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+#reel-page .agent-panel-mode-badge { margin-bottom: 0; }
+
+/* ═══ Preset step — gradient cards + OptRow grid ═══ */
+
+/* Eyebrow label (PRESET) */
+#reel-page .reel-preset-eyebrow {
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 400;
+  color: var(--lp-faint); letter-spacing: 0.16em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+#reel-page .reel-preset-section { margin-bottom: 18px; }
+
+/* Segment chip row (preset-segments) */
+#reel-page .reel-preset-segments { margin-bottom: 14px; }
+#reel-page .reel-preset-segments:empty { display: none; }
+
+/* JS renders <div class="reel-segments-list"><div class="reel-seg-card">...</div></div>.
+   Flatten the wrapper (no bg/border) and restyle the inner card as a single Aurora chip. */
+#reel-page .reel-preset-segments .reel-segments-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  background: transparent; border: none; padding: 0; border-radius: 0;
+  justify-content: flex-start;
+  counter-reset: reel-seg-counter;
+}
+#reel-page .reel-preset-segments .reel-seg-card {
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0; max-width: none; flex: 0 0 auto;
+  padding: 10px 34px 10px 14px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 12px; overflow: visible; text-align: left;
+  font-family: var(--lp-font-mono);
+  counter-increment: reel-seg-counter;
+}
+/* Hide the per-segment thumbnail + playback controls inside the Aurora chip */
+#reel-page .reel-preset-segments .seg-audio-icon,
+#reel-page .reel-preset-segments .seg-video,
+#reel-page .reel-preset-segments .reel-seg-controls { display: none !important; }
+/* Info line — time range on its own row */
+#reel-page .reel-preset-segments .reel-seg-info {
+  padding: 0; color: var(--lp-text);
+  font-size: 11px; letter-spacing: 0.06em;
+}
+#reel-page .reel-preset-segments .reel-seg-info .text-2xs {
+  font-size: 11px; color: var(--lp-text);
+}
+/* Prepend "SEGMENT N" title label as a separate first line */
+#reel-page .reel-preset-segments .reel-seg-card::before {
+  content: 'Segment ' counter(reel-seg-counter);
+  font-family: var(--lp-font-mono); font-size: 10.5px; font-weight: 600;
+  color: var(--lp-text); letter-spacing: 0.12em; text-transform: uppercase;
+}
+/* Remove button — circular × in the top-right */
+#reel-page .reel-preset-segments .reel-seg-remove {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(239,68,68,0.85); border: none; color: #fff;
+  font-size: 10px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#reel-page .reel-preset-segments .reel-seg-remove:hover { background: #ef4444; }
+
+/* Category chip row */
+#reel-page .template-categories {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+#reel-page .tpl-cat-btn {
+  padding: 5px 12px; font-size: 11.5px;
+  font-family: var(--lp-font-mono); letter-spacing: 0.04em;
+  text-transform: uppercase; border-radius: 999px;
+  border: 1px solid var(--lp-card-bdr);
+  background: transparent; color: var(--lp-dim);
+  cursor: pointer; transition: all 150ms ease;
+}
+#reel-page .tpl-cat-btn:hover {
+  border-color: var(--lp-card-bdr-h); color: var(--lp-text);
+  background: var(--lp-card);
+}
+#reel-page .tpl-cat-btn.active {
+  background: color-mix(in oklch, var(--lp-accent) 18%, transparent);
+  border-color: color-mix(in oklch, var(--lp-accent) 45%, transparent);
+  color: var(--lp-accent);
+}
+
+/* Template card grid (driven by TEMPLATES data with names + descriptions) */
+#reel-page .template-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  max-height: 360px; overflow-y: auto; padding: 2px 4px 2px 2px;
+  margin-bottom: 18px;
+  /* Aurora scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--lp-card-bdr) transparent;
+}
+#reel-page .template-grid::-webkit-scrollbar { width: 10px; }
+#reel-page .template-grid::-webkit-scrollbar-track { background: transparent; }
+#reel-page .template-grid::-webkit-scrollbar-thumb {
+  background: var(--lp-card-bdr); border-radius: 10px;
+}
+#reel-page .template-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--lp-card-bdr-h);
+}
+#reel-page .template-card {
+  position: relative; padding: 14px 12px; border-radius: 14px;
+  border: 2px solid transparent; cursor: pointer;
+  transition: transform 160ms cubic-bezier(.2,.9,.3,1);
+  min-height: 88px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 3px; font-family: var(--lp-font-ui);
+}
+#reel-page .template-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+#reel-page .template-card .template-card-name {
+  font-size: 13px; font-weight: 600; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  line-height: 1.25;
+}
+#reel-page .template-card .template-card-desc {
+  font-size: 11px; line-height: 1.35;
+  color: rgba(255,255,255,0.82);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+#reel-page .template-card.selected {
+  border-color: var(--lp-accent);
+  outline: 1px solid var(--lp-bg); outline-offset: -4px;
+  box-shadow: 0 8px 24px color-mix(in oklch, var(--lp-accent) 30%, transparent);
+}
+#reel-page .template-card.selected::after {
+  content: '✓';
+  position: absolute; top: 6px; right: 6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--lp-accent); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+#reel-page .template-card.locked { opacity: 0.5; filter: grayscale(0.4); }
+#reel-page .template-card.locked:hover { transform: none; }
+
+@media (max-width: 800px) {
+  #reel-page .template-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* OptRow grid — 2-col key:value rows */
+#reel-page .reel-optrow-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 14px; margin-bottom: 18px;
+}
+#reel-page .reel-optrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 12px;
+  background: var(--lp-bg2);
+  border: 1px solid var(--lp-card-bdr);
+  transition: border-color 150ms ease;
+  cursor: pointer; margin: 0;
+}
+#reel-page .reel-optrow:hover { border-color: var(--lp-card-bdr-h); }
+#reel-page .reel-optrow-label {
+  font-family: var(--lp-font-mono); font-size: 10px;
+  color: var(--lp-faint); letter-spacing: 0.14em;
+  text-transform: uppercase; flex: 0 0 90px;
+}
+#reel-page .reel-optrow-select {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+  font-size: 13px; font-weight: 500;
+  padding: 0; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.6' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 4px center;
+  padding-right: 18px;
+}
+#reel-page .reel-optrow-select option {
+  background: var(--lp-bg2); color: var(--lp-text);
+}
+
+/* Launch row (right-aligned) */
+#reel-page .reel-launch-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 18px;
+}
+#reel-page .reel-launch-row #reel-generate-status { flex: 1; }
+#reel-page .reel-launch-btn {
+  font-family: var(--lp-font-ui); font-size: 13.5px; font-weight: 500;
+  padding: 11px 20px; border-radius: 999px;
+  letter-spacing: -0.005em;
+}
+#reel-page .reel-cost-chip {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-dim); letter-spacing: 0.04em;
+}
+
+/* Hide build-only orphans on Autopilot page (kept in DOM for JS compat) */
+#reel-page .reel-orphan { display: none !important; }
+
+/* ═══ Scenes step — 2-col Aurora card grid ═══ */
+#reel-page #reel-scene-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+  margin-top: 4px;
+}
+#reel-page .scene-card {
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 14px; overflow: hidden;
+  transition: border-color 180ms ease;
+  font-family: var(--lp-font-ui);
+}
+#reel-page .scene-card:hover { border-color: var(--lp-card-bdr-h); }
+#reel-page .scene-card .scene-img {
+  background: var(--lp-bg);
+  color: var(--lp-faint);
+}
+#reel-page .scene-card .scene-body { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 8px; }
+#reel-page .scene-card .scene-time {
+  font-family: var(--lp-font-mono); font-size: 10.5px; font-weight: 500;
+  color: var(--lp-accent); letter-spacing: 0.06em; margin-bottom: 0;
+}
+#reel-page .scene-card .scene-text {
+  font-size: 12.5px; line-height: 1.45; color: var(--lp-dim);
+  margin-bottom: 0; font-style: italic;
+}
+#reel-page .scene-card textarea {
+  width: 100%; background: var(--lp-bg); border: 1px solid var(--lp-card-bdr);
+  border-radius: 8px; padding: 8px 10px;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+  font-size: 12px; line-height: 1.4;
+  resize: vertical; min-height: 48px; margin-bottom: 0;
+  transition: border-color 150ms ease;
+}
+#reel-page .scene-card textarea:hover { border-color: var(--lp-card-bdr-h); }
+#reel-page .scene-card textarea:focus { outline: none; border-color: var(--lp-accent); }
+#reel-page .scene-card .scene-actions {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding-top: 4px;
+}
+#reel-page .scene-card .scene-actions > button {
+  font-family: var(--lp-font-ui); font-size: 11.5px; font-weight: 500;
+  padding: 6px 12px !important; border-radius: 999px;
+  background: transparent; color: var(--lp-dim);
+  border: 1px solid var(--lp-card-bdr); cursor: pointer;
+  transition: all 150ms ease;
+}
+#reel-page .scene-card .scene-actions > button:hover {
+  color: var(--lp-text); border-color: var(--lp-card-bdr-h);
+  background: var(--lp-card);
+}
+#reel-page .scene-card .scene-status {
+  font-family: var(--lp-font-mono); font-size: 10.5px;
+  letter-spacing: 0.04em; margin-left: auto;
+}
+#reel-page .scene-card .scene-status.done { color: var(--lp-accent); }
+#reel-page .scene-card .scene-status.generating { color: #f59e0b; }
+#reel-page .scene-card .scene-status.pending { color: var(--lp-faint); }
+#reel-page .scene-card .scene-status.error { color: #ef4444; }
+
+@media (max-width: 720px) {
+  #reel-page #reel-scene-grid { grid-template-columns: 1fr; }
+}
+
+/* ═══ BGM step — magenta waveform + dual sliders ═══ */
+#reel-page #reel-step-bgm .agent-step-header {
+  position: relative;
+}
+#reel-page .reel-bgm-browse-btn {
+  margin-left: 8px;
+  background: transparent; color: var(--lp-dim);
+  border: 1px solid var(--lp-card-bdr); border-radius: 999px;
+  padding: 6px 12px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 150ms ease;
+}
+#reel-page .reel-bgm-browse-btn:hover { color: var(--lp-text); border-color: var(--lp-card-bdr-h); background: var(--lp-card); }
+
+#reel-page .reel-bgm-track-row {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+#reel-page .reel-bgm-track-name {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-text); letter-spacing: 0.06em;
+}
+#reel-page .reel-bgm-track-mood {
+  font-family: var(--lp-font-mono); font-size: 10px;
+  color: var(--lp-faint); letter-spacing: 0.12em;
+}
+
+/* Faux magenta waveform container — rendered to 140 bars via JS */
+#reel-page .reel-bgm-wave {
+  display: flex; gap: 1px; align-items: center; height: 48px;
+  padding: 4px 10px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 12px; overflow: hidden;
+}
+#reel-page .reel-bgm-wave-bar {
+  flex: 1; background: var(--lp-accent2);
+  border-radius: 1px;
+}
+
+/* Dual-slider grid */
+#reel-page .reel-vol-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 16px; margin-top: 14px;
+}
+#reel-page .reel-vol-slider-head {
+  display: flex; justify-content: space-between; margin-bottom: 6px;
+}
+#reel-page .reel-vol-slider-label {
+  font-family: var(--lp-font-mono); font-size: 10px;
+  color: var(--lp-faint); letter-spacing: 0.1em; text-transform: uppercase;
+}
+#reel-page .reel-vol-slider-value {
+  font-family: var(--lp-font-mono); font-size: 11.5px;
+  color: var(--lp-text);
+}
+#reel-page .reel-vol-slider-track {
+  position: relative; height: 6px;
+  background: var(--lp-bg2); border-radius: 3px;
+  border: 1px solid var(--lp-card-bdr);
+}
+#reel-page .reel-vol-slider-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--lp-accent); border-radius: 3px;
+}
+#reel-page .reel-vol-slider-input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; margin: 0;
+}
+#reel-page .reel-vol-slider-thumb {
+  position: absolute; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 2px var(--lp-accent);
+  pointer-events: none;
+}
+
+/* ═══ Preview step — 9/16 phone frame + CtrlRow grid ═══ */
+#reel-page .reel-preview-layout {
+  display: grid; grid-template-columns: 240px 1fr;
+  gap: 24px; align-items: start;
+}
+#reel-page .reel-phone-frame {
+  display: flex; flex-direction: column; gap: 10px;
+}
+#reel-page .reel-phone-screen {
+  aspect-ratio: 9/16; background: #000;
+  border-radius: 20px; overflow: hidden; position: relative;
+  border: 1px solid var(--lp-card-bdr);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+#reel-page .reel-phone-placeholder {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-faint); text-align: center;
+  padding: 16px; letter-spacing: 0.06em;
+}
+#reel-page .reel-phone-transport {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 2px;
+}
+#reel-page .reel-phone-play {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--lp-text); color: var(--lp-bg);
+  border: none; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#reel-page .reel-phone-time {
+  font-family: var(--lp-font-mono); font-size: 10.5px;
+  color: var(--lp-faint); letter-spacing: 0.06em;
+}
+
+/* CtrlRow grid — 16 fields, 2 per line */
+#reel-page .reel-ctrl-column {
+  display: flex; flex-direction: column; gap: 12px;
+}
+#reel-page .reel-ctrl-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+#reel-page .reel-ctrl-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 10px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  min-height: 32px;
+}
+#reel-page .reel-ctrl-row-wide { grid-column: span 2; }
+#reel-page .reel-ctrl-label {
+  font-family: var(--lp-font-mono); font-size: 9.5px;
+  color: var(--lp-faint); letter-spacing: 0.12em; text-transform: uppercase;
+  flex: 0 0 auto;
+}
+#reel-page .reel-ctrl-value {
+  font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
+  color: var(--lp-text); margin-left: auto;
+}
+#reel-page .reel-ctrl-checkbox {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1.5px solid var(--lp-card-bdr);
+  margin-left: auto; flex-shrink: 0;
+}
+#reel-page .reel-ctrl-swatch {
+  width: 32px; height: 20px; border-radius: 4px;
+  border: 1px solid var(--lp-card-bdr);
+  margin-left: auto; flex-shrink: 0;
+}
+
+/* Overlay pills row */
+#reel-page .reel-overlay-pills {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 4px;
+}
+#reel-page .reel-overlay-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; padding: 6px 12px;
+  font-family: var(--lp-font-ui); font-size: 11.5px; color: var(--lp-dim);
+  cursor: pointer; transition: all 150ms ease;
+}
+#reel-page .reel-overlay-pill:hover {
+  border-color: var(--lp-card-bdr-h); color: var(--lp-text);
+}
+#reel-page .reel-overlay-pill-ico {
+  color: var(--lp-accent); font-size: 11px;
+}
+#reel-page .reel-title-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent) 40%, transparent);
+  color: var(--lp-accent);
+  font-family: var(--lp-font-ui); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; transition: all 150ms ease;
+}
+#reel-page .reel-title-pill:hover {
+  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+}
+
+@media (max-width: 900px) {
+  #reel-page .reel-preview-layout { grid-template-columns: 1fr; }
+  #reel-page .reel-phone-frame { max-width: 240px; margin: 0 auto; }
+}
+
+/* ═══ Export step — eyebrow + cost estimate + ghost buttons ═══ */
+#reel-page .reel-export-eyebrow {
+  font-family: var(--lp-font-mono); font-size: 10px; font-weight: 400;
+  color: var(--lp-faint); letter-spacing: 0.16em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+#reel-page .reel-export-cost-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  margin-bottom: 16px;
+}
+#reel-page .reel-export-cost-chip {
+  padding: 4px 10px; border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
+  color: var(--lp-accent); border: 1px solid color-mix(in oklch, var(--lp-accent) 30%, transparent);
+  font-family: var(--lp-font-mono); font-size: 11px; letter-spacing: 0.04em;
+}
+#reel-page .reel-export-cost-meta {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-dim); letter-spacing: 0.06em;
+}
+#reel-page .reel-export-actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  justify-content: flex-end;
+}
+#reel-page .reel-ghost-btn {
+  background: transparent; color: var(--lp-dim);
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 9px 16px; font-family: var(--lp-font-ui);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: all 180ms cubic-bezier(.2,.9,.3,1);
+}
+#reel-page .reel-ghost-btn:hover { background: var(--lp-card); color: var(--lp-text); }
 
 /* Editor reel tabs */
 .editor-reel-tabs {
@@ -3403,9 +4157,13 @@ body:has(#drop-zone:not(.hidden)) {
   <!-- ═══ Reel/Short Creator ═══ -->
   <div id="reel-page">
     <div class="reel-header">
-      <button id="btn-reel-back" class="btn-sm">← Back</button>
-      <h2>⚡ Autopilot — Short Reel</h2>
-      <div class="create-api-bar">
+      <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
+      <div class="reel-header-divider"></div>
+      <span class="reel-header-breadcrumb">/ autopilot / short-reel</span>
+      <span class="reel-auto-pill">⚡ AUTOPILOT</span>
+      <div class="reel-header-spacer"></div>
+      <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
+      <div class="create-api-bar reel-header-keybar">
         <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
         <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
         <div id="reel-key-expand" style="display:none;">
@@ -3415,33 +4173,49 @@ body:has(#drop-zone:not(.hidden)) {
           <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
         </div>
       </div>
-      <button id="btn-reel-save-top" class="btn-sm">💾 Save</button>
+      <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
+    </div>
+
+    <!-- Main heading row (below top bar) -->
+    <div class="reel-main-heading">
+      <h2>Autopilot <em>— Short Reel</em></h2>
+      <span class="reel-meta-chip">· AUTOPILOT · 9:16</span>
     </div>
 
     <!-- Agent UI: side panel + scrollable workflow -->
     <div id="reel-body">
       <div id="reel-agent-panel">
-        <div class="agent-panel-label">AI Agents</div>
-        <div class="agent-panel-mode-badge" id="reel-agent-mode-badge">Autopilot</div>
+        <div class="agent-panel-label">
+          <span>AI Agents</span>
+          <span class="agent-panel-mode-badge" id="reel-agent-mode-badge">⚡ AUTO</span>
+        </div>
         <div class="agent-list" id="reel-agent-list"></div>
       </div>
       <div id="reel-workflow">
 
-    <!-- Reel Step 0: Video Mode Selection -->
+    <!-- Reel Step 1: Video Mode Selection -->
     <div class="reel-step" id="reel-video-mode-step">
-      <h3><span class="step-num">0</span> Video Mode</h3>
+      <h3><span class="step-num">1</span> Video Mode</h3>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
-          <div class="video-mode-icon">🖼</div>
-          <div class="video-mode-title">Illustrated Video</div>
-          <div class="video-mode-desc">AI-generated scene images</div>
-          <div class="video-mode-cost">1X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Illustrated Video</div>
+            <div class="video-mode-desc">AI-generated scene images</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">1× token</span>
+            <span class="video-mode-badge">SELECTED</span>
+          </div>
         </div>
         <div class="video-mode-card" id="reel-card-animated" onclick="setReelVideoMode('animated')">
-          <div class="video-mode-icon">🎬</div>
-          <div class="video-mode-title">Animated Video</div>
-          <div class="video-mode-desc">Images → Kling AI video</div>
-          <div class="video-mode-cost">16X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Animated Video</div>
+            <div class="video-mode-desc">Images → Kling AI video</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">16× token</span>
+            <span class="video-mode-badge">SWITCH</span>
+          </div>
         </div>
       </div>
       <div id="reel-kling-provider-section" style="display:none; margin-top:12px;">
@@ -3458,9 +4232,9 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- Reel Step 1: Input -->
+    <!-- Reel Step 2: Input -->
     <div class="reel-step" id="reel-step-input">
-      <h3><span class="step-num">1</span> Input</h3>
+      <h3><span class="step-num">2</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
@@ -3519,35 +4293,48 @@ body:has(#drop-zone:not(.hidden)) {
     <!-- Reel Step 3: Presets (shown after input is ready) -->
     <div class="reel-step hidden" id="reel-step-presets">
       <div class="agent-step-header"><span class="agent-step-icon">3</span><span class="agent-step-name">Style & Presets</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <div id="reel-preset-segments" class="mb-md"></div>
-      <div id="reel-edit-mode-row" class="form-row mb-md hidden">
+      <div id="reel-preset-segments" class="reel-preset-segments mb-md"></div>
+
+      <!-- Preset section: category chips + gradient cards with descriptions (driven by TEMPLATES data) -->
+      <div class="reel-preset-section">
+        <div class="reel-preset-eyebrow">Preset</div>
+        <div id="reel-template-categories" class="template-categories"></div>
+        <div id="reel-template-grid" class="template-grid"></div>
+      </div>
+
+      <!-- Orphaned edit-mode radio — hidden in Aurora -->
+      <div id="reel-edit-mode-row" class="form-row mb-md hidden reel-orphan">
         <span class="text-sm text-secondary">Edit mode:</span>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="subtitles" checked> Subtitles only</label>
         <label class="form-label"><input type="radio" name="reel-edit-mode" value="auto-cut"> Auto-cut + Subtitles</label>
       </div>
-      <div id="reel-template-categories" class="template-categories mb-sm"></div>
-      <div id="reel-template-grid" class="template-grid mb-md" style="grid-template-columns:repeat(5,1fr);max-height:200px;"></div>
-      <div class="reel-presets-row">
-        <label class="form-label">Platform:
-          <select id="reel-platform">
+
+      <!-- Aurora OptRow grid (reskin of the old .reel-presets-row) -->
+      <div class="reel-optrow-grid">
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Platform</span>
+          <select id="reel-platform" class="reel-optrow-select">
             <option value="instagram">Instagram Reel</option>
             <option value="youtube">YouTube Short</option>
             <option value="tiktok">TikTok</option>
           </select>
         </label>
-        <label class="form-label" id="reel-duration-label" style="display:none;">Duration:
-          <select id="reel-duration">
+        <label class="reel-optrow" id="reel-duration-label" style="display:none;">
+          <span class="reel-optrow-label">Duration</span>
+          <select id="reel-duration" class="reel-optrow-select">
             <option value="30">30 seconds</option>
             <option value="60" selected>60 seconds</option>
             <option value="90">90 seconds</option>
             <option value="120">120 seconds</option>
           </select>
         </label>
-        <label class="form-label">Visual style:
-          <select id="reel-style"></select>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Visual style</span>
+          <select id="reel-style" class="reel-optrow-select"></select>
         </label>
-        <label class="form-label">Transition:
-          <select id="reel-transition">
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Transition</span>
+          <select id="reel-transition" class="reel-optrow-select">
             <option value="quick-cut">Quick Cut</option>
             <option value="whip-pan" selected>Whip Pan</option>
             <option value="zoom-in">Zoom In</option>
@@ -3555,16 +4342,47 @@ body:has(#drop-zone:not(.hidden)) {
             <option value="flash">Flash</option>
           </select>
         </label>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Audio</span>
+          <select id="reel-audio-lang" class="reel-optrow-select var-audio" data-vi="0">
+            <option value="original">Same as Input</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </label>
+        <label class="reel-optrow">
+          <span class="reel-optrow-label">Subtitle</span>
+          <select id="reel-subtitle-lang" class="reel-optrow-select var-subtitle" data-vi="0">
+            <option value="none">None</option>
+            <option value="original">Same as Input</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="ml">Malayalam</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Variation list container (kept for JS; extra variation rows render below as Aurora OptRows) -->
+      <div class="reel-presets-row reel-orphan" style="display:none;">
         <span id="reel-variation-list" style="display:contents;"></span>
       </div>
-      <div style="margin-top:8px; display:flex; justify-content:center;">
+      <div class="reel-orphan" style="margin-top:8px; display:flex; justify-content:center;">
         <button id="btn-add-variation" class="btn-sm" style="background:var(--bg-elevated); border:1px dashed var(--accent); color:var(--accent);">+ Add Variation</button>
       </div>
 
-      <div class="form-row mt-md" style="align-items:center; gap:8px;">
-        <button id="btn-reel-generate" class="primary btn-md">🚀 Launch Agents →</button>
+      <div class="reel-launch-row">
         <span id="reel-generate-status" class="text-sm text-muted"></span>
-        <span id="reel-cost-estimate" class="text-sm text-muted" style="margin-left:auto; display:none;"></span>
+        <span id="reel-cost-estimate" class="reel-cost-chip" style="display:none;"></span>
+        <button id="btn-reel-generate" class="primary btn-md reel-launch-btn">✨ Launch agents</button>
       </div>
       <div class="create-progress hidden" id="reel-progress">
         <div class="bar-bg"><div class="bar-fill" id="reel-progress-bar"></div></div>
@@ -3593,44 +4411,183 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
-    <!-- Reel Step BGM: Auto-generated with Lyria 3 -->
+    <!-- Reel Step BGM: Aurora — magenta waveform + dual BGM/Voice sliders -->
     <div class="reel-step hidden" id="reel-step-bgm">
-      <div class="agent-step-header"><span class="agent-step-icon">5</span><span class="agent-step-name">Background Music</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your reel content.</p>
-      <div id="reel-bgm-status" class="text-sm text-muted" style="display:none;"></div>
-      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
+      <div class="agent-step-header">
+        <span class="agent-step-icon">5</span>
+        <span class="agent-step-name">BGM agent</span>
+        <span class="agent-step-status-badge waiting">Waiting</span>
+        <button type="button" class="reel-bgm-browse-btn">Browse library</button>
+      </div>
+
+      <!-- Track info row -->
+      <div class="reel-bgm-track-row">
+        <span class="reel-bgm-track-name">♪ Cinematic Hopeful · 1:18</span>
+        <span class="reel-bgm-track-mood">· auto-matched to mood: hopeful</span>
+      </div>
+
+      <!-- Faux magenta waveform (140 bars) - rendered by JS at runtime -->
+      <div class="reel-bgm-wave" id="reel-bgm-faux-wave"></div>
+
+      <!-- Dual sliders -->
+      <div class="reel-vol-grid">
+        <div class="reel-vol-slider">
+          <div class="reel-vol-slider-head">
+            <span class="reel-vol-slider-label">BGM volume</span>
+            <span class="reel-vol-slider-value" id="reel-bgm-vol-label">40%</span>
+          </div>
+          <div class="reel-vol-slider-track">
+            <div class="reel-vol-slider-fill" style="width:40%;"></div>
+            <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="40" class="reel-vol-slider-input">
+            <span class="reel-vol-slider-thumb" style="left:40%;"></span>
+          </div>
+        </div>
+        <div class="reel-vol-slider">
+          <div class="reel-vol-slider-head">
+            <span class="reel-vol-slider-label">Voice volume</span>
+            <span class="reel-vol-slider-value" id="reel-voice-vol-label">85%</span>
+          </div>
+          <div class="reel-vol-slider-track">
+            <div class="reel-vol-slider-fill" style="width:85%;"></div>
+            <input type="range" id="reel-voice-volume-slider" min="0" max="100" value="85" class="reel-vol-slider-input">
+            <span class="reel-vol-slider-thumb" style="left:85%;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy BGM status/player (kept for JS compatibility) -->
+      <div id="reel-bgm-status" class="text-sm text-muted reel-orphan" style="display:none;"></div>
+      <div id="reel-bgm-player" class="reel-orphan" style="display:none; margin-top:12px;">
         <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
           <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
-          <label class="form-label" style="margin:0;">Vol:</label>
-          <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="50" style="width:80px;">
-          <span id="reel-bgm-vol-label" class="text-sm text-muted">50%</span>
         </div>
       </div>
     </div>
 
-    <!-- Reel Step 4: Mini Editor + Preview -->
+    <!-- Reel Step 4: Mini Editor + Preview (Aurora: phone frame + CtrlRow grid) -->
     <div class="reel-step hidden" id="reel-step-editor">
-      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Preview & Edit</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <div class="reel-editor-vertical">
+      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Preview &amp; Edit</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+
+      <div class="reel-preview-layout">
+        <!-- 9/16 phone frame (left column, 240px) -->
+        <div class="reel-phone-frame">
+          <div class="reel-phone-screen" id="reel-phone-screen">
+            <div class="reel-phone-placeholder">Preview will appear here</div>
+          </div>
+          <div class="reel-phone-transport">
+            <button class="reel-phone-play" type="button">▶</button>
+            <span class="reel-phone-time">0:00 / 0:48</span>
+          </div>
+        </div>
+
+        <!-- Right column: CtrlRow grid + overlay pills -->
+        <div class="reel-ctrl-column">
+          <div class="reel-ctrl-grid">
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Transition</span>
+              <span class="reel-ctrl-value">Whip Pan</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Duration</span>
+              <span class="reel-ctrl-value">0.3s</span>
+            </div>
+            <div class="reel-ctrl-row reel-ctrl-row-wide">
+              <span class="reel-ctrl-label">Motion</span>
+              <span class="reel-ctrl-value">Slow Zoom In</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Subtitle Preset</span>
+              <span class="reel-ctrl-value">Custom</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Style</span>
+              <span class="reel-ctrl-value">Word by Word</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Font</span>
+              <span class="reel-ctrl-value">Poppins</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">ALL CAPS</span>
+              <span class="reel-ctrl-checkbox" aria-hidden="true"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Color</span>
+              <span class="reel-ctrl-swatch" style="background:#eef4ff;"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Accent</span>
+              <span class="reel-ctrl-swatch" style="background:var(--lp-accent);"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Outline</span>
+              <span class="reel-ctrl-swatch" style="background:#050814;"></span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Backdrop</span>
+              <span class="reel-ctrl-value">Dark</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Size</span>
+              <span class="reel-ctrl-value">4</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Position</span>
+              <span class="reel-ctrl-value">Bottom</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">BGM</span>
+              <span class="reel-ctrl-value">None</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Vol</span>
+              <span class="reel-ctrl-value">50%</span>
+            </div>
+            <div class="reel-ctrl-row">
+              <span class="reel-ctrl-label">Frame</span>
+              <span class="reel-ctrl-value">None</span>
+            </div>
+          </div>
+
+          <!-- Overlay pill buttons -->
+          <div class="reel-overlay-pills">
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">🔔</span>Subscribe</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">❤</span>Follow</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">▭</span>Lower Third</button>
+            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">↓</span>CTA</button>
+            <button type="button" class="reel-title-pill">Title</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy preview container (kept for JS compatibility) -->
+      <div class="reel-editor-vertical reel-orphan">
         <div id="reel-previews-container" style="display:none; width:100%;"></div>
         <div class="reel-scenes mt-md hidden" id="reel-scene-list"></div>
-        <!-- BGM/Frame hidden inputs (used by JS handlers) -->
-        <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
-        <input type="file" id="reel-frame-input" accept="image/*" class="hidden">
-        <select id="reel-bgm-preset" class="hidden"><option value="none">None</option></select>
-        <select id="reel-frame-template" class="hidden"><option value="none">None</option></select>
       </div>
+      <!-- Hidden inputs for BGM/Frame (used by JS handlers) -->
+      <input type="file" id="reel-bgm-input" accept="audio/*" class="hidden">
+      <input type="file" id="reel-frame-input" accept="image/*" class="hidden">
+      <select id="reel-bgm-preset" class="hidden"><option value="none">None</option></select>
+      <select id="reel-frame-template" class="hidden"><option value="none">None</option></select>
     </div>
 
     <!-- Export & Save -->
     <div class="reel-step hidden" id="reel-step-actions">
-      <h3><span class="step-num">7</span> Export & Save</h3>
-      <div class="form-row">
-        <button id="btn-reel-export" class="primary btn-md">⬇ Export Reel</button>
-        <button id="btn-reel-export-all" class="btn-md">⬇ Export All</button>
-        <button id="btn-reel-save-project" class="btn-sm">💾 Save Project</button>
-        <button id="btn-reel-full-editor" class="btn-sm">Open in Full Editor</button>
+      <div class="reel-export-eyebrow">EXPORT &amp; RENDER</div>
+      <div class="reel-export-cost-row">
+        <span class="reel-export-cost-chip">✨ 4 credits</span>
+        <span class="reel-export-cost-meta">· 38 seconds</span>
+        <span class="reel-export-cost-meta">· 1080 × 1920</span>
+      </div>
+      <div class="reel-export-actions">
+        <button id="btn-reel-save-preset" class="reel-ghost-btn" type="button">Save preset</button>
+        <button id="btn-reel-save-project" class="reel-ghost-btn" type="button">💾 Save Project</button>
+        <button id="btn-reel-export" class="primary btn-md reel-launch-btn">⬇ Export Reel</button>
+        <!-- Legacy orphans kept for JS compat -->
+        <button id="btn-reel-export-all" class="btn-md reel-orphan">⬇ Export All</button>
+        <button id="btn-reel-full-editor" class="btn-sm reel-orphan">Open in Full Editor</button>
       </div>
     </div>
 
@@ -11440,20 +12397,84 @@ function refreshCreateAgentPanel() {
 //  AGENT PANEL — Create Reel (Autopilot)
 // ══════════════════════════════════════════
 
+// Aurora SVG icons (from Kaatchi reference)
+const REEL_AGENT_ICONS = {
+  mic:    '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="5" y="1.5" width="4" height="7" rx="2"/><path d="M3 7a4 4 0 0 0 8 0M7 11v1.5M5 12.5h4"/></svg>',
+  layers: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 1 L13 4 L7 7 L1 4 Z"/><path d="M1 7 L7 10 L13 7"/><path d="M1 10 L7 13 L13 10"/></svg>',
+  film:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="2" width="11" height="10" rx="1"/><path d="M4 2v10M10 2v10M1.5 5h2.5M10 5h2.5M1.5 9h2.5M10 9h2.5"/></svg>',
+  sparkle:'<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 4L12.5 6.5 8.5 8 7 12 5.5 8 1.5 6.5 5.5 5 7 1z" fill="currentColor"/></svg>',
+  wave:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 7 L3 4 L5 10 L7 3 L9 11 L11 5 L13 7"/></svg>',
+  eye:    '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1 7s2.5-4.5 6-4.5S13 7 13 7s-2.5 4.5-6 4.5S1 7 1 7z"/><circle cx="7" cy="7" r="1.7"/></svg>'
+};
+
 const REEL_AGENTS_ILLUSTRATED = [
-  { id: 'scene',    stepId: 'reel-step-presets',  icon: '🎨', label: 'Storyboard Agent' },
-  { id: 'image',    stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'bgm',      stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
-  { id: 'preview',  stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+  { id: 'script',   stepId: 'reel-step-input',    iconSvg: REEL_AGENT_ICONS.mic,    icon: '🎙️', label: 'Script Agent' },
+  { id: 'scene',    stepId: 'reel-step-presets',  iconSvg: REEL_AGENT_ICONS.layers, icon: '🎨', label: 'Storyboard Agent' },
+  { id: 'image',    stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.film,   icon: '🖼️', label: 'Image Agent' },
+  { id: 'bgm',      stepId: 'reel-step-bgm',      iconSvg: REEL_AGENT_ICONS.wave,   icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',  stepId: 'reel-step-editor',   iconSvg: REEL_AGENT_ICONS.eye,    icon: '▶️', label: 'Preview Agent' },
 ];
 
 const REEL_AGENTS_ANIMATED = [
-  { id: 'scene',     stepId: 'reel-step-presets',  icon: '🎬', label: 'Cinematography Agent' },
-  { id: 'image',     stepId: 'reel-step-scenes',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'animation', stepId: 'reel-step-scenes',   icon: '✨', label: 'Animation Agent' },
-  { id: 'bgm',       stepId: 'reel-step-bgm',      icon: '🎵', label: 'BGM Agent' },
-  { id: 'preview',   stepId: 'reel-step-editor',   icon: '▶️', label: 'Preview Agent' },
+  { id: 'script',    stepId: 'reel-step-input',    iconSvg: REEL_AGENT_ICONS.mic,     icon: '🎙️', label: 'Script Agent' },
+  { id: 'scene',     stepId: 'reel-step-presets',  iconSvg: REEL_AGENT_ICONS.layers,  icon: '🎬', label: 'Cinematography Agent' },
+  { id: 'image',     stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.film,    icon: '🖼️', label: 'Image Agent' },
+  { id: 'animation', stepId: 'reel-step-scenes',   iconSvg: REEL_AGENT_ICONS.sparkle, icon: '✨', label: 'Animation Agent' },
+  { id: 'bgm',       stepId: 'reel-step-bgm',      iconSvg: REEL_AGENT_ICONS.wave,    icon: '🎵', label: 'BGM Agent' },
+  { id: 'preview',   stepId: 'reel-step-editor',   iconSvg: REEL_AGENT_ICONS.eye,     icon: '▶️', label: 'Preview Agent' },
 ];
+
+// Aurora preset-card selection — stores chosen theme preset in a global
+// and updates card selected state. Pure visual binding; the value can be
+// consumed by generation logic in future passes.
+var reelActivePreset = 'blank';
+function selectReelPreset(cardEl, preset) {
+  reelActivePreset = preset;
+  const grid = document.getElementById('reel-preset-grid');
+  if (grid) grid.querySelectorAll('.reel-preset-card').forEach(c => c.classList.remove('selected'));
+  if (cardEl) cardEl.classList.add('selected');
+}
+
+// Render the faux BGM waveform (140 magenta bars) — deterministic per reference
+function renderReelBgmFauxWave() {
+  const host = document.getElementById('reel-bgm-faux-wave');
+  if (!host || host.dataset.rendered === '1') return;
+  const BARS = 140;
+  const parts = [];
+  for (let i = 0; i < BARS; i++) {
+    const h = Math.min(40, 6 + (Math.sin(i * 0.3) * 0.5 + 0.5) * 28 + (i * 11) % 8);
+    const opacity = 0.5 + (i % 5) / 10;
+    parts.push(`<span class="reel-bgm-wave-bar" style="height:${h}px;opacity:${opacity.toFixed(2)};"></span>`);
+  }
+  host.innerHTML = parts.join('');
+  host.dataset.rendered = '1';
+}
+
+// Aurora dual-slider wiring — keeps thumb + fill in sync with the hidden <input type=range>
+function wireReelVolSlider(inputId, labelId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const track = input.closest('.reel-vol-slider-track');
+  if (!track) return;
+  const fill = track.querySelector('.reel-vol-slider-fill');
+  const thumb = track.querySelector('.reel-vol-slider-thumb');
+  const label = document.getElementById(labelId);
+  const sync = () => {
+    const v = input.value;
+    if (fill) fill.style.width = v + '%';
+    if (thumb) thumb.style.left = v + '%';
+    if (label) label.textContent = v + '%';
+  };
+  input.addEventListener('input', sync);
+  sync();
+}
+
+// Bootstrap all Aurora preview affordances once the DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  renderReelBgmFauxWave();
+  wireReelVolSlider('reel-bgm-volume-slider', 'reel-bgm-vol-label');
+  wireReelVolSlider('reel-voice-volume-slider', 'reel-voice-vol-label');
+});
 
 const _reelAgentState = {};
 
@@ -11502,24 +12523,24 @@ function _renderReelAgentPanel() {
   list.innerHTML = agents.map(a => {
     const s = _reelAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
-    const isLive = s.status === 'running' || s.status === 'error';
+    // Render subtasks whenever they exist (not only when live) — matches Aurora reference behaviour
     let bodyHtml = '';
-    if (isLive && subtasks.length > 0) {
+    if (subtasks.length > 0) {
       bodyHtml = subtasks.map(t => {
-        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '⚠️' : t.status === 'error' ? '❌' : '○';
+        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '!' : t.status === 'error' ? '×' : '';
         return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
       }).join('');
-    } else if (isLive && s.detail) {
+    } else if ((s.status === 'running' || s.status === 'error') && s.detail) {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
+    // Prefer Aurora SVG icon if available; fall back to emoji
+    const iconHtml = a.iconSvg || a.icon || '';
     return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
       onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
-      <div class="agent-row-top">
-        <span class="agent-row-icon">${a.icon}</span>
-        <span class="agent-row-label">${a.label}</span>
-        <span class="agent-status-dot ${s.status}"></span>
-      </div>
-      ${bodyHtml}
+      <span class="agent-row-icon">${iconHtml}</span>
+      <span class="agent-row-label">${a.label}</span>
+      <span class="agent-status-dot ${s.status}"></span>
+      ${bodyHtml ? `<div class="agent-row-body">${bodyHtml}</div>` : ''}
     </div>`;
   }).join('');
 }
