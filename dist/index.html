@@ -428,8 +428,21 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 .create-header h2 { font-size: 1.1rem; color: var(--text-primary); margin: 0; font-weight: 600; }
 .create-step {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 18px 22px; margin-bottom: 12px;
+  padding: 22px; margin-bottom: 14px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.create-step:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.2);
+}
+.create-step.step-done {
+  border-color: color-mix(in oklch, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--accent) 12%, transparent), 0 2px 12px rgba(0,0,0,0.15);
+}
+.create-step.step-running {
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+  box-shadow: 0 0 18px color-mix(in oklch, var(--accent) 10%, transparent), 0 2px 12px rgba(0,0,0,0.15);
 }
 .create-step h3 {
   font-size: 0.82rem; color: var(--text-primary); margin: 0 0 10px 0; font-weight: 600;
@@ -1578,18 +1591,31 @@ input:focus, select:focus, textarea:focus {
   --text-secondary: var(--lp-dim);
   --text-muted:     var(--lp-faint);
   --radius-lg:    18px;
-  /* ── Type scale (7 steps) ── */
-  --rp-xs:      9px;   /* badges: SELECTED, AUTO */
-  --rp-label:   10px;  /* uppercase eyebrow labels, mono readouts */
-  --rp-meta:    11px;  /* breadcrumb, cost chip, track name, ctrl-waiting */
-  --rp-sm:      12px;  /* secondary UI — descriptions, ghost buttons */
-  --rp-body:    13px;  /* primary UI — options, row labels, launch btn */
-  --rp-ui:      14px;  /* card titles, file chooser */
-  --rp-step:    15px;  /* step headings H3 */
-  --rp-display: 36px;  /* "Autopilot" H2 */
+  /* ── Type scale (7 steps) — scaled up for professionalism ── */
+  --rp-xs:      10px;   /* badges: SELECTED, AUTO */
+  --rp-label:   11px;  /* uppercase eyebrow labels, mono readouts */
+  --rp-meta:    12px;  /* breadcrumb, cost chip, track name, ctrl-waiting */
+  --rp-sm:      13px;  /* secondary UI — descriptions, ghost buttons */
+  --rp-body:    14px;  /* primary UI — options, row labels, launch btn */
+  --rp-ui:      15px;  /* card titles, file chooser */
+  --rp-step:    18px;  /* step headings H3 */
+  --rp-display: 44px;  /* "Autopilot" H2 */
 }
 
-#reel-page { width: 100%; max-width: 1080px; display: none; padding: 72px 12px 0; }
+#reel-page {
+  width: 100%; max-width: 1080px; display: none;
+  padding: 72px 36px 0;
+  position: relative;
+}
+/* Background atmosphere — radial glows matching landing page aesthetic */
+#reel-page::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 40% 30% at 15% 8%, rgba(120,220,255,0.12), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 85% 20%, rgba(200,120,255,0.10), transparent 55%),
+    radial-gradient(ellipse 50% 25% at 50% 85%, rgba(120,255,200,0.06), transparent 55%),
+    var(--lp-bg);
+}
 #reel-page.visible { display: flex; flex-direction: column; }
 #reel-body { display: flex; align-items: flex-start; }
 #reel-agent-panel {
@@ -1600,7 +1626,7 @@ input:focus, select:focus, textarea:focus {
   padding: 18px;
   background: color-mix(in oklch, var(--lp-bg) 60%, transparent);
 }
-#reel-workflow { flex: 1; min-width: 0; padding: 0 4px; }
+#reel-workflow { flex: 1; min-width: 0; padding: 0 4px 0 32px; }
 
 /* ── Agent Panel ── */
 .agent-panel-label {
@@ -1779,7 +1805,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 24px; margin-bottom: 18px;
 }
-.reel-step h3 { font-family: var(--lp-font-display); font-size: var(--rp-step); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.reel-step h3 { font-family: var(--lp-font-display); font-size: var(--rp-step); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: var(--lp-text); letter-spacing: -0.01em; }
 .reel-presets-row {
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
 }
@@ -2716,6 +2742,322 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 #reel-page .reel-ghost-btn:hover { background: var(--lp-card); color: var(--lp-text); }
 
+/* ═══════════════════════════════════════════════════════════
+   P2 Aurora — Global form control & button overrides for #reel-page
+   ═════════════════════════════════════════════════════════ */
+
+/* ── Form Controls ── */
+#reel-page select,
+#reel-page input[type="text"],
+#reel-page input[type="password"],
+#reel-page input[type="number"],
+#reel-page input[type="email"],
+#reel-page input[type="url"],
+#reel-page textarea {
+  background: var(--lp-bg2);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 10px;
+  color: var(--lp-text);
+  font-family: var(--lp-font-ui);
+  font-size: var(--rp-body);
+  padding: 10px 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+#reel-page select:hover,
+#reel-page input[type="text"]:hover,
+#reel-page input[type="password"]:hover,
+#reel-page input[type="number"]:hover,
+#reel-page textarea:hover {
+  border-color: var(--lp-card-bdr-h);
+}
+#reel-page select:focus,
+#reel-page input[type="text"]:focus,
+#reel-page input[type="password"]:focus,
+#reel-page input[type="number"]:focus,
+#reel-page textarea:focus {
+  outline: none;
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px var(--lp-glow);
+}
+#reel-page select {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.6' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+#reel-page select option {
+  background: var(--lp-bg2); color: var(--lp-text);
+}
+#reel-page label,
+#reel-page .form-label {
+  font-family: var(--lp-font-mono);
+  font-size: var(--rp-label);
+  color: var(--lp-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+#reel-page .form-row {
+  gap: 12px;
+  align-items: center;
+}
+#reel-page .text-secondary,
+#reel-page .text-sm,
+#reel-page .text-xs {
+  color: var(--lp-dim);
+}
+#reel-page .text-muted {
+  color: var(--lp-faint);
+}
+#reel-page .text-primary,
+#reel-page .text-base {
+  color: var(--lp-text);
+}
+
+/* ── Buttons ── */
+#reel-page button,
+#reel-page .btn {
+  font-family: var(--lp-font-ui);
+  transition: all 180ms cubic-bezier(.2,.9,.3,1);
+}
+#reel-page .primary,
+#reel-page button.primary {
+  background: var(--lp-accent);
+  border-color: var(--lp-accent);
+  color: #05101a;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px var(--lp-glow);
+}
+#reel-page .primary:hover,
+#reel-page button.primary:hover {
+  background: oklch(85% 0.16 200);
+  color: #030d14;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px var(--lp-glow);
+}
+#reel-page .btn-md {
+  border-radius: 999px;
+  font-size: var(--rp-body);
+  padding: 8px 18px;
+  border: 1px solid var(--lp-card-bdr);
+  background: var(--lp-bg2);
+  color: var(--lp-text);
+}
+#reel-page .btn-md:hover {
+  border-color: var(--lp-card-bdr-h);
+  background: var(--lp-card);
+}
+#reel-page .btn-sm {
+  border-radius: 999px;
+  font-size: var(--rp-sm);
+  padding: 6px 14px;
+  border: 1px solid var(--lp-card-bdr);
+  background: var(--lp-bg2);
+  color: var(--lp-dim);
+}
+#reel-page .btn-sm:hover {
+  border-color: var(--lp-card-bdr-h);
+  color: var(--lp-text);
+  background: var(--lp-card);
+}
+#reel-page .btn-xs {
+  border-radius: 999px;
+  font-size: var(--rp-label);
+  padding: 5px 10px;
+  border: 1px solid var(--lp-card-bdr);
+  background: var(--lp-bg2);
+  color: var(--lp-dim);
+}
+#reel-page .btn-xs:hover {
+  border-color: var(--lp-card-bdr-h);
+  color: var(--lp-text);
+  background: var(--lp-card);
+}
+#reel-page .danger {
+  background: transparent;
+  border-color: rgba(239,68,68,0.5);
+  color: #ef4444;
+  border-radius: 999px;
+}
+#reel-page .danger:hover {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.7);
+}
+#reel-page .agent-launch-btn {
+  background: var(--lp-accent);
+  color: #05101a;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-family: var(--lp-font-ui);
+  font-size: var(--rp-body);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--lp-glow);
+  transition: all 180ms cubic-bezier(.2,.9,.3,1);
+}
+#reel-page .agent-launch-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px var(--lp-glow);
+  filter: brightness(1.08);
+}
+#reel-page .agent-launch-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* ── Progress bars ── */
+#reel-page .create-progress,
+#reel-page .bar-bg {
+  background: var(--lp-bg2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+#reel-page .bar-fill {
+  background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent2));
+  border-radius: 8px;
+  transition: width 0.3s ease;
+}
+
+/* ── Card upgrade ── */
+#reel-page .reel-step {
+  background: linear-gradient(135deg, var(--lp-card), color-mix(in oklch, var(--lp-bg2) 80%, var(--lp-card)));
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 18px;
+  padding: 28px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+#reel-page .reel-step:hover {
+  border-color: var(--lp-card-bdr-h);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+/* ── fadeInUp animation for steps ── */
+@keyframes reel-step-appear {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#reel-page .reel-step.visible,
+#reel-page .reel-step:not(.hidden) {
+  animation: reel-step-appear 0.35s ease both;
+}
+
+/* ── Step visual states ── */
+#reel-page .reel-step.step-done {
+  border-color: color-mix(in oklch, var(--lp-accent) 35%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lp-accent) 20%, transparent), 0 4px 24px rgba(0,0,0,0.2);
+}
+#reel-page .reel-step.step-running {
+  border-color: color-mix(in oklch, var(--lp-accent) 50%, transparent);
+  box-shadow: 0 0 20px color-mix(in oklch, var(--lp-accent) 12%, transparent), 0 4px 24px rgba(0,0,0,0.2);
+  animation: step-pulse-border 2s ease-in-out infinite;
+}
+@keyframes step-pulse-border {
+  0%,100% { border-color: color-mix(in oklch, var(--lp-accent) 30%, transparent); }
+  50%     { border-color: color-mix(in oklch, var(--lp-accent) 60%, transparent); }
+}
+
+/* ── Step connectors ── */
+#reel-page #reel-workflow {
+  position: relative;
+}
+#reel-page #reel-workflow::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 16px;
+  width: 2px;
+  background: var(--lp-card-bdr);
+  z-index: 0;
+  border-radius: 1px;
+}
+#reel-page .reel-step {
+  position: relative;
+  z-index: 1;
+}
+#reel-page .reel-step::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 28px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--lp-bg2);
+  border: 2px solid var(--lp-card-bdr);
+  z-index: 2;
+  transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+}
+#reel-page .reel-step.step-done::before {
+  background: var(--lp-accent);
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 8px var(--lp-glow);
+}
+#reel-page .reel-step.step-running::before {
+  background: oklch(80% 0.14 200);
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 12px var(--lp-glow);
+  animation: step-pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes step-pulse-dot {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.3); }
+}
+
+/* ── Hover glow for cards ── */
+#reel-page .template-card::before {
+  content: ''; position: absolute; top: -20px; right: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: radial-gradient(circle, var(--lp-glow), transparent 70%);
+  pointer-events: none; opacity: 0; transition: opacity 200ms;
+}
+#reel-page .template-card:hover::before { opacity: 1; }
+
+/* ── Reel page scrollbar ── */
+#reel-page ::-webkit-scrollbar { width: 10px; height: 10px; }
+#reel-page ::-webkit-scrollbar-track { background: var(--lp-bg); }
+#reel-page ::-webkit-scrollbar-thumb {
+  background: var(--lp-card-bdr); border-radius: 999px; border: 2px solid var(--lp-bg);
+}
+#reel-page ::-webkit-scrollbar-thumb:hover { background: var(--lp-card-bdr-h); }
+
+/* ═══ Mobile: hide agent panel, compact progress ═══ */
+@media (max-width: 768px) {
+  #reel-page { padding: 72px 20px 0; }
+  #reel-agent-panel { display: none !important; }
+  #reel-workflow { width: 100% !important; }
+  #reel-page .reel-step::before { display: none; }
+  #reel-page #reel-workflow::before { display: none; }
+  #reel-body { flex-direction: column; }
+  /* Compact mobile progress bar */
+  #reel-page .reel-mobile-progress {
+    display: flex !important;
+  }
+}
+@media (min-width: 769px) {
+  #reel-page .reel-mobile-progress {
+    display: none !important;
+  }
+}
+#reel-page .reel-mobile-progress {
+  display: none;
+  gap: 6px; align-items: center;
+  padding: 10px 0;
+}
+#reel-page .reel-mobile-progress-step {
+  flex: 1; height: 3px; border-radius: 2px;
+  background: var(--lp-card-bdr);
+  transition: background 0.3s;
+}
+#reel-page .reel-mobile-progress-step.done { background: var(--lp-accent); }
+#reel-page .reel-mobile-progress-step.running { background: var(--lp-accent); animation: step-pulse-border 2s infinite; }
+
 /* Editor reel tabs */
 .editor-reel-tabs {
   display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
@@ -2746,6 +3088,14 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 @media (max-width: 768px) {
   body { padding: 12px 12px; }
   #drop-zone { padding: 30px 20px; }
+  #reel-page { padding: 72px 20px 0; }
+  #reel-agent-panel { display: none !important; }
+  #reel-workflow { width: 100% !important; padding-left: 28px; }
+  #reel-workflow::before { left: 14px; }
+  #reel-page .reel-step::before { left: -14px; }
+  #reel-page .reel-main-heading h2 { font-size: 32px; }
+  #reel-page .video-mode-cards { flex-direction: column; }
+  #reel-page .reel-optrow-grid { grid-template-columns: 1fr; }
   .landing-hero-title { font-size: 1.5rem; }
   .landing-hero-sub { font-size: var(--text-base); }
   .landing-features { grid-template-columns: 1fr; }
@@ -2780,6 +3130,13 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   .tier-card { min-width: auto; }
   .btn-lg { padding: 10px 20px; font-size: var(--text-sm); }
   .scene-grid { grid-template-columns: 1fr; }
+  #reel-page { padding: 72px 20px 0; }
+  #reel-page #reel-workflow { padding-left: 20px; }
+  #reel-page #reel-workflow::before { left: 8px; }
+  #reel-page .reel-step::before { left: -12px; width: 8px; height: 8px; }
+  #reel-page .reel-step { padding: 20px; }
+  #reel-page .reel-main-heading h2 { font-size: 28px; }
+}
 }
 
   </style>
@@ -3884,7 +4241,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 0: Video Mode Selection -->
     <div class="create-step" id="create-video-mode-step">
-      <h3><span class="step-num">0</span> Video Mode</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">0</span><span class="agent-step-name">Video Mode</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="create-card-illustrated" onclick="setCreateVideoMode('illustrated')">
           <div class="video-mode-icon">🖼</div>
@@ -3915,7 +4272,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
-      <h3><span class="step-num">1</span> Input & Template</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">1</span><span class="agent-step-name">Input & Template</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
         <button id="create-mode-video" class="mode-btn">🎙️ Podcast</button>
@@ -4315,6 +4672,9 @@ body:has(#drop-zone:not(.hidden)) {
       <span class="reel-meta-chip">· AUTOPILOT · 9:16</span>
     </div>
 
+    <!-- Mobile progress bar (hidden on desktop) -->
+    <div class="reel-mobile-progress" id="reel-mobile-progress"></div>
+
     <!-- Agent UI: side panel + scrollable workflow -->
     <div id="reel-body">
       <div id="reel-agent-panel">
@@ -4328,7 +4688,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 1: Video Mode Selection -->
     <div class="reel-step" id="reel-video-mode-step">
-      <h3><span class="step-num">1</span> Video Mode</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">1</span><span class="agent-step-name">Video Mode</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
           <div class="video-mode-content">
@@ -4367,7 +4727,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 2: Input -->
     <div class="reel-step" id="reel-step-input">
-      <h3><span class="step-num">2</span> Input</h3>
+      <div class="agent-step-header"><span class="agent-step-icon">2</span><span class="agent-step-name">Input</span><span class="agent-step-status-badge waiting">Waiting</span></div>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
@@ -9591,6 +9951,11 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     // ── Reel Subtitle Renderer (word-level) ──
     function renderReelSubtitle(ctx, cw, ch, elapsed, words, style) {
       if (!words || words.length === 0 || style === 'none') return;
+      if (!renderReelSubtitle._logged) {
+        const badWords = words.filter(w => !w || typeof w.word !== 'string' || !w.word);
+        console.log('[ReelSub] called with words:', words.length, 'style:', style, 'badWords:', badWords.length, 'sample:', JSON.stringify(words.slice(0, 5)), 'badSample:', JSON.stringify(badWords.slice(0, 3)));
+        renderReelSubtitle._logged = true;
+      }
       ctx.save();
 
       const color = typeof reelSubColor !== 'undefined' ? reelSubColor : '#ffffff';
@@ -9606,7 +9971,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const posNum = typeof pos === 'number' ? pos : (pos === 'top' ? 12 : pos === 'center' ? 52 : 85);
       const y = ch * (posNum / 100);
       const maxWidth = cw * 0.9;
-      const wordText = (w) => allCaps ? w.word.toUpperCase() : w.word;
+      const wordText = (w) => { const t = (typeof w === 'string' ? w : w.word) || ''; return allCaps ? t.toUpperCase() : t; };
 
       function drawBackdrop(x, bY, w, h) {
         if (backdrop === 'shadow') return; // shadow applied in drawTextWithOutline
@@ -12416,6 +12781,32 @@ function _syncAgentStepHeader(pipeline, agentId, status) {
     header.classList.remove('waiting', 'running', 'done', 'error');
     header.classList.add(status);
   }
+  // Add step-level class for visual state
+  if (step.classList.contains('reel-step') || step.classList.contains('create-step')) {
+    step.classList.remove('step-done', 'step-running', 'step-error');
+    if (status === 'done') step.classList.add('step-done');
+    else if (status === 'running') step.classList.add('step-running');
+    else if (status === 'error') step.classList.add('step-error');
+  }
+  // Autopilot: auto-scroll agent panel to the running agent row
+  if (pipeline === 'reel' && status === 'running') {
+    const panel = $('reel-agent-panel');
+    const row = panel && panel.querySelector('.agent-row.active');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // Update mobile progress bar
+  if (pipeline === 'reel') _updateReelMobileProgress();
+}
+
+// ── Mobile progress bar for Autopilot pipeline ──
+function _updateReelMobileProgress() {
+  const bar = $('reel-mobile-progress');
+  if (!bar) return;
+  const agents = _getReelAgents();
+  bar.innerHTML = agents.map(a => {
+    const s = _reelAgentState[a.id] || { status: 'waiting' };
+    return `<div class="reel-mobile-progress-step ${s.status}"></div>`;
+  }).join('');
 }
 
 function _showCreateLaunchRow(agentId) {
@@ -17591,7 +17982,7 @@ let reelGenImagesPaused = false;
 let reelGenImagesRunning = false;
 
 // Variation rows: each row = one reel variant (audio lang + subtitle lang)
-let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'none' }];
+let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'original' }];
 const REEL_LANG_OPTIONS = { original: 'Same as Input', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
 const REEL_SUBTITLE_LANG_OPTIONS = { none: 'None', ...REEL_LANG_OPTIONS };
 
@@ -18294,11 +18685,13 @@ function clampSegments(segs, minN, maxN) {
       if (dur < minDur) { minDur = dur; minIdx = i; }
     }
     const a = segs[minIdx], b = segs[minIdx + 1];
+    const mergedText = ((a.text || '') + ' ' + (b.text || '')).trim();
+    const mergedWords = buildWordsFromText(mergedText, a.startTime, b.endTime);
     segs.splice(minIdx, 2, {
       startTime: a.startTime, endTime: b.endTime,
-      text: (a.text + ' ' + b.text).trim(),
+      text: mergedText,
       sceneDescription: a.sceneDescription || a.text,
-      words: [...(a.words || []), ...(b.words || [])],
+      words: mergedWords,
     });
   }
   // Split: if too few, split the longest segment at its midpoint
@@ -18310,16 +18703,38 @@ function clampSegments(segs, minN, maxN) {
     }
     const s = segs[maxIdx];
     const mid = (s.startTime + s.endTime) / 2;
-    const wordsA = (s.words || []).filter(w => w.start < mid);
-    const wordsB = (s.words || []).filter(w => w.start >= mid);
+    const wordsA = distributeWordsToScene(s.startTime, mid, s.words && s.words.length > 0 ? s.words : null);
+    const wordsB = distributeWordsToScene(mid, s.endTime, s.words && s.words.length > 0 ? s.words : null);
     const textA = (wordsA.length ? wordsA.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(0, Math.floor(s.text.length / 2));
     const textB = (wordsB.length ? wordsB.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(Math.floor(s.text.length / 2));
+    const builtWordsA = wordsA.length > 0 ? wordsA : buildWordsFromText(textA, s.startTime, mid);
+    const builtWordsB = wordsB.length > 0 ? wordsB : buildWordsFromText(textB, mid, s.endTime);
     segs.splice(maxIdx, 1,
-      { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: wordsA },
-      { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: wordsB }
+      { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: builtWordsA },
+      { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: builtWordsB }
     );
   }
   return segs;
+}
+
+function distributeWordsToScene(sceneStartTime, sceneEndTime, allWords) {
+  if (!allWords || allWords.length === 0) return [];
+  return allWords.filter(w => w.start != null && w.end != null && w.start < sceneEndTime && w.end > sceneStartTime);
+}
+
+function buildWordsFromText(text, startTime, endTime) {
+  const wds = (text || '').trim().split(/\s+/).filter(w => w.length > 0);
+  if (wds.length === 0) return [];
+  const dur = Math.max(0.1, endTime - startTime);
+  const wDur = dur / wds.length;
+  return wds.map((w, i) => ({ word: w, start: startTime + i * wDur, end: startTime + (i + 1) * wDur }));
+}
+
+function sanitizeSceneWords(words, text, startTime, endTime) {
+  if (words && Array.isArray(words) && words.length > 0 && words.every(w => w && typeof w.word === 'string' && w.word.length > 0 && w.start != null && w.end != null)) {
+    return words;
+  }
+  return buildWordsFromText(text, startTime || 0, endTime || 0);
 }
 
 // ── Generate Reel ──
@@ -18394,7 +18809,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       if (isVidInput && reelEditMode === 'subtitles') {
         job.scenes = [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none', segmentIndex: job.id }];
       } else if (isVidInput) {
-        job.scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none', segmentIndex: job.id }));
+        job.scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: distributeWordsToScene(s.startTime, s.endTime, words), imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none', segmentIndex: job.id }));
       } else {
         const totalDur = segAudio.duration;
         job.scenes = segments.map((s, si2) => {
@@ -18402,7 +18817,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
         });
       }
       job.words = words;
@@ -18523,17 +18938,19 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Apply base variation subtitle language to segment jobs
     const baseSubLang5 = reelVariationRows[0]?.subtitle || 'original';
     const segTransMap5 = new Map();
-    if (baseSubLang5 !== 'original') {
+    console.log('[ReelSub] baseSubLang5:', baseSubLang5, 'variationRows[0].subtitle:', reelVariationRows[0]?.subtitle);
+    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none') {
       for (const job of doneJobs) {
         if (job.type !== 'segment') continue;
         const origText = job.words.map(w => w.word).join(' ');
-        if (!origText) continue;
+        if (!origText) { console.warn('[ReelSub] origText empty, skipping translation'); continue; }
         try {
           reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[baseSubLang5]}...`;
           const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[baseSubLang5]}. Return ONLY the translated text:\n\n${origText}` }] }] };
           const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
           trackCost('textGeneration', 1);
           const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          console.log('[ReelSub] translation result:', translated ? translated.slice(0, 80) : '(empty)');
           if (translated) {
             const tw = translated.split(/\s+/);
             const tDur = job.words.length > 0 ? job.words[job.words.length - 1].end - job.words[0].start : 0;
@@ -18549,7 +18966,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     window._reelMultiResults = doneJobs.map(job => {
       const isSegJob = job.type === 'segment';
       const effSubLang = isSegJob ? baseSubLang5 : job.subtitleLang;
-      const effWords = (isSegJob && segTransMap5.get(job.id)) ? segTransMap5.get(job.id) : job.words;
+      const effWords = isSegJob
+        ? (baseSubLang5 === 'none' ? [] : segTransMap5.get(job.id) || job.words)
+        : job.words;
       return {
         audioBuffer: job.audioBuffer,
         scenes: job.scenes,
@@ -18566,6 +18985,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
       };
     });
+    console.log('[ReelGen] Job queue done. results:', window._reelMultiResults.length, 'words[0]:', JSON.stringify(window._reelMultiResults[0]?.words?.slice(0, 3)), 'scene[0].words:', JSON.stringify(window._reelMultiResults[0]?.scenes?.[0]?.words?.slice(0, 3)));
     activeReelPreview = 0;
     reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
     reelScenes = window._reelMultiResults[0].scenes;
@@ -18682,7 +19102,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelScenes = segments.map(s => ({
         startTime: s.startTime, endTime: s.endTime,
         duration: s.endTime - s.startTime,
-        text: s.text, words: s.words || [],
+        text: s.text, words: distributeWordsToScene(s.startTime, s.endTime, reelWords),
         imgDataUrl: null, status: 'done', isVideo: true,
         transition: transPreset.transition,
         transDur: transPreset.transDur,
@@ -18698,7 +19118,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           prompt: s.sceneDescription || s.text,
           startTime: st, endTime: en,
           duration: en - st,
-          text: s.text, words: s.words || [],
+          text: s.text, words: distributeWordsToScene(st, en, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
@@ -19073,7 +19493,7 @@ function applyReelSubPresetToCard(el, results) {
     reelSubFont = p.subFont; reelSubAllCaps = p.subAllCaps; reelSubAccent = p.subAccent;
   }
   window._editorReelSubtitle = {
-    words: window._editorReelSubtitle?.words || reelWords,
+    words: (window._editorReelSubtitle?.words?.length > 0 ? window._editorReelSubtitle.words : reelWords),
     style: p.subtitleStyle, subColor: p.subColor, subOutline: p.subOutline,
     subBackdrop: p.subBackdrop, subSize: p.subSize, subPosition: p.subPosition,
     subFont: p.subFont, subAllCaps: p.subAllCaps, subAccent: p.subAccent,
@@ -19109,6 +19529,14 @@ function renderAllReelPreviews() {
   const results = window._reelMultiResults;
 
   console.log('[ReelPreview] renderAllReelPreviews called, results:', results?.length || 0);
+  if (results?.length > 0) {
+    for (let ri = 0; ri < results.length; ri++) {
+      const r = results[ri];
+      const sampleWords = r.words?.slice(0, 3);
+      const firstSceneWords = r.scenes?.[0]?.words?.slice(0, 3);
+      console.log(`[ReelPreview] result[${ri}]: words.length=${r.words?.length}, sampleWords=${JSON.stringify(sampleWords)}, scene[0].words=${JSON.stringify(firstSceneWords)}, reelWords.length=${reelWords?.length}`);
+    }
+  }
   if (!results || results.length === 0) {
     container.style.display = 'none';
     return;
@@ -19696,7 +20124,7 @@ function renderAllReelPreviews() {
         else if (key === 'subAccent')   reelSubAccent   = r.settings[key];
       }
       window._editorReelSubtitle = {
-        words: window._editorReelSubtitle?.words || reelWords,
+        words: (window._editorReelSubtitle?.words?.length > 0 ? window._editorReelSubtitle.words : reelWords),
         style: reelSubtitleStyle,
         subSize: reelSubSize,
         subPosition: reelSubPosition,
@@ -20710,7 +21138,7 @@ async function reelBuildVariationsAndPreview() {
     // Apply base variation subtitle language to segment jobs (variation jobs already have their own subtitleLang)
     const baseSubLang = reelVariationRows[0]?.subtitle || 'original';
     const segTranslationMap = new Map(); // job.id → translatedWords
-    if (baseSubLang !== 'original') {
+    if (baseSubLang !== 'original' && baseSubLang !== 'none') {
       const tKey = getReelApiKey();
       for (const job of activeJobs) {
         if (job.type !== 'segment') continue;
@@ -20736,7 +21164,9 @@ async function reelBuildVariationsAndPreview() {
     window._reelMultiResults = activeJobs.map(job => {
       const isSegJob = job.type === 'segment';
       const effSubLang = isSegJob ? baseSubLang : job.subtitleLang;
-      const effWords = (isSegJob && segTranslationMap.get(job.id)) ? segTranslationMap.get(job.id) : job.words;
+      const effWords = isSegJob
+        ? (baseSubLang === 'none' ? [] : segTranslationMap.get(job.id) || job.words)
+        : job.words;
       return {
         audioBuffer: job.audioBuffer,
         scenes: job.scenes,
@@ -21037,6 +21467,10 @@ function drawReelSubtitles(ctx, platform, time) {
   const subStyleEl = $('reel-subtitle-style');
   const currentSubStyle = subStyleEl ? subStyleEl.value : reelSubtitleStyle;
   if (currentSubStyle !== 'none' && reelWords && reelWords.length > 0) {
+    if (!drawReelSubtitles._logged) {
+      console.log('[DrawSubs] reelWords.length:', reelWords.length, 'sample:', JSON.stringify(reelWords.slice(0, 3)), 'style:', currentSubStyle);
+      drawReelSubtitles._logged = true;
+    }
     renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, currentSubStyle);
   }
 }
@@ -21462,6 +21896,17 @@ function renderVariationRows() {
       });
     });
   });
+  // Wire the visible row-0 selectors (reel-variation-list is display:none; these are the real UI elements)
+  const audioLangEl = $('reel-audio-lang');
+  if (audioLangEl) {
+    audioLangEl.value = reelVariationRows[0].audio;
+    audioLangEl.onchange = () => { reelVariationRows[0].audio = audioLangEl.value; updateVariationCount(); };
+  }
+  const subLangEl = $('reel-subtitle-lang');
+  if (subLangEl) {
+    subLangEl.value = reelVariationRows[0].subtitle;
+    subLangEl.onchange = () => { reelVariationRows[0].subtitle = subLangEl.value; updateVariationCount(); };
+  }
   updateVariationCount();
 }
 
@@ -21559,7 +22004,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       audio: { data: audioBase64, duration: reelAudioBuffer.duration },
       scenes: reelScenes ? reelScenes.map(s => ({
         startTime: s.startTime, endTime: s.endTime, duration: s.duration,
-        text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+        text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
         prompt: s.prompt, isVideo: s.isVideo,
         transition: s.transition, transDur: s.transDur, motion: s.motion,
       })) : [],
@@ -21599,7 +22044,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
             }
             return {
               startTime: s.startTime, endTime: s.endTime, duration: s.duration,
-              text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+              text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
               prompt: s.prompt, isVideo: s.isVideo,
               transition: s.transition, transDur: s.transDur, motion: s.motion,
               segmentIndex: s.segmentIndex, videoData,
@@ -22756,6 +23201,9 @@ async function loadReelProject(project) {
       const si = r.segmentIndex ?? ri;
       for (const s of scenes) {
         if (s.segmentIndex == null) s.segmentIndex = si;
+        if (s.words && Array.isArray(s.words) && s.words.length > 0 && !s.words.every(w => w && typeof w.word === 'string' && w.word.length > 0)) {
+          s.words = buildWordsFromText(s.text, s.startTime || 0, s.endTime || 0);
+        }
         if (s.videoData && !s.videoBlobUrl) {
           try {
             const b64 = s.videoData.includes(',') ? s.videoData.split(',')[1] : s.videoData;
@@ -22766,10 +23214,12 @@ async function loadReelProject(project) {
         }
       }
       await preloadSceneImages(scenes);
+      const loadedWords = r.words || reelWords;
+      const sanitizedWords = (Array.isArray(loadedWords) && loadedWords.length > 0 && loadedWords.every(w => w && typeof w.word === 'string' && w.word.length > 0)) ? loadedWords : reelWords;
       results.push({
         audioBuffer,
         scenes,
-        words: r.words || reelWords,
+        words: sanitizedWords,
         videoStart: r.videoStart ?? (reelSegments[si]?.start || 0),
         videoEnd: r.videoEnd ?? (reelSegments[si]?.end || audioBuffer.duration),
         audioLang: r.audioLang || 'original', subtitleLang: r.subtitleLang || 'original',

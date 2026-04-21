@@ -108,7 +108,7 @@ let reelGenImagesPaused = false;
 let reelGenImagesRunning = false;
 
 // Variation rows: each row = one reel variant (audio lang + subtitle lang)
-let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'none' }];
+let reelVariationRows = [{ platform: 'instagram', style: 'cinematic', transition: 'whip-pan', audio: 'original', subtitle: 'original' }];
 const REEL_LANG_OPTIONS = { original: 'Same as Input', en: 'English', ta: 'Tamil', hi: 'Hindi', te: 'Telugu', ml: 'Malayalam', es: 'Spanish', fr: 'French' };
 const REEL_SUBTITLE_LANG_OPTIONS = { none: 'None', ...REEL_LANG_OPTIONS };
 
@@ -811,11 +811,13 @@ function clampSegments(segs, minN, maxN) {
       if (dur < minDur) { minDur = dur; minIdx = i; }
     }
     const a = segs[minIdx], b = segs[minIdx + 1];
+    const mergedText = ((a.text || '') + ' ' + (b.text || '')).trim();
+    const mergedWords = buildWordsFromText(mergedText, a.startTime, b.endTime);
     segs.splice(minIdx, 2, {
       startTime: a.startTime, endTime: b.endTime,
-      text: (a.text + ' ' + b.text).trim(),
+      text: mergedText,
       sceneDescription: a.sceneDescription || a.text,
-      words: [...(a.words || []), ...(b.words || [])],
+      words: mergedWords,
     });
   }
   // Split: if too few, split the longest segment at its midpoint
@@ -827,16 +829,38 @@ function clampSegments(segs, minN, maxN) {
     }
     const s = segs[maxIdx];
     const mid = (s.startTime + s.endTime) / 2;
-    const wordsA = (s.words || []).filter(w => w.start < mid);
-    const wordsB = (s.words || []).filter(w => w.start >= mid);
+    const wordsA = distributeWordsToScene(s.startTime, mid, s.words && s.words.length > 0 ? s.words : null);
+    const wordsB = distributeWordsToScene(mid, s.endTime, s.words && s.words.length > 0 ? s.words : null);
     const textA = (wordsA.length ? wordsA.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(0, Math.floor(s.text.length / 2));
     const textB = (wordsB.length ? wordsB.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(Math.floor(s.text.length / 2));
+    const builtWordsA = wordsA.length > 0 ? wordsA : buildWordsFromText(textA, s.startTime, mid);
+    const builtWordsB = wordsB.length > 0 ? wordsB : buildWordsFromText(textB, mid, s.endTime);
     segs.splice(maxIdx, 1,
-      { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: wordsA },
-      { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: wordsB }
+      { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: builtWordsA },
+      { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: builtWordsB }
     );
   }
   return segs;
+}
+
+function distributeWordsToScene(sceneStartTime, sceneEndTime, allWords) {
+  if (!allWords || allWords.length === 0) return [];
+  return allWords.filter(w => w.start != null && w.end != null && w.start < sceneEndTime && w.end > sceneStartTime);
+}
+
+function buildWordsFromText(text, startTime, endTime) {
+  const wds = (text || '').trim().split(/\s+/).filter(w => w.length > 0);
+  if (wds.length === 0) return [];
+  const dur = Math.max(0.1, endTime - startTime);
+  const wDur = dur / wds.length;
+  return wds.map((w, i) => ({ word: w, start: startTime + i * wDur, end: startTime + (i + 1) * wDur }));
+}
+
+function sanitizeSceneWords(words, text, startTime, endTime) {
+  if (words && Array.isArray(words) && words.length > 0 && words.every(w => w && typeof w.word === 'string' && w.word.length > 0 && w.start != null && w.end != null)) {
+    return words;
+  }
+  return buildWordsFromText(text, startTime || 0, endTime || 0);
 }
 
 // ── Generate Reel ──
@@ -911,7 +935,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       if (isVidInput && reelEditMode === 'subtitles') {
         job.scenes = [{ startTime: 0, endTime: segAudio.duration, duration: segAudio.duration, text: segments.map(s => s.text).join(' '), words, imgDataUrl: null, status: 'done', isVideo: true, transition: 'none', transDur: 0, motion: 'none', segmentIndex: job.id }];
       } else if (isVidInput) {
-        job.scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: s.words || [], imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none', segmentIndex: job.id }));
+        job.scenes = segments.map(s => ({ startTime: s.startTime, endTime: s.endTime, duration: s.endTime - s.startTime, text: s.text, words: distributeWordsToScene(s.startTime, s.endTime, words), imgDataUrl: null, status: 'done', isVideo: true, transition: transPreset.transition, transDur: transPreset.transDur, motion: 'none', segmentIndex: job.id }));
       } else {
         const totalDur = segAudio.duration;
         job.scenes = segments.map((s, si2) => {
@@ -919,7 +943,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: s.words || [], imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
         });
       }
       job.words = words;
@@ -1040,17 +1064,19 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     // Apply base variation subtitle language to segment jobs
     const baseSubLang5 = reelVariationRows[0]?.subtitle || 'original';
     const segTransMap5 = new Map();
-    if (baseSubLang5 !== 'original') {
+    console.log('[ReelSub] baseSubLang5:', baseSubLang5, 'variationRows[0].subtitle:', reelVariationRows[0]?.subtitle);
+    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none') {
       for (const job of doneJobs) {
         if (job.type !== 'segment') continue;
         const origText = job.words.map(w => w.word).join(' ');
-        if (!origText) continue;
+        if (!origText) { console.warn('[ReelSub] origText empty, skipping translation'); continue; }
         try {
           reelProgressLabel.textContent = `Translating subtitle to ${REEL_LANG_OPTIONS[baseSubLang5]}...`;
           const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[baseSubLang5]}. Return ONLY the translated text:\n\n${origText}` }] }] };
           const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
           trackCost('textGeneration', 1);
           const translated = transData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          console.log('[ReelSub] translation result:', translated ? translated.slice(0, 80) : '(empty)');
           if (translated) {
             const tw = translated.split(/\s+/);
             const tDur = job.words.length > 0 ? job.words[job.words.length - 1].end - job.words[0].start : 0;
@@ -1066,7 +1092,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     window._reelMultiResults = doneJobs.map(job => {
       const isSegJob = job.type === 'segment';
       const effSubLang = isSegJob ? baseSubLang5 : job.subtitleLang;
-      const effWords = (isSegJob && segTransMap5.get(job.id)) ? segTransMap5.get(job.id) : job.words;
+      const effWords = isSegJob
+        ? (baseSubLang5 === 'none' ? [] : segTransMap5.get(job.id) || job.words)
+        : job.words;
       return {
         audioBuffer: job.audioBuffer,
         scenes: job.scenes,
@@ -1083,6 +1111,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         settings: { ...jobSettings, subtitleStyle: job.subtitleStyle, transition: job.transition, subColor: job.subColor, subOutline: job.subOutline, subBackdrop: job.subBackdrop, subSize: job.subSize, subPosition: job.subPosition },
       };
     });
+    console.log('[ReelGen] Job queue done. results:', window._reelMultiResults.length, 'words[0]:', JSON.stringify(window._reelMultiResults[0]?.words?.slice(0, 3)), 'scene[0].words:', JSON.stringify(window._reelMultiResults[0]?.scenes?.[0]?.words?.slice(0, 3)));
     activeReelPreview = 0;
     reelAudioBuffer = window._reelMultiResults[0].audioBuffer;
     reelScenes = window._reelMultiResults[0].scenes;
@@ -1199,7 +1228,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelScenes = segments.map(s => ({
         startTime: s.startTime, endTime: s.endTime,
         duration: s.endTime - s.startTime,
-        text: s.text, words: s.words || [],
+        text: s.text, words: distributeWordsToScene(s.startTime, s.endTime, reelWords),
         imgDataUrl: null, status: 'done', isVideo: true,
         transition: transPreset.transition,
         transDur: transPreset.transDur,
@@ -1215,7 +1244,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           prompt: s.sceneDescription || s.text,
           startTime: st, endTime: en,
           duration: en - st,
-          text: s.text, words: s.words || [],
+          text: s.text, words: distributeWordsToScene(st, en, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
@@ -1590,7 +1619,7 @@ function applyReelSubPresetToCard(el, results) {
     reelSubFont = p.subFont; reelSubAllCaps = p.subAllCaps; reelSubAccent = p.subAccent;
   }
   window._editorReelSubtitle = {
-    words: window._editorReelSubtitle?.words || reelWords,
+    words: (window._editorReelSubtitle?.words?.length > 0 ? window._editorReelSubtitle.words : reelWords),
     style: p.subtitleStyle, subColor: p.subColor, subOutline: p.subOutline,
     subBackdrop: p.subBackdrop, subSize: p.subSize, subPosition: p.subPosition,
     subFont: p.subFont, subAllCaps: p.subAllCaps, subAccent: p.subAccent,
@@ -1626,6 +1655,14 @@ function renderAllReelPreviews() {
   const results = window._reelMultiResults;
 
   console.log('[ReelPreview] renderAllReelPreviews called, results:', results?.length || 0);
+  if (results?.length > 0) {
+    for (let ri = 0; ri < results.length; ri++) {
+      const r = results[ri];
+      const sampleWords = r.words?.slice(0, 3);
+      const firstSceneWords = r.scenes?.[0]?.words?.slice(0, 3);
+      console.log(`[ReelPreview] result[${ri}]: words.length=${r.words?.length}, sampleWords=${JSON.stringify(sampleWords)}, scene[0].words=${JSON.stringify(firstSceneWords)}, reelWords.length=${reelWords?.length}`);
+    }
+  }
   if (!results || results.length === 0) {
     container.style.display = 'none';
     return;
@@ -2213,7 +2250,7 @@ function renderAllReelPreviews() {
         else if (key === 'subAccent')   reelSubAccent   = r.settings[key];
       }
       window._editorReelSubtitle = {
-        words: window._editorReelSubtitle?.words || reelWords,
+        words: (window._editorReelSubtitle?.words?.length > 0 ? window._editorReelSubtitle.words : reelWords),
         style: reelSubtitleStyle,
         subSize: reelSubSize,
         subPosition: reelSubPosition,
@@ -3227,7 +3264,7 @@ async function reelBuildVariationsAndPreview() {
     // Apply base variation subtitle language to segment jobs (variation jobs already have their own subtitleLang)
     const baseSubLang = reelVariationRows[0]?.subtitle || 'original';
     const segTranslationMap = new Map(); // job.id → translatedWords
-    if (baseSubLang !== 'original') {
+    if (baseSubLang !== 'original' && baseSubLang !== 'none') {
       const tKey = getReelApiKey();
       for (const job of activeJobs) {
         if (job.type !== 'segment') continue;
@@ -3253,7 +3290,9 @@ async function reelBuildVariationsAndPreview() {
     window._reelMultiResults = activeJobs.map(job => {
       const isSegJob = job.type === 'segment';
       const effSubLang = isSegJob ? baseSubLang : job.subtitleLang;
-      const effWords = (isSegJob && segTranslationMap.get(job.id)) ? segTranslationMap.get(job.id) : job.words;
+      const effWords = isSegJob
+        ? (baseSubLang === 'none' ? [] : segTranslationMap.get(job.id) || job.words)
+        : job.words;
       return {
         audioBuffer: job.audioBuffer,
         scenes: job.scenes,
@@ -3554,6 +3593,10 @@ function drawReelSubtitles(ctx, platform, time) {
   const subStyleEl = $('reel-subtitle-style');
   const currentSubStyle = subStyleEl ? subStyleEl.value : reelSubtitleStyle;
   if (currentSubStyle !== 'none' && reelWords && reelWords.length > 0) {
+    if (!drawReelSubtitles._logged) {
+      console.log('[DrawSubs] reelWords.length:', reelWords.length, 'sample:', JSON.stringify(reelWords.slice(0, 3)), 'style:', currentSubStyle);
+      drawReelSubtitles._logged = true;
+    }
     renderReelSubtitle(ctx, platform.width, platform.height, time, reelWords, currentSubStyle);
   }
 }
@@ -3979,6 +4022,17 @@ function renderVariationRows() {
       });
     });
   });
+  // Wire the visible row-0 selectors (reel-variation-list is display:none; these are the real UI elements)
+  const audioLangEl = $('reel-audio-lang');
+  if (audioLangEl) {
+    audioLangEl.value = reelVariationRows[0].audio;
+    audioLangEl.onchange = () => { reelVariationRows[0].audio = audioLangEl.value; updateVariationCount(); };
+  }
+  const subLangEl = $('reel-subtitle-lang');
+  if (subLangEl) {
+    subLangEl.value = reelVariationRows[0].subtitle;
+    subLangEl.onchange = () => { reelVariationRows[0].subtitle = subLangEl.value; updateVariationCount(); };
+  }
   updateVariationCount();
 }
 
@@ -4076,7 +4130,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       audio: { data: audioBase64, duration: reelAudioBuffer.duration },
       scenes: reelScenes ? reelScenes.map(s => ({
         startTime: s.startTime, endTime: s.endTime, duration: s.duration,
-        text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+        text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
         prompt: s.prompt, isVideo: s.isVideo,
         transition: s.transition, transDur: s.transDur, motion: s.motion,
       })) : [],
@@ -4116,7 +4170,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
             }
             return {
               startTime: s.startTime, endTime: s.endTime, duration: s.duration,
-              text: s.text, words: s.words, imgDataUrl: s.imgDataUrl,
+              text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
               prompt: s.prompt, isVideo: s.isVideo,
               transition: s.transition, transDur: s.transDur, motion: s.motion,
               segmentIndex: s.segmentIndex, videoData,
@@ -5273,6 +5327,9 @@ async function loadReelProject(project) {
       const si = r.segmentIndex ?? ri;
       for (const s of scenes) {
         if (s.segmentIndex == null) s.segmentIndex = si;
+        if (s.words && Array.isArray(s.words) && s.words.length > 0 && !s.words.every(w => w && typeof w.word === 'string' && w.word.length > 0)) {
+          s.words = buildWordsFromText(s.text, s.startTime || 0, s.endTime || 0);
+        }
         if (s.videoData && !s.videoBlobUrl) {
           try {
             const b64 = s.videoData.includes(',') ? s.videoData.split(',')[1] : s.videoData;
@@ -5283,10 +5340,12 @@ async function loadReelProject(project) {
         }
       }
       await preloadSceneImages(scenes);
+      const loadedWords = r.words || reelWords;
+      const sanitizedWords = (Array.isArray(loadedWords) && loadedWords.length > 0 && loadedWords.every(w => w && typeof w.word === 'string' && w.word.length > 0)) ? loadedWords : reelWords;
       results.push({
         audioBuffer,
         scenes,
-        words: r.words || reelWords,
+        words: sanitizedWords,
         videoStart: r.videoStart ?? (reelSegments[si]?.start || 0),
         videoEnd: r.videoEnd ?? (reelSegments[si]?.end || audioBuffer.duration),
         audioLang: r.audioLang || 'original', subtitleLang: r.subtitleLang || 'original',
