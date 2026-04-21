@@ -82,9 +82,10 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-bgart {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 35% at 20% 10%, rgba(120,220,255,0.20), transparent 55%),
-    radial-gradient(ellipse 60% 35% at 80% 30%, rgba(220,120,255,0.18), transparent 55%),
-    radial-gradient(ellipse 80% 40% at 50% 90%, rgba(120,255,200,0.10), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 50% 0%,  rgba(120,220,255,0.13), transparent 60%),
+    radial-gradient(ellipse 55% 40% at 15% 20%, rgba(120,220,255,0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
+    radial-gradient(ellipse 70% 35% at 50% 88%, rgba(100,220,180,0.08), transparent 55%),
     #050814;
 }
 .lp-hero, .lp-section, .lp-nav, .lp-modes, .lp-marquee,
@@ -96,9 +97,11 @@ body:has(#drop-zone:not(.hidden)) {
 /* ── NAV ── */
 .lp-nav {
   position: sticky; top: 0; z-index: 200;
-  background: rgba(5,8,20,0.75); backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255,255,255,0.08); height: 67px;
+  background: rgba(5,8,20,0.82); backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 1px 0 rgba(120,220,255,0.06), 0 12px 40px -8px rgba(5,8,20,0.6);
+  height: 67px;
 }
 .lp-nav-inner {
   max-width: 1280px; margin: 0 auto; padding: 0 36px;
@@ -180,11 +183,11 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-chk-i { color: oklch(80% 0.14 200); flex-shrink: 0; }
 
 /* ── HERO ── */
-.lp-hero { padding: 100px 36px 120px; max-width: 1280px; margin: 0 auto; }
+.lp-hero { padding: 64px 36px 100px; max-width: 1280px; margin: 0 auto; }
 .lp-hero-text { text-align: center; }   /* NO max-width — h1 uses full section width */
 .lp-h1 {
-  font-family: var(--lp-font-display); font-size: clamp(52px, 9vw, 128px); font-weight: 600;
-  line-height: 0.95; letter-spacing: -0.04em; color: #eef4ff; margin: 24px 0 28px;
+  font-family: var(--lp-font-display); font-size: clamp(52px, 8.5vw, 120px); font-weight: 700;
+  line-height: 0.95; letter-spacing: -0.04em; color: #eef4ff; margin: 20px 0 24px;
 }
 .lp-h1 em {
   font-style: normal; font-weight: 700;
@@ -192,8 +195,8 @@ body:has(#drop-zone:not(.hidden)) {
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .lp-hero-sub {
-  font-family: var(--lp-font-ui); font-size: 18px; line-height: 1.5;
-  color: rgba(238,244,255,0.65); max-width: 620px; margin: 0 auto 36px;
+  font-family: var(--lp-font-ui); font-size: 17px; line-height: 1.6;
+  color: rgba(238,244,255,0.60); max-width: 580px; margin: 0 auto 32px;
 }
 .lp-hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
 .lp-hero-extras { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
@@ -585,7 +588,7 @@ body:has(#drop-zone:not(.hidden)) {
   .lp-scene-tc { display: none; }
 }
 @media (max-width: 600px) {
-  .lp-hero { padding: 80px 20px 80px; }
+  .lp-hero { padding: 48px 20px 72px; }
   .lp-modes, .lp-pillars, .lp-scrubber-sec, .lp-storyboard-sec, .lp-styles-sec,
   .lp-pipeline, .lp-pricing, .lp-footer { padding-left: 20px; padding-right: 20px; }
   .lp-showcase-h2, .lp-storyboard-h2 { font-size: 40px; }
@@ -600,6 +603,15 @@ body:has(#drop-zone:not(.hidden)) {
 </style>
 </head>
 <body>
+  <!-- Page Transition Overlay -->
+  <div id="page-transition" aria-hidden="true">
+    <div class="pt-background"></div>
+    <div class="pt-hero-stage">
+      <div class="pt-hero-text"></div>
+      <div class="pt-cta-button"></div>
+      <div class="pt-preview-window"></div>
+    </div>
+  </div>
   <div id="global-progress"><div class="bar"></div></div>
   <div id="page-loader"><div class="loader-spinner"></div><div class="loader-text">Loading...</div></div>
   <!-- ═══ Nav ═══ -->
@@ -1140,7 +1152,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
-      <h3><span class="step-num">1</span> Input & Template</h3>
+      <h3><span class="step-num">1</span> Input &amp; Template</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
         <button id="create-mode-video" class="mode-btn">🎙️ Podcast</button>
@@ -1512,33 +1524,42 @@ body:has(#drop-zone:not(.hidden)) {
     </div><!-- /#create-body -->
   </div>
 
-  <!-- ═══ Reel/Short Creator ═══ -->
-  <div id="reel-page">
+  <!-- ═══ Reel Header (outside #reel-page for full-width) ═══ -->
+  <div id="reel-header-wrapper" style="display:none;">
     <div class="reel-header">
-      <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
-      <div class="reel-header-divider"></div>
-      <span class="reel-header-breadcrumb">/ autopilot / short-reel</span>
-      <span class="reel-auto-pill">⚡ AUTOPILOT</span>
-      <div class="reel-header-spacer"></div>
-      <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
-      <div class="create-api-bar reel-header-keybar">
-        <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
-        <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
-        <div id="reel-key-expand" style="display:none;">
-          <input type="password" id="reel-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
-          <button id="btn-reel-save-key-paid" class="primary btn-xs">Save</button>
-          <span id="reel-key-status-paid" class="text-xs"></span>
-          <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+      <div class="reel-header-inner">
+        <div class="reel-header-left">
+          <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
+          <div class="reel-header-divider"></div>
+          <span class="reel-auto-pill">⚡ AUTOPILOT</span>
+        </div>
+        <div class="reel-header-right">
+          <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
+          <div class="create-api-bar reel-header-keybar">
+            <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
+            <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
+            <div id="reel-key-expand" style="display:none;">
+              <input type="password" id="reel-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+              <button id="btn-reel-save-key-paid" class="primary btn-xs">Save</button>
+              <span id="reel-key-status-paid" class="text-xs"></span>
+              <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+            </div>
+          </div>
+          <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
         </div>
       </div>
-      <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
     </div>
+  </div>
 
+  <!-- ═══ Reel/Short Creator ═══ -->
+  <div id="reel-page">
     <!-- Main heading row (below top bar) -->
     <div class="reel-main-heading">
       <h2>Autopilot <em>— Short Reel</em></h2>
-      <span class="reel-meta-chip">· AUTOPILOT · 9:16</span>
     </div>
+
+    <!-- Mobile progress bar (hidden on desktop) -->
+    <div class="reel-mobile-progress" id="reel-mobile-progress"></div>
 
     <!-- Agent UI: side panel + scrollable workflow -->
     <div id="reel-body">
@@ -2559,8 +2580,9 @@ body:has(#drop-zone:not(.hidden)) {
   </script>
 
   <!-- Critical: globals + gallery (landing page) -->
-  <script src="js/01-core.js"></script>
-  <script src="js/15-project.js"></script>
+  <script src="js/01-core.js?v=2"></script>
+  <script src="js/18-page-transition.js?v=2"></script>
+  <script src="js/15-project.js?v=2"></script>
   <!-- All other scripts loaded on demand when user navigates -->
   <script>
   var _editorScriptsLoaded = false;

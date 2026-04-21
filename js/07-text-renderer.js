@@ -228,6 +228,11 @@
     // ── Reel Subtitle Renderer (word-level) ──
     function renderReelSubtitle(ctx, cw, ch, elapsed, words, style) {
       if (!words || words.length === 0 || style === 'none') return;
+      if (!renderReelSubtitle._logged) {
+        const badWords = words.filter(w => !w || typeof w.word !== 'string' || !w.word);
+        console.log('[ReelSub] called with words:', words.length, 'style:', style, 'badWords:', badWords.length, 'sample:', JSON.stringify(words.slice(0, 5)), 'badSample:', JSON.stringify(badWords.slice(0, 3)));
+        renderReelSubtitle._logged = true;
+      }
       ctx.save();
 
       const color = typeof reelSubColor !== 'undefined' ? reelSubColor : '#ffffff';
@@ -243,7 +248,7 @@
       const posNum = typeof pos === 'number' ? pos : (pos === 'top' ? 12 : pos === 'center' ? 52 : 85);
       const y = ch * (posNum / 100);
       const maxWidth = cw * 0.9;
-      const wordText = (w) => allCaps ? w.word.toUpperCase() : w.word;
+      const wordText = (w) => { const t = (typeof w === 'string' ? w : w.word) || ''; return allCaps ? t.toUpperCase() : t; };
 
       function drawBackdrop(x, bY, w, h) {
         if (backdrop === 'shadow') return; // shadow applied in drawTextWithOutline

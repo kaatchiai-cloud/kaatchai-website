@@ -49,7 +49,8 @@ const staticRegex = /\s*<script\s+(?:defer\s+)?src="js\/([^"]+)"><\/script>/g;
 const htmlForStatic = html;
 let sm;
 while ((sm = staticRegex.exec(htmlForStatic)) !== null) {
-  if (!allJsFiles.includes(sm[1])) allJsFiles.push(sm[1]);
+  const cleanName = sm[1].replace(/\?.*$/, ''); // strip ?v=... cache-bust params
+  if (!allJsFiles.includes(cleanName)) allJsFiles.push(cleanName);
 }
 
 // Find files in the dynamic loader script block

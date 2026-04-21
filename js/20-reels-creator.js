@@ -199,43 +199,61 @@ let reelEditMode = 'subtitles'; // subtitles | auto-cut
 
 // ── Navigation ──
 if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
-  navigateTo('reel');
-  reelMode = true;
-  if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
-  // Load saved keys
-  const savedFree = localStorage.getItem('stori_key_free');
-  const savedPaid = localStorage.getItem('stori_key_paid');
-  if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
-  const savedKey = savedPaid || savedFree;
-  if (savedKey && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedKey; }
-  updateReelKeyInline();
-  // Populate style dropdown from STYLE_PRESETS
-  if (reelStyleEl && reelStyleEl.options.length <= 1) {
-    reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
-      `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
-    ).join('');
-    reelStyleEl.value = 'cinematic';
+  const proceedToReel = () => {
+    navigateTo('reel');
+    reelMode = true;
+    if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
+    // Load saved keys
+    const savedFree = localStorage.getItem('stori_key_free');
+    const savedPaid = localStorage.getItem('stori_key_paid');
+    if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
+    const savedKey = savedPaid || savedFree;
+    if (savedKey && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedKey; }
+    updateReelKeyInline();
+    // Populate style dropdown from STYLE_PRESETS
+    if (reelStyleEl && reelStyleEl.options.length <= 1) {
+      reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
+        `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
+      ).join('');
+      reelStyleEl.value = 'cinematic';
+    }
+    // Copy to edit dropdowns
+    const editStyle = $('reel-edit-style');
+    const editTrans = $('reel-edit-transition');
+    const editSub = $('reel-edit-subtitle');
+    if (editStyle) editStyle.innerHTML = reelStyleEl.innerHTML;
+    if (editTrans) editTrans.innerHTML = reelTransitionEl.innerHTML;
+    if (editSub) editSub.innerHTML = reelSubtitleStyleEl.innerHTML;
+  };
+  
+  // Use morph transition if available
+  if (typeof window.morphToReel === 'function' && !window.ptIsTransitioning()) {
+    window.morphToReel(proceedToReel);
+  } else {
+    proceedToReel();
   }
-  // Copy to edit dropdowns
-  const editStyle = $('reel-edit-style');
-  const editTrans = $('reel-edit-transition');
-  const editSub = $('reel-edit-subtitle');
-  if (editStyle) editStyle.innerHTML = reelStyleEl.innerHTML;
-  if (editTrans) editTrans.innerHTML = reelTransitionEl.innerHTML;
-  if (editSub) editSub.innerHTML = reelSubtitleStyleEl.innerHTML;
 });
 
 if (btnReelBack) btnReelBack.addEventListener('click', () => {
-  navigateTo('home');
-  reelMode = false;
-  reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
-  reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
-  reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
-  if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
-  updateReelFrameControls();
-  reelOverlayItems = []; nextOverlayId = 1;
-  renderOverlayChips();
-  stopReelPreview();
+  const cleanupAndNavigate = () => {
+    navigateTo('home');
+    reelMode = false;
+    reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
+    reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
+    reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
+    if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
+    updateReelFrameControls();
+    reelOverlayItems = []; nextOverlayId = 1;
+    renderOverlayChips();
+    stopReelPreview();
+  };
+  
+  // Use morph transition if available
+  if (typeof window.morphFromReel === 'function' && !window.ptIsTransitioning()) {
+    window.morphFromReel(cleanupAndNavigate);
+  } else {
+    cleanupAndNavigate();
+  }
 });
 
 // ── Input Mode Toggle ──

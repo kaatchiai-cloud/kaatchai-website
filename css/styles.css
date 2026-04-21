@@ -1575,13 +1575,13 @@ input:focus, select:focus, textarea:focus {
   --rp-display: 36px;  /* "Autopilot" H2 */
 }
 
-#reel-page { width: 100%; max-width: 1080px; display: none; padding: 72px 12px 0; }
+#reel-page { width: 100%; max-width: 1080px; display: none; padding: 20px 12px 0; }
 #reel-page.visible { display: flex; flex-direction: column; }
 #reel-body { display: flex; align-items: flex-start; }
 #reel-agent-panel {
-  position: sticky; top: 72px;
+  position: sticky; top: 56px;
   width: 260px; flex-shrink: 0;
-  height: calc(100vh - 72px); overflow-y: auto;
+  height: calc(100vh - 56px); overflow-y: auto;
   border-right: 1px solid var(--border);
   padding: 18px;
   background: color-mix(in oklch, var(--lp-bg) 60%, transparent);
@@ -1696,14 +1696,32 @@ input:focus, select:focus, textarea:focus {
 .agent-launch-btn:hover { filter: brightness(1.12); }
 .agent-launch-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
+/* ── Reel page: full-screen body reset (same pattern as landing page) ── */
+body:has(#reel-page.visible) {
+  padding: 0 !important;
+  display: block !important;
+  align-items: unset !important;
+}
+body:has(#reel-page.visible) .lp-nav { display: none !important; }
+
+/* ── Reel header wrapper: full-width sticky bar ── */
+#reel-header-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
 .reel-header {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  height: 56px; padding: 0 20px; margin: -72px -12px 0;
+  height: 56px;
   background: color-mix(in oklch, var(--lp-bg) 70%, transparent);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--lp-card-bdr);
-  position: sticky; top: 67px; z-index: 100;
 }
+.reel-header-inner {
+  height: 100%; padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.reel-header-left { display: flex; align-items: center; gap: 12px; }
+.reel-header-right { display: flex; align-items: center; gap: 10px; }
 .reel-header h2 { font-size: var(--text-xl); font-weight: 600; }
 
 /* Aurora top-bar components */

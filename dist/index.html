@@ -428,21 +428,8 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 .create-header h2 { font-size: 1.1rem; color: var(--text-primary); margin: 0; font-weight: 600; }
 .create-step {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 22px; margin-bottom: 14px;
+  padding: 18px 22px; margin-bottom: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-.create-step:hover {
-  border-color: var(--border-hover);
-  box-shadow: 0 4px 18px rgba(0,0,0,0.2);
-}
-.create-step.step-done {
-  border-color: color-mix(in oklch, var(--accent) 35%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in oklch, var(--accent) 12%, transparent), 0 2px 12px rgba(0,0,0,0.15);
-}
-.create-step.step-running {
-  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
-  box-shadow: 0 0 18px color-mix(in oklch, var(--accent) 10%, transparent), 0 2px 12px rgba(0,0,0,0.15);
 }
 .create-step h3 {
   font-size: 0.82rem; color: var(--text-primary); margin: 0 0 10px 0; font-weight: 600;
@@ -1591,42 +1578,29 @@ input:focus, select:focus, textarea:focus {
   --text-secondary: var(--lp-dim);
   --text-muted:     var(--lp-faint);
   --radius-lg:    18px;
-  /* ── Type scale (7 steps) — scaled up for professionalism ── */
-  --rp-xs:      10px;   /* badges: SELECTED, AUTO */
-  --rp-label:   11px;  /* uppercase eyebrow labels, mono readouts */
-  --rp-meta:    12px;  /* breadcrumb, cost chip, track name, ctrl-waiting */
-  --rp-sm:      13px;  /* secondary UI — descriptions, ghost buttons */
-  --rp-body:    14px;  /* primary UI — options, row labels, launch btn */
-  --rp-ui:      15px;  /* card titles, file chooser */
-  --rp-step:    18px;  /* step headings H3 */
-  --rp-display: 44px;  /* "Autopilot" H2 */
+  /* ── Type scale (7 steps) ── */
+  --rp-xs:      9px;   /* badges: SELECTED, AUTO */
+  --rp-label:   10px;  /* uppercase eyebrow labels, mono readouts */
+  --rp-meta:    11px;  /* breadcrumb, cost chip, track name, ctrl-waiting */
+  --rp-sm:      12px;  /* secondary UI — descriptions, ghost buttons */
+  --rp-body:    13px;  /* primary UI — options, row labels, launch btn */
+  --rp-ui:      14px;  /* card titles, file chooser */
+  --rp-step:    15px;  /* step headings H3 */
+  --rp-display: 36px;  /* "Autopilot" H2 */
 }
 
-#reel-page {
-  width: 100%; max-width: 1080px; display: none;
-  padding: 72px 36px 0;
-  position: relative;
-}
-/* Background atmosphere — radial glows matching landing page aesthetic */
-#reel-page::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(ellipse 40% 30% at 15% 8%, rgba(120,220,255,0.12), transparent 55%),
-    radial-gradient(ellipse 40% 30% at 85% 20%, rgba(200,120,255,0.10), transparent 55%),
-    radial-gradient(ellipse 50% 25% at 50% 85%, rgba(120,255,200,0.06), transparent 55%),
-    var(--lp-bg);
-}
+#reel-page { width: 100%; max-width: 1080px; display: none; padding: 20px 12px 0; }
 #reel-page.visible { display: flex; flex-direction: column; }
 #reel-body { display: flex; align-items: flex-start; }
 #reel-agent-panel {
-  position: sticky; top: 72px;
+  position: sticky; top: 56px;
   width: 260px; flex-shrink: 0;
-  height: calc(100vh - 72px); overflow-y: auto;
+  height: calc(100vh - 56px); overflow-y: auto;
   border-right: 1px solid var(--border);
   padding: 18px;
   background: color-mix(in oklch, var(--lp-bg) 60%, transparent);
 }
-#reel-workflow { flex: 1; min-width: 0; padding: 0 4px 0 32px; }
+#reel-workflow { flex: 1; min-width: 0; padding: 0 4px; }
 
 /* ── Agent Panel ── */
 .agent-panel-label {
@@ -1736,14 +1710,32 @@ input:focus, select:focus, textarea:focus {
 .agent-launch-btn:hover { filter: brightness(1.12); }
 .agent-launch-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
+/* ── Reel page: full-screen body reset (same pattern as landing page) ── */
+body:has(#reel-page.visible) {
+  padding: 0 !important;
+  display: block !important;
+  align-items: unset !important;
+}
+body:has(#reel-page.visible) .lp-nav { display: none !important; }
+
+/* ── Reel header wrapper: full-width sticky bar ── */
+#reel-header-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
 .reel-header {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  height: 56px; padding: 0 20px; margin: -72px -12px 0;
+  height: 56px;
   background: color-mix(in oklch, var(--lp-bg) 70%, transparent);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--lp-card-bdr);
-  position: sticky; top: 67px; z-index: 100;
 }
+.reel-header-inner {
+  height: 100%; padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.reel-header-left { display: flex; align-items: center; gap: 12px; }
+.reel-header-right { display: flex; align-items: center; gap: 10px; }
 .reel-header h2 { font-size: var(--text-xl); font-weight: 600; }
 
 /* Aurora top-bar components */
@@ -1805,7 +1797,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 24px; margin-bottom: 18px;
 }
-.reel-step h3 { font-family: var(--lp-font-display); font-size: var(--rp-step); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: var(--lp-text); letter-spacing: -0.01em; }
+.reel-step h3 { font-family: var(--lp-font-display); font-size: var(--rp-step); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .reel-presets-row {
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
 }
@@ -2742,322 +2734,6 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 #reel-page .reel-ghost-btn:hover { background: var(--lp-card); color: var(--lp-text); }
 
-/* ═══════════════════════════════════════════════════════════
-   P2 Aurora — Global form control & button overrides for #reel-page
-   ═════════════════════════════════════════════════════════ */
-
-/* ── Form Controls ── */
-#reel-page select,
-#reel-page input[type="text"],
-#reel-page input[type="password"],
-#reel-page input[type="number"],
-#reel-page input[type="email"],
-#reel-page input[type="url"],
-#reel-page textarea {
-  background: var(--lp-bg2);
-  border: 1px solid var(--lp-card-bdr);
-  border-radius: 10px;
-  color: var(--lp-text);
-  font-family: var(--lp-font-ui);
-  font-size: var(--rp-body);
-  padding: 10px 14px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-#reel-page select:hover,
-#reel-page input[type="text"]:hover,
-#reel-page input[type="password"]:hover,
-#reel-page input[type="number"]:hover,
-#reel-page textarea:hover {
-  border-color: var(--lp-card-bdr-h);
-}
-#reel-page select:focus,
-#reel-page input[type="text"]:focus,
-#reel-page input[type="password"]:focus,
-#reel-page input[type="number"]:focus,
-#reel-page textarea:focus {
-  outline: none;
-  border-color: var(--lp-accent);
-  box-shadow: 0 0 0 3px var(--lp-glow);
-}
-#reel-page select {
-  appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.6' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-  cursor: pointer;
-}
-#reel-page select option {
-  background: var(--lp-bg2); color: var(--lp-text);
-}
-#reel-page label,
-#reel-page .form-label {
-  font-family: var(--lp-font-mono);
-  font-size: var(--rp-label);
-  color: var(--lp-faint);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-#reel-page .form-row {
-  gap: 12px;
-  align-items: center;
-}
-#reel-page .text-secondary,
-#reel-page .text-sm,
-#reel-page .text-xs {
-  color: var(--lp-dim);
-}
-#reel-page .text-muted {
-  color: var(--lp-faint);
-}
-#reel-page .text-primary,
-#reel-page .text-base {
-  color: var(--lp-text);
-}
-
-/* ── Buttons ── */
-#reel-page button,
-#reel-page .btn {
-  font-family: var(--lp-font-ui);
-  transition: all 180ms cubic-bezier(.2,.9,.3,1);
-}
-#reel-page .primary,
-#reel-page button.primary {
-  background: var(--lp-accent);
-  border-color: var(--lp-accent);
-  color: #05101a;
-  border-radius: 999px;
-  font-weight: 600;
-  box-shadow: 0 4px 16px var(--lp-glow);
-}
-#reel-page .primary:hover,
-#reel-page button.primary:hover {
-  background: oklch(85% 0.16 200);
-  color: #030d14;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px var(--lp-glow);
-}
-#reel-page .btn-md {
-  border-radius: 999px;
-  font-size: var(--rp-body);
-  padding: 8px 18px;
-  border: 1px solid var(--lp-card-bdr);
-  background: var(--lp-bg2);
-  color: var(--lp-text);
-}
-#reel-page .btn-md:hover {
-  border-color: var(--lp-card-bdr-h);
-  background: var(--lp-card);
-}
-#reel-page .btn-sm {
-  border-radius: 999px;
-  font-size: var(--rp-sm);
-  padding: 6px 14px;
-  border: 1px solid var(--lp-card-bdr);
-  background: var(--lp-bg2);
-  color: var(--lp-dim);
-}
-#reel-page .btn-sm:hover {
-  border-color: var(--lp-card-bdr-h);
-  color: var(--lp-text);
-  background: var(--lp-card);
-}
-#reel-page .btn-xs {
-  border-radius: 999px;
-  font-size: var(--rp-label);
-  padding: 5px 10px;
-  border: 1px solid var(--lp-card-bdr);
-  background: var(--lp-bg2);
-  color: var(--lp-dim);
-}
-#reel-page .btn-xs:hover {
-  border-color: var(--lp-card-bdr-h);
-  color: var(--lp-text);
-  background: var(--lp-card);
-}
-#reel-page .danger {
-  background: transparent;
-  border-color: rgba(239,68,68,0.5);
-  color: #ef4444;
-  border-radius: 999px;
-}
-#reel-page .danger:hover {
-  background: rgba(239,68,68,0.12);
-  border-color: rgba(239,68,68,0.7);
-}
-#reel-page .agent-launch-btn {
-  background: var(--lp-accent);
-  color: #05101a;
-  border: none;
-  border-radius: 999px;
-  padding: 11px 22px;
-  font-family: var(--lp-font-ui);
-  font-size: var(--rp-body);
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 16px var(--lp-glow);
-  transition: all 180ms cubic-bezier(.2,.9,.3,1);
-}
-#reel-page .agent-launch-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px var(--lp-glow);
-  filter: brightness(1.08);
-}
-#reel-page .agent-launch-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-  filter: none;
-}
-
-/* ── Progress bars ── */
-#reel-page .create-progress,
-#reel-page .bar-bg {
-  background: var(--lp-bg2);
-  border-radius: 8px;
-  overflow: hidden;
-}
-#reel-page .bar-fill {
-  background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent2));
-  border-radius: 8px;
-  transition: width 0.3s ease;
-}
-
-/* ── Card upgrade ── */
-#reel-page .reel-step {
-  background: linear-gradient(135deg, var(--lp-card), color-mix(in oklch, var(--lp-bg2) 80%, var(--lp-card)));
-  border: 1px solid var(--lp-card-bdr);
-  border-radius: 18px;
-  padding: 28px;
-  margin-bottom: 18px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-#reel-page .reel-step:hover {
-  border-color: var(--lp-card-bdr-h);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-}
-
-/* ── fadeInUp animation for steps ── */
-@keyframes reel-step-appear {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-#reel-page .reel-step.visible,
-#reel-page .reel-step:not(.hidden) {
-  animation: reel-step-appear 0.35s ease both;
-}
-
-/* ── Step visual states ── */
-#reel-page .reel-step.step-done {
-  border-color: color-mix(in oklch, var(--lp-accent) 35%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lp-accent) 20%, transparent), 0 4px 24px rgba(0,0,0,0.2);
-}
-#reel-page .reel-step.step-running {
-  border-color: color-mix(in oklch, var(--lp-accent) 50%, transparent);
-  box-shadow: 0 0 20px color-mix(in oklch, var(--lp-accent) 12%, transparent), 0 4px 24px rgba(0,0,0,0.2);
-  animation: step-pulse-border 2s ease-in-out infinite;
-}
-@keyframes step-pulse-border {
-  0%,100% { border-color: color-mix(in oklch, var(--lp-accent) 30%, transparent); }
-  50%     { border-color: color-mix(in oklch, var(--lp-accent) 60%, transparent); }
-}
-
-/* ── Step connectors ── */
-#reel-page #reel-workflow {
-  position: relative;
-}
-#reel-page #reel-workflow::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0;
-  left: 16px;
-  width: 2px;
-  background: var(--lp-card-bdr);
-  z-index: 0;
-  border-radius: 1px;
-}
-#reel-page .reel-step {
-  position: relative;
-  z-index: 1;
-}
-#reel-page .reel-step::before {
-  content: '';
-  position: absolute;
-  left: -16px;
-  top: 28px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--lp-bg2);
-  border: 2px solid var(--lp-card-bdr);
-  z-index: 2;
-  transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
-}
-#reel-page .reel-step.step-done::before {
-  background: var(--lp-accent);
-  border-color: var(--lp-accent);
-  box-shadow: 0 0 8px var(--lp-glow);
-}
-#reel-page .reel-step.step-running::before {
-  background: oklch(80% 0.14 200);
-  border-color: var(--lp-accent);
-  box-shadow: 0 0 12px var(--lp-glow);
-  animation: step-pulse-dot 1.4s ease-in-out infinite;
-}
-@keyframes step-pulse-dot {
-  0%,100% { transform: scale(1); }
-  50%     { transform: scale(1.3); }
-}
-
-/* ── Hover glow for cards ── */
-#reel-page .template-card::before {
-  content: ''; position: absolute; top: -20px; right: -20px;
-  width: 80px; height: 80px; border-radius: 50%;
-  background: radial-gradient(circle, var(--lp-glow), transparent 70%);
-  pointer-events: none; opacity: 0; transition: opacity 200ms;
-}
-#reel-page .template-card:hover::before { opacity: 1; }
-
-/* ── Reel page scrollbar ── */
-#reel-page ::-webkit-scrollbar { width: 10px; height: 10px; }
-#reel-page ::-webkit-scrollbar-track { background: var(--lp-bg); }
-#reel-page ::-webkit-scrollbar-thumb {
-  background: var(--lp-card-bdr); border-radius: 999px; border: 2px solid var(--lp-bg);
-}
-#reel-page ::-webkit-scrollbar-thumb:hover { background: var(--lp-card-bdr-h); }
-
-/* ═══ Mobile: hide agent panel, compact progress ═══ */
-@media (max-width: 768px) {
-  #reel-page { padding: 72px 20px 0; }
-  #reel-agent-panel { display: none !important; }
-  #reel-workflow { width: 100% !important; }
-  #reel-page .reel-step::before { display: none; }
-  #reel-page #reel-workflow::before { display: none; }
-  #reel-body { flex-direction: column; }
-  /* Compact mobile progress bar */
-  #reel-page .reel-mobile-progress {
-    display: flex !important;
-  }
-}
-@media (min-width: 769px) {
-  #reel-page .reel-mobile-progress {
-    display: none !important;
-  }
-}
-#reel-page .reel-mobile-progress {
-  display: none;
-  gap: 6px; align-items: center;
-  padding: 10px 0;
-}
-#reel-page .reel-mobile-progress-step {
-  flex: 1; height: 3px; border-radius: 2px;
-  background: var(--lp-card-bdr);
-  transition: background 0.3s;
-}
-#reel-page .reel-mobile-progress-step.done { background: var(--lp-accent); }
-#reel-page .reel-mobile-progress-step.running { background: var(--lp-accent); animation: step-pulse-border 2s infinite; }
-
 /* Editor reel tabs */
 .editor-reel-tabs {
   display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
@@ -3088,14 +2764,6 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 @media (max-width: 768px) {
   body { padding: 12px 12px; }
   #drop-zone { padding: 30px 20px; }
-  #reel-page { padding: 72px 20px 0; }
-  #reel-agent-panel { display: none !important; }
-  #reel-workflow { width: 100% !important; padding-left: 28px; }
-  #reel-workflow::before { left: 14px; }
-  #reel-page .reel-step::before { left: -14px; }
-  #reel-page .reel-main-heading h2 { font-size: 32px; }
-  #reel-page .video-mode-cards { flex-direction: column; }
-  #reel-page .reel-optrow-grid { grid-template-columns: 1fr; }
   .landing-hero-title { font-size: 1.5rem; }
   .landing-hero-sub { font-size: var(--text-base); }
   .landing-features { grid-template-columns: 1fr; }
@@ -3130,13 +2798,6 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   .tier-card { min-width: auto; }
   .btn-lg { padding: 10px 20px; font-size: var(--text-sm); }
   .scene-grid { grid-template-columns: 1fr; }
-  #reel-page { padding: 72px 20px 0; }
-  #reel-page #reel-workflow { padding-left: 20px; }
-  #reel-page #reel-workflow::before { left: 8px; }
-  #reel-page .reel-step::before { left: -12px; width: 8px; height: 8px; }
-  #reel-page .reel-step { padding: 20px; }
-  #reel-page .reel-main-heading h2 { font-size: 28px; }
-}
 }
 
   </style>
@@ -3214,9 +2875,10 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-bgart {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 35% at 20% 10%, rgba(120,220,255,0.20), transparent 55%),
-    radial-gradient(ellipse 60% 35% at 80% 30%, rgba(220,120,255,0.18), transparent 55%),
-    radial-gradient(ellipse 80% 40% at 50% 90%, rgba(120,255,200,0.10), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 50% 0%,  rgba(120,220,255,0.13), transparent 60%),
+    radial-gradient(ellipse 55% 40% at 15% 20%, rgba(120,220,255,0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
+    radial-gradient(ellipse 70% 35% at 50% 88%, rgba(100,220,180,0.08), transparent 55%),
     #050814;
 }
 .lp-hero, .lp-section, .lp-nav, .lp-modes, .lp-marquee,
@@ -3228,9 +2890,11 @@ body:has(#drop-zone:not(.hidden)) {
 /* ── NAV ── */
 .lp-nav {
   position: sticky; top: 0; z-index: 200;
-  background: rgba(5,8,20,0.75); backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255,255,255,0.08); height: 67px;
+  background: rgba(5,8,20,0.82); backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 1px 0 rgba(120,220,255,0.06), 0 12px 40px -8px rgba(5,8,20,0.6);
+  height: 67px;
 }
 .lp-nav-inner {
   max-width: 1280px; margin: 0 auto; padding: 0 36px;
@@ -3312,11 +2976,11 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-chk-i { color: oklch(80% 0.14 200); flex-shrink: 0; }
 
 /* ── HERO ── */
-.lp-hero { padding: 100px 36px 120px; max-width: 1280px; margin: 0 auto; }
+.lp-hero { padding: 64px 36px 100px; max-width: 1280px; margin: 0 auto; }
 .lp-hero-text { text-align: center; }   /* NO max-width — h1 uses full section width */
 .lp-h1 {
-  font-family: var(--lp-font-display); font-size: clamp(52px, 9vw, 128px); font-weight: 600;
-  line-height: 0.95; letter-spacing: -0.04em; color: #eef4ff; margin: 24px 0 28px;
+  font-family: var(--lp-font-display); font-size: clamp(52px, 8.5vw, 120px); font-weight: 700;
+  line-height: 0.95; letter-spacing: -0.04em; color: #eef4ff; margin: 20px 0 24px;
 }
 .lp-h1 em {
   font-style: normal; font-weight: 700;
@@ -3324,8 +2988,8 @@ body:has(#drop-zone:not(.hidden)) {
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .lp-hero-sub {
-  font-family: var(--lp-font-ui); font-size: 18px; line-height: 1.5;
-  color: rgba(238,244,255,0.65); max-width: 620px; margin: 0 auto 36px;
+  font-family: var(--lp-font-ui); font-size: 17px; line-height: 1.6;
+  color: rgba(238,244,255,0.60); max-width: 580px; margin: 0 auto 32px;
 }
 .lp-hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
 .lp-hero-extras { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
@@ -3717,7 +3381,7 @@ body:has(#drop-zone:not(.hidden)) {
   .lp-scene-tc { display: none; }
 }
 @media (max-width: 600px) {
-  .lp-hero { padding: 80px 20px 80px; }
+  .lp-hero { padding: 48px 20px 72px; }
   .lp-modes, .lp-pillars, .lp-scrubber-sec, .lp-storyboard-sec, .lp-styles-sec,
   .lp-pipeline, .lp-pricing, .lp-footer { padding-left: 20px; padding-right: 20px; }
   .lp-showcase-h2, .lp-storyboard-h2 { font-size: 40px; }
@@ -3732,6 +3396,15 @@ body:has(#drop-zone:not(.hidden)) {
 </style>
 </head>
 <body>
+  <!-- Page Transition Overlay -->
+  <div id="page-transition" aria-hidden="true">
+    <div class="pt-background"></div>
+    <div class="pt-hero-stage">
+      <div class="pt-hero-text"></div>
+      <div class="pt-cta-button"></div>
+      <div class="pt-preview-window"></div>
+    </div>
+  </div>
   <div id="global-progress"><div class="bar"></div></div>
   <div id="page-loader"><div class="loader-spinner"></div><div class="loader-text">Loading...</div></div>
   <!-- ═══ Nav ═══ -->
@@ -4241,7 +3914,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 0: Video Mode Selection -->
     <div class="create-step" id="create-video-mode-step">
-      <div class="agent-step-header"><span class="agent-step-icon">0</span><span class="agent-step-name">Video Mode</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">0</span> Video Mode</h3>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="create-card-illustrated" onclick="setCreateVideoMode('illustrated')">
           <div class="video-mode-icon">🖼</div>
@@ -4272,7 +3945,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
-      <div class="agent-step-header"><span class="agent-step-icon">1</span><span class="agent-step-name">Input & Template</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">1</span> Input &amp; Template</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
         <button id="create-mode-video" class="mode-btn">🎙️ Podcast</button>
@@ -4644,32 +4317,38 @@ body:has(#drop-zone:not(.hidden)) {
     </div><!-- /#create-body -->
   </div>
 
-  <!-- ═══ Reel/Short Creator ═══ -->
-  <div id="reel-page">
+  <!-- ═══ Reel Header (outside #reel-page for full-width) ═══ -->
+  <div id="reel-header-wrapper" style="display:none;">
     <div class="reel-header">
-      <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
-      <div class="reel-header-divider"></div>
-      <span class="reel-header-breadcrumb">/ autopilot / short-reel</span>
-      <span class="reel-auto-pill">⚡ AUTOPILOT</span>
-      <div class="reel-header-spacer"></div>
-      <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
-      <div class="create-api-bar reel-header-keybar">
-        <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
-        <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
-        <div id="reel-key-expand" style="display:none;">
-          <input type="password" id="reel-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
-          <button id="btn-reel-save-key-paid" class="primary btn-xs">Save</button>
-          <span id="reel-key-status-paid" class="text-xs"></span>
-          <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+      <div class="reel-header-inner">
+        <div class="reel-header-left">
+          <button id="btn-reel-back" class="btn-sm reel-header-btn">← Exit</button>
+          <div class="reel-header-divider"></div>
+          <span class="reel-auto-pill">⚡ AUTOPILOT</span>
+        </div>
+        <div class="reel-header-right">
+          <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
+          <div class="create-api-bar reel-header-keybar">
+            <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
+            <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
+            <div id="reel-key-expand" style="display:none;">
+              <input type="password" id="reel-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+              <button id="btn-reel-save-key-paid" class="primary btn-xs">Save</button>
+              <span id="reel-key-status-paid" class="text-xs"></span>
+              <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+            </div>
+          </div>
+          <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
         </div>
       </div>
-      <button id="btn-reel-save-top" class="btn-sm reel-header-btn">💾 Save</button>
     </div>
+  </div>
 
+  <!-- ═══ Reel/Short Creator ═══ -->
+  <div id="reel-page">
     <!-- Main heading row (below top bar) -->
     <div class="reel-main-heading">
       <h2>Autopilot <em>— Short Reel</em></h2>
-      <span class="reel-meta-chip">· AUTOPILOT · 9:16</span>
     </div>
 
     <!-- Mobile progress bar (hidden on desktop) -->
@@ -4688,7 +4367,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 1: Video Mode Selection -->
     <div class="reel-step" id="reel-video-mode-step">
-      <div class="agent-step-header"><span class="agent-step-icon">1</span><span class="agent-step-name">Video Mode</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">1</span> Video Mode</h3>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="reel-card-illustrated" onclick="setReelVideoMode('illustrated')">
           <div class="video-mode-content">
@@ -4727,7 +4406,7 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Reel Step 2: Input -->
     <div class="reel-step" id="reel-step-input">
-      <div class="agent-step-header"><span class="agent-step-icon">2</span><span class="agent-step-name">Input</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <h3><span class="step-num">2</span> Input</h3>
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
@@ -6072,8 +5751,10 @@ function navigateTo(view, pushHistory) {
   editorEl.classList.remove('visible');
   const createPage = $('create-page');
   const reelPage = $('reel-page');
+  const reelHeaderWrapper = $('reel-header-wrapper');
   if (createPage) createPage.classList.remove('visible');
   if (reelPage) reelPage.classList.remove('visible');
+  if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'none';
   // Show target view
   if (view === 'home') {
     dropZone.classList.remove('hidden');
@@ -6084,6 +5765,7 @@ function navigateTo(view, pushHistory) {
     if (createPage) createPage.classList.add('visible');
   } else if (view === 'reel') {
     if (reelPage) reelPage.classList.add('visible');
+    if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'block';
   }
 }
 
@@ -7393,6 +7075,509 @@ updateUserSection();
 
   var _idle = window.requestIdleCallback || function(cb){setTimeout(cb,50);};
   _idle(function(){
+    // ── 18-page-transition.js ──
+// ═══════════════════════════════════════════════
+// HERO MORPH TRANSITION — Landing ↔ Reel
+// ═══════════════════════════════════════════════
+
+let _ptTransitioning = false;
+let ptReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const PT_DURATION = {
+  total: 1200,
+  heroFade: 400,
+  ctaMorph: 600,
+  previewFade: 500,
+  headerReveal: 400,
+  panelReveal: 500,
+  cardStagger: 50,
+  cardReveal: 300
+};
+
+function pt$getOverlay() {
+  return document.getElementById('page-transition');
+}
+
+function pt$getLandingHero() {
+  return document.querySelector('.lp-hero');
+}
+
+function pt$getReelHeader() {
+  return document.querySelector('.reel-header');
+}
+
+function pt$getReelMainHeading() {
+  return document.querySelector('.reel-main-heading');
+}
+
+function pt$getLandingCTA() {
+  return document.getElementById('btn-create-reel');
+}
+
+function pt$getReelAutoPill() {
+  return document.querySelector('.reel-auto-pill');
+}
+
+function pt$getLandingPreview() {
+  return document.querySelector('.lp-hero-preview');
+}
+
+function pt$getReelPanel() {
+  return document.getElementById('reel-agent-panel');
+}
+
+function pt$getReelWorkflow() {
+  return document.getElementById('reel-workflow');
+}
+
+function pt$getDropZone() {
+  return document.getElementById('drop-zone');
+}
+
+function pt$getReelPage() {
+  return document.getElementById('reel-page');
+}
+
+function pt$cloneStyles(el, clone) {
+  if (!el) return;
+  const computed = window.getComputedStyle(el);
+  clone.style.position = 'fixed';
+  clone.style.zIndex = '10001';
+  clone.style.margin = '0';
+  clone.style.pointerEvents = 'none';
+}
+
+function pt$getElementCenter(el) {
+  if (!el) return { x: 0, y: 0 };
+  const rect = el.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+}
+
+function pt$getElementBounds(el) {
+  if (!el) return { left: 0, top: 0, width: 0, height: 0 };
+  const rect = el.getBoundingClientRect();
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+}
+
+function morphToReel(callback) {
+  if (_ptTransitioning) return;
+  if (ptReducedMotion) {
+    if (callback) callback();
+    return;
+  }
+  
+  _ptTransitioning = true;
+  
+  const overlay = pt$getOverlay();
+  const landingHero = pt$getLandingHero();
+  const landingCTA = pt$getLandingCTA();
+  const landingPreview = pt$getLandingPreview();
+  const dropZone = pt$getDropZone();
+  const reelPage = pt$getReelPage();
+  
+  if (!overlay || !landingHero) {
+    _ptTransitioning = false;
+    if (callback) callback();
+    return;
+  }
+  
+  // Reset overlay background for fresh transition
+  const bg = overlay.querySelector('.pt-background');
+  if (bg) {
+    bg.style.transition = '';
+    bg.style.opacity = '1';
+  }
+  
+  // Ensure landing page is visible (in case it was hidden)
+  if (dropZone) {
+    dropZone.classList.remove('hidden');
+    dropZone.style.transition = '';
+    dropZone.style.opacity = '';
+  }
+  
+  // Ensure reel page is properly hidden but don't mess with .visible class
+  if (reelPage) {
+    reelPage.style.transition = '';
+    reelPage.style.opacity = '';
+  }
+  
+  // Capture positions before any changes
+  const ctaBounds = pt$getElementBounds(landingCTA);
+  const reelPageBounds = pt$getElementBounds(reelPage);
+  const heroBounds = pt$getElementBounds(landingHero);
+  
+  // Build overlay content
+  const stage = overlay.querySelector('.pt-hero-stage');
+  const heroTextClone = overlay.querySelector('.pt-hero-text');
+  const ctaClone = overlay.querySelector('.pt-cta-button');
+  const previewClone = overlay.querySelector('.pt-preview-window');
+  
+  // Clone hero text content
+  const heroText = landingHero.querySelector('.lp-hero-text');
+  if (heroText && heroTextClone) {
+    heroTextClone.innerHTML = heroText.innerHTML;
+    heroTextClone.className = 'pt-hero-text';
+    Object.assign(heroTextClone.style, {
+      position: 'fixed',
+      left: heroBounds.left + 'px',
+      top: heroBounds.top + 'px',
+      width: heroBounds.width + 'px',
+      textAlign: 'center',
+      zIndex: '10002',
+      pointerEvents: 'none'
+    });
+  }
+  
+  // Clone CTA button
+  if (landingCTA && ctaClone) {
+    ctaClone.innerHTML = landingCTA.innerHTML;
+    ctaClone.className = 'pt-cta-button';
+    Object.assign(ctaClone.style, {
+      position: 'fixed',
+      left: ctaBounds.left + 'px',
+      top: ctaBounds.top + 'px',
+      width: ctaBounds.width + 'px',
+      height: ctaBounds.height + 'px',
+      zIndex: '10003',
+      pointerEvents: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      fontFamily: 'var(--lp-font-ui)',
+      fontSize: '15px',
+      fontWeight: '600',
+      padding: '0 20px',
+      borderRadius: '999px',
+      background: 'var(--lp-card)',
+      border: '1px solid var(--lp-card-bdr)',
+      color: 'var(--lp-text)',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.4)'
+    });
+  }
+  
+  // Clone preview window (will fade out)
+  if (landingPreview && previewClone) {
+    previewClone.innerHTML = '';
+    previewClone.className = 'pt-preview-window';
+    const previewBounds = pt$getElementBounds(landingPreview);
+    Object.assign(previewClone.style, {
+      position: 'fixed',
+      left: previewBounds.left + 'px',
+      top: previewBounds.top + 'px',
+      width: previewBounds.width + 'px',
+      height: previewBounds.height + 'px',
+      zIndex: '10001',
+      pointerEvents: 'none',
+      overflow: 'hidden',
+      borderRadius: '16px',
+      background: 'var(--lp-bg2)',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+    });
+    // Clone the preview content
+    previewClone.appendChild(landingPreview.cloneNode(true));
+  }
+  
+  // Activate overlay
+  overlay.classList.add('active');
+  
+  // Immediately show reel page at opacity 0 (no display:none flicker)
+  if (reelPage) {
+    reelPage.style.opacity = '0';
+    reelPage.classList.add('visible');
+  }
+  
+  // Animate landing elements fading out
+  if (dropZone) {
+    dropZone.style.transition = `opacity ${PT_DURATION.heroFade}ms ease`;
+    dropZone.style.opacity = '0.3';
+  }
+  
+  // Start hero text fade
+  if (heroTextClone) {
+    heroTextClone.style.transition = `opacity ${PT_DURATION.heroFade}ms ease, transform ${PT_DURATION.heroFade}ms ease`;
+    requestAnimationFrame(() => {
+      heroTextClone.style.opacity = '0';
+      heroTextClone.style.transform = 'translateY(-30px) scale(0.95)';
+    });
+  }
+  
+  // Start preview fade
+  if (previewClone) {
+    previewClone.style.transition = `opacity ${PT_DURATION.previewFade}ms ease, transform ${PT_DURATION.previewFade}ms ease`;
+    requestAnimationFrame(() => {
+      previewClone.style.opacity = '0';
+      previewClone.style.transform = 'scale(0.9)';
+    });
+  }
+  
+  // Morph CTA button toward pill position (top-right of reel page)
+  if (ctaClone) {
+    const targetX = window.innerWidth - 200;
+    const targetY = 30;
+    ctaClone.style.transition = `transform ${PT_DURATION.ctaMorph}ms cubic-bezier(0.4, 0, 0.2, 1), opacity ${PT_DURATION.ctaMorph}ms ease`;
+    requestAnimationFrame(() => {
+      const dx = targetX - ctaBounds.left - ctaBounds.width / 2;
+      const dy = targetY - ctaBounds.top;
+      ctaClone.style.transform = `translate(${dx}px, ${dy}px) scale(0.75)`;
+      ctaClone.style.opacity = '0';
+    });
+  }
+  
+  // After landing elements fade, switch pages
+  setTimeout(() => {
+    // Hide landing page
+    if (dropZone) {
+      dropZone.classList.add('hidden');
+    }
+    
+    // Fade out overlay background while fading in reel page
+    const bg = overlay.querySelector('.pt-background');
+    if (bg) {
+      bg.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease`;
+      bg.style.opacity = '0';
+    }
+    
+    // Reveal reel page elements with animation
+    revealReelContent();
+    
+    if (callback) callback();
+  }, PT_DURATION.heroFade);
+}
+
+function revealReelContent() {
+  const overlay = pt$getOverlay();
+  const bg = overlay ? overlay.querySelector('.pt-background') : null;
+  const reelPage = pt$getReelPage();
+  const reelHeader = pt$getReelHeader();
+  const reelMainHeading = pt$getReelMainHeading();
+  const reelPanel = pt$getReelPanel();
+  const reelWorkflow = pt$getReelWorkflow();
+  
+  // Set initial states for animated elements (off-screen/invisible)
+  if (reelHeader) {
+    reelHeader.style.opacity = '0';
+    reelHeader.style.transform = 'translateY(-20px)';
+  }
+  if (reelMainHeading) {
+    reelMainHeading.style.opacity = '0';
+    reelMainHeading.style.transform = 'translateY(-15px)';
+  }
+  if (reelPanel) {
+    reelPanel.style.opacity = '0';
+  }
+  const stepCards = reelWorkflow ? reelWorkflow.querySelectorAll('.reel-step') : [];
+  stepCards.forEach(card => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(25px)';
+  });
+  
+  // Force a reflow to ensure initial states are applied
+  void (reelPage && reelPage.offsetHeight);
+  
+  // Fade out overlay background while fading in reel page
+  if (bg) {
+    bg.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease`;
+    bg.style.opacity = '0';
+  }
+  
+  // Fade in the reel page container immediately
+  if (reelPage) {
+    reelPage.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease`;
+    reelPage.style.opacity = '1';
+  }
+  
+  // Header slides down
+  if (reelHeader) {
+    reelHeader.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease, transform ${PT_DURATION.headerReveal}ms ease`;
+    reelHeader.style.opacity = '1';
+    reelHeader.style.transform = 'translateY(0)';
+  }
+  
+  // Main heading
+  if (reelMainHeading) {
+    reelMainHeading.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease ${100}ms, transform ${PT_DURATION.headerReveal}ms ease ${100}ms`;
+    reelMainHeading.style.opacity = '1';
+    reelMainHeading.style.transform = 'translateY(0)';
+  }
+  
+  // Panel fades in (delayed)
+  if (reelPanel) {
+    reelPanel.style.transition = `opacity ${PT_DURATION.panelReveal}ms ease ${150}ms`;
+    reelPanel.style.opacity = '1';
+  }
+  
+  // Step cards stagger in
+  stepCards.forEach((card, index) => {
+    const delay = 200 + index * PT_DURATION.cardStagger;
+    card.style.transition = `opacity ${PT_DURATION.cardReveal}ms ease ${delay}ms, transform ${PT_DURATION.cardReveal}ms ease ${delay}ms`;
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  });
+  
+  // Transition is now complete - hide overlay and reset flag
+  // (full cleanup only happens on return transition)
+  const totalDuration = 200 + stepCards.length * PT_DURATION.cardStagger + PT_DURATION.cardReveal + 100;
+  setTimeout(() => {
+    overlay.classList.remove('active');
+    _ptTransitioning = false;
+  }, totalDuration);
+}
+
+function morphFromReel(callback) {
+  if (_ptTransitioning) return;
+  if (ptReducedMotion) {
+    if (callback) callback();
+    return;
+  }
+  
+  _ptTransitioning = true;
+  
+  const overlay = pt$getOverlay();
+  const reelHeader = pt$getReelHeader();
+  const reelMainHeading = pt$getReelMainHeading();
+  const reelPanel = pt$getReelPanel();
+  const reelWorkflow = pt$getReelWorkflow();
+  const dropZone = pt$getDropZone();
+  const landingHero = pt$getLandingHero();
+  
+  if (!overlay) {
+    _ptTransitioning = false;
+    if (callback) callback();
+    return;
+  }
+  
+  // Fade out reel content (reverse order)
+  // Step cards fade first
+  const stepCards = reelWorkflow ? reelWorkflow.querySelectorAll('.reel-step') : [];
+  stepCards.forEach((card, index) => {
+    card.style.transition = `opacity ${PT_DURATION.cardReveal}ms ease, transform ${PT_DURATION.cardReveal}ms ease`;
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+    requestAnimationFrame(() => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(25px)';
+    });
+  });
+  
+  // Panel fades
+  if (reelPanel) {
+    reelPanel.style.transition = `opacity ${PT_DURATION.panelReveal}ms ease`;
+    requestAnimationFrame(() => {
+      reelPanel.style.opacity = '0';
+    });
+  }
+  
+  // Header and heading fade up
+  if (reelMainHeading) {
+    reelMainHeading.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease, transform ${PT_DURATION.headerReveal}ms ease`;
+    requestAnimationFrame(() => {
+      reelMainHeading.style.opacity = '0';
+      reelMainHeading.style.transform = 'translateY(-15px)';
+    });
+  }
+  
+  if (reelHeader) {
+    reelHeader.style.transition = `opacity ${PT_DURATION.headerReveal}ms ease, transform ${PT_DURATION.headerReveal}ms ease`;
+    requestAnimationFrame(() => {
+      reelHeader.style.opacity = '0';
+      reelHeader.style.transform = 'translateY(-20px)';
+    });
+  }
+  
+  // Prepare landing hero reveal
+  if (landingHero) {
+    landingHero.style.transition = `opacity ${PT_DURATION.heroFade}ms ease`;
+  }
+  
+  // Navigate back after reel content fades
+  setTimeout(() => {
+    if (callback) callback();
+    
+    // Reveal landing page
+    if (dropZone) {
+      dropZone.style.transition = `opacity ${PT_DURATION.heroFade}ms ease`;
+      dropZone.style.opacity = '1';
+    }
+    
+    setTimeout(() => {
+      pt$cleanup();
+    }, PT_DURATION.heroFade + 100);
+  }, PT_DURATION.panelReveal + 100);
+}
+
+function pt$cleanup() {
+  const overlay = pt$getOverlay();
+  const dropZone = pt$getDropZone();
+  const reelHeader = pt$getReelHeader();
+  const reelMainHeading = pt$getReelMainHeading();
+  const reelPanel = pt$getReelPanel();
+  const reelWorkflow = pt$getReelWorkflow();
+  const reelPage = pt$getReelPage();
+  
+  // Remove overlay
+  if (overlay) {
+    overlay.classList.remove('active');
+    const bg = overlay.querySelector('.pt-background');
+    if (bg) {
+      bg.style.transition = '';
+      bg.style.opacity = '1'; // Reset for next transition
+    }
+    const heroTextClone = overlay.querySelector('.pt-hero-text');
+    const ctaClone = overlay.querySelector('.pt-cta-button');
+    const previewClone = overlay.querySelector('.pt-preview-window');
+    if (heroTextClone) heroTextClone.innerHTML = '';
+    if (ctaClone) ctaClone.innerHTML = '';
+    if (previewClone) previewClone.innerHTML = '';
+  }
+  
+  // Remove inline transition styles
+  if (dropZone) {
+    dropZone.style.transition = '';
+    dropZone.style.opacity = '';
+  }
+  
+  if (reelPage) {
+    reelPage.style.transition = '';
+    reelPage.style.opacity = '';
+  }
+  
+  if (reelHeader) {
+    reelHeader.style.transition = '';
+    reelHeader.style.opacity = '';
+    reelHeader.style.transform = '';
+  }
+  
+  if (reelMainHeading) {
+    reelMainHeading.style.transition = '';
+    reelMainHeading.style.opacity = '';
+    reelMainHeading.style.transform = '';
+  }
+  
+  if (reelPanel) {
+    reelPanel.style.transition = '';
+    reelPanel.style.opacity = '';
+  }
+  
+  if (reelWorkflow) {
+    const stepCards = reelWorkflow.querySelectorAll('.reel-step');
+    stepCards.forEach(card => {
+      card.style.transition = '';
+      card.style.opacity = '';
+      card.style.transform = '';
+    });
+  }
+  
+  _ptTransitioning = false;
+}
+
+window.morphToReel = morphToReel;
+window.morphFromReel = morphFromReel;
+window.ptIsTransitioning = () => _ptTransitioning;
+
     // ── 02-zoom.js ──
 // ── Timeline Zoom State ──
 let zoomLevel = 1;   // 1 = full timeline, 10 = zoomed 10x
@@ -18073,43 +18258,61 @@ let reelEditMode = 'subtitles'; // subtitles | auto-cut
 
 // ── Navigation ──
 if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
-  navigateTo('reel');
-  reelMode = true;
-  if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
-  // Load saved keys
-  const savedFree = localStorage.getItem('stori_key_free');
-  const savedPaid = localStorage.getItem('stori_key_paid');
-  if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
-  const savedKey = savedPaid || savedFree;
-  if (savedKey && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedKey; }
-  updateReelKeyInline();
-  // Populate style dropdown from STYLE_PRESETS
-  if (reelStyleEl && reelStyleEl.options.length <= 1) {
-    reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
-      `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
-    ).join('');
-    reelStyleEl.value = 'cinematic';
+  const proceedToReel = () => {
+    navigateTo('reel');
+    reelMode = true;
+    if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
+    // Load saved keys
+    const savedFree = localStorage.getItem('stori_key_free');
+    const savedPaid = localStorage.getItem('stori_key_paid');
+    if (savedFree && reelApiKeyFreeEl) { reelApiKeyFreeEl.value = savedFree; reelKeyStatusFree.textContent = '✓ Saved'; reelKeyStatusFree.style.color = '#10b981'; }
+    const savedKey = savedPaid || savedFree;
+    if (savedKey && reelApiKeyPaidEl) { reelApiKeyPaidEl.value = savedKey; }
+    updateReelKeyInline();
+    // Populate style dropdown from STYLE_PRESETS
+    if (reelStyleEl && reelStyleEl.options.length <= 1) {
+      reelStyleEl.innerHTML = Object.entries(STYLE_PRESETS).map(([key, val]) =>
+        `<option value="${key}">${key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>`
+      ).join('');
+      reelStyleEl.value = 'cinematic';
+    }
+    // Copy to edit dropdowns
+    const editStyle = $('reel-edit-style');
+    const editTrans = $('reel-edit-transition');
+    const editSub = $('reel-edit-subtitle');
+    if (editStyle) editStyle.innerHTML = reelStyleEl.innerHTML;
+    if (editTrans) editTrans.innerHTML = reelTransitionEl.innerHTML;
+    if (editSub) editSub.innerHTML = reelSubtitleStyleEl.innerHTML;
+  };
+  
+  // Use morph transition if available
+  if (typeof window.morphToReel === 'function' && !window.ptIsTransitioning()) {
+    window.morphToReel(proceedToReel);
+  } else {
+    proceedToReel();
   }
-  // Copy to edit dropdowns
-  const editStyle = $('reel-edit-style');
-  const editTrans = $('reel-edit-transition');
-  const editSub = $('reel-edit-subtitle');
-  if (editStyle) editStyle.innerHTML = reelStyleEl.innerHTML;
-  if (editTrans) editTrans.innerHTML = reelTransitionEl.innerHTML;
-  if (editSub) editSub.innerHTML = reelSubtitleStyleEl.innerHTML;
 });
 
 if (btnReelBack) btnReelBack.addEventListener('click', () => {
-  navigateTo('home');
-  reelMode = false;
-  reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
-  reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
-  reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
-  if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
-  updateReelFrameControls();
-  reelOverlayItems = []; nextOverlayId = 1;
-  renderOverlayChips();
-  stopReelPreview();
+  const cleanupAndNavigate = () => {
+    navigateTo('home');
+    reelMode = false;
+    reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
+    reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
+    reelFrameTemplate = 'none'; reelFrameText = ''; reelFrameBgColor = '#000000'; reelFrameTextColor = '#ffffff';
+    if (reelFrameTemplateEl) reelFrameTemplateEl.value = 'none';
+    updateReelFrameControls();
+    reelOverlayItems = []; nextOverlayId = 1;
+    renderOverlayChips();
+    stopReelPreview();
+  };
+  
+  // Use morph transition if available
+  if (typeof window.morphFromReel === 'function' && !window.ptIsTransitioning()) {
+    window.morphFromReel(cleanupAndNavigate);
+  } else {
+    cleanupAndNavigate();
+  }
 });
 
 // ── Input Mode Toggle ──

@@ -576,6 +576,32 @@ function _syncAgentStepHeader(pipeline, agentId, status) {
     header.classList.remove('waiting', 'running', 'done', 'error');
     header.classList.add(status);
   }
+  // Add step-level class for visual state
+  if (step.classList.contains('reel-step') || step.classList.contains('create-step')) {
+    step.classList.remove('step-done', 'step-running', 'step-error');
+    if (status === 'done') step.classList.add('step-done');
+    else if (status === 'running') step.classList.add('step-running');
+    else if (status === 'error') step.classList.add('step-error');
+  }
+  // Autopilot: auto-scroll agent panel to the running agent row
+  if (pipeline === 'reel' && status === 'running') {
+    const panel = $('reel-agent-panel');
+    const row = panel && panel.querySelector('.agent-row.active');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // Update mobile progress bar
+  if (pipeline === 'reel') _updateReelMobileProgress();
+}
+
+// ── Mobile progress bar for Autopilot pipeline ──
+function _updateReelMobileProgress() {
+  const bar = $('reel-mobile-progress');
+  if (!bar) return;
+  const agents = _getReelAgents();
+  bar.innerHTML = agents.map(a => {
+    const s = _reelAgentState[a.id] || { status: 'waiting' };
+    return `<div class="reel-mobile-progress-step ${s.status}"></div>`;
+  }).join('');
 }
 
 function _showCreateLaunchRow(agentId) {
