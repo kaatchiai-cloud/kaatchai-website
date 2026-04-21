@@ -1787,8 +1787,8 @@ body:has(#drop-zone:not(.hidden)) {
       <!-- Faux magenta waveform (140 bars) - rendered by JS at runtime -->
       <div class="reel-bgm-wave" id="reel-bgm-faux-wave"></div>
 
-      <!-- Dual sliders -->
-      <div class="reel-vol-grid">
+      <!-- BGM volume slider -->
+      <div class="reel-vol-grid reel-vol-grid-single">
         <div class="reel-vol-slider">
           <div class="reel-vol-slider-head">
             <span class="reel-vol-slider-label">BGM volume</span>
@@ -1798,17 +1798,6 @@ body:has(#drop-zone:not(.hidden)) {
             <div class="reel-vol-slider-fill" style="width:40%;"></div>
             <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="40" class="reel-vol-slider-input">
             <span class="reel-vol-slider-thumb" style="left:40%;"></span>
-          </div>
-        </div>
-        <div class="reel-vol-slider">
-          <div class="reel-vol-slider-head">
-            <span class="reel-vol-slider-label">Voice volume</span>
-            <span class="reel-vol-slider-value" id="reel-voice-vol-label">85%</span>
-          </div>
-          <div class="reel-vol-slider-track">
-            <div class="reel-vol-slider-fill" style="width:85%;"></div>
-            <input type="range" id="reel-voice-volume-slider" min="0" max="100" value="85" class="reel-vol-slider-input">
-            <span class="reel-vol-slider-thumb" style="left:85%;"></span>
           </div>
         </div>
       </div>
@@ -1839,89 +1828,17 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
         </div>
 
-        <!-- Right column: CtrlRow grid + overlay pills -->
+        <!-- Right column: generated rc-* controls from renderAllReelPreviews -->
         <div class="reel-ctrl-column">
-          <div class="reel-ctrl-grid">
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Transition</span>
-              <span class="reel-ctrl-value">Whip Pan</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Duration</span>
-              <span class="reel-ctrl-value">0.3s</span>
-            </div>
-            <div class="reel-ctrl-row reel-ctrl-row-wide">
-              <span class="reel-ctrl-label">Motion</span>
-              <span class="reel-ctrl-value">Slow Zoom In</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Subtitle Preset</span>
-              <span class="reel-ctrl-value">Custom</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Style</span>
-              <span class="reel-ctrl-value">Word by Word</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Font</span>
-              <span class="reel-ctrl-value">Poppins</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">ALL CAPS</span>
-              <span class="reel-ctrl-checkbox" aria-hidden="true"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Color</span>
-              <span class="reel-ctrl-swatch" style="background:#eef4ff;"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Accent</span>
-              <span class="reel-ctrl-swatch" style="background:var(--lp-accent);"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Outline</span>
-              <span class="reel-ctrl-swatch" style="background:#050814;"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Backdrop</span>
-              <span class="reel-ctrl-value">Dark</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Size</span>
-              <span class="reel-ctrl-value">4</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Position</span>
-              <span class="reel-ctrl-value">Bottom</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">BGM</span>
-              <span class="reel-ctrl-value">None</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Vol</span>
-              <span class="reel-ctrl-value">50%</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Frame</span>
-              <span class="reel-ctrl-value">None</span>
-            </div>
-          </div>
-
-          <!-- Overlay pill buttons -->
-          <div class="reel-overlay-pills">
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">🔔</span>Subscribe</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">❤</span>Follow</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">▭</span>Lower Third</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">↓</span>CTA</button>
-            <button type="button" class="reel-title-pill">Title</button>
-          </div>
+          <!-- Shown before pipeline runs; hidden by JS once container populates -->
+          <div class="reel-ctrl-waiting">Controls appear after generation</div>
+          <!-- Populated by renderAllReelPreviews() after pipeline finishes -->
+          <div id="reel-previews-container" style="display:none; width:100%;"></div>
         </div>
       </div>
 
-      <!-- Legacy preview container (kept for JS compatibility) -->
+      <!-- Scene list (used by mini-editor elsewhere, kept for JS compatibility) -->
       <div class="reel-editor-vertical reel-orphan">
-        <div id="reel-previews-container" style="display:none; width:100%;"></div>
         <div class="reel-scenes mt-md hidden" id="reel-scene-list"></div>
       </div>
       <!-- Hidden inputs for BGM/Frame (used by JS handlers) -->

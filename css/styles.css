@@ -2291,9 +2291,26 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 #reel-page .reel-orphan { display: none !important; }
 
 /* ═══ Scenes step — 2-col Aurora card grid ═══ */
-#reel-page #reel-scene-grid {
+/* JS renders:
+   #reel-scene-grid > wrapper > .scene-grid > .scene-card (×N)
+   so the actual grid rule needs to hit .scene-grid, not #reel-scene-grid. */
+#reel-page #reel-scene-grid { margin-top: 4px; display: flex; flex-direction: column; gap: 16px; }
+#reel-page #reel-scene-grid > div {
+  /* Per-segment wrapper — flatten its legacy border/background */
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+}
+#reel-page #reel-scene-grid > div > h4 {
+  font-family: var(--lp-font-mono); font-size: 10px !important; font-weight: 400 !important;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--lp-faint) !important; margin: 0 0 10px !important;
+}
+#reel-page .scene-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
-  margin-top: 4px;
+  margin-top: 0;
 }
 #reel-page .scene-card {
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
@@ -2464,69 +2481,174 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   color: var(--lp-faint); letter-spacing: 0.06em;
 }
 
-/* CtrlRow grid — 16 fields, 2 per line */
+/* ── Ctrl column — holds reel-previews-container after pipeline ── */
 #reel-page .reel-ctrl-column {
-  display: flex; flex-direction: column; gap: 12px;
-}
-#reel-page .reel-ctrl-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
-}
-#reel-page .reel-ctrl-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 10px;
-  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
-  min-height: 32px;
-}
-#reel-page .reel-ctrl-row-wide { grid-column: span 2; }
-#reel-page .reel-ctrl-label {
-  font-family: var(--lp-font-mono); font-size: 9.5px;
-  color: var(--lp-faint); letter-spacing: 0.12em; text-transform: uppercase;
-  flex: 0 0 auto;
-}
-#reel-page .reel-ctrl-value {
-  font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
-  color: var(--lp-text); margin-left: auto;
-}
-#reel-page .reel-ctrl-checkbox {
-  width: 14px; height: 14px; border-radius: 3px;
-  border: 1.5px solid var(--lp-card-bdr);
-  margin-left: auto; flex-shrink: 0;
-}
-#reel-page .reel-ctrl-swatch {
-  width: 32px; height: 20px; border-radius: 4px;
-  border: 1px solid var(--lp-card-bdr);
-  margin-left: auto; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 0;
+  min-width: 0; overflow: hidden;
 }
 
-/* Overlay pills row */
-#reel-page .reel-overlay-pills {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  margin-top: 4px;
+/* Waiting placeholder (before pipeline runs) */
+#reel-page .reel-ctrl-waiting {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-faint); letter-spacing: 0.08em;
+  text-align: center; padding: 32px 16px;
 }
-#reel-page .reel-overlay-pill {
-  display: inline-flex; align-items: center; gap: 6px;
+
+/* Strip the old card chrome from each reel preview section */
+#reel-page .reel-preview-section {
+  border: none !important; border-radius: 0 !important;
+  padding: 0 !important; background: transparent !important;
+  box-shadow: none !important; width: 100% !important;
+}
+
+/* Hide header "Reel 1 🔊 … 💬 …" — only needed for multi-reel labels */
+#reel-page .rp-header { display: none; }
+
+/* Hide canvas column — phone frame mirror handles display */
+#reel-page .rp-canvas-col { display: none; }
+
+/* Controls column expands to full width */
+#reel-page .rp-ctrl-col {
+  width: 100% !important; min-width: 0 !important;
+  display: flex; flex-direction: column;
+  gap: 4px; font-size: 12px !important;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+}
+
+/* ── Each control row group ── */
+#reel-page .rp-ctrl-col > div {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 10px; border-radius: 10px;
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
-  border-radius: 999px; padding: 6px 12px;
-  font-family: var(--lp-font-ui); font-size: 11.5px; color: var(--lp-dim);
-  cursor: pointer; transition: all 150ms ease;
 }
-#reel-page .reel-overlay-pill:hover {
+/* The BGM/Frame row has a border-top separator via inline style — keep it, remove the extra bg */
+#reel-page .rp-ctrl-col > div[style*="border-top"] {
+  border-top: 1px solid var(--lp-card-bdr) !important;
+}
+/* reel-overlay-chips: JS-controlled display, no card bg */
+#reel-page #reel-overlay-chips {
+  background: transparent !important; border: none !important; padding: 4px 0 !important;
+}
+
+/* ── form-label — the "Label: control" pairs ── */
+#reel-page .rp-ctrl-col .form-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--lp-font-mono); font-size: 9.5px;
+  color: var(--lp-faint); letter-spacing: 0.10em;
+  text-transform: uppercase; white-space: nowrap;
+  margin: 0;
+}
+
+/* ── Selects ── */
+#reel-page .rp-ctrl-col select {
+  background-color: rgba(255,255,255,0.05);
+  border: 1px solid var(--lp-card-bdr); border-radius: 6px;
+  outline: none; cursor: pointer;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+  font-size: 11.5px; font-weight: 500;
+  appearance: none; -webkit-appearance: none;
+  padding: 3px 20px 3px 8px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 5px center;
+}
+#reel-page .rp-ctrl-col select:hover {
+  background-color: rgba(255,255,255,0.09);
+  border-color: var(--lp-card-bdr-h, rgba(255,255,255,0.2));
+}
+#reel-page .rp-ctrl-col select option {
+  background: var(--lp-bg2); color: var(--lp-text);
+}
+
+/* ── Range sliders with left-to-thumb fill ── */
+#reel-page .rp-ctrl-col input[type=range] {
+  appearance: none; -webkit-appearance: none;
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--lp-accent) 0%,
+    var(--lp-accent) var(--slider-pct, 0%),
+    rgba(255,255,255,0.08) var(--slider-pct, 0%),
+    rgba(255,255,255,0.08) 100%
+  );
+  outline: none; cursor: pointer; padding: 0; margin: 0;
+}
+#reel-page .rp-ctrl-col input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--lp-accent);
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+#reel-page .rp-ctrl-col input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--lp-accent);
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: none;
+}
+
+/* ── Color pickers ── */
+#reel-page .rp-ctrl-col input[type=color] {
+  appearance: none; -webkit-appearance: none;
+  width: 28px; height: 18px; border-radius: 4px;
+  border: 1px solid var(--lp-card-bdr);
+  background: transparent; padding: 0; cursor: pointer;
+}
+#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 3px; overflow: hidden; }
+#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch { border: none; border-radius: 3px; }
+#reel-page .rp-ctrl-col input[type=color]::-moz-color-swatch { border: none; border-radius: 3px; }
+
+/* ── Checkboxes ── */
+#reel-page .rp-ctrl-col input[type=checkbox] {
+  appearance: none; -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1.5px solid var(--lp-card-bdr);
+  background: transparent; cursor: pointer;
+  margin: 0; flex-shrink: 0;
+  transition: all 150ms ease; position: relative;
+}
+#reel-page .rp-ctrl-col input[type=checkbox]:hover { border-color: var(--lp-card-bdr-h); }
+#reel-page .rp-ctrl-col input[type=checkbox]:checked {
+  background: var(--lp-accent); border-color: var(--lp-accent);
+}
+#reel-page .rp-ctrl-col input[type=checkbox]:checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--lp-bg); font-size: 9px; font-weight: 700;
+}
+
+/* ── Text inputs (frame text) ── */
+#reel-page .rp-ctrl-col input[type=text] {
+  background: transparent; border: none; outline: none;
+  border-bottom: 1px solid var(--lp-card-bdr);
+  color: var(--lp-text); font-size: 11.5px;
+  font-family: var(--lp-font-ui); padding: 2px 4px;
+}
+
+/* ── Overlay buttons → Aurora pill style ── */
+#reel-page .rp-ctrl-col [data-overlay],
+#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var) {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; padding: 5px 12px;
+  font-family: var(--lp-font-ui); font-size: 11px; color: var(--lp-dim);
+  cursor: pointer; transition: all 150ms ease;
+  white-space: nowrap;
+}
+#reel-page .rp-ctrl-col [data-overlay]:hover,
+#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var):hover {
   border-color: var(--lp-card-bdr-h); color: var(--lp-text);
 }
-#reel-page .reel-overlay-pill-ico {
-  color: var(--lp-accent); font-size: 11px;
-}
-#reel-page .reel-title-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 999px;
-  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
-  border: 1px solid color-mix(in oklch, var(--lp-accent) 40%, transparent);
-  color: var(--lp-accent);
-  font-family: var(--lp-font-ui); font-size: 11.5px; font-weight: 600;
-  cursor: pointer; transition: all 150ms ease;
-}
-#reel-page .reel-title-pill:hover {
-  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+
+/* ── rc-frame sub-control rows visibility (already JS-managed via inline style) ── */
+#reel-page .rc-frame-tpl-row,
+#reel-page .rc-frame-png-row { gap: 6px; align-items: center; }
+
+/* ── Overlay chips ── */
+#reel-page #reel-overlay-chips .reel-overlay-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: color-mix(in oklch, var(--lp-accent2) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent2) 35%, transparent);
+  border-radius: 999px; padding: 3px 10px;
+  font-family: var(--lp-font-ui); font-size: 10.5px; color: var(--lp-text);
 }
 
 @media (max-width: 900px) {

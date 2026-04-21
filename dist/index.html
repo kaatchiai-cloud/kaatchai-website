@@ -2305,9 +2305,26 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 #reel-page .reel-orphan { display: none !important; }
 
 /* ═══ Scenes step — 2-col Aurora card grid ═══ */
-#reel-page #reel-scene-grid {
+/* JS renders:
+   #reel-scene-grid > wrapper > .scene-grid > .scene-card (×N)
+   so the actual grid rule needs to hit .scene-grid, not #reel-scene-grid. */
+#reel-page #reel-scene-grid { margin-top: 4px; display: flex; flex-direction: column; gap: 16px; }
+#reel-page #reel-scene-grid > div {
+  /* Per-segment wrapper — flatten its legacy border/background */
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+}
+#reel-page #reel-scene-grid > div > h4 {
+  font-family: var(--lp-font-mono); font-size: 10px !important; font-weight: 400 !important;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--lp-faint) !important; margin: 0 0 10px !important;
+}
+#reel-page .scene-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
-  margin-top: 4px;
+  margin-top: 0;
 }
 #reel-page .scene-card {
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
@@ -2478,69 +2495,174 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   color: var(--lp-faint); letter-spacing: 0.06em;
 }
 
-/* CtrlRow grid — 16 fields, 2 per line */
+/* ── Ctrl column — holds reel-previews-container after pipeline ── */
 #reel-page .reel-ctrl-column {
-  display: flex; flex-direction: column; gap: 12px;
-}
-#reel-page .reel-ctrl-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
-}
-#reel-page .reel-ctrl-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 10px;
-  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
-  min-height: 32px;
-}
-#reel-page .reel-ctrl-row-wide { grid-column: span 2; }
-#reel-page .reel-ctrl-label {
-  font-family: var(--lp-font-mono); font-size: 9.5px;
-  color: var(--lp-faint); letter-spacing: 0.12em; text-transform: uppercase;
-  flex: 0 0 auto;
-}
-#reel-page .reel-ctrl-value {
-  font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
-  color: var(--lp-text); margin-left: auto;
-}
-#reel-page .reel-ctrl-checkbox {
-  width: 14px; height: 14px; border-radius: 3px;
-  border: 1.5px solid var(--lp-card-bdr);
-  margin-left: auto; flex-shrink: 0;
-}
-#reel-page .reel-ctrl-swatch {
-  width: 32px; height: 20px; border-radius: 4px;
-  border: 1px solid var(--lp-card-bdr);
-  margin-left: auto; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 0;
+  min-width: 0; overflow: hidden;
 }
 
-/* Overlay pills row */
-#reel-page .reel-overlay-pills {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  margin-top: 4px;
+/* Waiting placeholder (before pipeline runs) */
+#reel-page .reel-ctrl-waiting {
+  font-family: var(--lp-font-mono); font-size: 11px;
+  color: var(--lp-faint); letter-spacing: 0.08em;
+  text-align: center; padding: 32px 16px;
 }
-#reel-page .reel-overlay-pill {
-  display: inline-flex; align-items: center; gap: 6px;
+
+/* Strip the old card chrome from each reel preview section */
+#reel-page .reel-preview-section {
+  border: none !important; border-radius: 0 !important;
+  padding: 0 !important; background: transparent !important;
+  box-shadow: none !important; width: 100% !important;
+}
+
+/* Hide header "Reel 1 🔊 … 💬 …" — only needed for multi-reel labels */
+#reel-page .rp-header { display: none; }
+
+/* Hide canvas column — phone frame mirror handles display */
+#reel-page .rp-canvas-col { display: none; }
+
+/* Controls column expands to full width */
+#reel-page .rp-ctrl-col {
+  width: 100% !important; min-width: 0 !important;
+  display: flex; flex-direction: column;
+  gap: 4px; font-size: 12px !important;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+}
+
+/* ── Each control row group ── */
+#reel-page .rp-ctrl-col > div {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 10px; border-radius: 10px;
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
-  border-radius: 999px; padding: 6px 12px;
-  font-family: var(--lp-font-ui); font-size: 11.5px; color: var(--lp-dim);
-  cursor: pointer; transition: all 150ms ease;
 }
-#reel-page .reel-overlay-pill:hover {
+/* The BGM/Frame row has a border-top separator via inline style — keep it, remove the extra bg */
+#reel-page .rp-ctrl-col > div[style*="border-top"] {
+  border-top: 1px solid var(--lp-card-bdr) !important;
+}
+/* reel-overlay-chips: JS-controlled display, no card bg */
+#reel-page #reel-overlay-chips {
+  background: transparent !important; border: none !important; padding: 4px 0 !important;
+}
+
+/* ── form-label — the "Label: control" pairs ── */
+#reel-page .rp-ctrl-col .form-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--lp-font-mono); font-size: 9.5px;
+  color: var(--lp-faint); letter-spacing: 0.10em;
+  text-transform: uppercase; white-space: nowrap;
+  margin: 0;
+}
+
+/* ── Selects ── */
+#reel-page .rp-ctrl-col select {
+  background-color: rgba(255,255,255,0.05);
+  border: 1px solid var(--lp-card-bdr); border-radius: 6px;
+  outline: none; cursor: pointer;
+  color: var(--lp-text); font-family: var(--lp-font-ui);
+  font-size: 11.5px; font-weight: 500;
+  appearance: none; -webkit-appearance: none;
+  padding: 3px 20px 3px 8px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 5px center;
+}
+#reel-page .rp-ctrl-col select:hover {
+  background-color: rgba(255,255,255,0.09);
+  border-color: var(--lp-card-bdr-h, rgba(255,255,255,0.2));
+}
+#reel-page .rp-ctrl-col select option {
+  background: var(--lp-bg2); color: var(--lp-text);
+}
+
+/* ── Range sliders with left-to-thumb fill ── */
+#reel-page .rp-ctrl-col input[type=range] {
+  appearance: none; -webkit-appearance: none;
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--lp-accent) 0%,
+    var(--lp-accent) var(--slider-pct, 0%),
+    rgba(255,255,255,0.08) var(--slider-pct, 0%),
+    rgba(255,255,255,0.08) 100%
+  );
+  outline: none; cursor: pointer; padding: 0; margin: 0;
+}
+#reel-page .rp-ctrl-col input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--lp-accent);
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+#reel-page .rp-ctrl-col input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--lp-accent);
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: none;
+}
+
+/* ── Color pickers ── */
+#reel-page .rp-ctrl-col input[type=color] {
+  appearance: none; -webkit-appearance: none;
+  width: 28px; height: 18px; border-radius: 4px;
+  border: 1px solid var(--lp-card-bdr);
+  background: transparent; padding: 0; cursor: pointer;
+}
+#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 3px; overflow: hidden; }
+#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch { border: none; border-radius: 3px; }
+#reel-page .rp-ctrl-col input[type=color]::-moz-color-swatch { border: none; border-radius: 3px; }
+
+/* ── Checkboxes ── */
+#reel-page .rp-ctrl-col input[type=checkbox] {
+  appearance: none; -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1.5px solid var(--lp-card-bdr);
+  background: transparent; cursor: pointer;
+  margin: 0; flex-shrink: 0;
+  transition: all 150ms ease; position: relative;
+}
+#reel-page .rp-ctrl-col input[type=checkbox]:hover { border-color: var(--lp-card-bdr-h); }
+#reel-page .rp-ctrl-col input[type=checkbox]:checked {
+  background: var(--lp-accent); border-color: var(--lp-accent);
+}
+#reel-page .rp-ctrl-col input[type=checkbox]:checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--lp-bg); font-size: 9px; font-weight: 700;
+}
+
+/* ── Text inputs (frame text) ── */
+#reel-page .rp-ctrl-col input[type=text] {
+  background: transparent; border: none; outline: none;
+  border-bottom: 1px solid var(--lp-card-bdr);
+  color: var(--lp-text); font-size: 11.5px;
+  font-family: var(--lp-font-ui); padding: 2px 4px;
+}
+
+/* ── Overlay buttons → Aurora pill style ── */
+#reel-page .rp-ctrl-col [data-overlay],
+#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var) {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; padding: 5px 12px;
+  font-family: var(--lp-font-ui); font-size: 11px; color: var(--lp-dim);
+  cursor: pointer; transition: all 150ms ease;
+  white-space: nowrap;
+}
+#reel-page .rp-ctrl-col [data-overlay]:hover,
+#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var):hover {
   border-color: var(--lp-card-bdr-h); color: var(--lp-text);
 }
-#reel-page .reel-overlay-pill-ico {
-  color: var(--lp-accent); font-size: 11px;
-}
-#reel-page .reel-title-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 999px;
-  background: color-mix(in oklch, var(--lp-accent) 14%, transparent);
-  border: 1px solid color-mix(in oklch, var(--lp-accent) 40%, transparent);
-  color: var(--lp-accent);
-  font-family: var(--lp-font-ui); font-size: 11.5px; font-weight: 600;
-  cursor: pointer; transition: all 150ms ease;
-}
-#reel-page .reel-title-pill:hover {
-  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+
+/* ── rc-frame sub-control rows visibility (already JS-managed via inline style) ── */
+#reel-page .rc-frame-tpl-row,
+#reel-page .rc-frame-png-row { gap: 6px; align-items: center; }
+
+/* ── Overlay chips ── */
+#reel-page #reel-overlay-chips .reel-overlay-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: color-mix(in oklch, var(--lp-accent2) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent2) 35%, transparent);
+  border-radius: 999px; padding: 3px 10px;
+  font-family: var(--lp-font-ui); font-size: 10.5px; color: var(--lp-text);
 }
 
 @media (max-width: 900px) {
@@ -4429,8 +4551,8 @@ body:has(#drop-zone:not(.hidden)) {
       <!-- Faux magenta waveform (140 bars) - rendered by JS at runtime -->
       <div class="reel-bgm-wave" id="reel-bgm-faux-wave"></div>
 
-      <!-- Dual sliders -->
-      <div class="reel-vol-grid">
+      <!-- BGM volume slider -->
+      <div class="reel-vol-grid reel-vol-grid-single">
         <div class="reel-vol-slider">
           <div class="reel-vol-slider-head">
             <span class="reel-vol-slider-label">BGM volume</span>
@@ -4440,17 +4562,6 @@ body:has(#drop-zone:not(.hidden)) {
             <div class="reel-vol-slider-fill" style="width:40%;"></div>
             <input type="range" id="reel-bgm-volume-slider" min="0" max="100" value="40" class="reel-vol-slider-input">
             <span class="reel-vol-slider-thumb" style="left:40%;"></span>
-          </div>
-        </div>
-        <div class="reel-vol-slider">
-          <div class="reel-vol-slider-head">
-            <span class="reel-vol-slider-label">Voice volume</span>
-            <span class="reel-vol-slider-value" id="reel-voice-vol-label">85%</span>
-          </div>
-          <div class="reel-vol-slider-track">
-            <div class="reel-vol-slider-fill" style="width:85%;"></div>
-            <input type="range" id="reel-voice-volume-slider" min="0" max="100" value="85" class="reel-vol-slider-input">
-            <span class="reel-vol-slider-thumb" style="left:85%;"></span>
           </div>
         </div>
       </div>
@@ -4481,89 +4592,17 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
         </div>
 
-        <!-- Right column: CtrlRow grid + overlay pills -->
+        <!-- Right column: generated rc-* controls from renderAllReelPreviews -->
         <div class="reel-ctrl-column">
-          <div class="reel-ctrl-grid">
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Transition</span>
-              <span class="reel-ctrl-value">Whip Pan</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Duration</span>
-              <span class="reel-ctrl-value">0.3s</span>
-            </div>
-            <div class="reel-ctrl-row reel-ctrl-row-wide">
-              <span class="reel-ctrl-label">Motion</span>
-              <span class="reel-ctrl-value">Slow Zoom In</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Subtitle Preset</span>
-              <span class="reel-ctrl-value">Custom</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Style</span>
-              <span class="reel-ctrl-value">Word by Word</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Font</span>
-              <span class="reel-ctrl-value">Poppins</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">ALL CAPS</span>
-              <span class="reel-ctrl-checkbox" aria-hidden="true"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Color</span>
-              <span class="reel-ctrl-swatch" style="background:#eef4ff;"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Accent</span>
-              <span class="reel-ctrl-swatch" style="background:var(--lp-accent);"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Outline</span>
-              <span class="reel-ctrl-swatch" style="background:#050814;"></span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Backdrop</span>
-              <span class="reel-ctrl-value">Dark</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Size</span>
-              <span class="reel-ctrl-value">4</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Position</span>
-              <span class="reel-ctrl-value">Bottom</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">BGM</span>
-              <span class="reel-ctrl-value">None</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Vol</span>
-              <span class="reel-ctrl-value">50%</span>
-            </div>
-            <div class="reel-ctrl-row">
-              <span class="reel-ctrl-label">Frame</span>
-              <span class="reel-ctrl-value">None</span>
-            </div>
-          </div>
-
-          <!-- Overlay pill buttons -->
-          <div class="reel-overlay-pills">
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">🔔</span>Subscribe</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">❤</span>Follow</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">▭</span>Lower Third</button>
-            <button type="button" class="reel-overlay-pill"><span class="reel-overlay-pill-ico">↓</span>CTA</button>
-            <button type="button" class="reel-title-pill">Title</button>
-          </div>
+          <!-- Shown before pipeline runs; hidden by JS once container populates -->
+          <div class="reel-ctrl-waiting">Controls appear after generation</div>
+          <!-- Populated by renderAllReelPreviews() after pipeline finishes -->
+          <div id="reel-previews-container" style="display:none; width:100%;"></div>
         </div>
       </div>
 
-      <!-- Legacy preview container (kept for JS compatibility) -->
+      <!-- Scene list (used by mini-editor elsewhere, kept for JS compatibility) -->
       <div class="reel-editor-vertical reel-orphan">
-        <div id="reel-previews-container" style="display:none; width:100%;"></div>
         <div class="reel-scenes mt-md hidden" id="reel-scene-list"></div>
       </div>
       <!-- Hidden inputs for BGM/Frame (used by JS handlers) -->
@@ -12469,12 +12508,164 @@ function wireReelVolSlider(inputId, labelId) {
   sync();
 }
 
-// Bootstrap all Aurora preview affordances once the DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Wire a CtrlRow <input type=range> to its <span> label (shows live value
+// with optional unit suffix) and keeps the track filled from left to thumb.
+function wireAurSlider(inputId, labelId, suffix) {
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  if (!input || !label) return;
+  const sync = () => {
+    label.textContent = input.value + (suffix || '');
+    const min = parseFloat(input.min) || 0;
+    const max = parseFloat(input.max) || 100;
+    const pct = ((parseFloat(input.value) - min) / (max - min)) * 100;
+    input.style.setProperty('--slider-pct', pct.toFixed(1) + '%');
+  };
+  input.addEventListener('input', sync);
+  sync(); // Set initial fill on page load
+}
+
+// Bootstrap all Aurora preview affordances. Use readyState check because
+// when all JS is inlined into one file, DOMContentLoaded may have already
+// fired by the time this code runs.
+function _initAuroraReelBits() {
+  // BGM step — waveform + volume slider (unrelated to Preview & Edit)
   renderReelBgmFauxWave();
   wireReelVolSlider('reel-bgm-volume-slider', 'reel-bgm-vol-label');
-  wireReelVolSlider('reel-voice-volume-slider', 'reel-voice-vol-label');
-});
+
+  // Phone frame preview mirror — copies the first reel canvas (rendered by
+  // renderAllReelPreviews into reel-previews-container) into the phone screen.
+  // Also wires the phone transport play button, hides waiting placeholder,
+  // and applies slider fill to rc-* range inputs after the container populates.
+  (function initPhonePreviewMirror() {
+    const phoneScreen  = document.getElementById('reel-phone-screen');
+    if (!phoneScreen) return;
+    const placeholder  = phoneScreen.querySelector('.reel-phone-placeholder');
+    const phonePlayBtn = document.querySelector('.reel-phone-play');
+    const phoneTimeEl  = document.querySelector('.reel-phone-time');
+    const waiting      = document.querySelector('#reel-page .reel-ctrl-waiting');
+
+    let mirrorCvs = null;
+    let mirrorRAF = null;
+    let activeSrc = null;
+
+    function applySliderFill(root) {
+      root.querySelectorAll('input[type=range]').forEach(el => {
+        const min = parseFloat(el.min) || 0;
+        const max = parseFloat(el.max) || 100;
+        const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+        el.style.setProperty('--slider-pct', pct.toFixed(1) + '%');
+        el.addEventListener('input', () => {
+          const p = ((parseFloat(el.value) - min) / (max - min)) * 100;
+          el.style.setProperty('--slider-pct', p.toFixed(1) + '%');
+        });
+      });
+    }
+
+    function startMirror(src) {
+      if (activeSrc === src) return;
+      activeSrc = src;
+      if (placeholder) placeholder.style.display = 'none';
+      if (waiting)     waiting.style.display      = 'none';
+
+      if (!mirrorCvs) {
+        mirrorCvs = document.createElement('canvas');
+        mirrorCvs.style.cssText = 'width:100%;height:100%;display:block;position:absolute;inset:0;';
+        phoneScreen.style.position = 'relative';
+        phoneScreen.appendChild(mirrorCvs);
+      }
+
+      if (mirrorRAF) { cancelAnimationFrame(mirrorRAF); }
+      (function loop() {
+        if (src.width > 0 && src.height > 0) {
+          if (mirrorCvs.width !== src.width || mirrorCvs.height !== src.height) {
+            mirrorCvs.width  = src.width;
+            mirrorCvs.height = src.height;
+          }
+          mirrorCvs.getContext('2d').drawImage(src, 0, 0);
+        }
+        // Sync time display + play button icon
+        if (phoneTimeEl) {
+          const mpTime = document.querySelector('.reel-mp-time[data-ri="0"]');
+          if (mpTime && mpTime.textContent) phoneTimeEl.textContent = mpTime.textContent;
+        }
+        if (phonePlayBtn) {
+          const mpPlay = document.querySelector('.reel-mp-play[data-ri="0"]');
+          if (mpPlay) phonePlayBtn.textContent = mpPlay.textContent;
+        }
+        mirrorRAF = requestAnimationFrame(loop);
+      })();
+    }
+
+    // Watch reel-previews-container for the first canvas (added by renderAllReelPreviews)
+    const container = document.getElementById('reel-previews-container');
+    if (container) {
+      const obs = new MutationObserver(() => {
+        const first = container.querySelector('.reel-thumb-canvas[data-ri="0"]');
+        if (first) {
+          startMirror(first);
+          // Apply Aurora slider fill to all rc-* range inputs now that they exist
+          const ctrlCol = container.querySelector('.rp-ctrl-col');
+          if (ctrlCol) applySliderFill(ctrlCol);
+          // Wire rc-frame select → show/hide sub-control rows
+          // (renderAllReelPreviews does not wire this — gap in the original code)
+          const frameEl = container.querySelector('.rc-frame[data-ri="0"]');
+          if (frameEl) {
+            const textTpls = ['bottom-strip', 'top-bar', 'corner-tag'];
+            const syncFrameRows = () => {
+              const v = frameEl.value;
+              const tplRow = container.querySelector('.rc-frame-tpl-row[data-ri="0"]');
+              const pngRow = container.querySelector('.rc-frame-png-row[data-ri="0"]');
+              if (tplRow) tplRow.style.display = textTpls.includes(v) ? 'inline-flex' : 'none';
+              if (pngRow) pngRow.style.display  = (v === 'custom-png') ? 'inline-flex' : 'none';
+              // Wire upload button to file input (one-time, guard with dataset flag)
+              const uploadBtn = container.querySelector('.rc-frame-upload[data-ri="0"]');
+              const fileInput = document.getElementById('reel-frame-input');
+              if (uploadBtn && fileInput && !uploadBtn.dataset.wired) {
+                uploadBtn.dataset.wired = '1';
+                uploadBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', (e) => {
+                  if (e.target.files[0]) uploadBtn.textContent = '🖼 ' + e.target.files[0].name.slice(0, 14);
+                });
+              }
+            };
+            frameEl.addEventListener('change', syncFrameRows);
+            syncFrameRows(); // set initial state
+          }
+        }
+      });
+      obs.observe(container, { childList: true, subtree: true });
+    }
+
+    // Phone play button → delegate to first reel's play button
+    if (phonePlayBtn) {
+      phonePlayBtn.addEventListener('click', () => {
+        const mpPlay = document.querySelector('.reel-mp-play[data-ri="0"]');
+        if (mpPlay) mpPlay.click();
+      });
+    }
+  })();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initAuroraReelBits);
+} else {
+  _initAuroraReelBits();
+}
+// Defence in depth: if #reel-step-bgm is later un-hidden by the pipeline,
+// re-run the waveform render so it shows even if it wasn't in the DOM
+// at init time.
+(function observeReelBgmReveal() {
+  if (typeof MutationObserver !== 'function') return;
+  const hook = () => {
+    const el = document.getElementById('reel-step-bgm');
+    if (!el) { setTimeout(hook, 200); return; }
+    const obs = new MutationObserver(() => {
+      if (!el.classList.contains('hidden')) renderReelBgmFauxWave();
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  };
+  hook();
+})();
 
 const _reelAgentState = {};
 
@@ -19049,10 +19240,10 @@ function renderAllReelPreviews() {
     const isFailed = audioLabel.includes('(failed)');
     return `
     <div class="reel-preview-section" data-ri="${i}" style="border:1px solid ${isFailed ? 'var(--red)' : 'var(--border)'}; border-radius:var(--radius); padding:16px; background:var(--bg-secondary); width:100%; box-sizing:border-box; overflow:hidden;">
-      <div style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span>${isFailed ? ` <button class="btn-xs reel-retry-var" data-ri="${i}" style="margin-left:8px; color:var(--red);">🔄 Retry</button>` : ''}</div>
-      <div style="display:flex; gap:16px; align-items:flex-start; overflow:hidden;">
-        <!-- Left: Canvas + seek -->
-        <div style="flex-shrink:0;">
+      <div class="rp-header" style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span>${isFailed ? ` <button class="btn-xs reel-retry-var" data-ri="${i}" style="margin-left:8px; color:var(--red);">🔄 Retry</button>` : ''}</div>
+      <div class="rp-body" style="display:flex; gap:16px; align-items:flex-start; overflow:hidden;">
+        <!-- Left: Canvas + seek (hidden in Aurora — phone frame shows via mirror) -->
+        <div class="rp-canvas-col" style="flex-shrink:0;">
           <div class="reel-canvas-wrap" style="width:300px;">
             <canvas class="reel-thumb-canvas" data-ri="${i}" width="${previewW}" height="${previewH}" style="width:${prevCSSW}px;height:${prevCSSH}px;display:block;"></canvas>
           </div>
@@ -19064,7 +19255,7 @@ function renderAllReelPreviews() {
           </div>
         </div>
         <!-- Right: Controls -->
-        <div style="flex:1; min-width:0; overflow-x:hidden; display:flex; flex-direction:column; gap:6px; font-size:0.72rem;">
+        <div class="rp-ctrl-col" style="flex:1; min-width:0; overflow-x:hidden; display:flex; flex-direction:column; gap:6px; font-size:0.72rem;">
           ${buildControlsHtml(i, r)}
         </div>
       </div>

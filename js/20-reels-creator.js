@@ -1768,10 +1768,10 @@ function renderAllReelPreviews() {
     const isFailed = audioLabel.includes('(failed)');
     return `
     <div class="reel-preview-section" data-ri="${i}" style="border:1px solid ${isFailed ? 'var(--red)' : 'var(--border)'}; border-radius:var(--radius); padding:16px; background:var(--bg-secondary); width:100%; box-sizing:border-box; overflow:hidden;">
-      <div style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span>${isFailed ? ` <button class="btn-xs reel-retry-var" data-ri="${i}" style="margin-left:8px; color:var(--red);">🔄 Retry</button>` : ''}</div>
-      <div style="display:flex; gap:16px; align-items:flex-start; overflow:hidden;">
-        <!-- Left: Canvas + seek -->
-        <div style="flex-shrink:0;">
+      <div class="rp-header" style="font-size:0.82rem; font-weight:600; margin-bottom:10px;">Reel ${i + 1} <span style="font-weight:400; font-size:0.7rem; color:var(--text-muted);">🔊 ${audioLabel} · 💬 ${subLabel}</span>${isFailed ? ` <button class="btn-xs reel-retry-var" data-ri="${i}" style="margin-left:8px; color:var(--red);">🔄 Retry</button>` : ''}</div>
+      <div class="rp-body" style="display:flex; gap:16px; align-items:flex-start; overflow:hidden;">
+        <!-- Left: Canvas + seek (hidden in Aurora — phone frame shows via mirror) -->
+        <div class="rp-canvas-col" style="flex-shrink:0;">
           <div class="reel-canvas-wrap" style="width:300px;">
             <canvas class="reel-thumb-canvas" data-ri="${i}" width="${previewW}" height="${previewH}" style="width:${prevCSSW}px;height:${prevCSSH}px;display:block;"></canvas>
           </div>
@@ -1783,7 +1783,7 @@ function renderAllReelPreviews() {
           </div>
         </div>
         <!-- Right: Controls -->
-        <div style="flex:1; min-width:0; overflow-x:hidden; display:flex; flex-direction:column; gap:6px; font-size:0.72rem;">
+        <div class="rp-ctrl-col" style="flex:1; min-width:0; overflow-x:hidden; display:flex; flex-direction:column; gap:6px; font-size:0.72rem;">
           ${buildControlsHtml(i, r)}
         </div>
       </div>

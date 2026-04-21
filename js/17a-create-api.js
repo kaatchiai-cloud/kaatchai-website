@@ -679,12 +679,164 @@ function wireReelVolSlider(inputId, labelId) {
   sync();
 }
 
-// Bootstrap all Aurora preview affordances once the DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Wire a CtrlRow <input type=range> to its <span> label (shows live value
+// with optional unit suffix) and keeps the track filled from left to thumb.
+function wireAurSlider(inputId, labelId, suffix) {
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  if (!input || !label) return;
+  const sync = () => {
+    label.textContent = input.value + (suffix || '');
+    const min = parseFloat(input.min) || 0;
+    const max = parseFloat(input.max) || 100;
+    const pct = ((parseFloat(input.value) - min) / (max - min)) * 100;
+    input.style.setProperty('--slider-pct', pct.toFixed(1) + '%');
+  };
+  input.addEventListener('input', sync);
+  sync(); // Set initial fill on page load
+}
+
+// Bootstrap all Aurora preview affordances. Use readyState check because
+// when all JS is inlined into one file, DOMContentLoaded may have already
+// fired by the time this code runs.
+function _initAuroraReelBits() {
+  // BGM step — waveform + volume slider (unrelated to Preview & Edit)
   renderReelBgmFauxWave();
   wireReelVolSlider('reel-bgm-volume-slider', 'reel-bgm-vol-label');
-  wireReelVolSlider('reel-voice-volume-slider', 'reel-voice-vol-label');
-});
+
+  // Phone frame preview mirror — copies the first reel canvas (rendered by
+  // renderAllReelPreviews into reel-previews-container) into the phone screen.
+  // Also wires the phone transport play button, hides waiting placeholder,
+  // and applies slider fill to rc-* range inputs after the container populates.
+  (function initPhonePreviewMirror() {
+    const phoneScreen  = document.getElementById('reel-phone-screen');
+    if (!phoneScreen) return;
+    const placeholder  = phoneScreen.querySelector('.reel-phone-placeholder');
+    const phonePlayBtn = document.querySelector('.reel-phone-play');
+    const phoneTimeEl  = document.querySelector('.reel-phone-time');
+    const waiting      = document.querySelector('#reel-page .reel-ctrl-waiting');
+
+    let mirrorCvs = null;
+    let mirrorRAF = null;
+    let activeSrc = null;
+
+    function applySliderFill(root) {
+      root.querySelectorAll('input[type=range]').forEach(el => {
+        const min = parseFloat(el.min) || 0;
+        const max = parseFloat(el.max) || 100;
+        const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+        el.style.setProperty('--slider-pct', pct.toFixed(1) + '%');
+        el.addEventListener('input', () => {
+          const p = ((parseFloat(el.value) - min) / (max - min)) * 100;
+          el.style.setProperty('--slider-pct', p.toFixed(1) + '%');
+        });
+      });
+    }
+
+    function startMirror(src) {
+      if (activeSrc === src) return;
+      activeSrc = src;
+      if (placeholder) placeholder.style.display = 'none';
+      if (waiting)     waiting.style.display      = 'none';
+
+      if (!mirrorCvs) {
+        mirrorCvs = document.createElement('canvas');
+        mirrorCvs.style.cssText = 'width:100%;height:100%;display:block;position:absolute;inset:0;';
+        phoneScreen.style.position = 'relative';
+        phoneScreen.appendChild(mirrorCvs);
+      }
+
+      if (mirrorRAF) { cancelAnimationFrame(mirrorRAF); }
+      (function loop() {
+        if (src.width > 0 && src.height > 0) {
+          if (mirrorCvs.width !== src.width || mirrorCvs.height !== src.height) {
+            mirrorCvs.width  = src.width;
+            mirrorCvs.height = src.height;
+          }
+          mirrorCvs.getContext('2d').drawImage(src, 0, 0);
+        }
+        // Sync time display + play button icon
+        if (phoneTimeEl) {
+          const mpTime = document.querySelector('.reel-mp-time[data-ri="0"]');
+          if (mpTime && mpTime.textContent) phoneTimeEl.textContent = mpTime.textContent;
+        }
+        if (phonePlayBtn) {
+          const mpPlay = document.querySelector('.reel-mp-play[data-ri="0"]');
+          if (mpPlay) phonePlayBtn.textContent = mpPlay.textContent;
+        }
+        mirrorRAF = requestAnimationFrame(loop);
+      })();
+    }
+
+    // Watch reel-previews-container for the first canvas (added by renderAllReelPreviews)
+    const container = document.getElementById('reel-previews-container');
+    if (container) {
+      const obs = new MutationObserver(() => {
+        const first = container.querySelector('.reel-thumb-canvas[data-ri="0"]');
+        if (first) {
+          startMirror(first);
+          // Apply Aurora slider fill to all rc-* range inputs now that they exist
+          const ctrlCol = container.querySelector('.rp-ctrl-col');
+          if (ctrlCol) applySliderFill(ctrlCol);
+          // Wire rc-frame select → show/hide sub-control rows
+          // (renderAllReelPreviews does not wire this — gap in the original code)
+          const frameEl = container.querySelector('.rc-frame[data-ri="0"]');
+          if (frameEl) {
+            const textTpls = ['bottom-strip', 'top-bar', 'corner-tag'];
+            const syncFrameRows = () => {
+              const v = frameEl.value;
+              const tplRow = container.querySelector('.rc-frame-tpl-row[data-ri="0"]');
+              const pngRow = container.querySelector('.rc-frame-png-row[data-ri="0"]');
+              if (tplRow) tplRow.style.display = textTpls.includes(v) ? 'inline-flex' : 'none';
+              if (pngRow) pngRow.style.display  = (v === 'custom-png') ? 'inline-flex' : 'none';
+              // Wire upload button to file input (one-time, guard with dataset flag)
+              const uploadBtn = container.querySelector('.rc-frame-upload[data-ri="0"]');
+              const fileInput = document.getElementById('reel-frame-input');
+              if (uploadBtn && fileInput && !uploadBtn.dataset.wired) {
+                uploadBtn.dataset.wired = '1';
+                uploadBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', (e) => {
+                  if (e.target.files[0]) uploadBtn.textContent = '🖼 ' + e.target.files[0].name.slice(0, 14);
+                });
+              }
+            };
+            frameEl.addEventListener('change', syncFrameRows);
+            syncFrameRows(); // set initial state
+          }
+        }
+      });
+      obs.observe(container, { childList: true, subtree: true });
+    }
+
+    // Phone play button → delegate to first reel's play button
+    if (phonePlayBtn) {
+      phonePlayBtn.addEventListener('click', () => {
+        const mpPlay = document.querySelector('.reel-mp-play[data-ri="0"]');
+        if (mpPlay) mpPlay.click();
+      });
+    }
+  })();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initAuroraReelBits);
+} else {
+  _initAuroraReelBits();
+}
+// Defence in depth: if #reel-step-bgm is later un-hidden by the pipeline,
+// re-run the waveform render so it shows even if it wasn't in the DOM
+// at init time.
+(function observeReelBgmReveal() {
+  if (typeof MutationObserver !== 'function') return;
+  const hook = () => {
+    const el = document.getElementById('reel-step-bgm');
+    if (!el) { setTimeout(hook, 200); return; }
+    const obs = new MutationObserver(() => {
+      if (!el.classList.contains('hidden')) renderReelBgmFauxWave();
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  };
+  hook();
+})();
 
 const _reelAgentState = {};
 
