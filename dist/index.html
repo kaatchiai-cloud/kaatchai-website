@@ -4624,9 +4624,9 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="btn-reel-save-preset" class="reel-ghost-btn" type="button">Save preset</button>
         <button id="btn-reel-save-project" class="reel-ghost-btn" type="button">💾 Save Project</button>
         <button id="btn-reel-export" class="primary btn-md reel-launch-btn">⬇ Export Reel</button>
-        <!-- Legacy orphans kept for JS compat -->
+        <button id="btn-reel-full-editor" class="reel-ghost-btn" type="button">Open in editor</button>
+        <!-- Legacy orphan kept for JS compat -->
         <button id="btn-reel-export-all" class="btn-md reel-orphan">⬇ Export All</button>
-        <button id="btn-reel-full-editor" class="btn-sm reel-orphan">Open in Full Editor</button>
       </div>
     </div>
 
@@ -18301,8 +18301,8 @@ function clampSegments(segs, minN, maxN) {
     const mid = (s.startTime + s.endTime) / 2;
     const wordsA = (s.words || []).filter(w => w.start < mid);
     const wordsB = (s.words || []).filter(w => w.start >= mid);
-    const textA = wordsA.length ? wordsA.map(w => w.word).join(' ') : s.text.slice(0, Math.floor(s.text.length / 2));
-    const textB = wordsB.length ? wordsB.map(w => w.word).join(' ') : s.text.slice(Math.floor(s.text.length / 2));
+    const textA = (wordsA.length ? wordsA.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(0, Math.floor(s.text.length / 2));
+    const textB = (wordsB.length ? wordsB.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(Math.floor(s.text.length / 2));
     segs.splice(maxIdx, 1,
       { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: wordsA },
       { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: wordsB }

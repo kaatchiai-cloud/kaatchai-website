@@ -829,8 +829,8 @@ function clampSegments(segs, minN, maxN) {
     const mid = (s.startTime + s.endTime) / 2;
     const wordsA = (s.words || []).filter(w => w.start < mid);
     const wordsB = (s.words || []).filter(w => w.start >= mid);
-    const textA = wordsA.length ? wordsA.map(w => w.word).join(' ') : s.text.slice(0, Math.floor(s.text.length / 2));
-    const textB = wordsB.length ? wordsB.map(w => w.word).join(' ') : s.text.slice(Math.floor(s.text.length / 2));
+    const textA = (wordsA.length ? wordsA.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(0, Math.floor(s.text.length / 2));
+    const textB = (wordsB.length ? wordsB.map(w => w.word).filter(Boolean).join(' ') : '') || s.text.slice(Math.floor(s.text.length / 2));
     segs.splice(maxIdx, 1,
       { startTime: s.startTime, endTime: mid, text: textA, sceneDescription: s.sceneDescription || textA, words: wordsA },
       { startTime: mid, endTime: s.endTime, text: textB, sceneDescription: textB, words: wordsB }
