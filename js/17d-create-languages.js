@@ -801,6 +801,24 @@ btnCreateSendEditor.addEventListener('click', async () => {
   }
   setupEditorLanguageSelector();
 
+  // Transfer BGM from create pipeline to editor
+  if (typeof createBgmUrl === 'string' && createBgmUrl) {
+    try {
+      const arrayBuf = await fetch(createBgmUrl).then(r => r.arrayBuffer());
+      bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
+      const volEl = $('create-bgm-volume');
+      bgmVolume = volEl ? parseInt(volEl.value) / 100 : 0.3;
+      const bgmSec = $('bgm-section');
+      if (bgmSec) bgmSec.style.display = '';
+      const bgmNm = $('bgm-name');
+      if (bgmNm) bgmNm.textContent = `BGM (${fmtShort(bgmBuffer.duration)})`;
+    } catch (e) {
+      console.warn('BGM transfer to editor failed:', e);
+    }
+  } else {
+    bgmBuffer = null;
+  }
+
   // Navigate to editor
   cameFromCreate = true;
   btnBackToCreate.style.display = '';

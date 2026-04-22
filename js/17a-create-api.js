@@ -697,6 +697,21 @@ function renderReelBgmFauxWave() {
   host.dataset.rendered = '1';
 }
 
+// Render the faux BGM waveform for Create Story (140 bars, gradient via CSS var)
+function renderCreateBgmFauxWave() {
+  const host = document.getElementById('create-bgm-faux-wave');
+  if (!host || host.dataset.rendered === '1') return;
+  const BARS = 140;
+  const parts = [];
+  for (let i = 0; i < BARS; i++) {
+    const h = Math.min(40, 6 + (Math.sin(i * 0.3) * 0.5 + 0.5) * 28 + (i * 11) % 8);
+    const opacity = 0.5 + (i % 5) / 10;
+    parts.push(`<span class="create-bgm-wave-bar" style="height:${h}px;--wave-opacity:${opacity.toFixed(2)};"></span>`);
+  }
+  host.innerHTML = parts.join('');
+  host.dataset.rendered = '1';
+}
+
 // Aurora dual-slider wiring — keeps thumb + fill in sync with the hidden <input type=range>
 function wireReelVolSlider(inputId, labelId) {
   const input = document.getElementById(inputId);
@@ -871,6 +886,19 @@ if (document.readyState === 'loading') {
       if (!el.classList.contains('hidden')) renderReelBgmFauxWave();
     });
     obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  };
+  hook();
+})();
+
+// Same defence for Create Story BGM wave
+(function observeCreateBgmReveal() {
+  if (typeof MutationObserver !== 'function') return;
+  const hook = () => {
+    const el = document.getElementById('create-bgm-faux-wave');
+    if (!el) { setTimeout(hook, 200); return; }
+    renderCreateBgmFauxWave();
+    const obs = new MutationObserver(() => renderCreateBgmFauxWave());
+    obs.observe(el.parentElement || el, { attributes: true, attributeFilter: ['class'] });
   };
   hook();
 })();
