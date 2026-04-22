@@ -1093,58 +1093,84 @@ body:has(#drop-zone:not(.hidden)) {
   <input type="file" id="create-audio-input" accept="audio/*,video/*,.aac,.m4a,.mp4,.mp3,.wav" class="hidden">
 
   <!-- ═══ Create Content Page ═══ -->
-  <div id="create-page">
+  <!-- Create Story Header - Full-width sticky outside #create-page -->
+  <div id="create-header-wrapper" style="display:none;">
     <div class="create-header">
-      <button id="btn-create-back" class="btn-md">← Back</button>
-      <h2>🤖 Copilot — Long Video</h2>
-      <div class="create-api-bar">
-        <span id="key-status-inline" class="text-xs text-muted">🔑 No key</span>
-        <button id="btn-toggle-key-input" class="btn-xs">Change Key</button>
-        <div id="create-key-expand" class="hidden" style="display:none;">
-          <input type="password" id="create-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
-          <button id="btn-save-key-paid" class="primary btn-xs">Save</button>
-          <span id="key-status-paid" class="text-xs"></span>
-          <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+      <div class="create-header-inner">
+        <div class="create-header-left">
+          <button id="btn-create-back" class="create-header-btn">← Exit</button>
+          <div class="create-header-divider"></div>
+          <span class="create-auto-pill">⚡ COPILOT</span>
+        </div>
+        <div class="create-header-right">
+          <span class="create-credits-pill"><span class="create-credits-dot"></span>∞ credits</span>
+          <div class="create-api-bar create-header-keybar">
+            <span id="key-status-inline" class="text-xs text-muted">🔑 No key</span>
+            <button id="btn-toggle-key-input" class="btn-xs">Change Key</button>
+            <div id="create-key-expand" style="display:none;">
+              <input type="password" id="create-api-key-paid" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+              <button id="btn-save-key-paid" class="primary btn-xs">Save</button>
+              <span id="key-status-paid" class="text-xs"></span>
+              <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+            </div>
+          </div>
+          <button id="btn-create-save-top" class="create-header-btn">💾 Save</button>
         </div>
       </div>
-      <button id="btn-create-save-early" class="btn-sm hidden">💾 Save Project</button>
+    </div>
+  </div>
+
+  <div id="create-page">
+    <!-- Main heading row -->
+    <div class="create-main-heading">
+      <h2>Copilot <em>— Long Video</em></h2>
     </div>
 
     <!-- Agent UI: side panel + scrollable workflow -->
     <div id="create-body">
       <div id="create-agent-panel">
-        <div class="agent-panel-label">AI Agents</div>
-        <div class="agent-panel-mode-badge" id="create-agent-mode-badge">Copilot</div>
+        <div class="agent-panel-label">
+          <span>AI AGENTS</span>
+          <span class="agent-panel-mode-badge" id="create-agent-mode-badge">⚡ COPILOT</span>
+        </div>
         <div class="agent-list" id="create-agent-list"></div>
       </div>
       <div id="create-workflow">
 
-    <!-- Step 0: Video Mode Selection -->
+    <!-- Video Mode Selection (unnumbered) -->
     <div class="create-step" id="create-video-mode-step">
-      <h3><span class="step-num">0</span> Video Mode</h3>
+      <h3>Video Mode</h3>
       <div class="video-mode-cards">
         <div class="video-mode-card active" id="create-card-illustrated" onclick="setCreateVideoMode('illustrated')">
-          <div class="video-mode-icon">🖼</div>
-          <div class="video-mode-title">Illustrated Video</div>
-          <div class="video-mode-desc">Stylized visual</div>
-          <div class="video-mode-cost">1X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Illustrated Video</div>
+            <div class="video-mode-desc">AI-generated scene images</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">1× token</span>
+            <span class="video-mode-badge">SELECTED</span>
+          </div>
         </div>
         <div class="video-mode-card" id="create-card-animated" onclick="setCreateVideoMode('animated')">
-          <div class="video-mode-icon">🎬</div>
-          <div class="video-mode-title">Animated Video</div>
-          <div class="video-mode-desc">AI generated video</div>
-          <div class="video-mode-cost">16X token</div>
+          <div class="video-mode-content">
+            <div class="video-mode-title">Animated Video</div>
+            <div class="video-mode-desc">Images → Kling AI video</div>
+          </div>
+          <div class="video-mode-meta">
+            <span class="video-mode-cost">16× token</span>
+            <span class="video-mode-badge">SWITCH</span>
+          </div>
         </div>
       </div>
       <div id="create-kling-provider-section" style="display:none; margin-top:12px;">
         <div class="form-row">
           <label class="text-xs text-muted">Access Key:</label>
-          <input type="password" id="create-kling-ak" placeholder="Kling access key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <input type="password" id="create-kling-ak" placeholder="Kling access key" style="width:220px;" autocomplete="off" data-form-type="other">
           <button onclick="saveKlingKey('stori_kling_access_key','create-kling-ak',this)" class="btn-xs">Save</button>
         </div>
         <div class="form-row">
           <label class="text-xs text-muted">Secret Key:</label>
-          <input type="password" id="create-kling-sk" placeholder="Kling secret key" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+          <input type="password" id="create-kling-sk" placeholder="Kling secret key" style="width:220px;" autocomplete="off" data-form-type="other">
           <button onclick="saveKlingKey('stori_kling_secret_key','create-kling-sk',this)" class="btn-xs">Save</button>
         </div>
       </div>
@@ -1175,7 +1201,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-create-podcast-audio" class="btn-md">🎵 Import Audio</button>
           <button id="btn-create-pip-import" class="btn-md">📹 Import Video (+ PiP)</button>
           <span id="create-pip-name" class="text-sm text-muted"></span>
-          <button id="btn-create-pip-remove" style="font-size:0.7rem; padding:3px 8px; display:none;" class="danger">✕</button>
+          <button id="btn-create-pip-remove" class="btn-xs danger" style="display:none;">✕</button>
         </div>
         <input type="file" id="create-podcast-audio-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden>
         <input type="file" id="create-pip-input" accept="video/*" hidden>
@@ -1199,11 +1225,11 @@ body:has(#drop-zone:not(.hidden)) {
           <span id="create-edit-total">0:00.000</span>
         </div>
         <div class="flex flex-wrap gap-sm mt-md">
-          <button id="btn-create-play" class="primary" disabled class="btn-xs">&#9654; Play</button>
+          <button id="btn-create-play" class="primary btn-xs" disabled>&#9654; Play</button>
           <button id="btn-create-play-sel" disabled class="btn-xs">&#9654; Selection</button>
           <button id="btn-create-stop" disabled class="btn-xs">&#9632; Stop</button>
           <button id="btn-create-trim" disabled class="btn-xs">✂ Keep Selection</button>
-          <button id="btn-create-del" class="danger" disabled class="btn-xs">🗑 Delete Selection</button>
+          <button id="btn-create-del" class="danger btn-xs" disabled>🗑 Delete Selection</button>
           <button id="btn-create-add-audio" class="btn-xs">+ Insert Audio</button>
           <input type="file" id="create-insert-input" accept="audio/*" class="hidden">
           <button id="btn-create-edit-undo" disabled class="btn-xs">↩ Undo</button>
@@ -1235,11 +1261,11 @@ body:has(#drop-zone:not(.hidden)) {
             <button id="btn-create-sil-reset" class="btn-xs hidden">↩ Reset</button>
             <span id="create-sil-info" class="text-sm text-muted"></span>
           </div>
-          <div id="create-sil-visual" class="hidden mt-md" style="position:relative; height:20px; background:rgba(0,0,0,0.3); border-radius:4px; overflow:hidden;"></div>
+          <div id="create-sil-visual" class="hidden mt-md" style="border-radius:12px; overflow:hidden;"></div>
         </div>
       </div>
       <!-- Template & Output Size (part of Step 1) -->
-      <h4 class="mt-lg text-base" style="font-weight:600;">Template & Output Size</h4>
+      <h4 class="create-section-heading">Template & Output Size</h4>
       <p class="text-sm text-muted mb-md">
         Pick a template to auto-configure style and size, or choose Blank for full control.
       </p>
@@ -1350,8 +1376,8 @@ body:has(#drop-zone:not(.hidden)) {
           </select>
         </label>
       </div>
-      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.8rem; color:var(--text-muted);" id="create-script-launch-hint">Import audio to begin</span>
+      <div class="agent-launch-row visible" id="create-input-launch-row">
+        <span class="agent-launch-summary" id="create-script-launch-hint">Import audio to begin</span>
         <button id="btn-create-transcribe" class="agent-launch-btn" disabled>▶ Script, Storyboard & Prompt Agent</button>
       </div>
     </div>
@@ -1430,7 +1456,7 @@ body:has(#drop-zone:not(.hidden)) {
 
       <!-- Per-scene assignment -->
       <div id="scene-ref-assignments" class="hidden">
-        <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:8px;">Scene Assignments</strong>
+        <strong class="create-label-block">Scene Assignments</strong>
         <p class="text-xs text-muted mb-md">Tick characters per scene (1st tick = main, 2nd = supporting). Select one environment. AI will intelligently include only relevant characters based on the scene text.</p>
         <div id="scene-assignment-list"></div>
       </div>
@@ -1457,19 +1483,60 @@ body:has(#drop-zone:not(.hidden)) {
 
     <!-- Step 7: BGM (auto-generated with Lyria 3) -->
     <div class="create-step" id="create-bgm-step" style="display:none;">
-      <div class="agent-step-header"><span class="agent-step-icon">6</span><span class="agent-step-name">Background Music</span><span class="agent-step-status-badge waiting">Waiting</span></div>
-      <p class="text-sm text-muted mb-md">AI-generated with Lyria 3 based on your scenes and script.</p>
-      <div id="create-bgm-status" class="text-sm text-muted">Starting…</div>
-      <div id="create-bgm-player" style="display:none; margin-top:12px;">
+      <div class="agent-step-header">
+        <span class="agent-step-icon">6</span>
+        <span class="agent-step-name">BGM agent</span>
+        <span class="agent-step-status-badge waiting">Waiting</span>
+        <button type="button" class="create-bgm-browse-btn">Browse library</button>
+      </div>
+
+      <!-- Aurora track info row (JS updates these spans after generation) -->
+      <div class="create-bgm-track-row">
+        <span class="create-bgm-track-name" id="create-bgm-track-name">♪ Generating…</span>
+        <span class="create-bgm-track-mood" id="create-bgm-track-mood"></span>
+      </div>
+
+      <!-- Aurora faux waveform (JS populates bars, same pattern as reel) -->
+      <div class="create-bgm-wave" id="create-bgm-faux-wave"></div>
+
+      <!-- Aurora volume slider -->
+      <div class="create-vol-slider-wrap">
+        <div class="create-vol-slider-head">
+          <span class="create-vol-slider-label">BGM volume</span>
+          <span class="create-vol-slider-value" id="create-bgm-vol-aurora-label">30%</span>
+        </div>
+        <div class="create-vol-slider-track">
+          <div class="create-vol-slider-fill" id="create-bgm-vol-fill" style="width:30%;"></div>
+          <input type="range" id="create-bgm-vol-aurora" min="0" max="100" value="30"
+            class="create-vol-slider-input"
+            oninput="
+              var v=this.value;
+              document.getElementById('create-bgm-vol-aurora-label').textContent=v+'%';
+              document.getElementById('create-bgm-vol-fill').style.width=v+'%';
+              document.getElementById('create-bgm-vol-thumb').style.left=v+'%';
+              var h=document.getElementById('create-bgm-volume');
+              if(h){h.value=v;h.dispatchEvent(new Event('input'));}
+            ">
+          <span class="create-vol-slider-thumb" id="create-bgm-vol-thumb" style="left:30%;"></span>
+        </div>
+      </div>
+
+      <!-- Hidden audio element for project restore -->
+      <audio id="create-bgm-audio" style="display:none;"></audio>
+
+      <!-- Legacy orphans — hidden via .create-orphan, all IDs kept for JS compatibility -->
+      <div id="create-bgm-status" class="create-orphan">Starting…</div>
+      <div id="create-bgm-player" class="create-orphan" style="display:none;">
         <div id="create-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
-          <button id="create-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
+          <button id="create-bgm-play-btn" class="btn-sm">▶ Play</button>
           <label class="form-label" style="margin:0;">Vol:</label>
-          <input type="range" id="create-bgm-volume" min="0" max="100" value="30" style="width:80px;">
+          <input type="range" id="create-bgm-volume" min="0" max="100" value="30">
           <span id="create-bgm-vol-label" class="text-sm text-muted">30%</span>
           <button id="create-bgm-download" class="btn-sm" title="Download BGM">⬇ Download BGM</button>
         </div>
       </div>
+
       <div class="agent-launch-row" id="create-launch-after-bgm">
         <span class="agent-launch-summary" id="create-launch-bgm-summary">BGM ready</span>
         <button class="agent-launch-btn" id="create-launch-bgm-btn" onclick="document.getElementById('create-video-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch Animation Agent →</button>
@@ -1500,23 +1567,28 @@ body:has(#drop-zone:not(.hidden)) {
         Your primary audio is shown below. Add more languages — same images, different audio for each.
       </p>
       <div id="language-primary" class="mb-md"></div>
-      <div id="language-results" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
+      <div id="language-results" class="language-results" style="margin-bottom:12px;"></div>
       <h4 class="text-sm text-secondary mb-md">Add language:</h4>
-      <div id="language-checkboxes" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div id="language-checkboxes" class="language-checkboxes" style="margin-bottom:12px;"></div>
+      <div class="create-row mt-md">
         <button id="btn-generate-languages" class="primary btn-md" disabled>🌐 Generate Language Tracks</button>
       </div>
     </div>
 
     <!-- Step 8: Send to Editor -->
     <div class="create-step" id="create-send-step" style="display:none;">
-      <h3><span class="step-num">8</span> Review & Send to Editor</h3>
-      <p class="text-sm text-secondary mb-md">
-        Review the generated images above. Edit prompts and regenerate any you want to change, then send everything to the editor.
-      </p>
-      <div class="create-approve" style="display:flex; gap:12px; align-items:center;">
-        <button id="btn-create-send-editor" class="primary btn-lg" disabled>🚀 Send to Editor</button>
-        <button id="btn-create-save-project" class="btn-lg">💾 Save Project</button>
+      <div class="agent-step-header">
+        <span class="agent-step-icon">8</span>
+        <span class="agent-step-name">Review &amp; Export</span>
+        <span class="agent-step-status-badge waiting">Waiting</span>
+      </div>
+      <div class="create-export-eyebrow">REVIEW &amp; EXPORT</div>
+      <div class="create-export-info-row">
+        <span class="create-export-info-meta">Review the generated images above. Edit prompts and regenerate any you want to change, then send to the editor.</span>
+      </div>
+      <div class="create-approve">
+        <button id="btn-create-save-project" class="create-ghost-btn">💾 Save Project</button>
+        <button id="btn-create-send-editor" class="primary btn-md" disabled>🚀 Send to Editor</button>
       </div>
     </div>
 
@@ -2628,6 +2700,7 @@ body:has(#drop-zone:not(.hidden)) {
     if (!btn) return;
     btn.addEventListener('click', function handler(e) {
       if (_editorScriptsLoaded) return; // scripts loaded, let real handler run
+      e.preventDefault();
       e.stopImmediatePropagation();
       loadEditorScripts(function() { btn.click(); });
     }, true); // capture phase — runs before any other handler

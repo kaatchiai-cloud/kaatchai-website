@@ -677,7 +677,7 @@ btnSaveProject.addEventListener('click', () => saveProjectToFile(currentBuffer, 
 
 btnLoadProject.addEventListener('click', () => projectInput.click());
 const btnLoadProjectHome = $('btn-load-project-home');
-if (btnLoadProjectHome) btnLoadProjectHome.addEventListener('click', (e) => { e.stopPropagation(); projectInput.click(); });
+if (btnLoadProjectHome) btnLoadProjectHome.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); projectInput.click(); });
 
 function clearProjectBlobs() {
   (videoTimelineItems || []).forEach(item => { if (item.videoSrc) URL.revokeObjectURL(item.videoSrc); });

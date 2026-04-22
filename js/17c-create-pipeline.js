@@ -854,7 +854,7 @@ function updateStepStates() {
   // Renumber only visible steps sequentially; Video Mode step is unnumbered
   let stepNum = 1;
   createPage.querySelectorAll('.create-step').forEach(el => {
-    if (el.id === 'create-mode-step') return;
+    if (el.id === 'create-video-mode-step') return;
     const numEl = el.querySelector('.step-num, .agent-step-icon');
     if (!numEl) return;
     if (el.style.display !== 'none') numEl.textContent = stepNum++;
@@ -1268,7 +1268,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         }
       }
     }
-    btnCreateSaveEarly.style.display = '';
+    btnCreateSaveTop.style.display = '';
 
     if (createInputMode === 'text') {
       updateCreateAgentTask('storyboard', 'prompts', 'done', `${segments.length} prompts ready`);

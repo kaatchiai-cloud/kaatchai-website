@@ -1044,7 +1044,7 @@ btnCreateSaveProject.addEventListener('click', async () => {
     }
   }
 
-  const showMsg = (msg) => { btnCreateSaveEarly.textContent = msg; setTimeout(() => { btnCreateSaveEarly.textContent = '💾 Save Project'; }, 3000); };
+  const showMsg = (msg) => { btnCreateSaveTop.textContent = msg; setTimeout(() => { btnCreateSaveTop.textContent = '💾 Save'; }, 3000); };
   await saveProjectToFile(createAudioBuffer, showMsg);
 
   // Restore previous editor state
@@ -1056,7 +1056,7 @@ btnCreateSaveProject.addEventListener('click', async () => {
 });
 
 // Early save button (in header) — same logic
-btnCreateSaveEarly.addEventListener('click', () => btnCreateSaveProject.click());
+btnCreateSaveTop.addEventListener('click', () => btnCreateSaveProject.click());
 
 // Back to Create from Editor — preserves create wizard state
 btnBackToCreate.addEventListener('click', () => {
@@ -1108,7 +1108,7 @@ btnBackToCreate.addEventListener('click', () => {
     if (audioName && !audioName.textContent) audioName.textContent = 'Audio loaded';
     showCreateAudioEditor();
     // Show early save button
-    btnCreateSaveEarly.style.display = '';
+    btnCreateSaveTop.style.display = '';
   }
 
   if (createTranscript) {

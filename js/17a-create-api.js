@@ -27,7 +27,7 @@ const createSceneGrid = $('create-scene-grid');
 const createSendStep = $('create-send-step');
 const btnCreateSendEditor = $('btn-create-send-editor');
 const btnCreateSaveProject = $('btn-create-save-project');
-const btnCreateSaveEarly = $('btn-create-save-early');
+const btnCreateSaveTop = $('btn-create-save-top');
 const btnBackToCreate = $('btn-back-to-create');
 
 let createAudioBuffer = null;
@@ -394,6 +394,11 @@ function setCreateVideoMode(mode) {
   }
   const modeBadge = $('create-agent-mode-badge');
   if (modeBadge) modeBadge.textContent = 'Copilot';
+  // Update SELECTED/SWITCH badge text on video mode cards
+  document.querySelectorAll('#create-page .video-mode-card').forEach(card => {
+    const badge = card.querySelector('.video-mode-badge');
+    if (badge) badge.textContent = card.classList.contains('active') ? 'SELECTED' : 'SWITCH';
+  });
 }
 
 function setReelVideoMode(mode) {
@@ -465,21 +470,26 @@ function updateCreateCostEstimate() {
 //  AGENT PANEL — Create Story (Copilot)
 // ══════════════════════════════════════════
 
+const CREATE_AGENT_ICONS = {
+  storyboard: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  image: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+  bgm: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  voiceover: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h4M18 12h4M12 2v4M12 18v4"/></svg>',
+  animation: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg>',
+};
+
 const CREATE_AGENTS_ILLUSTRATED = [
-  { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎨', label: 'Storyboard & Prompt Agent' },
-  // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
-  { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
-  { id: 'voiceover', stepId: 'create-language-step',   icon: '🌐', label: 'Voiceover Agent' },
+  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Storyboard Agent' },
+  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent' },
+  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent' },
+  { id: 'voiceover',  stepId: 'create-language-step',   iconKey: 'voiceover',  label: 'Voiceover Agent' },
 ];
 
 const CREATE_AGENTS_ANIMATED = [
-  { id: 'storyboard',stepId: 'create-transcribe-step', icon: '🎬', label: 'Cinematography & Prompt Agent' },
-  // { id: 'reference', stepId: 'create-references-step', icon: '🔗', label: 'Reference Agent' }, // V2
-  { id: 'image',     stepId: 'create-generate-step',   icon: '🖼️', label: 'Image Agent' },
-  { id: 'bgm',       stepId: 'create-bgm-step',        icon: '🎵', label: 'BGM Agent' },
-  { id: 'animation', stepId: 'create-video-step',      icon: '✨', label: 'Animation Agent' },
-  // voiceover removed — language handled at Input step for animated mode
+  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Cinematography Agent' },
+  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent' },
+  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent' },
+  { id: 'animation',  stepId: 'create-video-step',      iconKey: 'animation',  label: 'Animation Agent' },
 ];
 
 // status: 'waiting' | 'running' | 'done' | 'error'
@@ -510,23 +520,24 @@ function _renderCreateAgentPanel() {
   list.innerHTML = agents.map(a => {
     const s = _createAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
+    const iconHtml = CREATE_AGENT_ICONS[a.iconKey] || a.icon;
+
     let bodyHtml = '';
     if (subtasks.length > 0) {
       bodyHtml = subtasks.map(t => {
-        const icon = t.status === 'done' ? '✅' : t.status === 'warn' ? '⚠️' : t.status === 'running' ? '⏳' : t.status === 'error' ? '❌' : '○';
+        const icon = t.status === 'done' ? '✓' : t.status === 'warn' ? '!' : t.status === 'running' ? '⋯' : t.status === 'error' ? '✕' : '';
         return `<div class="agent-subtask ${t.status}"><span class="agent-subtask-icon">${icon}</span><span>${t.label}</span></div>`;
       }).join('');
-    } else if (s.detail) {
+    } else if ((s.status === 'running' || s.status === 'error') && s.detail) {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
+
     return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
       onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
-      <div class="agent-row-top">
-        <span class="agent-row-icon">${a.icon}</span>
-        <span class="agent-row-label">${a.label}</span>
-        <span class="agent-status-dot ${s.status}"></span>
-      </div>
-      ${bodyHtml}
+      <span class="agent-row-icon">${iconHtml}</span>
+      <span class="agent-row-label">${a.label}</span>
+      <span class="agent-status-dot ${s.status}"></span>
+      ${bodyHtml ? `<div class="agent-row-body">${bodyHtml}</div>` : ''}
     </div>`;
   }).join('');
 }

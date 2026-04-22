@@ -3,6 +3,7 @@
 const btnNewProject = $('btn-new-project');
 btnNewProject.addEventListener('click', (e) => {
   e.stopPropagation();
+  e.preventDefault();
   currentBuffer = null;
   photoItems = []; textItems = []; subtitleItems = [];
   blockElements.clear(); textBlockElements.clear(); subBlockElements.clear();

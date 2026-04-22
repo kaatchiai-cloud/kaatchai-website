@@ -295,9 +295,11 @@ function navigateTo(view, pushHistory) {
   const createPage = $('create-page');
   const reelPage = $('reel-page');
   const reelHeaderWrapper = $('reel-header-wrapper');
+  const createHeaderWrapper = $('create-header-wrapper');
   if (createPage) createPage.classList.remove('visible');
   if (reelPage) reelPage.classList.remove('visible');
   if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'none';
+  if (createHeaderWrapper) createHeaderWrapper.style.display = 'none';
   // Show target view
   if (view === 'home') {
     dropZone.classList.remove('hidden');
@@ -306,6 +308,7 @@ function navigateTo(view, pushHistory) {
     editorEl.classList.add('visible');
   } else if (view === 'create') {
     if (createPage) createPage.classList.add('visible');
+    if (createHeaderWrapper) createHeaderWrapper.style.display = 'block';
   } else if (view === 'reel') {
     if (reelPage) reelPage.classList.add('visible');
     if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'block';
