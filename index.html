@@ -1060,6 +1060,112 @@ body:has(#drop-zone:not(.hidden)) {
   border-color: rgba(16,185,129,0.3);
 }
 
+/* ── Scroll progress bar ── */
+#lp-scroll-progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 9999;
+  pointer-events: none;
+}
+.lp-scroll-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: oklch(80% 0.14 200);
+  box-shadow: 0 0 8px oklch(80% 0.14 200);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
+}
+
+/* ── Section nav dots ── */
+.lp-section-dots {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 400;
+}
+.lp-section-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(238,244,255,0.2);
+  border: 1px solid rgba(238,244,255,0.12);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+.lp-section-dot:hover {
+  background: rgba(238,244,255,0.4);
+  transform: scale(1.3);
+}
+.lp-section-dot.active {
+  background: oklch(80% 0.14 200);
+  border-color: oklch(80% 0.14 200);
+  box-shadow: 0 0 8px rgba(120,220,255,0.4);
+  transform: scale(1.2);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .lp-enhanced .lp-hero, .lp-enhanced .lp-modes, .lp-enhanced .lp-marquee, .lp-enhanced .lp-pillars,
+  .lp-enhanced .lp-scrubber-sec, .lp-enhanced .lp-storyboard-sec, .lp-enhanced .lp-styles-sec,
+  .lp-enhanced .lp-pipeline, .lp-enhanced .lp-pricing {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .lp-enhanced .lp-pillar-card,
+  .lp-enhanced .lp-style-card,
+  .lp-enhanced .lp-pipe-step,
+  .lp-enhanced .lp-price-card {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .lp-marquee-scroll { animation: none !important; }
+  .lp-h1-cursor { display: none; }
+  .lp-scroll-progress-bar { transition: none !important; }
+}
+
+/* ── Focus ring system ── */
+.lp-btn-primary:focus-visible,
+.lp-btn-solid:focus-visible,
+.lp-btn-outline:focus-visible,
+.lp-btn-ghost:focus-visible,
+.lp-price-btn:focus-visible,
+.lp-nav a:focus-visible,
+.lp-section-dot:focus-visible,
+.lp-mode-card:focus-visible,
+.lp-pillar-card:focus-visible,
+.lp-style-card:focus-visible,
+.lp-pipe-step:focus-visible,
+.lp-price-card:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 2px;
+}
+
+/* ── Scene thumb hover parallax ── */
+.lp-scene-thumb {
+  transition: transform 0.2s ease-out;
+}
+.lp-scene-thumb:hover .lp-fauxscene {
+  transform: scale(1.03);
+  transition: transform 0.3s ease;
+}
+
+/* ── Smooth scroll ── */
+.lp-enhanced { scroll-behavior: smooth; }
+
+/* ── Section dots responsive ── */
+@media (max-width: 768px) {
+  .lp-section-dots { right: 10px; gap: 10px; }
+  .lp-section-dot { width: 6px; height: 6px; }
+}
 
 </style>
 </head>
@@ -1074,6 +1180,7 @@ body:has(#drop-zone:not(.hidden)) {
     </div>
   </div>
   <div id="global-progress"><div class="bar"></div></div>
+  <div id="lp-scroll-progress"><div class="lp-scroll-progress-bar"></div></div>
   <div id="page-loader"><div class="loader-spinner"></div><div class="loader-text">Loading...</div></div>
   <!-- ═══ Nav ═══ -->
   <nav class="lp-nav">
@@ -1269,7 +1376,7 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
       <div class="lp-modes-grid">
         <!-- Copilot -->
-        <div class="lp-mode-card feat">
+        <div class="lp-mode-card feat" tabindex="0">
           <div class="lp-mode-kicker accent">🎬 COPILOT · LONG VIDEO</div>
           <h3 class="lp-mode-h3">You direct. Kaatchi illustrates.</h3>
           <p class="lp-mode-body">Write or dictate a full script. Kaatchi builds a scene-by-scene storyboard you can edit, re-shoot, and re-order — like a calm assistant who knows the craft.</p>
@@ -1284,7 +1391,7 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
         </div>
         <!-- Autopilot -->
-        <div class="lp-mode-card std">
+        <div class="lp-mode-card std" tabindex="0">
           <div class="lp-mode-kicker faint">⚡ AUTOPILOT · SHORT REEL</div>
           <h3 class="lp-mode-h3">One prompt. One finished reel.</h3>
           <p class="lp-mode-body">Drop an idea and Kaatchi handles script, scenes, voice, and cut in under a minute. Vertical-ready, captioned, sound-designed — post immediately.</p>
@@ -1330,7 +1437,7 @@ body:has(#drop-zone:not(.hidden)) {
         <h2 class="lp-sec-h2" style="font-size:64px;margin-top:16px">Three gestures. One film.</h2>
       </div>
       <div class="lp-pillars-grid">
-        <div class="lp-pillar-card">
+        <div class="lp-pillar-card" tabindex="0">
           <span class="lp-pillar-num">— 01</span>
           <div class="pillar-anim-bars">
             <span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span><span class="pillar-anim-bar"></span>
@@ -1338,7 +1445,7 @@ body:has(#drop-zone:not(.hidden)) {
           <h3 class="lp-pillar-h3">Speak</h3>
           <p class="lp-pillar-body">Dictate, upload, or paste a script. Kaatchi reads between lines — pacing, beats, tone.</p>
         </div>
-        <div class="lp-pillar-card">
+        <div class="lp-pillar-card" tabindex="0">
           <span class="lp-pillar-num">— 02</span>
           <div class="pillar-anim-cards">
             <span class="pillar-anim-card"></span><span class="pillar-anim-card"></span><span class="pillar-anim-card"></span>
@@ -1346,7 +1453,7 @@ body:has(#drop-zone:not(.hidden)) {
           <h3 class="lp-pillar-h3">Storyboard</h3>
           <p class="lp-pillar-body">Every sentence becomes a frame you can edit, recompose, or replace.</p>
         </div>
-        <div class="lp-pillar-card">
+        <div class="lp-pillar-card" tabindex="0">
           <span class="lp-pillar-num">— 03</span>
           <div class="pillar-anim-burst">
             <span class="pillar-anim-ring"></span><span class="pillar-anim-ring"></span><span class="pillar-anim-ring"></span>
@@ -1408,7 +1515,7 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
           <div>
             <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
-            <p class="lp-scene-prompt-text">Wide shot. Coastal night. A lighthouse beam sweeps through fog. Distant foghorn.</p>
+            <p class="lp-scene-prompt-text" data-full="Wide shot. Coastal night. A lighthouse beam sweeps through fog. Distant foghorn.">&nbsp;</p>
           </div>
           <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
         </div>
@@ -1421,7 +1528,7 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
           <div>
             <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
-            <p class="lp-scene-prompt-text">Close on Elena's hands, cradling a cracked teacup. Kitchen lamp, amber spill.</p>
+            <p class="lp-scene-prompt-text" data-full="Close on Elena's hands, cradling a cracked teacup. Kitchen lamp, amber spill.">&nbsp;</p>
           </div>
           <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
         </div>
@@ -1434,7 +1541,7 @@ body:has(#drop-zone:not(.hidden)) {
           </div>
           <div>
             <span class="lp-scene-prompt-label">IMAGE PROMPT</span>
-            <p class="lp-scene-prompt-text">Knock at the door. Morse the dog looks up from the hearth rug. Slow push.</p>
+            <p class="lp-scene-prompt-text" data-full="Knock at the door. Morse the dog looks up from the hearth rug. Slow push.">&nbsp;</p>
           </div>
           <button class="lp-btn-ghost lp-btn-sm">Reroll</button>
         </div>
@@ -1448,14 +1555,14 @@ body:has(#drop-zone:not(.hidden)) {
         <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">Twenty signature looks.</h2>
       </div>
       <div class="lp-styles-grid">
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
-        <div class="lp-style-card"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
       </div>
     </section>
 
@@ -1465,22 +1572,22 @@ body:has(#drop-zone:not(.hidden)) {
         <span class="lp-eyebrow">THE PIPELINE</span>
       </div>
       <div class="lp-pipeline-box">
-        <div class="lp-pipe-step">
+        <div class="lp-pipe-step" tabindex="0">
           <span class="lp-pipe-num">— 01</span>
           <div class="lp-pipe-title-text">Ingest</div>
           <p class="lp-pipe-body">Voice, upload, or pasted script. Speaker diarization, pacing beats.</p>
         </div>
-        <div class="lp-pipe-step">
+        <div class="lp-pipe-step" tabindex="0">
           <span class="lp-pipe-num">— 02</span>
           <div class="lp-pipe-title-text">Imagine</div>
           <p class="lp-pipe-body">Scenes composed against your cast bible and style sheet.</p>
         </div>
-        <div class="lp-pipe-step">
+        <div class="lp-pipe-step" tabindex="0">
           <span class="lp-pipe-num">— 03</span>
           <div class="lp-pipe-title-text">Render</div>
           <p class="lp-pipe-body">Per-scene generation queued with overflow credits. Never lost.</p>
         </div>
-        <div class="lp-pipe-step">
+        <div class="lp-pipe-step" tabindex="0">
           <span class="lp-pipe-num">— 04</span>
           <div class="lp-pipe-title-text">Deliver</div>
           <p class="lp-pipe-body">MP4, ProRes, VTT captions, and a Kaatchi edit link.</p>
@@ -1498,7 +1605,7 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
       <div class="lp-price-grid">
         <!-- Creator -->
-        <div class="lp-price-card">
+        <div class="lp-price-card" tabindex="0">
           <div class="lp-price-name">CREATOR</div>
           <div class="lp-price-amt"><span class="lp-price-val">$0</span><span class="lp-price-per">/mo</span></div>
           <ul class="lp-price-items">
@@ -1510,7 +1617,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button class="lp-price-btn" onclick="document.getElementById('btn-create-content').click()">Choose Creator</button>
         </div>
         <!-- Pro Suite -->
-        <div class="lp-price-card feat">
+        <div class="lp-price-card feat" tabindex="0">
           <div class="lp-price-pill">MOST POPULAR</div>
           <div class="lp-price-name">PRO SUITE</div>
           <div class="lp-price-amt"><span class="lp-price-val">$24</span><span class="lp-price-per">/mo</span></div>
@@ -1524,7 +1631,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button class="lp-price-btn main">Choose Pro Suite</button>
         </div>
         <!-- Studio -->
-        <div class="lp-price-card">
+        <div class="lp-price-card" tabindex="0">
           <div class="lp-price-name">STUDIO</div>
           <div class="lp-price-amt"><span class="lp-price-val" style="font-size:40px">Custom</span></div>
           <ul class="lp-price-items">
@@ -1537,6 +1644,18 @@ body:has(#drop-zone:not(.hidden)) {
         </div>
       </div>
     </section>
+
+    <!-- ═══ Section Nav Dots ═══ -->
+    <nav class="lp-section-dots" aria-label="Page sections">
+      <a class="lp-section-dot active" href="#drop-zone" data-section=".lp-hero" title="Hero"></a>
+      <a class="lp-section-dot" href="#drop-zone" data-section=".lp-modes" title="Modes"></a>
+      <a class="lp-section-dot" href="#lp-features" data-section=".lp-pillars" title="Craft"></a>
+      <a class="lp-section-dot" href="#drop-zone" data-section=".lp-scrubber-sec" title="Scrubber"></a>
+      <a class="lp-section-dot" href="#drop-zone" data-section=".lp-storyboard-sec" title="Storyboard"></a>
+      <a class="lp-section-dot" href="#drop-zone" data-section=".lp-styles-sec" title="Styles"></a>
+      <a class="lp-section-dot" href="#drop-zone" data-section=".lp-pipeline" title="Pipeline"></a>
+      <a class="lp-section-dot" href="#lp-pricing" data-section=".lp-pricing" title="Pricing"></a>
+    </nav>
 
     <!-- ═══ Footer ═══ -->
     <footer class="lp-footer">
@@ -3250,18 +3369,19 @@ body:has(#drop-zone:not(.hidden)) {
       for(var s=0;s<sel.length;s++){
         var parents = document.querySelectorAll(sel[s]);
         for(var p=0;p<parents.length;p++){
-          var kids = parents[p].querySelectorAll(LP.childStagger[sel[s]]);
-          var cio = new IntersectionObserver(function(entries){
-            for(var e=0;e<entries.length;e++){
-              if(entries[e].isIntersecting){
-                for(var c=0;c<entries[e].target.children.length;c++){
-                  entries[e].target.children[c].classList.add('in-view');
+          (function(parentEl){
+            var cio = new IntersectionObserver(function(entries){
+              for(var e=0;e<entries.length;e++){
+                if(entries[e].isIntersecting){
+                  for(var c=0;c<entries[e].target.children.length;c++){
+                    entries[e].target.children[c].classList.add('in-view');
+                  }
+                  cio.unobserve(entries[e].target);
                 }
-                cio.unobserve(entries[e].target);
               }
-            }
-          },{threshold:0.1});
-          cio.observe(parents[p]);
+            },{threshold:0.1});
+            cio.observe(parentEl);
+          })(parents[p]);
         }
       }
 
@@ -3374,16 +3494,20 @@ body:has(#drop-zone:not(.hidden)) {
       var endPos = 85;
       var duration = 8000;
       var startTime = null;
+      var barPositions = [];
+      for(var b=0;b<bars.length;b++){
+        barPositions.push(bars[b].offsetLeft);
+      }
+      var widgetWidth = widget.offsetWidth;
       function tick(ts){
         if(!startTime) startTime = ts;
         var progress = Math.min((ts - startTime)/duration, 1);
         var currentPos = startPos + (endPos - startPos) * progress;
         playhead.style.left = currentPos + '%';
         playhead.style.transition = 'none';
-        var currentLeft = currentPos / 100 * widget.offsetWidth;
+        var currentLeft = currentPos / 100 * widgetWidth;
         for(var b=0;b<bars.length;b++){
-          var barLeft = bars[b].offsetLeft;
-          if(barLeft <= currentLeft){
+          if(barPositions[b] <= currentLeft){
             bars[b].classList.add('passed');
           }
         }
@@ -3450,29 +3574,156 @@ body:has(#drop-zone:not(.hidden)) {
     function initRenderingChip(){
       var chip = document.querySelector('.lp-preview-chip');
       if(!chip) return;
-      var currentPct = 42;
-      var duration = 8000;
+      var dot = document.createElement('span');
+      dot.className = 'lp-preview-chip-dot lp-preview-chip-anim';
+      dot.textContent = '\u25CF';
+      var label = document.createTextNode('RENDERING \u00B7 42%');
+      chip.textContent = '';
+      chip.appendChild(dot);
+      chip.appendChild(label);
+      var rafId = null;
       var startTime = null;
+      var duration = 8000;
       function tick(ts){
         if(!startTime) startTime = ts;
         var progress = Math.min((ts - startTime)/duration,1);
         var pct = Math.round(42 + (100-42)*progress);
-        chip.innerHTML = '<span class="lp-preview-chip-dot lp-preview-chip-anim'+(pct>=100?' complete':'')+'">●</span>RENDERING · '+pct+'%';
+        label.textContent = 'RENDERING \u00B7 ' + pct + '%';
         if(pct >= 100){
-          chip.innerHTML = '<span class="lp-preview-chip-dot lp-preview-chip-anim complete" style="color:#10b981">✓</span>COMPLETE';
+          dot.textContent = '\u2713';
+          dot.classList.add('complete');
+          dot.style.color = '#10b981';
+          label.textContent = 'COMPLETE';
           return;
         }
-        requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tick);
       }
-      setTimeout(function(){ requestAnimationFrame(tick); },2000);
+      var io = new IntersectionObserver(function(entries){
+        for(var i=0;i<entries.length;i++){
+          if(entries[i].isIntersecting){
+            io.unobserve(entries[i].target);
+            setTimeout(function(){ rafId = requestAnimationFrame(tick); },100);
+          }
+        }
+      },{threshold:0.3});
+      io.observe(chip);
+    }
+
+    function initSceneTypewriter(){
+      var prompts = document.querySelectorAll('.lp-scene-prompt-text[data-full]');
+      if(!prompts.length) return;
+      var io = new IntersectionObserver(function(entries){
+        for(var i=0;i<entries.length;i++){
+          if(entries[i].isIntersecting){
+            typeScenePrompt(entries[i].target);
+            io.unobserve(entries[i].target);
+          }
+        }
+      },{threshold:0.5});
+      for(var i=0;i<prompts.length;i++){
+        (function(idx){
+          setTimeout(function(){ io.observe(prompts[idx]); }, idx*2000);
+        })(i);
+      }
+    }
+
+    function typeScenePrompt(el){
+      var full = el.getAttribute('data-full');
+      el.textContent = '';
+      el.classList.add('typing');
+      var idx = 0;
+      var speed = 25;
+      function type(){
+        if(idx < full.length){
+          el.textContent += full[idx];
+          idx++;
+          var d = speed;
+          if(full[idx-1] === '.' || full[idx-1] === ',') d += 100;
+          setTimeout(type, d);
+        } else {
+          el.classList.remove('typing');
+        }
+      }
+      setTimeout(type, 300);
+    }
+
+    function initSceneParallax(){
+      var thumbs = document.querySelectorAll('.lp-scene-thumb');
+      for(var i=0;i<thumbs.length;i++){
+        (function(thumb){
+          thumb.addEventListener('mousemove',function(e){
+            var rect = thumb.getBoundingClientRect();
+            var x = (e.clientX - rect.left)/rect.width - 0.5;
+            var y = (e.clientY - rect.top)/rect.height - 0.5;
+            thumb.style.transform = 'translate('+(-x*4)+'px,'+(-y*4)+'px)';
+          });
+          thumb.addEventListener('mouseleave',function(){
+            thumb.style.transform = '';
+          });
+        })(thumbs[i]);
+      }
+    }
+
+    function initScrollProgress(){
+      var bar = document.querySelector('.lp-scroll-progress-bar');
+      if(!bar) return;
+      var ticking = false;
+      window.addEventListener('scroll',function(){
+        if(!ticking){
+          requestAnimationFrame(function(){
+            var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            var pct = docHeight > 0 ? (window.scrollY / docHeight) : 0;
+            bar.style.transform = 'scaleX(' + pct + ')';
+            ticking = false;
+          });
+          ticking = true;
+        }
+      },{passive:true});
+    }
+
+    function initSectionDots(){
+      var dots = document.querySelectorAll('.lp-section-dot');
+      var sections = [];
+      for(var i=0;i<dots.length;i++){
+        var sec = document.querySelector(dots[i].getAttribute('data-section'));
+        if(sec) sections.push(sec);
+        (function(dot, idx){
+          dot.addEventListener('click',function(e){
+            e.preventDefault();
+            if(sections[idx]) sections[idx].scrollIntoView({behavior:'smooth',block:'start'});
+          });
+        })(dots[i], i);
+      }
+      if(!sections.length) return;
+      var ticking = false;
+      function updateDots(){
+        var scrollMid = window.scrollY + window.innerHeight * 0.4;
+        var activeIdx = 0;
+        for(var i=sections.length-1;i>=0;i--){
+          if(sections[i].offsetTop <= scrollMid){
+            activeIdx = i;
+            break;
+          }
+        }
+        for(var j=0;j<dots.length;j++){
+          dots[j].classList.toggle('active', j === activeIdx);
+        }
+      }
+      window.addEventListener('scroll',function(){
+        if(!ticking){
+          requestAnimationFrame(function(){ updateDots(); ticking = false; });
+          ticking = true;
+        }
+      },{passive:true});
+      updateDots();
     }
 
     if(document.readyState==='loading'){
       document.addEventListener('DOMContentLoaded',function(){
-        initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();
+        initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();
       });
     } else {
-      initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();
+      initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();
     }
   })();
   </script>
