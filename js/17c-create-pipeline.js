@@ -1072,9 +1072,10 @@ CRITICAL JSON FORMATTING:
 - Non-English text (Tamil, Hindi, etc.) MUST also be in double quotes
 
 Example format:
-[{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
+[{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": "", "emojis": ["🎙️","💭","✨"]}]
 
-Note: sceneDescription can be empty — it will be generated later per chapter.`
+Note: sceneDescription can be empty — it will be generated later per chapter.
+emojis: 3-5 emojis that capture the feeling and key subjects of THIS segment. Use vivid, evocative emojis (not generic ones). They'll play like a silent movie while images generate.`
                   : `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly ${getSegmentDuration().min}-${getSegmentDuration().max} seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
 
 STRICT RULES (MUST follow ALL):
@@ -1090,9 +1091,11 @@ VALIDATION: After generating, verify that your segments form a complete chain: 0
 For each segment, provide the transcribed text AND a vivid visual scene description.${createVideoMode === 'animated' ? ` ANIMATED VIDEO MODE: Each sceneDescription MUST describe cinematic MOTION — start with camera direction (pan left/right, zoom in/out, tracking shot, dolly forward), describe subject action (walking, flowing, emerging, transforming), include environmental motion (wind, flowing water, drifting clouds). One continuous motion per scene, no cuts.` : ` Each sceneDescription should be suitable for AI image generation — vivid, specific, describing subject, style, mood, colors, and composition.`}
 
 Return ONLY a valid JSON array with no markdown formatting, in this exact structure:
-[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description"}]
+[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description", "emojis": ["🌊","🌙","⭐"]}]
 
-Important: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
+Important:
+- sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.
+- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.` }
               ]
             }],
             generationConfig: { response_mime_type: 'application/json' },
@@ -1235,6 +1238,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         endTime: s.endTime,
         duration: (s.endTime - s.startTime),
         text: s.text,
+        emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
         imgDataUrl: null,
         status: 'pending',
       }));
@@ -2800,6 +2804,17 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgent('image', 'running', '');
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
+  // Emoji reel — silent emoji movie of the user's story while images generate.
+  // Pass the decoded narration so the Play button can play emojis in sync with audio.
+  if (typeof window !== 'undefined' && typeof window.startEmojiReel === 'function') {
+    try {
+      window.startEmojiReel(scenesToGen, {
+        panel: 'create',
+        audio: (typeof createAudioBuffer !== 'undefined') ? createAudioBuffer : null,
+      });
+    } catch (_) {}
+  }
+
   // #2 Live counter + #3 Theater setup
   const _genStart = Date.now();
   let _genDone = 0;
@@ -3007,6 +3022,10 @@ async function runImageGeneration(scenesToGen) {
     updateCreateAgentTask('image', 'gen', 'done', `All ${doneCount} images ready`);
     const imgSummary = $('create-launch-image-summary');
     if (imgSummary) imgSummary.textContent = `✅ ${doneCount} images generated`;
+  }
+  // Emoji reel — fade out as images arrive
+  if (typeof window !== 'undefined' && typeof window.completeEmojiReel === 'function') {
+    try { window.completeEmojiReel('create'); } catch (_) {}
   }
   // #4 Premiere flash
   if (typeof triggerPremiereFlash === 'function') triggerPremiereFlash(doneCount, scenesToGen.length);

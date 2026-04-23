@@ -307,6 +307,11 @@ function navigateTo(view, pushHistory) {
   } else if (view === 'editor') {
     editorEl.classList.add('visible');
     if (typeof updateEditorEmptyState === 'function') updateEditorEmptyState();
+    // #16: two-column layout (desktop only, runs once)
+    if (typeof setupEditorColumns === 'function') setupEditorColumns();
+    // #11: persistent mini-preview — always show when editor opens
+    var previewPanel = document.getElementById('inline-preview-panel');
+    if (previewPanel) previewPanel.style.display = '';
   } else if (view === 'create') {
     if (createPage) createPage.classList.add('visible');
     if (createHeaderWrapper) createHeaderWrapper.style.display = 'block';

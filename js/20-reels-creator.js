@@ -1034,7 +1034,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
         ]}],
         generationConfig: { response_mime_type: 'application/json' },
       };
@@ -1077,7 +1077,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [], words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
         });
       }
       job.words = words;
@@ -1309,7 +1309,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
       ]}],
       generationConfig: { response_mime_type: 'application/json' },
     };
@@ -1383,7 +1383,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           prompt: s.sceneDescription || s.text,
           startTime: st, endTime: en,
           duration: en - st,
-          text: s.text, words: distributeWordsToScene(st, en, reelWords),
+          text: s.text,
+          emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
+          words: distributeWordsToScene(st, en, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
@@ -3247,6 +3249,17 @@ async function reelRunImageGeneration(scenesToGen) {
   reelGenImagesRunning = true;
   resetReelAgentTasks('image');
   updateReelAgent('image', 'running');
+
+  // Emoji reel — silent emoji movie while images generate. Pass the decoded
+  // narration so the Play button can play emojis in sync with audio.
+  if (typeof window !== 'undefined' && typeof window.startEmojiReel === 'function') {
+    try {
+      window.startEmojiReel(scenesToGen, {
+        panel: 'reel',
+        audio: (typeof reelAudioBuffer !== 'undefined') ? reelAudioBuffer : null,
+      });
+    } catch (_) {}
+  }
   // Show BGM step early so panel click can scroll to it
   const _bgmStepEl = $('reel-step-bgm');
   if (_bgmStepEl) { _bgmStepEl.classList.remove('hidden'); scrollStepIntoView(_bgmStepEl); }
@@ -3387,6 +3400,11 @@ async function reelRunImageGeneration(scenesToGen) {
   if (btnGenImages) btnGenImages.disabled = false;
   if (btnContinue) btnContinue.style.display = '';
   updateReelAgentTask('image', 'individual', failedCount > 0 ? 'error' : 'done', failedCount > 0 ? `${doneCount} done · ${failedCount} failed` : `${doneCount} images ready`);
+
+  // Emoji reel — fade out now that images are ready
+  if (typeof window !== 'undefined' && typeof window.completeEmojiReel === 'function') {
+    try { window.completeEmojiReel('reel'); } catch (_) {}
+  }
 
   await reelRunAnimation(barEl, labelEl, progressEl);
 

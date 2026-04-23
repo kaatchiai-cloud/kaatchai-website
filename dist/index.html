@@ -816,6 +816,47 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 #editor { width: 100%; max-width: 1080px; display: none; padding-top: 72px; }
 #editor.visible { display: block; }
 
+/* ── Editor Two-Column Layout (desktop ≥900px) ── */
+@media (min-width: 900px) {
+  #editor.visible {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0 16px;
+  }
+  #editor-main-col {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  #editor-props-col {
+    flex: 0 0 272px;
+    width: 272px;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+  /* Scrollbar for props column */
+  #editor-props-col::-webkit-scrollbar { width: 4px; }
+  #editor-props-col::-webkit-scrollbar-track { background: transparent; }
+  #editor-props-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  /* Full-width items that stay at #editor level */
+  #editor > .action-bar,
+  #editor > #export-settings,
+  #editor > #project-input {
+    flex: 1 1 100%;
+  }
+  /* Inline preview always visible in props column — remove margin-top */
+  #editor-props-col #inline-preview-panel {
+    margin-top: 0;
+  }
+}
+
 #waveform-clip {
   overflow: hidden; position: relative;
   background: var(--bg-secondary); border-radius: var(--radius);
@@ -2156,9 +2197,9 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 #reel-page .agent-row {
   display: grid; grid-template-columns: 32px 1fr auto;
   gap: 10px; align-items: center;
-  padding: 10px; border-radius: 12px;
+  padding: 6px 10px; border-radius: 12px;
   background: transparent; border: 1px solid transparent;
-  margin-bottom: 4px;
+  margin-bottom: 0;
   transition: all 150ms ease;
 }
 #reel-page .agent-row-top {
@@ -2191,11 +2232,11 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   margin-left: 0;
 }
 
-/* Agent subtasks — rendered below the agent row */
+/* Agent subtasks — rendered below the agent row, aligned under the icon */
 #reel-page .agent-row-body {
   grid-column: 1 / -1;
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 6px 12px 8px 52px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 2px 0 2px 10px;
 }
 #reel-page .agent-subtask {
   display: flex; align-items: center; gap: 7px;
@@ -2954,11 +2995,11 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
   grid-template-columns: 32px 1fr auto;
   gap: 10px;
   align-items: center;
-  padding: 10px;
+  padding: 6px 10px;
   border-radius: 12px;
   background: transparent;
   border: 1px solid transparent;
-  margin-bottom: 4px;
+  margin-bottom: 0;
   transition: all 150ms ease;
   cursor: pointer;
 }
@@ -3008,8 +3049,8 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 
 #create-page .agent-row-body {
   grid-column: 1 / -1;
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 6px 12px 8px 52px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 2px 0 2px 10px;
 }
 
 #create-page .agent-row-detail {
@@ -3067,6 +3108,152 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 .celebration-toast.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ── Emoji Reel (plays under AI Agents panel during image generation) ── */
+.emoji-reel {
+  margin-top: 14px;
+  padding: 10px 10px 12px;
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: opacity 0.7s ease;
+}
+.emoji-reel.emoji-reel-fading { opacity: 0; }
+.emoji-reel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--lp-card-bdr);
+}
+.emoji-reel-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  opacity: 0.75;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.emoji-reel-controls {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.emoji-reel-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--lp-card-bdr);
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+.emoji-reel-btn svg { display: block; }
+/* Play/Pause icon swap — pause hidden by default; shown while playing */
+.emoji-reel-btn .icon-pause { display: none; }
+.emoji-reel.is-playing .emoji-reel-btn[data-action="play"] .icon-play { display: none; }
+.emoji-reel.is-playing .emoji-reel-btn[data-action="play"] .icon-pause { display: block; }
+.emoji-reel-btn:hover:not(:disabled) {
+  color: var(--lp-accent, #a078ff);
+  border-color: var(--lp-accent, #a078ff);
+  background: color-mix(in oklch, var(--lp-accent, #a078ff) 12%, transparent);
+}
+.emoji-reel-btn.is-active {
+  color: var(--lp-accent, #a078ff);
+  border-color: var(--lp-accent, #a078ff);
+  background: color-mix(in oklch, var(--lp-accent, #a078ff) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lp-accent, #a078ff) 30%, transparent);
+}
+.emoji-reel-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+/* Autoplay blinking indicator — shown below the controls while playing */
+.emoji-reel-autoplay {
+  display: none;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--lp-card-bdr);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--lp-accent, #a078ff);
+  text-transform: uppercase;
+  text-align: center;
+}
+.emoji-reel.is-playing .emoji-reel-autoplay {
+  display: block;
+  animation: emoji-reel-autoplay-blink 1.3s ease-in-out infinite;
+}
+@keyframes emoji-reel-autoplay-blink {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .emoji-reel.is-playing .emoji-reel-autoplay { animation: none; opacity: 0.85; }
+}
+.emoji-reel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.emoji-reel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.emoji-reel-row.emoji-reel-row-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.emoji-reel-num {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+}
+.emoji-reel-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  line-height: 1.3;
+}
+.emoji-reel-emoji {
+  font-size: 1.05rem;
+  opacity: 0;
+  transform: scale(0.6);
+  display: inline-block;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(.2,1.4,.5,1);
+}
+.emoji-reel-emoji.emoji-reel-emoji-in {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .emoji-reel-row,
+  .emoji-reel-emoji {
+    transition: none !important;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── Section Cards (.create-step) ── */
@@ -6209,6 +6396,23 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="agent-panel-mode-badge" id="create-agent-mode-badge">⚡ COPILOT</span>
         </div>
         <div class="agent-list" id="create-agent-list"></div>
+        <!-- Emoji reel: plays a silent emoji movie of the user's story while images generate -->
+        <div id="create-emoji-reel" class="emoji-reel" hidden aria-hidden="true">
+          <div class="emoji-reel-header">
+            <div class="emoji-reel-label">YOUR STORY, FORMING…</div>
+            <div class="emoji-reel-controls" role="group" aria-label="Emoji reel controls">
+              <button type="button" class="emoji-reel-btn" data-action="play" data-panel="create" title="Play" aria-label="Play emoji reel">
+                <svg class="icon-play" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="1.5,1 9,5 1.5,9" fill="currentColor"/></svg>
+                <svg class="icon-pause" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1" width="2.5" height="8" fill="currentColor"/><rect x="6" y="1" width="2.5" height="8" fill="currentColor"/></svg>
+              </button>
+              <button type="button" class="emoji-reel-btn" data-action="stop" data-panel="create" title="Stop" aria-label="Stop emoji reel">
+                <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="0.5" y="0.5" width="8" height="8" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="emoji-reel-rows" id="create-emoji-reel-rows"></div>
+          <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
+        </div>
       </div>
       <div id="create-workflow">
 
@@ -6635,7 +6839,6 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="scene-grid" id="create-video-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-animation">
         <span class="agent-launch-summary" id="create-launch-animation-summary"></span>
-        <button class="agent-launch-btn" onclick="document.getElementById('create-language-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch Voiceover Agent →</button>
       </div>
     </div>
 
@@ -6720,6 +6923,23 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="agent-panel-mode-badge" id="reel-agent-mode-badge">⚡ AUTO</span>
         </div>
         <div class="agent-list" id="reel-agent-list"></div>
+        <!-- Emoji reel: silent emoji movie during image generation -->
+        <div id="reel-emoji-reel" class="emoji-reel" hidden aria-hidden="true">
+          <div class="emoji-reel-header">
+            <div class="emoji-reel-label">YOUR STORY, FORMING…</div>
+            <div class="emoji-reel-controls" role="group" aria-label="Emoji reel controls">
+              <button type="button" class="emoji-reel-btn" data-action="play" data-panel="reel" title="Play" aria-label="Play emoji reel">
+                <svg class="icon-play" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="1.5,1 9,5 1.5,9" fill="currentColor"/></svg>
+                <svg class="icon-pause" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1" width="2.5" height="8" fill="currentColor"/><rect x="6" y="1" width="2.5" height="8" fill="currentColor"/></svg>
+              </button>
+              <button type="button" class="emoji-reel-btn" data-action="stop" data-panel="reel" title="Stop" aria-label="Stop emoji reel">
+                <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="0.5" y="0.5" width="8" height="8" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="emoji-reel-rows" id="reel-emoji-reel-rows"></div>
+          <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
+        </div>
       </div>
       <div id="reel-workflow">
 
@@ -7759,7 +7979,8 @@ body:has(#drop-zone:not(.hidden)) {
       'js/07-text-renderer.js','js/08-playhead.js','js/10-preview.js','js/11-export.js',
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
-      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js'
+      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js',
+      'js/22-emoji-reel.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -8546,6 +8767,55 @@ body:has(#drop-zone:not(.hidden)) {
     setInterval(checkPublishReady, 2000);
   })();
 
+  // ── Editor Two-Column Layout Setup ──
+  var _editorColumnsSetup = false;
+  function setupEditorColumns() {
+    // Only restructure on desktop viewports
+    var w = window.innerWidth || document.documentElement.clientWidth;
+    if (w < 900) return;
+    if (_editorColumnsSetup) return;
+    _editorColumnsSetup = true;
+
+    var editor = document.getElementById('editor');
+    if (!editor) return;
+
+    // Props panel IDs to move into the right column
+    var propIds = ['pip-props', 'photo-props', 'video-props', 'sub-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
+    var propIdSet = {};
+    propIds.forEach(function(id) { propIdSet[id] = true; });
+
+    // Items to leave at editor level (span full width)
+    var keepAtEditor = { 'export-settings': true, 'project-input': true };
+
+    // Create column wrappers
+    var mainCol = document.createElement('div');
+    mainCol.id = 'editor-main-col';
+    var propsCol = document.createElement('div');
+    propsCol.id = 'editor-props-col';
+
+    // Snapshot children before DOM manipulation
+    var children = Array.from(editor.children);
+    children.forEach(function(child) {
+      if (propIdSet[child.id]) {
+        propsCol.appendChild(child);
+      } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
+        // Leave at editor level — do not move
+      } else {
+        mainCol.appendChild(child);
+      }
+    });
+
+    // Insert mainCol and propsCol before action-bar
+    var actionBar = editor.querySelector('.action-bar');
+    if (actionBar) {
+      editor.insertBefore(mainCol, actionBar);
+      editor.insertBefore(propsCol, actionBar);
+    } else {
+      editor.appendChild(mainCol);
+      editor.appendChild(propsCol);
+    }
+  }
+
   // Surprise Me — randomise style preset
   (function() {
     var btn = document.getElementById('btn-surprise-me');
@@ -8878,6 +9148,11 @@ function navigateTo(view, pushHistory) {
   } else if (view === 'editor') {
     editorEl.classList.add('visible');
     if (typeof updateEditorEmptyState === 'function') updateEditorEmptyState();
+    // #16: two-column layout (desktop only, runs once)
+    if (typeof setupEditorColumns === 'function') setupEditorColumns();
+    // #11: persistent mini-preview — always show when editor opens
+    var previewPanel = document.getElementById('inline-preview-panel');
+    if (previewPanel) previewPanel.style.display = '';
   } else if (view === 'create') {
     if (createPage) createPage.classList.add('visible');
     if (createHeaderWrapper) createHeaderWrapper.style.display = 'block';
@@ -18103,9 +18378,10 @@ CRITICAL JSON FORMATTING:
 - Non-English text (Tamil, Hindi, etc.) MUST also be in double quotes
 
 Example format:
-[{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": ""}]
+[{"startTime": 0, "endTime": 60, "text": "transcribed words here", "sceneDescription": "", "emojis": ["🎙️","💭","✨"]}]
 
-Note: sceneDescription can be empty — it will be generated later per chapter.`
+Note: sceneDescription can be empty — it will be generated later per chapter.
+emojis: 3-5 emojis that capture the feeling and key subjects of THIS segment. Use vivid, evocative emojis (not generic ones). They'll play like a silent movie while images generate.`
                   : `Transcribe this audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly ${getSegmentDuration().min}-${getSegmentDuration().max} seconds each. The segments MUST cover the ENTIRE audio from 0.0 to ${createAudioBuffer.duration.toFixed(1)} seconds with NO gaps and NO skipped portions.
 
 STRICT RULES (MUST follow ALL):
@@ -18121,9 +18397,11 @@ VALIDATION: After generating, verify that your segments form a complete chain: 0
 For each segment, provide the transcribed text AND a vivid visual scene description.${createVideoMode === 'animated' ? ` ANIMATED VIDEO MODE: Each sceneDescription MUST describe cinematic MOTION — start with camera direction (pan left/right, zoom in/out, tracking shot, dolly forward), describe subject action (walking, flowing, emerging, transforming), include environmental motion (wind, flowing water, drifting clouds). One continuous motion per scene, no cuts.` : ` Each sceneDescription should be suitable for AI image generation — vivid, specific, describing subject, style, mood, colors, and composition.`}
 
 Return ONLY a valid JSON array with no markdown formatting, in this exact structure:
-[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description"}]
+[{"startTime": 0, "endTime": 10, "text": "transcribed words here", "sceneDescription": "A detailed visual description", "emojis": ["🌊","🌙","⭐"]}]
 
-Important: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.` }
+Important:
+- sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.
+- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.` }
               ]
             }],
             generationConfig: { response_mime_type: 'application/json' },
@@ -18266,6 +18544,7 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         endTime: s.endTime,
         duration: (s.endTime - s.startTime),
         text: s.text,
+        emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
         imgDataUrl: null,
         status: 'pending',
       }));
@@ -19831,6 +20110,17 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgent('image', 'running', '');
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
+  // Emoji reel — silent emoji movie of the user's story while images generate.
+  // Pass the decoded narration so the Play button can play emojis in sync with audio.
+  if (typeof window !== 'undefined' && typeof window.startEmojiReel === 'function') {
+    try {
+      window.startEmojiReel(scenesToGen, {
+        panel: 'create',
+        audio: (typeof createAudioBuffer !== 'undefined') ? createAudioBuffer : null,
+      });
+    } catch (_) {}
+  }
+
   // #2 Live counter + #3 Theater setup
   const _genStart = Date.now();
   let _genDone = 0;
@@ -20038,6 +20328,10 @@ async function runImageGeneration(scenesToGen) {
     updateCreateAgentTask('image', 'gen', 'done', `All ${doneCount} images ready`);
     const imgSummary = $('create-launch-image-summary');
     if (imgSummary) imgSummary.textContent = `✅ ${doneCount} images generated`;
+  }
+  // Emoji reel — fade out as images arrive
+  if (typeof window !== 'undefined' && typeof window.completeEmojiReel === 'function') {
+    try { window.completeEmojiReel('create'); } catch (_) {}
   }
   // #4 Premiere flash
   if (typeof triggerPremiereFlash === 'function') triggerPremiereFlash(doneCount, scenesToGen.length);
@@ -22446,7 +22740,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
         ]}],
         generationConfig: { response_mime_type: 'application/json' },
       };
@@ -22489,7 +22783,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [], words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
         });
       }
       job.words = words;
@@ -22721,7 +23015,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
       ]}],
       generationConfig: { response_mime_type: 'application/json' },
     };
@@ -22795,7 +23089,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           prompt: s.sceneDescription || s.text,
           startTime: st, endTime: en,
           duration: en - st,
-          text: s.text, words: distributeWordsToScene(st, en, reelWords),
+          text: s.text,
+          emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
+          words: distributeWordsToScene(st, en, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
@@ -24659,6 +24955,17 @@ async function reelRunImageGeneration(scenesToGen) {
   reelGenImagesRunning = true;
   resetReelAgentTasks('image');
   updateReelAgent('image', 'running');
+
+  // Emoji reel — silent emoji movie while images generate. Pass the decoded
+  // narration so the Play button can play emojis in sync with audio.
+  if (typeof window !== 'undefined' && typeof window.startEmojiReel === 'function') {
+    try {
+      window.startEmojiReel(scenesToGen, {
+        panel: 'reel',
+        audio: (typeof reelAudioBuffer !== 'undefined') ? reelAudioBuffer : null,
+      });
+    } catch (_) {}
+  }
   // Show BGM step early so panel click can scroll to it
   const _bgmStepEl = $('reel-step-bgm');
   if (_bgmStepEl) { _bgmStepEl.classList.remove('hidden'); scrollStepIntoView(_bgmStepEl); }
@@ -24799,6 +25106,11 @@ async function reelRunImageGeneration(scenesToGen) {
   if (btnGenImages) btnGenImages.disabled = false;
   if (btnContinue) btnContinue.style.display = '';
   updateReelAgentTask('image', 'individual', failedCount > 0 ? 'error' : 'done', failedCount > 0 ? `${doneCount} done · ${failedCount} failed` : `${doneCount} images ready`);
+
+  // Emoji reel — fade out now that images are ready
+  if (typeof window !== 'undefined' && typeof window.completeEmojiReel === 'function') {
+    try { window.completeEmojiReel('reel'); } catch (_) {}
+  }
 
   await reelRunAnimation(barEl, labelEl, progressEl);
 
@@ -27413,6 +27725,420 @@ if (pipTransPosEl) {
 // Plan selector removed — single tier
 
 // User section is now in 15-project.js (loads on landing page)
+
+
+    // ── 22-emoji-reel.js ──
+/**
+ * Emoji Reel — silent emoji movie of the user's story, enclosed in a
+ * player with Play/Stop controls. Plays in the agent panel while images
+ * generate. When an audio buffer is provided by the pipeline, the Play
+ * button plays the original narration and reveals emojis in sync with
+ * real scene timestamps. Without audio, falls back to ambient stagger.
+ *
+ * Used in both Copilot (Create Story) and Autopilot (Create Reel) flows.
+ */
+(function () {
+  'use strict';
+
+  // Ambient (silent) stagger timing when no audio is available
+  const SCENE_GAP_MS = 2800;
+  const EMOJI_GAP_MS = 450;
+
+  // Panel keys → DOM ids
+  const PANELS = {
+    create: { container: 'create-emoji-reel', rows: 'create-emoji-reel-rows' },
+    reel:   { container: 'reel-emoji-reel',   rows: 'reel-emoji-reel-rows' },
+  };
+
+  // Per-panel state
+  const state = {
+    create: { timers: [], playing: false, scenes: null, audio: null, audioSource: null },
+    reel:   { timers: [], playing: false, scenes: null, audio: null, audioSource: null },
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function clearTimers(panel) {
+    const s = state[panel];
+    if (!s) return;
+    for (const t of s.timers) clearTimeout(t);
+    s.timers = [];
+  }
+
+  function stopAudioSource(panel) {
+    const s = state[panel];
+    if (!s || !s.audioSource) return;
+    try {
+      s.audioSource.onended = null;
+      s.audioSource.stop();
+    } catch (_) { /* already stopped */ }
+    try { s.audioSource.disconnect(); } catch (_) {}
+    s.audioSource = null;
+  }
+
+  function updateButtons(panel) {
+    const ids = PANELS[panel];
+    const container = $(ids.container);
+    if (!container) return;
+    const s = state[panel];
+    const playBtn = container.querySelector('.emoji-reel-btn[data-action="play"]');
+    const stopBtn = container.querySelector('.emoji-reel-btn[data-action="stop"]');
+    const hasScenes = Array.isArray(s.scenes) && s.scenes.length > 0;
+    // Toggle container-level playing state → drives CSS (icon swap + autoplay blink)
+    container.classList.toggle('is-playing', !!s.playing);
+    if (playBtn) {
+      playBtn.classList.toggle('is-active', s.playing);
+      playBtn.disabled = !hasScenes;
+      if (s.playing) {
+        playBtn.title = 'Pause';
+        playBtn.setAttribute('aria-label', 'Pause emoji reel');
+      } else {
+        playBtn.title = s.audio ? 'Play with narration' : 'Play';
+        playBtn.setAttribute('aria-label', 'Play emoji reel');
+      }
+    }
+    if (stopBtn) {
+      stopBtn.disabled = !s.playing;
+    }
+  }
+
+  function buildRows(panel, scenes) {
+    const ids = PANELS[panel];
+    const rowsEl = $(ids.rows);
+    if (!rowsEl) return [];
+    rowsEl.innerHTML = '';
+    const rows = [];
+    scenes.forEach((scene, idx) => {
+      const row = document.createElement('div');
+      row.className = 'emoji-reel-row';
+      row.dataset.scene = String(idx);
+
+      const num = document.createElement('span');
+      num.className = 'emoji-reel-num';
+      num.textContent = String(idx + 1).padStart(2, '0');
+      row.appendChild(num);
+
+      const strip = document.createElement('span');
+      strip.className = 'emoji-reel-strip';
+      const list = Array.isArray(scene.emojis) ? scene.emojis.filter(Boolean) : [];
+      const emojis = list.length ? list.slice(0, 6) : ['•'];
+      emojis.forEach(e => {
+        const span = document.createElement('span');
+        span.className = 'emoji-reel-emoji';
+        span.textContent = e;
+        strip.appendChild(span);
+      });
+      row.appendChild(strip);
+      rowsEl.appendChild(row);
+      rows.push({ row, emojiEls: Array.from(strip.children) });
+    });
+    return rows;
+  }
+
+  // Snap every row/emoji to revealed state (used by reduced-motion + complete)
+  function snapAllRevealed(panel) {
+    const ids = PANELS[panel];
+    const rowsEl = $(ids.rows);
+    if (!rowsEl) return;
+    rowsEl.querySelectorAll('.emoji-reel-row').forEach(el => el.classList.add('emoji-reel-row-in'));
+    rowsEl.querySelectorAll('.emoji-reel-emoji').forEach(el => el.classList.add('emoji-reel-emoji-in'));
+  }
+
+  // Ambient (silent) reveal with fixed stagger
+  function scheduleRevealAmbient(panel, rows) {
+    const s = state[panel];
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      snapAllRevealed(panel);
+      s.timers.push(setTimeout(() => { s.playing = false; updateButtons(panel); }, 100));
+      return;
+    }
+
+    let maxDelay = 0;
+    rows.forEach((r, sceneIdx) => {
+      const baseDelay = sceneIdx * SCENE_GAP_MS;
+      s.timers.push(setTimeout(() => {
+        if (!s.playing) return;
+        r.row.classList.add('emoji-reel-row-in');
+      }, baseDelay));
+      r.emojiEls.forEach((el, i) => {
+        const d = baseDelay + 200 + i * EMOJI_GAP_MS;
+        if (d > maxDelay) maxDelay = d;
+        s.timers.push(setTimeout(() => {
+          if (!s.playing) return;
+          el.classList.add('emoji-reel-emoji-in');
+        }, d));
+      });
+    });
+    s.timers.push(setTimeout(() => {
+      s.playing = false;
+      updateButtons(panel);
+    }, maxDelay + 500));
+  }
+
+  // Audio-synced reveal: emojis spread across each scene's real duration,
+  // timed to the narration playing through Web Audio.
+  function scheduleRevealWithAudio(panel, rows, audioBuf) {
+    const s = state[panel];
+    const scenes = s.scenes;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let ctx;
+    try {
+      ctx = (typeof ensureAudioCtx === 'function') ? ensureAudioCtx()
+           : new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {
+      // Audio context unavailable — fall back to ambient
+      scheduleRevealAmbient(panel, rows);
+      return;
+    }
+
+    // Resume if suspended (Play click is a user gesture, so this is allowed)
+    if (ctx.state === 'suspended') {
+      try { ctx.resume(); } catch (_) {}
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.connect(ctx.destination);
+    s.audioSource = src;
+
+    src.onended = function () {
+      // Playback naturally ended OR was stopped
+      if (s.audioSource === src) s.audioSource = null;
+      s.playing = false;
+      clearTimers(panel);
+      snapAllRevealed(panel);
+      updateButtons(panel);
+    };
+
+    // Schedule visual reveals relative to audio start (wall-clock timers
+    // stay good enough for visual sync at 60fps — we don't need sample accuracy)
+    scenes.forEach((scene, i) => {
+      const r = rows[i];
+      if (!r) return;
+      const startMs = Math.max(0, (scene.startTime || 0) * 1000);
+      const durMs   = Math.max(0.001, ((scene.endTime || 0) - (scene.startTime || 0)) * 1000);
+
+      if (reduceMotion) {
+        s.timers.push(setTimeout(() => {
+          if (!s.playing) return;
+          r.row.classList.add('emoji-reel-row-in');
+          r.emojiEls.forEach(el => el.classList.add('emoji-reel-emoji-in'));
+        }, startMs));
+        return;
+      }
+
+      // Row appears at scene start
+      s.timers.push(setTimeout(() => {
+        if (!s.playing) return;
+        r.row.classList.add('emoji-reel-row-in');
+      }, startMs));
+
+      // Emojis spread evenly across the scene's real duration
+      const n = r.emojiEls.length;
+      r.emojiEls.forEach((el, j) => {
+        const offset = ((j + 0.5) / n) * durMs;
+        const d = startMs + Math.min(durMs - 50, Math.max(0, offset));
+        s.timers.push(setTimeout(() => {
+          if (!s.playing) return;
+          el.classList.add('emoji-reel-emoji-in');
+        }, d));
+      });
+    });
+
+    try {
+      src.start();
+    } catch (_) {
+      // Start failed — fall back
+      s.audioSource = null;
+      clearTimers(panel);
+      scheduleRevealAmbient(panel, rows);
+    }
+  }
+
+  function detectPanel(opts) {
+    if (typeof opts === 'string' && PANELS[opts]) return opts;
+    if (opts && typeof opts === 'object' && opts.panel && PANELS[opts.panel]) return opts.panel;
+    const reelPage = document.getElementById('reel-page');
+    if (reelPage && reelPage.classList.contains('visible')) return 'reel';
+    return 'create';
+  }
+
+  // ── Public: start a new reel (pipeline hook, on image-gen start) ──
+  // opts can be a panel string ('create'|'reel') or an object:
+  //   { panel: 'create'|'reel', audio: AudioBuffer }
+  function startEmojiReel(scenes, opts) {
+    if (!Array.isArray(scenes) || scenes.length === 0) return;
+    const panel = detectPanel(opts);
+    const ids = PANELS[panel];
+    const container = $(ids.container);
+    if (!container) return;
+
+    // Fully reset prior playback
+    stopAudioSource(panel);
+    clearTimers(panel);
+    const s = state[panel];
+    s.scenes = scenes.slice();
+    s.audio = (opts && typeof opts === 'object' && opts.audio) ? opts.audio : null;
+    s.playing = true;
+
+    container.hidden = false;
+    container.removeAttribute('aria-hidden');
+    container.classList.remove('emoji-reel-fading');
+
+    const rows = buildRows(panel, s.scenes);
+    updateButtons(panel);
+    // Autoplay: if we have the narration buffer, start audio-synced playback
+    // immediately. The user already clicked Generate to kick this off, so the
+    // document has a recent gesture and Chrome's autoplay policy allows audio.
+    // If audio setup fails (suspended context, no buffer, etc.), fall back to
+    // silent ambient stagger.
+    if (s.audio && typeof s.audio === 'object' && s.audio.duration > 0) {
+      scheduleRevealWithAudio(panel, rows, s.audio);
+    } else {
+      scheduleRevealAmbient(panel, rows);
+    }
+  }
+
+  // ── Public: play button click — prefer audio-synced when buffer available ──
+  function playEmojiReel(opts) {
+    const panel = detectPanel(opts);
+    const s = state[panel];
+    if (!Array.isArray(s.scenes) || s.scenes.length === 0) return;
+    const ids = PANELS[panel];
+    const container = $(ids.container);
+    if (!container) return;
+
+    // Stop anything currently running
+    stopAudioSource(panel);
+    clearTimers(panel);
+    // Clear revealed state so this plays as a fresh replay
+    const rowsEl = $(ids.rows);
+    if (rowsEl) {
+      rowsEl.querySelectorAll('.emoji-reel-row-in').forEach(el => el.classList.remove('emoji-reel-row-in'));
+      rowsEl.querySelectorAll('.emoji-reel-emoji-in').forEach(el => el.classList.remove('emoji-reel-emoji-in'));
+    }
+
+    s.playing = true;
+    container.hidden = false;
+    container.removeAttribute('aria-hidden');
+    container.classList.remove('emoji-reel-fading');
+
+    const rows = buildRows(panel, s.scenes);
+    updateButtons(panel);
+
+    if (s.audio && typeof s.audio === 'object' && s.audio.duration > 0) {
+      scheduleRevealWithAudio(panel, rows, s.audio);
+    } else {
+      scheduleRevealAmbient(panel, rows);
+    }
+  }
+
+  // ── Public: pause — halt playback but KEEP revealed emojis where they are ──
+  function pausePlayback(opts) {
+    const panel = detectPanel(opts);
+    const s = state[panel];
+    stopAudioSource(panel);
+    clearTimers(panel);
+    s.playing = false;
+    updateButtons(panel);
+  }
+
+  // ── Public: stop button — halt playback, clear revealed state, keep chrome ──
+  function stopPlayback(opts) {
+    const panel = detectPanel(opts);
+    const s = state[panel];
+    stopAudioSource(panel);
+    clearTimers(panel);
+    s.playing = false;
+    const ids = PANELS[panel];
+    const rowsEl = $(ids.rows);
+    if (rowsEl) {
+      rowsEl.querySelectorAll('.emoji-reel-row-in').forEach(el => el.classList.remove('emoji-reel-row-in'));
+      rowsEl.querySelectorAll('.emoji-reel-emoji-in').forEach(el => el.classList.remove('emoji-reel-emoji-in'));
+    }
+    updateButtons(panel);
+  }
+
+  // ── Public: full teardown (unused by pipeline today; for hard reset) ──
+  function stopEmojiReel(opts) {
+    const panel = detectPanel(opts);
+    const s = state[panel];
+    stopAudioSource(panel);
+    clearTimers(panel);
+    s.playing = false;
+    s.scenes = null;
+    s.audio = null;
+    const ids = PANELS[panel];
+    const container = $(ids.container);
+    if (!container) return;
+    container.hidden = true;
+    container.setAttribute('aria-hidden', 'true');
+    container.classList.remove('emoji-reel-fading');
+    const rowsEl = $(ids.rows);
+    if (rowsEl) rowsEl.innerHTML = '';
+    updateButtons(panel);
+  }
+
+  // ── Public: pipeline "images finished" signal — keep player visible,
+  //    snap to fully-revealed state, stop any running playback. ──
+  function completeEmojiReel(opts) {
+    const panel = detectPanel(opts);
+    const s = state[panel];
+    const ids = PANELS[panel];
+    const container = $(ids.container);
+    if (!container || container.hidden) return;
+    stopAudioSource(panel);
+    clearTimers(panel);
+    s.playing = false;
+    snapAllRevealed(panel);
+    updateButtons(panel);
+  }
+
+  // ── Control button wiring ──
+  function handleControlClick(ev) {
+    const btn = ev.target.closest('.emoji-reel-btn');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const panel = btn.dataset.panel || detectPanel();
+    if (btn.disabled) return;
+    if (action === 'play') {
+      // While playing, the Play button shows a Pause icon — clicking it
+      // halts playback but leaves revealed emojis in place (no reset).
+      if (state[panel] && state[panel].playing) {
+        pausePlayback(panel);
+      } else {
+        playEmojiReel(panel);
+      }
+    } else if (action === 'stop') {
+      stopPlayback(panel);
+    }
+  }
+
+  function bindControls() {
+    ['create-emoji-reel', 'reel-emoji-reel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el._emojiReelBound) {
+        el.addEventListener('click', handleControlClick);
+        el._emojiReelBound = true;
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindControls);
+  } else {
+    bindControls();
+  }
+
+  // Export
+  window.startEmojiReel = startEmojiReel;
+  window.playEmojiReel = playEmojiReel;
+  window.stopEmojiReel = stopEmojiReel;
+  window.completeEmojiReel = completeEmojiReel;
+})();
 
   });
   </script>

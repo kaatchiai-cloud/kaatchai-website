@@ -1928,6 +1928,23 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="agent-panel-mode-badge" id="create-agent-mode-badge">⚡ COPILOT</span>
         </div>
         <div class="agent-list" id="create-agent-list"></div>
+        <!-- Emoji reel: plays a silent emoji movie of the user's story while images generate -->
+        <div id="create-emoji-reel" class="emoji-reel" hidden aria-hidden="true">
+          <div class="emoji-reel-header">
+            <div class="emoji-reel-label">YOUR STORY, FORMING…</div>
+            <div class="emoji-reel-controls" role="group" aria-label="Emoji reel controls">
+              <button type="button" class="emoji-reel-btn" data-action="play" data-panel="create" title="Play" aria-label="Play emoji reel">
+                <svg class="icon-play" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="1.5,1 9,5 1.5,9" fill="currentColor"/></svg>
+                <svg class="icon-pause" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1" width="2.5" height="8" fill="currentColor"/><rect x="6" y="1" width="2.5" height="8" fill="currentColor"/></svg>
+              </button>
+              <button type="button" class="emoji-reel-btn" data-action="stop" data-panel="create" title="Stop" aria-label="Stop emoji reel">
+                <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="0.5" y="0.5" width="8" height="8" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="emoji-reel-rows" id="create-emoji-reel-rows"></div>
+          <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
+        </div>
       </div>
       <div id="create-workflow">
 
@@ -2354,7 +2371,6 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="scene-grid" id="create-video-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-animation">
         <span class="agent-launch-summary" id="create-launch-animation-summary"></span>
-        <button class="agent-launch-btn" onclick="document.getElementById('create-language-step')?.scrollIntoView({behavior:'smooth',block:'start'})">Launch Voiceover Agent →</button>
       </div>
     </div>
 
@@ -2439,6 +2455,23 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="agent-panel-mode-badge" id="reel-agent-mode-badge">⚡ AUTO</span>
         </div>
         <div class="agent-list" id="reel-agent-list"></div>
+        <!-- Emoji reel: silent emoji movie during image generation -->
+        <div id="reel-emoji-reel" class="emoji-reel" hidden aria-hidden="true">
+          <div class="emoji-reel-header">
+            <div class="emoji-reel-label">YOUR STORY, FORMING…</div>
+            <div class="emoji-reel-controls" role="group" aria-label="Emoji reel controls">
+              <button type="button" class="emoji-reel-btn" data-action="play" data-panel="reel" title="Play" aria-label="Play emoji reel">
+                <svg class="icon-play" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><polygon points="1.5,1 9,5 1.5,9" fill="currentColor"/></svg>
+                <svg class="icon-pause" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1" width="2.5" height="8" fill="currentColor"/><rect x="6" y="1" width="2.5" height="8" fill="currentColor"/></svg>
+              </button>
+              <button type="button" class="emoji-reel-btn" data-action="stop" data-panel="reel" title="Stop" aria-label="Stop emoji reel">
+                <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="0.5" y="0.5" width="8" height="8" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="emoji-reel-rows" id="reel-emoji-reel-rows"></div>
+          <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
+        </div>
       </div>
       <div id="reel-workflow">
 
@@ -3481,7 +3514,8 @@ body:has(#drop-zone:not(.hidden)) {
       'js/07-text-renderer.js','js/08-playhead.js','js/10-preview.js','js/11-export.js',
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
-      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js'
+      'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js',
+      'js/22-emoji-reel.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -4267,6 +4301,55 @@ body:has(#drop-zone:not(.hidden)) {
     // Poll every 2s when editor is active (lightweight check)
     setInterval(checkPublishReady, 2000);
   })();
+
+  // ── Editor Two-Column Layout Setup ──
+  var _editorColumnsSetup = false;
+  function setupEditorColumns() {
+    // Only restructure on desktop viewports
+    var w = window.innerWidth || document.documentElement.clientWidth;
+    if (w < 900) return;
+    if (_editorColumnsSetup) return;
+    _editorColumnsSetup = true;
+
+    var editor = document.getElementById('editor');
+    if (!editor) return;
+
+    // Props panel IDs to move into the right column
+    var propIds = ['pip-props', 'photo-props', 'video-props', 'sub-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
+    var propIdSet = {};
+    propIds.forEach(function(id) { propIdSet[id] = true; });
+
+    // Items to leave at editor level (span full width)
+    var keepAtEditor = { 'export-settings': true, 'project-input': true };
+
+    // Create column wrappers
+    var mainCol = document.createElement('div');
+    mainCol.id = 'editor-main-col';
+    var propsCol = document.createElement('div');
+    propsCol.id = 'editor-props-col';
+
+    // Snapshot children before DOM manipulation
+    var children = Array.from(editor.children);
+    children.forEach(function(child) {
+      if (propIdSet[child.id]) {
+        propsCol.appendChild(child);
+      } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
+        // Leave at editor level — do not move
+      } else {
+        mainCol.appendChild(child);
+      }
+    });
+
+    // Insert mainCol and propsCol before action-bar
+    var actionBar = editor.querySelector('.action-bar');
+    if (actionBar) {
+      editor.insertBefore(mainCol, actionBar);
+      editor.insertBefore(propsCol, actionBar);
+    } else {
+      editor.appendChild(mainCol);
+      editor.appendChild(propsCol);
+    }
+  }
 
   // Surprise Me — randomise style preset
   (function() {
