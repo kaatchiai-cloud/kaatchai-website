@@ -521,6 +521,7 @@ function _renderCreateAgentPanel() {
     const s = _createAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
     const iconHtml = CREATE_AGENT_ICONS[a.iconKey] || a.icon;
+    const isError = s.status === 'error';
 
     let bodyHtml = '';
     if (subtasks.length > 0) {
@@ -532,8 +533,9 @@ function _renderCreateAgentPanel() {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
 
-    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
-      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}${isError ? ' error-clickable' : ''}"
+      onclick="scrollToAgentStep('${a.stepId}', ${isError})"
+      title="${isError ? 'Click to jump to error and retry' : ''}">
       <span class="agent-row-icon">${iconHtml}</span>
       <span class="agent-row-label">${a.label}</span>
       <span class="agent-status-dot ${s.status}"></span>
@@ -962,8 +964,10 @@ function _renderReelAgentPanel() {
     }
     // Prefer Aurora SVG icon if available; fall back to emoji
     const iconHtml = a.iconSvg || a.icon || '';
-    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
-      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+    const isErr = s.status === 'error';
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}${isErr ? ' error-clickable' : ''}"
+      onclick="scrollToAgentStep('${a.stepId}', ${isErr})"
+      title="${isErr ? 'Click to jump to error and retry' : ''}">
       <span class="agent-row-icon">${iconHtml}</span>
       <span class="agent-row-label">${a.label}</span>
       <span class="agent-status-dot ${s.status}"></span>

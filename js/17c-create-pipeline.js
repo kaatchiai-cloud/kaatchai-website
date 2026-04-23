@@ -999,6 +999,8 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
       segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
+      // #5 Ghost timeline — show skeleton cards with timecodes while prompts generate
+      if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
 
       // Step 4: Generate scene descriptions from English segments
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
@@ -1149,6 +1151,8 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         console.log(`[storyboard] Extended last segment to ${totalDur.toFixed(1)}s`);
       }
       segments = fixed;
+      // #5 Ghost timeline — show skeleton cards after voice transcription
+      if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
     }
 
     // ── Translation + TTS fork (animated mode only, when output language differs from source) ──
@@ -2546,6 +2550,9 @@ let createBgmWavesurfer = null;
 function initCreateBgmWaveform(url) {
   const container = $('create-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
+  // #15 Hide faux wave, show real WaveSurfer waveform
+  const fauxWave = $('create-bgm-faux-wave');
+  if (fauxWave) fauxWave.style.display = 'none';
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
@@ -2666,6 +2673,15 @@ async function generateSceneImage(idx) {
     updateSceneCardImage(idx);
     updateSceneCardStatus(idx);
     autoSaveCreateState();
+    // #2 counter + #3 theater (individual path)
+    if (typeof _genDone !== 'undefined') {
+      _genDone++;
+      if (typeof fillTheaterCell === 'function') {
+        const tIdx = typeof scenesToGen !== 'undefined' ? scenesToGen.indexOf(scene) : idx;
+        fillTheaterCell(idx, imgDataUrl, tIdx >= 0 ? tIdx : idx);
+      }
+      if (typeof _updateGenCounter === 'function') _updateGenCounter();
+    }
   } catch (e) {
     scene.status = 'error';
     updateSceneCardStatus(idx, friendlyApiError(e.message));
@@ -2784,6 +2800,20 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgent('image', 'running', '');
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
+  // #2 Live counter + #3 Theater setup
+  const _genStart = Date.now();
+  let _genDone = 0;
+  const { ratio: _theatRatio } = getSelectedImageSize();
+  if (typeof initTheater === 'function') initTheater(scenesToGen.length, _theatRatio);
+  function _updateGenCounter() {
+    const el = $('create-gen-counter');
+    if (!el) return;
+    const elapsed = Math.round((Date.now() - _genStart) / 1000);
+    const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    el.textContent = `${_genDone} of ${scenesToGen.length} scenes · ${timeStr} elapsed`;
+  }
+
   const { width, height } = getSelectedImageSize();
   const applyRateLimit = false;
 
@@ -2894,6 +2924,9 @@ async function runImageGeneration(scenesToGen) {
           const idx = createScenes.indexOf(scene);
           updateSceneCardImage(idx);
           updateSceneCardStatus(idx);
+          _genDone++;
+          if (typeof fillTheaterCell === 'function') fillTheaterCell(idx, resized, scenesToGen.indexOf(scene));
+          _updateGenCounter();
         }
       } catch (cropErr) {
         console.error('[Grid] Crop/resize failed, falling back to individual:', cropErr);
@@ -2975,6 +3008,8 @@ async function runImageGeneration(scenesToGen) {
     const imgSummary = $('create-launch-image-summary');
     if (imgSummary) imgSummary.textContent = `✅ ${doneCount} images generated`;
   }
+  // #4 Premiere flash
+  if (typeof triggerPremiereFlash === 'function') triggerPremiereFlash(doneCount, scenesToGen.length);
   updateCreateButtons();
   updateStepStates();
 

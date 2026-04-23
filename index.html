@@ -2269,6 +2269,9 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="bar-bg"><div class="bar-fill" id="create-generate-bar"></div></div>
         <div class="label" id="create-generate-label">Generating...</div>
       </div>
+      <div id="create-gen-counter" class="gen-counter"></div>
+      <div id="create-theater" class="theater-grid"></div>
+      <div id="create-premiere-banner" style="display:none;"></div>
       <div class="scene-grid" id="create-scene-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-image">
         <span class="agent-launch-summary" id="create-launch-image-summary"></span>
@@ -3354,6 +3357,7 @@ body:has(#drop-zone:not(.hidden)) {
     <div class="action-bar">
       <button id="btn-preview" class="primary">▶ Preview</button>
       <button id="btn-export-video" class="success">⬇ Export Video</button>
+      <button id="btn-publish" class="btn-publish" disabled title="Generate a story first">🚀 Publish</button>
       <button id="btn-export-all-langs" class="success btn-sm" style="display:none;">🌐 Export All</button>
       <div class="separator"></div>
       <button id="btn-save-project">💾 Save Project</button>
@@ -4042,6 +4046,40 @@ body:has(#drop-zone:not(.hidden)) {
   })();
   </script>
 
+  <!-- ═══ Handoff Summary Modal ═══ -->
+  <div id="handoff-modal" class="handoff-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="handoff-card">
+      <h2>✨ Your story is ready</h2>
+      <p class="handoff-tagline">Review the details below, then open in the editor.</p>
+      <div id="handoff-stats" class="handoff-stats"></div>
+      <div class="handoff-actions">
+        <button id="handoff-go-btn" class="btn-lg primary">Open in Editor →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Publish Modal ═══ -->
+  <div id="publish-modal" class="publish-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="publish-box">
+      <h3>🚀 Publish to platform</h3>
+      <div class="publish-platforms">
+        <button class="platform-btn" data-platform="youtube" data-w="1280" data-h="720">
+          <strong>▶ YouTube</strong><small>1280×720 · 16:9</small>
+        </button>
+        <button class="platform-btn" data-platform="instagram" data-w="1080" data-h="1080">
+          <strong>📷 Instagram</strong><small>1080×1080 · 1:1</small>
+        </button>
+        <button class="platform-btn" data-platform="tiktok" data-w="1080" data-h="1920">
+          <strong>♪ TikTok</strong><small>1080×1920 · 9:16</small>
+        </button>
+        <button class="platform-btn" data-platform="linkedin" data-w="1200" data-h="628">
+          <strong>💼 LinkedIn</strong><small>1200×628 · landscape</small>
+        </button>
+      </div>
+      <button id="publish-close-btn" class="btn-sm" style="margin-top:4px;">Cancel</button>
+    </div>
+  </div>
+
   <!-- ═══ Confirm Modal ═══ -->
   <div id="confirm-modal" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
     <div class="confirm-box">
@@ -4095,6 +4133,140 @@ body:has(#drop-zone:not(.hidden)) {
     var el = document.getElementById('bc-step');
     if (el) el.textContent = stepName || 'Setup';
   }
+
+  // ── Generation Theater ──
+  function initTheater(count, ratio) {
+    var el = document.getElementById('create-theater');
+    if (!el) return;
+    var cols = count <= 4 ? count : 3;
+    el.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    el.innerHTML = Array.from({length: count}, function(_, i) {
+      return '<div class="theater-cell skeleton" id="theater-cell-' + i + '" style="aspect-ratio:' + (ratio || '16/9') + ';"></div>';
+    }).join('');
+    el.style.display = 'grid';
+  }
+
+  function fillTheaterCell(globalIdx, dataUrl, localIdx) {
+    var id = typeof localIdx === 'number' ? localIdx : globalIdx;
+    var cell = document.getElementById('theater-cell-' + id);
+    if (!cell) return;
+    cell.classList.remove('skeleton');
+    cell.style.backgroundImage = 'url(' + dataUrl + ')';
+  }
+
+  function triggerPremiereFlash(doneCount, totalCount) {
+    var banner = document.getElementById('create-premiere-banner');
+    if (!banner) return;
+    var allDone = doneCount >= totalCount;
+    banner.innerHTML = '<div class="premiere-banner">'
+      + '<div><div class="premiere-text">' + (allDone ? '🎉 All ' + doneCount + ' scenes generated!' : '✅ ' + doneCount + ' of ' + totalCount + ' scenes complete') + '</div>'
+      + '<div class="premiere-sub">Scroll down to review scenes, then send to editor.</div></div>'
+      + '</div>';
+    banner.style.display = '';
+    // Hide theater skeleton (keep filled cells)
+  }
+
+  // ── Ghost Timeline ──
+  function renderGhostStoryboard(segments) {
+    var grid = document.getElementById('create-storyboard-grid');
+    var step = document.getElementById('create-transcribe-step');
+    if (!grid) return;
+    if (step && step.style.display === 'none') step.style.display = '';
+    function fmtT(s) {
+      var m = Math.floor(s / 60);
+      var sec = Math.floor(s % 60);
+      return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    grid.innerHTML = segments.map(function(s, i) {
+      return '<div class="ghost-scene-card">'
+        + '<div class="ghost-thumb skeleton"></div>'
+        + '<div class="ghost-meta">'
+        + '<span class="ghost-num">Scene ' + (i+1) + '</span>'
+        + '<span class="ghost-time">' + fmtT(s.startTime) + ' – ' + fmtT(s.endTime) + '</span>'
+        + '</div>'
+        + '<div class="ghost-prompt skeleton"></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── Agent Panel Error Click ──
+  function scrollToAgentStep(stepId, isError) {
+    var step = document.getElementById(stepId);
+    if (!step) return;
+    step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (isError) {
+      setTimeout(function() {
+        var retryBtn = step.querySelector('.btn-regen, [class*="retry"], .btn-retry, .agent-launch-btn');
+        if (retryBtn) {
+          retryBtn.classList.add('pulse-once');
+          setTimeout(function() { retryBtn.classList.remove('pulse-once'); }, 1200);
+        }
+      }, 450);
+    }
+  }
+
+  // ── Handoff Summary ──
+  function showHandoff(onContinue) {
+    var modal = document.getElementById('handoff-modal');
+    var statsEl = document.getElementById('handoff-stats');
+    var goBtn = document.getElementById('handoff-go-btn');
+    if (!modal) { onContinue && onContinue(); return; }
+
+    var sceneCount = (typeof createScenes !== 'undefined' && createScenes) ? createScenes.filter(function(s){return s.imgDataUrl;}).length : 0;
+    var totalScenes = (typeof createScenes !== 'undefined' && createScenes) ? createScenes.length : 0;
+    var hasBgm = typeof createBgmUrl !== 'undefined' && !!createBgmUrl;
+    var dur = (typeof createAudioBuffer !== 'undefined' && createAudioBuffer) ? createAudioBuffer.duration : 0;
+    function fmtT(s) {
+      var m = Math.floor(s / 60); var sec = Math.floor(s % 60);
+      return (m < 10?'0':'') + m + ':' + (sec<10?'0':'') + sec;
+    }
+    var style = (document.getElementById('create-style-preset') || {}).value || '—';
+    var stats = [
+      { val: sceneCount + '/' + totalScenes, lbl: 'Scenes' },
+      { val: fmtT(dur), lbl: 'Duration' },
+      { val: hasBgm ? '✓' : '—', lbl: 'BGM' },
+      { val: style || '—', lbl: 'Style' },
+    ];
+    statsEl.innerHTML = stats.map(function(s) {
+      return '<div class="handoff-stat"><span class="stat-val">' + s.val + '</span><span class="stat-lbl">' + s.lbl + '</span></div>';
+    }).join('');
+    modal.style.display = 'flex';
+    goBtn.onclick = function() {
+      modal.style.display = 'none';
+      onContinue && onContinue();
+    };
+    modal.onclick = function(e) { if (e.target === modal) { modal.style.display='none'; onContinue && onContinue(); } };
+  }
+
+  // ── Publish Modal ──
+  (function() {
+    var publishBtn = document.getElementById('btn-publish');
+    var modal = document.getElementById('publish-modal');
+    var closeBtn = document.getElementById('publish-close-btn');
+    if (!publishBtn || !modal) return;
+    publishBtn.addEventListener('click', function() {
+      modal.style.display = 'flex';
+    });
+    if (closeBtn) closeBtn.addEventListener('click', function() { modal.style.display = 'none'; });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
+    modal.querySelectorAll('.platform-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        modal.style.display = 'none';
+        // Trigger export using existing export button flow
+        var exportBtn = document.getElementById('btn-export-video');
+        if (exportBtn) exportBtn.click();
+      });
+    });
+    // Enable publish button when scenes exist
+    function checkPublishReady() {
+      if (!publishBtn) return;
+      var hasContent = (typeof photoItems !== 'undefined' && photoItems && photoItems.length > 0)
+        || (typeof videoTimelineItems !== 'undefined' && videoTimelineItems && videoTimelineItems.length > 0);
+      publishBtn.disabled = !hasContent;
+    }
+    // Poll every 2s when editor is active (lightweight check)
+    setInterval(checkPublishReady, 2000);
+  })();
 
   // Surprise Me — randomise style preset
   (function() {

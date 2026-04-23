@@ -4070,6 +4070,214 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 }
 .pulse-once { animation: pulse-once 1.1s ease; }
 
+/* ═══ Live Generation Counter ═══ */
+.gen-counter {
+  font-size: 12px;
+  color: var(--lp-accent-create, #a078ff);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+  min-height: 16px;
+  letter-spacing: 0.01em;
+}
+
+/* ═══ Generation Theater ═══ */
+.theater-grid {
+  display: none;
+  gap: 5px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 12px 0 6px;
+}
+.theater-cell {
+  border-radius: 5px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  transition: opacity 0.4s ease;
+}
+.theater-cell.skeleton {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, #1c1c2e 25%, #26264a 50%, #1c1c2e 75%);
+  background-size: 200%;
+}
+.theater-cell.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 5px;
+}
+
+/* ═══ Premiere Banner ═══ */
+.premiere-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(90deg, rgba(160,120,255,0.15), rgba(100,200,255,0.08));
+  border: 1px solid rgba(160,120,255,0.25);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin: 8px 0;
+  animation: premiere-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes premiere-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.premiere-text { flex: 1; font-size: 0.85rem; color: var(--text-primary); }
+.premiere-sub  { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ═══ Ghost Timeline ═══ */
+.ghost-storyboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.ghost-scene-card {
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 0 0 8px;
+}
+.ghost-thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+}
+.ghost-meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px 4px;
+  font-size: 11px;
+}
+.ghost-num { color: rgba(255,255,255,0.5); font-weight: 600; }
+.ghost-time { color: rgba(255,255,255,0.3); font-family: monospace; }
+.ghost-prompt {
+  height: 28px;
+  margin: 0 8px;
+  border-radius: 4px;
+}
+
+/* ═══ Handoff Summary ═══ */
+.handoff-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5,8,20,0.92);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 8000;
+  backdrop-filter: blur(12px);
+  animation: confirm-fade-in 0.2s ease;
+}
+.handoff-card {
+  background: var(--bg-card, #161625);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 36px 40px 32px;
+  max-width: 480px;
+  width: 92%;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+  animation: confirm-slide-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.handoff-card h2 {
+  font-size: 1.5rem;
+  margin: 0 0 6px;
+  background: linear-gradient(90deg, #a078ff, #6ad0ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.handoff-card .handoff-tagline { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 24px; }
+.handoff-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.handoff-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.handoff-stat .stat-val {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary, #eef4ff);
+}
+.handoff-stat .stat-lbl {
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.handoff-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* ═══ Publish Modal ═══ */
+.publish-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9000;
+  backdrop-filter: blur(4px);
+  animation: confirm-fade-in 0.15s ease;
+}
+.publish-box {
+  background: var(--bg-card, #1a1a2e);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 28px 32px 24px;
+  max-width: 440px;
+  width: 92%;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: confirm-slide-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+.publish-box h3 { margin: 0 0 20px; font-size: 1.05rem; }
+.publish-platforms {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.platform-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  text-align: center;
+  color: var(--text-primary, #fff);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  transition: background 0.15s, border-color 0.15s;
+  min-width: 110px;
+}
+.platform-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(160,120,255,0.4); }
+.platform-btn strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+.platform-btn small { color: var(--text-muted, #888); font-size: 0.72rem; }
+.btn-publish {
+  background: linear-gradient(135deg, #a078ff, #6ad0ff);
+  color: #fff;
+  border: none;
+  padding: 7px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.btn-publish:hover { opacity: 0.88; }
+.btn-publish:disabled { opacity: 0.4; cursor: default; }
+
+/* ═══ Agent Row Error Interactive ═══ */
+.agent-row.error-clickable {
+  cursor: pointer;
+  border-left: 2px solid rgba(239,68,68,0.4);
+}
+.agent-row.error-clickable:hover { background: rgba(239,68,68,0.07); }
+
 /* ═══ Reduced Motion (WCAG 2.1) ═══ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -6342,6 +6550,9 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="bar-bg"><div class="bar-fill" id="create-generate-bar"></div></div>
         <div class="label" id="create-generate-label">Generating...</div>
       </div>
+      <div id="create-gen-counter" class="gen-counter"></div>
+      <div id="create-theater" class="theater-grid"></div>
+      <div id="create-premiere-banner" style="display:none;"></div>
       <div class="scene-grid" id="create-scene-grid"></div>
       <div class="agent-launch-row" id="create-launch-after-image">
         <span class="agent-launch-summary" id="create-launch-image-summary"></span>
@@ -7427,6 +7638,7 @@ body:has(#drop-zone:not(.hidden)) {
     <div class="action-bar">
       <button id="btn-preview" class="primary">▶ Preview</button>
       <button id="btn-export-video" class="success">⬇ Export Video</button>
+      <button id="btn-publish" class="btn-publish" disabled title="Generate a story first">🚀 Publish</button>
       <button id="btn-export-all-langs" class="success btn-sm" style="display:none;">🌐 Export All</button>
       <div class="separator"></div>
       <button id="btn-save-project">💾 Save Project</button>
@@ -8112,6 +8324,40 @@ body:has(#drop-zone:not(.hidden)) {
   })();
   </script>
 
+  <!-- ═══ Handoff Summary Modal ═══ -->
+  <div id="handoff-modal" class="handoff-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="handoff-card">
+      <h2>✨ Your story is ready</h2>
+      <p class="handoff-tagline">Review the details below, then open in the editor.</p>
+      <div id="handoff-stats" class="handoff-stats"></div>
+      <div class="handoff-actions">
+        <button id="handoff-go-btn" class="btn-lg primary">Open in Editor →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Publish Modal ═══ -->
+  <div id="publish-modal" class="publish-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="publish-box">
+      <h3>🚀 Publish to platform</h3>
+      <div class="publish-platforms">
+        <button class="platform-btn" data-platform="youtube" data-w="1280" data-h="720">
+          <strong>▶ YouTube</strong><small>1280×720 · 16:9</small>
+        </button>
+        <button class="platform-btn" data-platform="instagram" data-w="1080" data-h="1080">
+          <strong>📷 Instagram</strong><small>1080×1080 · 1:1</small>
+        </button>
+        <button class="platform-btn" data-platform="tiktok" data-w="1080" data-h="1920">
+          <strong>♪ TikTok</strong><small>1080×1920 · 9:16</small>
+        </button>
+        <button class="platform-btn" data-platform="linkedin" data-w="1200" data-h="628">
+          <strong>💼 LinkedIn</strong><small>1200×628 · landscape</small>
+        </button>
+      </div>
+      <button id="publish-close-btn" class="btn-sm" style="margin-top:4px;">Cancel</button>
+    </div>
+  </div>
+
   <!-- ═══ Confirm Modal ═══ -->
   <div id="confirm-modal" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
     <div class="confirm-box">
@@ -8165,6 +8411,140 @@ body:has(#drop-zone:not(.hidden)) {
     var el = document.getElementById('bc-step');
     if (el) el.textContent = stepName || 'Setup';
   }
+
+  // ── Generation Theater ──
+  function initTheater(count, ratio) {
+    var el = document.getElementById('create-theater');
+    if (!el) return;
+    var cols = count <= 4 ? count : 3;
+    el.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    el.innerHTML = Array.from({length: count}, function(_, i) {
+      return '<div class="theater-cell skeleton" id="theater-cell-' + i + '" style="aspect-ratio:' + (ratio || '16/9') + ';"></div>';
+    }).join('');
+    el.style.display = 'grid';
+  }
+
+  function fillTheaterCell(globalIdx, dataUrl, localIdx) {
+    var id = typeof localIdx === 'number' ? localIdx : globalIdx;
+    var cell = document.getElementById('theater-cell-' + id);
+    if (!cell) return;
+    cell.classList.remove('skeleton');
+    cell.style.backgroundImage = 'url(' + dataUrl + ')';
+  }
+
+  function triggerPremiereFlash(doneCount, totalCount) {
+    var banner = document.getElementById('create-premiere-banner');
+    if (!banner) return;
+    var allDone = doneCount >= totalCount;
+    banner.innerHTML = '<div class="premiere-banner">'
+      + '<div><div class="premiere-text">' + (allDone ? '🎉 All ' + doneCount + ' scenes generated!' : '✅ ' + doneCount + ' of ' + totalCount + ' scenes complete') + '</div>'
+      + '<div class="premiere-sub">Scroll down to review scenes, then send to editor.</div></div>'
+      + '</div>';
+    banner.style.display = '';
+    // Hide theater skeleton (keep filled cells)
+  }
+
+  // ── Ghost Timeline ──
+  function renderGhostStoryboard(segments) {
+    var grid = document.getElementById('create-storyboard-grid');
+    var step = document.getElementById('create-transcribe-step');
+    if (!grid) return;
+    if (step && step.style.display === 'none') step.style.display = '';
+    function fmtT(s) {
+      var m = Math.floor(s / 60);
+      var sec = Math.floor(s % 60);
+      return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    grid.innerHTML = segments.map(function(s, i) {
+      return '<div class="ghost-scene-card">'
+        + '<div class="ghost-thumb skeleton"></div>'
+        + '<div class="ghost-meta">'
+        + '<span class="ghost-num">Scene ' + (i+1) + '</span>'
+        + '<span class="ghost-time">' + fmtT(s.startTime) + ' – ' + fmtT(s.endTime) + '</span>'
+        + '</div>'
+        + '<div class="ghost-prompt skeleton"></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── Agent Panel Error Click ──
+  function scrollToAgentStep(stepId, isError) {
+    var step = document.getElementById(stepId);
+    if (!step) return;
+    step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (isError) {
+      setTimeout(function() {
+        var retryBtn = step.querySelector('.btn-regen, [class*="retry"], .btn-retry, .agent-launch-btn');
+        if (retryBtn) {
+          retryBtn.classList.add('pulse-once');
+          setTimeout(function() { retryBtn.classList.remove('pulse-once'); }, 1200);
+        }
+      }, 450);
+    }
+  }
+
+  // ── Handoff Summary ──
+  function showHandoff(onContinue) {
+    var modal = document.getElementById('handoff-modal');
+    var statsEl = document.getElementById('handoff-stats');
+    var goBtn = document.getElementById('handoff-go-btn');
+    if (!modal) { onContinue && onContinue(); return; }
+
+    var sceneCount = (typeof createScenes !== 'undefined' && createScenes) ? createScenes.filter(function(s){return s.imgDataUrl;}).length : 0;
+    var totalScenes = (typeof createScenes !== 'undefined' && createScenes) ? createScenes.length : 0;
+    var hasBgm = typeof createBgmUrl !== 'undefined' && !!createBgmUrl;
+    var dur = (typeof createAudioBuffer !== 'undefined' && createAudioBuffer) ? createAudioBuffer.duration : 0;
+    function fmtT(s) {
+      var m = Math.floor(s / 60); var sec = Math.floor(s % 60);
+      return (m < 10?'0':'') + m + ':' + (sec<10?'0':'') + sec;
+    }
+    var style = (document.getElementById('create-style-preset') || {}).value || '—';
+    var stats = [
+      { val: sceneCount + '/' + totalScenes, lbl: 'Scenes' },
+      { val: fmtT(dur), lbl: 'Duration' },
+      { val: hasBgm ? '✓' : '—', lbl: 'BGM' },
+      { val: style || '—', lbl: 'Style' },
+    ];
+    statsEl.innerHTML = stats.map(function(s) {
+      return '<div class="handoff-stat"><span class="stat-val">' + s.val + '</span><span class="stat-lbl">' + s.lbl + '</span></div>';
+    }).join('');
+    modal.style.display = 'flex';
+    goBtn.onclick = function() {
+      modal.style.display = 'none';
+      onContinue && onContinue();
+    };
+    modal.onclick = function(e) { if (e.target === modal) { modal.style.display='none'; onContinue && onContinue(); } };
+  }
+
+  // ── Publish Modal ──
+  (function() {
+    var publishBtn = document.getElementById('btn-publish');
+    var modal = document.getElementById('publish-modal');
+    var closeBtn = document.getElementById('publish-close-btn');
+    if (!publishBtn || !modal) return;
+    publishBtn.addEventListener('click', function() {
+      modal.style.display = 'flex';
+    });
+    if (closeBtn) closeBtn.addEventListener('click', function() { modal.style.display = 'none'; });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
+    modal.querySelectorAll('.platform-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        modal.style.display = 'none';
+        // Trigger export using existing export button flow
+        var exportBtn = document.getElementById('btn-export-video');
+        if (exportBtn) exportBtn.click();
+      });
+    });
+    // Enable publish button when scenes exist
+    function checkPublishReady() {
+      if (!publishBtn) return;
+      var hasContent = (typeof photoItems !== 'undefined' && photoItems && photoItems.length > 0)
+        || (typeof videoTimelineItems !== 'undefined' && videoTimelineItems && videoTimelineItems.length > 0);
+      publishBtn.disabled = !hasContent;
+    }
+    // Poll every 2s when editor is active (lightweight check)
+    setInterval(checkPublishReady, 2000);
+  })();
 
   // Surprise Me — randomise style preset
   (function() {
@@ -15747,6 +16127,7 @@ function _renderCreateAgentPanel() {
     const s = _createAgentState[a.id] || { status: 'waiting', detail: '', subtasks: [] };
     const subtasks = s.subtasks || [];
     const iconHtml = CREATE_AGENT_ICONS[a.iconKey] || a.icon;
+    const isError = s.status === 'error';
 
     let bodyHtml = '';
     if (subtasks.length > 0) {
@@ -15758,8 +16139,9 @@ function _renderCreateAgentPanel() {
       bodyHtml = `<div class="agent-row-detail">${s.detail}</div>`;
     }
 
-    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
-      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}${isError ? ' error-clickable' : ''}"
+      onclick="scrollToAgentStep('${a.stepId}', ${isError})"
+      title="${isError ? 'Click to jump to error and retry' : ''}">
       <span class="agent-row-icon">${iconHtml}</span>
       <span class="agent-row-label">${a.label}</span>
       <span class="agent-status-dot ${s.status}"></span>
@@ -16188,8 +16570,10 @@ function _renderReelAgentPanel() {
     }
     // Prefer Aurora SVG icon if available; fall back to emoji
     const iconHtml = a.iconSvg || a.icon || '';
-    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}"
-      onclick="document.getElementById('${a.stepId}')?.scrollIntoView({behavior:'smooth',block:'start'})">
+    const isErr = s.status === 'error';
+    return `<div class="agent-row${s.status === 'running' ? ' active' : ''}${isErr ? ' error-clickable' : ''}"
+      onclick="scrollToAgentStep('${a.stepId}', ${isErr})"
+      title="${isErr ? 'Click to jump to error and retry' : ''}">
       <span class="agent-row-icon">${iconHtml}</span>
       <span class="agent-row-label">${a.label}</span>
       <span class="agent-status-dot ${s.status}"></span>
@@ -17646,6 +18030,8 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
       segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
+      // #5 Ghost timeline — show skeleton cards with timecodes while prompts generate
+      if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
 
       // Step 4: Generate scene descriptions from English segments
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
@@ -17796,6 +18182,8 @@ Important: sceneDescription should describe what should be SEEN, not just what i
         console.log(`[storyboard] Extended last segment to ${totalDur.toFixed(1)}s`);
       }
       segments = fixed;
+      // #5 Ghost timeline — show skeleton cards after voice transcription
+      if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
     }
 
     // ── Translation + TTS fork (animated mode only, when output language differs from source) ──
@@ -19193,6 +19581,9 @@ let createBgmWavesurfer = null;
 function initCreateBgmWaveform(url) {
   const container = $('create-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
+  // #15 Hide faux wave, show real WaveSurfer waveform
+  const fauxWave = $('create-bgm-faux-wave');
+  if (fauxWave) fauxWave.style.display = 'none';
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
@@ -19313,6 +19704,15 @@ async function generateSceneImage(idx) {
     updateSceneCardImage(idx);
     updateSceneCardStatus(idx);
     autoSaveCreateState();
+    // #2 counter + #3 theater (individual path)
+    if (typeof _genDone !== 'undefined') {
+      _genDone++;
+      if (typeof fillTheaterCell === 'function') {
+        const tIdx = typeof scenesToGen !== 'undefined' ? scenesToGen.indexOf(scene) : idx;
+        fillTheaterCell(idx, imgDataUrl, tIdx >= 0 ? tIdx : idx);
+      }
+      if (typeof _updateGenCounter === 'function') _updateGenCounter();
+    }
   } catch (e) {
     scene.status = 'error';
     updateSceneCardStatus(idx, friendlyApiError(e.message));
@@ -19431,6 +19831,20 @@ async function runImageGeneration(scenesToGen) {
   updateCreateAgent('image', 'running', '');
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
 
+  // #2 Live counter + #3 Theater setup
+  const _genStart = Date.now();
+  let _genDone = 0;
+  const { ratio: _theatRatio } = getSelectedImageSize();
+  if (typeof initTheater === 'function') initTheater(scenesToGen.length, _theatRatio);
+  function _updateGenCounter() {
+    const el = $('create-gen-counter');
+    if (!el) return;
+    const elapsed = Math.round((Date.now() - _genStart) / 1000);
+    const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    el.textContent = `${_genDone} of ${scenesToGen.length} scenes · ${timeStr} elapsed`;
+  }
+
   const { width, height } = getSelectedImageSize();
   const applyRateLimit = false;
 
@@ -19541,6 +19955,9 @@ async function runImageGeneration(scenesToGen) {
           const idx = createScenes.indexOf(scene);
           updateSceneCardImage(idx);
           updateSceneCardStatus(idx);
+          _genDone++;
+          if (typeof fillTheaterCell === 'function') fillTheaterCell(idx, resized, scenesToGen.indexOf(scene));
+          _updateGenCounter();
         }
       } catch (cropErr) {
         console.error('[Grid] Crop/resize failed, falling back to individual:', cropErr);
@@ -19622,6 +20039,8 @@ async function runImageGeneration(scenesToGen) {
     const imgSummary = $('create-launch-image-summary');
     if (imgSummary) imgSummary.textContent = `✅ ${doneCount} images generated`;
   }
+  // #4 Premiere flash
+  if (typeof triggerPremiereFlash === 'function') triggerPremiereFlash(doneCount, scenesToGen.length);
   updateCreateButtons();
   updateStepStates();
 
@@ -20626,13 +21045,16 @@ btnCreateSendEditor.addEventListener('click', async () => {
     bgmBuffer = null;
   }
 
-  // Navigate to editor
+  // Navigate to editor — show handoff summary first (#8)
   cameFromCreate = true;
   btnBackToCreate.style.display = '';
-  // Show Export All button if multiple languages
   const exportAllBtn = $('btn-export-all-langs');
   if (exportAllBtn) exportAllBtn.style.display = editorLanguageTracks.length > 0 ? '' : 'none';
-  navigateTo('editor');
+  if (typeof showHandoff === 'function') {
+    showHandoff(function() { navigateTo('editor'); });
+  } else {
+    navigateTo('editor');
+  }
   await refreshWaveform();
   updateAudioControls();
   drawRuler();

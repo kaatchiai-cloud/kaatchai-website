@@ -819,13 +819,16 @@ btnCreateSendEditor.addEventListener('click', async () => {
     bgmBuffer = null;
   }
 
-  // Navigate to editor
+  // Navigate to editor — show handoff summary first (#8)
   cameFromCreate = true;
   btnBackToCreate.style.display = '';
-  // Show Export All button if multiple languages
   const exportAllBtn = $('btn-export-all-langs');
   if (exportAllBtn) exportAllBtn.style.display = editorLanguageTracks.length > 0 ? '' : 'none';
-  navigateTo('editor');
+  if (typeof showHandoff === 'function') {
+    showHandoff(function() { navigateTo('editor'); });
+  } else {
+    navigateTo('editor');
+  }
   await refreshWaveform();
   updateAudioControls();
   drawRuler();
