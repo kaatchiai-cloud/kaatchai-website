@@ -542,6 +542,8 @@ function createPushUndo() {
 
 async function showCreateAudioEditor() {
   createAudioEditor.classList.remove('hidden');
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  createAudioEditor.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
   createUndoStack = [];
   await refreshCreateWaveform();
 }

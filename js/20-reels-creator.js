@@ -17,10 +17,17 @@ function renumberReelSteps() {
   });
 }
 
+function scrollStepIntoView(stepEl) {
+  if (!stepEl) return;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  stepEl.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
 function showReelEditorStep() {
   reelStepEditor.classList.remove('hidden');
   if (reelStepActions) reelStepActions.classList.remove('hidden');
   renumberReelSteps();
+  scrollStepIntoView(reelStepEditor);
 }
 
 // Input mode
@@ -92,6 +99,7 @@ let reelFrameTextColor = '#ffffff';
 // Overlay presets timeline items
 let reelOverlayItems = []; // [{id, type, startTime, duration, params}]
 let nextOverlayId = 1;
+let reelDirty = false;
 
 const REEL_OVERLAY_PRESETS = {
   'subscribe': { label: '🔴 Subscribe', defaultDuration: 3, defaultParams: { text: 'Subscribe', color: '#ff0000', textColor: '#ffffff', font: 'Poppins' } },
@@ -202,6 +210,7 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
   const proceedToReel = () => {
     navigateTo('reel');
     reelMode = true;
+    reelDirty = false; // Reset on fresh entry
     if (typeof inferReelAgentStates === 'function') inferReelAgentStates();
     // Load saved keys
     const savedFree = localStorage.getItem('stori_key_free');
@@ -235,8 +244,11 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
 });
 
 if (btnReelBack) btnReelBack.addEventListener('click', () => {
-  const cleanupAndNavigate = () => {
-    navigateTo('home');
+  const cleanupAndNavigate = (target) => {
+    if (reelDirty) {
+      if (!confirm('Your reel has unsaved changes. Leave anyway?')) return;
+    }
+    navigateTo(target);
     reelMode = false;
     reelFrameImgEl = null; reelFrameImgSrc = ''; reelFrameOpacity = 1.0;
     reelFrameImgX = 0; reelFrameImgY = 0; reelFrameImgW = 100;
@@ -246,13 +258,21 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
     reelOverlayItems = []; nextOverlayId = 1;
     renderOverlayChips();
     stopReelPreview();
+    reelDirty = false;
   };
   
   // Use morph transition if available
   if (typeof window.morphFromReel === 'function' && !window.ptIsTransitioning()) {
-    window.morphFromReel(cleanupAndNavigate);
+    window.morphFromReel(() => cleanupAndNavigate('home'));
   } else {
-    cleanupAndNavigate();
+    cleanupAndNavigate('home');
+  }
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (reelDirty) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 });
 
@@ -287,6 +307,7 @@ function showReelPresets() {
   initReelTemplateUI();
   renumberReelSteps();
   updateReelCostEstimate();
+  scrollStepIntoView(reelStepPresets);
 }
 
 let _reelTemplateUIInit = false;
@@ -440,6 +461,7 @@ if (btnAddAudioSeg) btnAddAudioSeg.addEventListener('click', () => {
   reelJobs.push(createReelJob({ audioBuffer: segAudio, audioName: reelAudioName ? reelAudioName.textContent : '', segStart: start, segEnd: end }));
   renderReelJobCards();
   showReelPresets();
+  reelDirty = true;
 });
 
 if (btnReelImportAudio) btnReelImportAudio.addEventListener('click', () => reelAudioInput.click());
@@ -458,6 +480,7 @@ if (reelAudioInput) reelAudioInput.addEventListener('change', async () => {
     reelJobs = [];
     syncAddSegmentButtons();
     if (reelAudioEditor) reelAudioEditor.classList.remove('hidden');
+    scrollStepIntoView(reelAudioEditor);
     initReelAudioWaveform();
     hidePageLoader();
   } catch(e) {
@@ -495,6 +518,7 @@ if (reelVideoInput) reelVideoInput.addEventListener('change', async () => {
     // Init waveform
     initReelWaveform();
     reelSegmentPicker.classList.remove('hidden');
+    scrollStepIntoView(reelSegmentPicker);
     hidePageLoader();
   } catch(e) {
     hidePageLoader();
@@ -609,6 +633,7 @@ if (btnReelAddSegment) btnReelAddSegment.addEventListener('click', () => {
     reelJobs.push(createReelJob({ segStart: start, segEnd: end, audioBuffer: reelAudioBuffer ? extractRegion(reelAudioBuffer, start, end) : null }));
     renderReelJobCards();
     showReelPresets();
+    reelDirty = true;
   }, 300);
 });
 
@@ -812,12 +837,12 @@ function syncVariationPlatformStyle() {
   extra.querySelectorAll('.var-platform').forEach(sel => { sel.value = reelPlatform; });
   extra.querySelectorAll('.var-style').forEach(sel => { sel.value = reelStyleEl ? reelStyleEl.value : 'cinematic'; });
 }
-if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); syncVariationPlatformStyle(); });
-if (reelStyleEl) reelStyleEl.addEventListener('change', syncVariationPlatformStyle);
+if (reelPlatformEl) reelPlatformEl.addEventListener('change', () => { reelDirty = true; reelPlatform = reelPlatformEl.value; updateReelAspectRatio(); syncVariationPlatformStyle(); });
+if (reelStyleEl) reelStyleEl.addEventListener('change', () => { reelDirty = true; syncVariationPlatformStyle(); });
 updateReelAspectRatio();
-if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDuration = parseInt(reelDurationEl.value); });
-if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelTransition = reelTransitionEl.value; });
-if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelSubtitleStyle = reelSubtitleStyleEl.value; saveActiveReelSettings(); });
+if (reelDurationEl) reelDurationEl.addEventListener('change', () => { reelDirty = true; reelDuration = parseInt(reelDurationEl.value); });
+if (reelTransitionEl) reelTransitionEl.addEventListener('change', () => { reelDirty = true; reelTransition = reelTransitionEl.value; saveActiveReelSettings(); });
+if (reelSubtitleStyleEl) reelSubtitleStyleEl.addEventListener('change', () => { reelDirty = true; reelSubtitleStyle = reelSubtitleStyleEl.value; saveActiveReelSettings(); });
 
 // Clamp transcribed segments to [minN, maxN] by merging (too many) or splitting (too few)
 function clampSegments(segs, minN, maxN) {
@@ -888,6 +913,8 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   const key = getReelApiKey();
   console.log('[ReelGen] API key:', key ? 'present' : 'MISSING');
   if (!key) { reelGenerateStatus.textContent = 'Enter your API key in Step 1 first.'; return; }
+  // Only mark dirty after validation passes
+  reelDirty = true;
   setReelExportEnabled(false);
 
   // ── Job queue mode: reelJobs has segment jobs (skip in text mode — text mode is always single-reel) ──
@@ -987,6 +1014,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     if (allJobScenes.some(s => s.status === 'pending')) {
       reelPendingScenes = allJobScenes;
       if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+      scrollStepIntoView(reelStepScenes);
       renderReelSceneGrid(reelPendingScenes);
       updateReelAgentTask('scene', 'prompts', 'done', `${reelPendingScenes.length} prompts ready`);
       updateReelAgentTask('scene', 'cinematography', 'done', 'Shot directions set');
@@ -1274,6 +1302,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelPendingScenes = reelScenes;
       reelProgressEl.classList.add('hidden');
       if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+      scrollStepIntoView(reelStepScenes);
       renderReelSceneGrid(reelPendingScenes);
       updateReelAgentTask('scene', 'prompts', 'done', `${reelPendingScenes.length} prompts ready`);
       updateReelAgentTask('scene', 'cinematography', 'done', 'Shot directions set');
@@ -3127,7 +3156,7 @@ async function reelRunImageGeneration(scenesToGen) {
   updateReelAgent('image', 'running');
   // Show BGM step early so panel click can scroll to it
   const _bgmStepEl = $('reel-step-bgm');
-  if (_bgmStepEl) { _bgmStepEl.classList.remove('hidden'); }
+  if (_bgmStepEl) { _bgmStepEl.classList.remove('hidden'); scrollStepIntoView(_bgmStepEl); }
   const total = scenesToGen.length;
 
   // Grid mode: 4+ scenes without reference images → single grid API call (saves ~50% cost)
@@ -4313,7 +4342,7 @@ async function autoPickBgm() {
   const bgmStep = $('reel-step-bgm');
   const bgmStatus = $('reel-bgm-status');
   const bgmPlayer = $('reel-bgm-player');
-  if (bgmStep) bgmStep.classList.remove('hidden');
+  if (bgmStep) { bgmStep.classList.remove('hidden'); scrollStepIntoView(bgmStep); }
   resetReelAgentTasks('bgm');
   updateReelAgentTask('bgm', 'analyze', 'waiting', 'Analyzing content…');
   updateReelAgentTask('bgm', 'compose', 'waiting', 'Composing with Lyria 3…');
@@ -4832,11 +4861,13 @@ async function exportSingleReel() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     setStatus(`Reel exported as ${fileExt.toUpperCase()} (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
+    reelDirty = false;
   } catch(e) {
     console.error('[ReelExport] Error:', e);
     setStatus('Export failed: ' + (e.message || 'Try a different browser or shorter duration.'));
   }
   exportProgress.classList.remove('visible');
+  if (btnReelExport) btnReelExport.disabled = false;
 }
 if (btnReelExport) btnReelExport.addEventListener('click', () => exportSingleReel());
 
@@ -5300,7 +5331,7 @@ async function loadReelProject(project) {
       reelBgmAiBuffer = reelBgmBuffer;
       const bgmStep = $('reel-step-bgm');
       const bgmPlayer = $('reel-bgm-player');
-      if (bgmStep) bgmStep.classList.remove('hidden');
+      if (bgmStep) { bgmStep.classList.remove('hidden'); scrollStepIntoView(bgmStep); }
       if (bgmPlayer) bgmPlayer.style.display = '';
       try {
         const wavBlob = audioBufferToWavBlob(reelBgmBuffer);
@@ -5440,6 +5471,7 @@ async function loadReelProject(project) {
   if (hasImages) {
     reelPendingScenes = allLoadedScenes;
     if (reelStepScenes) reelStepScenes.classList.remove('hidden');
+    scrollStepIntoView(reelStepScenes);
     renderReelSceneGrid(reelPendingScenes);
     if (reelVideoMode === 'animated' && allLoadedScenes.some(s => s.videoBlobUrl)) {
       allLoadedScenes.forEach(s => { if (s.videoBlobUrl) s.videoUrl = s.videoBlobUrl; });

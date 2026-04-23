@@ -28,7 +28,7 @@
   --lp-card-bdr-h: rgba(120,220,255,0.40);
   --lp-text:       #eef4ff;
   --lp-dim:        rgba(238,244,255,0.65);
-  --lp-faint:      rgba(238,244,255,0.38);
+  --lp-faint:      rgba(238,244,255,0.5);
   --lp-accent:     oklch(80% 0.14 200);
   --lp-accent2:    oklch(72% 0.19 340);
   --lp-glow:       rgba(120,220,255,0.22);
@@ -122,14 +122,14 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-nav-links a {
   font-family: var(--lp-font-ui); font-size: 13.5px; font-weight: 400;
   color: rgba(238,244,255,0.65); text-decoration: none;
-  padding: 8px 14px; border-radius: 999px; transition: background 0.15s, color 0.15s;
+  padding: 14px 14px; border-radius: 999px; transition: background 0.15s, color 0.15s;
 }
 .lp-nav-links a:hover { background: rgba(255,255,255,0.04); color: #eef4ff; }
 .lp-nav-right { display: flex; align-items: center; gap: 10px; }
 #btn-sign-in.lp-nav-login {
   background: transparent; color: rgba(238,244,255,0.65);
   border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
-  padding: 7px 14px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
+  padding: 14px 14px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
   cursor: pointer; transition: border-color 0.15s, color 0.15s;
 }
 #btn-sign-in.lp-nav-login:hover { border-color: rgba(120,220,255,0.40); color: #eef4ff; }
@@ -173,12 +173,12 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-btn-outline:hover { border-color: rgba(120,220,255,0.40); }
 .lp-btn-ghost {
   background: transparent; color: rgba(238,244,255,0.65);
-  border: 1px solid transparent; padding: 7px 14px;
+  border: 1px solid transparent; padding: 14px 14px;
   border-radius: 999px; font-family: var(--lp-font-ui); font-size: 12px; font-weight: 500;
   cursor: pointer; transition: background 0.15s, color 0.15s;
 }
 .lp-btn-ghost:hover { background: rgba(255,255,255,0.04); color: #eef4ff; }
-.lp-btn-sm { padding: 7px 14px !important; font-size: 12px !important; }
+.lp-btn-sm { padding: 14px 14px !important; font-size: 12px !important; }
 .lp-chk { display: flex; align-items: center; gap: 10px; font-family: var(--lp-font-ui); font-size: 13px; color: rgba(238,244,255,0.65); }
 .lp-chk-i { color: oklch(80% 0.14 200); flex-shrink: 0; }
 
@@ -1098,6 +1098,15 @@ body:has(#drop-zone:not(.hidden)) {
   border: 1px solid rgba(238,244,255,0.12);
   transition: all 0.3s ease;
   text-decoration: none;
+  position: relative;
+}
+.lp-section-dot::before {
+  content: '';
+  position: absolute;
+  top: -18px;
+  left: -18px;
+  right: -18px;
+  bottom: -18px;
 }
 .lp-section-dot:hover {
   background: rgba(238,244,255,0.4);
@@ -1192,14 +1201,13 @@ body:has(#drop-zone:not(.hidden)) {
         </a>
         <div class="lp-nav-links">
           <a href="#lp-features">Studio</a>
-          <a href="#">Gallery</a>
-          <a href="#">Craft</a>
           <a href="#lp-pricing">Pricing</a>
         </div>
       </div>
       <div id="user-section" class="lp-nav-right">
         <span id="session-cost" class="session-cost" style="display:none;" title="Estimated API cost this session. Actual billing may differ based on your API provider."></span>
         <div id="user-signed-out">
+          <button class="lp-btn-sm" onclick="document.getElementById('btn-create-content').click()">Get Started</button>
           <button id="btn-sign-in" class="lp-nav-login">Sign in</button>
         </div>
         <div id="user-signed-in" class="hidden">
@@ -1210,14 +1218,10 @@ body:has(#drop-zone:not(.hidden)) {
           <div id="user-dropdown" class="user-dropdown hidden">
             <div class="user-dropdown-header">
               <span id="user-email" class="text-xs text-muted">user@email.com</span>
-              <div class="flex items-center gap-sm mt-xs">
-                <span id="user-plan-badge" class="plan-badge plan-free">Free</span>
-                <span id="user-plan-detail" class="text-xs text-muted"></span>
-              </div>
             </div>
             <div class="user-dropdown-body">
               <div class="user-info-row">
-                <span class="text-xs text-muted">API Key (Free)</span>
+                <span class="text-xs text-muted">API Key</span>
                 <span id="user-key-free-status" class="text-xs">Not set</span>
               </div>
               <div class="user-info-row">
@@ -1254,6 +1258,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-create-content" class="lp-btn-primary">🎬 Copilot — Long Video</button>
           <button id="btn-create-reel" class="lp-btn-solid">⚡ Autopilot — Short Reel</button>
         </div>
+        <p class="text-xs text-muted" style="margin-top:12px;text-align:center;opacity:0.7;">Pay as you go · Buy credits</p>
         <div class="lp-hero-extras">
           <a class="lp-sec-pill" id="btn-new-project" href="#"><span class="lp-sec-ico circle">✦</span>OPEN STUDIO →</a>
           <span class="lp-sec-dot"></span>
@@ -1393,7 +1398,7 @@ body:has(#drop-zone:not(.hidden)) {
         <!-- Autopilot -->
         <div class="lp-mode-card std" tabindex="0">
           <div class="lp-mode-kicker faint">⚡ AUTOPILOT · SHORT REEL</div>
-          <h3 class="lp-mode-h3">One prompt. One finished reel.</h3>
+          <h3 class="lp-mode-h3">Your file. Their story. In 60 seconds.</h3>
           <p class="lp-mode-body">Drop an idea and Kaatchi handles script, scenes, voice, and cut in under a minute. Vertical-ready, captioned, sound-designed — post immediately.</p>
           <div class="lp-mode-checks">
             <div class="lp-chk"><span class="lp-chk-i">✓</span> Fully automated pipeline</div>
@@ -1548,24 +1553,6 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </section>
 
-    <!-- ═══ Styles Grid ═══ -->
-    <section class="lp-styles-sec">
-      <div class="lp-section-header">
-        <span class="lp-eyebrow">VISUAL VOCABULARY</span>
-        <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">Twenty signature looks.</h2>
-      </div>
-      <div class="lp-styles-grid">
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
-      </div>
-    </section>
-
     <!-- ═══ Pipeline ═══ -->
     <section class="lp-pipeline">
       <div class="lp-pipeline-header">
@@ -1596,6 +1583,25 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </section>
 
+    <!-- ═══ Styles Grid ═══ -->
+    <section class="lp-styles-sec">
+      <div class="lp-section-header">
+        <span class="lp-eyebrow">VISUAL VOCABULARY</span>
+        <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">A style for every story.</h2>
+      </div>
+      <div class="lp-styles-grid">
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
+      </div>
+    </section>
+
+
     <!-- ═══ Pricing ═══ -->
     <section class="lp-pricing" id="lp-pricing">
       <div class="lp-pricing-header">
@@ -1603,19 +1609,7 @@ body:has(#drop-zone:not(.hidden)) {
         <h2 class="lp-pricing-h2">Choose your vision.</h2>
         <div class="lp-counter-row"><span class="lp-counter-num" data-target="12847">0</span> <span class="lp-counter-label">videos rendered this week</span></div>
       </div>
-      <div class="lp-price-grid">
-        <!-- Creator -->
-        <div class="lp-price-card" tabindex="0">
-          <div class="lp-price-name">CREATOR</div>
-          <div class="lp-price-amt"><span class="lp-price-val">$0</span><span class="lp-price-per">/mo</span></div>
-          <ul class="lp-price-items">
-            <li class="lp-price-item"><span class="lp-chk-i">✓</span> 5 visual styles</li>
-            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Up to 1 min at 720p</li>
-            <li class="lp-price-item"><span class="lp-chk-i">✓</span> 3 saved projects</li>
-            <li class="lp-price-item"><span class="lp-chk-i">✓</span> Community renders</li>
-          </ul>
-          <button class="lp-price-btn" onclick="document.getElementById('btn-create-content').click()">Choose Creator</button>
-        </div>
+      <div class="lp-price-grid" style="grid-template-columns:repeat(2,1fr);max-width:800px;margin:0 auto;">
         <!-- Pro Suite -->
         <div class="lp-price-card feat" tabindex="0">
           <div class="lp-price-pill">MOST POPULAR</div>
@@ -1628,7 +1622,7 @@ body:has(#drop-zone:not(.hidden)) {
             <li class="lp-price-item"><span class="lp-chk-i">✓</span> Priority queue</li>
             <li class="lp-price-item"><span class="lp-chk-i">✓</span> Celestial Scrubber Pro</li>
           </ul>
-          <button class="lp-price-btn main">Choose Pro Suite</button>
+          <button class="lp-price-btn main" onclick="document.getElementById('btn-create-reel').click()">Choose Pro Suite</button>
         </div>
         <!-- Studio -->
         <div class="lp-price-card" tabindex="0">
@@ -1666,8 +1660,6 @@ body:has(#drop-zone:not(.hidden)) {
         </a>
         <nav class="lp-footer-nav">
           <a href="#">STUDIO</a>
-          <a href="#">GALLERY</a>
-          <a href="#">CRAFT</a>
           <a href="#">CHANGELOG</a>
           <a href="#">CONTACT</a>
         </nav>
@@ -1704,7 +1696,7 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="create-auto-pill">⚡ COPILOT</span>
         </div>
         <div class="create-header-right">
-          <span class="create-credits-pill"><span class="create-credits-dot"></span>∞ credits</span>
+          <a class="create-credits-pill" href="#lp-pricing"><span class="create-credits-dot"></span>Buy Credits</a>
           <div class="create-api-bar create-header-keybar">
             <span id="key-status-inline" class="text-xs text-muted">🔑 No key</span>
             <button id="btn-toggle-key-input" class="btn-xs">Change Key</button>
@@ -2208,7 +2200,7 @@ body:has(#drop-zone:not(.hidden)) {
           <span class="reel-auto-pill">⚡ AUTOPILOT</span>
         </div>
         <div class="reel-header-right">
-          <span class="reel-credits-pill"><span class="reel-credits-dot"></span>∞ credits</span>
+          <a class="reel-credits-pill" href="#lp-pricing"><span class="reel-credits-dot"></span>Buy Credits</a>
           <div class="create-api-bar reel-header-keybar">
             <span id="reel-key-status-inline" class="text-xs text-muted">🔑 No key</span>
             <button id="btn-reel-toggle-key" class="btn-xs">Change Key</button>
@@ -3417,7 +3409,9 @@ body:has(#drop-zone:not(.hidden)) {
       lineEls.push(currentLine);
       var speed = 30;
       function type(){
-        if(idx >= charQueue.length) return;
+        if(idx >= charQueue.length){
+          return;
+        }
         var item = charQueue[idx];
         if(item.ch === '|'){
           var nextLine = document.createElement('span');
@@ -3435,7 +3429,7 @@ body:has(#drop-zone:not(.hidden)) {
         currentLine.textContent += item.ch;
         idx++;
         var d = speed;
-        if(item.ch === '.' || item.ch === ',') d += 150;
+        if(item.ch === '.' || item.ch === ',') d += 40;
         setTimeout(type, d);
       }
       setTimeout(type, 600);
