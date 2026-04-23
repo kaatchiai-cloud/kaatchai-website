@@ -306,6 +306,7 @@ function navigateTo(view, pushHistory) {
     if (typeof renderProjectGallery === 'function') renderProjectGallery();
   } else if (view === 'editor') {
     editorEl.classList.add('visible');
+    if (typeof updateEditorEmptyState === 'function') updateEditorEmptyState();
   } else if (view === 'create') {
     if (createPage) createPage.classList.add('visible');
     if (createHeaderWrapper) createHeaderWrapper.style.display = 'block';
@@ -327,4 +328,102 @@ window.addEventListener('popstate', (e) => {
 
 // Set initial state
 history.replaceState({ view: 'home' }, '', location.hash || '#home');
+
+// ── Keyboard Shortcuts ──
+document.addEventListener('keydown', (e) => {
+  // Cmd/Ctrl + S: Save project
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    if (currentView === 'editor' && typeof saveProject === 'function') {
+      saveProject();
+    } else if (currentView === 'create' && typeof saveCreateProject === 'function') {
+      saveCreateProject();
+    } else if (currentView === 'reel' && typeof saveReelProject === 'function') {
+      saveReelProject();
+    }
+  }
+  // Space: Play/pause (when not in input/textarea)
+  if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    e.preventDefault();
+    if (currentView === 'editor' && wavesurfer) {
+      if (wavesurfer.isPlaying()) wavesurfer.pause();
+      else wavesurfer.play();
+    } else if (currentView === 'reel' && typeof toggleReelPlayback === 'function') {
+      toggleReelPlayback();
+    }
+  }
+  // Escape: Close overlays
+  if (e.key === 'Escape') {
+    const imagePreviewOverlay = $('image-preview-overlay');
+    if (imagePreviewOverlay && imagePreviewOverlay.classList.contains('visible')) {
+      imagePreviewOverlay.classList.remove('visible');
+    }
+    const previewOverlay = $('preview-overlay');
+    if (previewOverlay && previewOverlay.classList.contains('visible')) {
+      previewOverlay.classList.remove('visible');
+    }
+  }
+  // ?: Show shortcuts help (future implementation)
+  if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    // Placeholder for shortcuts help modal
+  }
+});
+
+// ── Celebration Toast ──
+function showCelebrationToast(msg) {
+  let toast = $('celebration-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'celebration-toast';
+    toast.className = 'celebration-toast';
+    toast.innerHTML = '<span class="celebration-icon">✓</span> <span class="celebration-msg"></span>';
+    document.body.appendChild(toast);
+  }
+  const msgEl = toast.querySelector('.celebration-msg');
+  if (msgEl) msgEl.textContent = msg || 'Your story is ready!';
+  toast.classList.add('visible');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.classList.remove('visible'); }, 4000);
+}
+
+// ── Agent Completion Detection ──
+function checkAgentsComplete(agentPanelId) {
+  const panel = document.getElementById(agentPanelId);
+  if (!panel) return;
+  const agentRows = panel.querySelectorAll('.agent-status-dot');
+  let allDone = true;
+  let anyRunning = false;
+  for (const dot of agentRows) {
+    if (dot.classList.contains('running')) {
+      allDone = false;
+      anyRunning = true;
+    }
+    if (dot.classList.contains('waiting') || dot.classList.contains('error')) {
+      allDone = false;
+    }
+  }
+  if (allDone && !anyRunning && !panel.dataset.celebrated) {
+    panel.dataset.celebrated = 'true';
+    panel.classList.add('agents-complete');
+    showCelebrationToast('Your story is ready!');
+    // Trigger staggered image reveal if applicable
+    const sceneGrid = panel.closest('#create-page')?.querySelector('.scene-grid') || 
+                       panel.closest('#reel-page')?.querySelector('.reel-scene-grid');
+    if (sceneGrid) {
+      const imgs = sceneGrid.querySelectorAll('img');
+      imgs.forEach((img, i) => {
+        img.style.opacity = '0';
+        img.style.filter = 'blur(8px)';
+        img.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          img.style.transition = 'opacity 0.5s, filter 0.5s, transform 0.5s';
+          img.style.opacity = '1';
+          img.style.filter = 'blur(0)';
+          img.style.transform = 'scale(1)';
+        }, i * 100);
+      });
+    }
+    setTimeout(() => { panel.classList.remove('agents-complete'); }, 2000);
+  }
+}
 

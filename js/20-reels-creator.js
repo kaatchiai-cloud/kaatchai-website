@@ -124,6 +124,71 @@ const REEL_SUBTITLE_LANG_OPTIONS = { none: 'None', ...REEL_LANG_OPTIONS };
 let reelJobs = [];
 let nextReelJobId = 1;
 let reelGenerating = false;
+let reelAbortController = null; // AbortController for cancel during generation
+let reelAutosaveInterval = null; // Auto-save interval handle
+
+// ── Auto-save to localStorage ──
+function saveReelToLocalStorage() {
+  if (!reelDirty || !reelScenes || reelScenes.length === 0) return;
+  try {
+    const autosaveData = {
+      scenes: reelScenes.map(s => ({
+        prompt: s.prompt,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        duration: s.duration,
+        text: s.text,
+        words: s.words,
+        transition: s.transition,
+        transDur: s.transDur,
+        motion: s.motion
+      })),
+      duration: reelAudioBuffer ? reelAudioBuffer.duration : 60,
+      platform: reelPlatform,
+      style: reelStyle,
+      transition: reelTransition,
+      subtitleStyle: reelSubtitleStyle,
+      savedAt: Date.now()
+    };
+    localStorage.setItem('stori_reel_autosave', JSON.stringify(autosaveData));
+    console.log('[ReelAutosave] Saved', autosaveData.scenes.length, 'scenes');
+  } catch (e) {
+    console.warn('[ReelAutosave] Save failed:', e);
+  }
+}
+
+function loadReelFromLocalStorage() {
+  try {
+    const saved = localStorage.getItem('stori_reel_autosave');
+    if (!saved) return null;
+    const data = JSON.parse(saved);
+    // Check if saved less than 24 hours ago
+    if (Date.now() - data.savedAt > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem('stori_reel_autosave');
+      return null;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearReelLocalStorage() {
+  localStorage.removeItem('stori_reel_autosave');
+}
+
+// Start auto-save interval during generation
+function startReelAutosave() {
+  if (reelAutosaveInterval) clearInterval(reelAutosaveInterval);
+  reelAutosaveInterval = setInterval(saveReelToLocalStorage, 30000); // Every 30s
+}
+
+function stopReelAutosave() {
+  if (reelAutosaveInterval) {
+    clearInterval(reelAutosaveInterval);
+    reelAutosaveInterval = null;
+  }
+}
 
 function createReelJob(overrides) {
   return {
@@ -243,10 +308,10 @@ if (btnCreateReel) btnCreateReel.addEventListener('click', () => {
   }
 });
 
-if (btnReelBack) btnReelBack.addEventListener('click', () => {
-  const cleanupAndNavigate = (target) => {
+if (btnReelBack) btnReelBack.addEventListener('click', async () => {
+  const cleanupAndNavigate = async (target) => {
     if (reelDirty) {
-      if (!confirm('Your reel has unsaved changes. Leave anyway?')) return;
+      if (!await showConfirm('Your reel has unsaved changes. Leave anyway?', 'Leave')) return;
     }
     navigateTo(target);
     reelMode = false;
@@ -260,12 +325,12 @@ if (btnReelBack) btnReelBack.addEventListener('click', () => {
     stopReelPreview();
     reelDirty = false;
   };
-  
+
   // Use morph transition if available
   if (typeof window.morphFromReel === 'function' && !window.ptIsTransitioning()) {
     window.morphFromReel(() => cleanupAndNavigate('home'));
   } else {
-    cleanupAndNavigate('home');
+    await cleanupAndNavigate('home');
   }
 });
 
@@ -908,6 +973,19 @@ function sanitizeSceneWords(words, text, startTime, endTime) {
 
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
+  // If already generating, cancel instead
+  if (reelGenerating && reelAbortController) {
+    reelAbortController.abort();
+    reelAbortController = null;
+    reelGenerating = false;
+    btnReelGenerate.innerHTML = '⚡ Generate Reel';
+    btnReelGenerate.classList.remove('danger');
+    btnReelGenerate.disabled = false;
+    reelGenerateStatus.textContent = 'Cancelled';
+    renderReelJobCards();
+    return;
+  }
+
   resetSessionCost();
   console.log('[ReelGen] Generate clicked, inputMode:', reelInputMode);
   const key = getReelApiKey();
@@ -916,6 +994,17 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   // Only mark dirty after validation passes
   reelDirty = true;
   setReelExportEnabled(false);
+
+  // Create abort controller for this generation
+  reelAbortController = new AbortController();
+  const signal = reelAbortController.signal;
+
+  // Update button to show cancel option
+  btnReelGenerate.innerHTML = '⏹ Cancel';
+  btnReelGenerate.classList.add('danger');
+
+  // Start auto-save during generation
+  startReelAutosave();
 
   // ── Job queue mode: reelJobs has segment jobs (skip in text mode — text mode is always single-reel) ──
   if (reelInputMode !== 'text' && reelJobs.filter(j => j.type === 'segment').length > 0) {
@@ -1103,7 +1192,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const doneJobs = reelJobs.filter(j => j.status === 'done');
     if (doneJobs.length === 0) {
       updateReelAgent('preview', 'error', 'Generation failed — check API key');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
+      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelAbortController = null;
       return;
     }
 
@@ -1179,7 +1270,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressEl.classList.add('hidden');
       reelGenerateStatus.textContent = 'Error: ' + (e.message || 'Generation failed');
       setStatus('Reel generation failed');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
+      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelAbortController = null;
       return;
     }
   }

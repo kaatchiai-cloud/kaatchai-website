@@ -730,6 +730,26 @@ function friendlyApiError(msg) {
   return msg;
 }
 
+// Structured error classification — returns { title, hint, canRetry }
+function classifyError(msg) {
+  if (!msg) return { title: 'Unknown error', hint: 'Try again.', canRetry: true };
+  if (msg.includes('429') || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate'))
+    return { title: 'Rate limit reached', hint: 'Wait ~60s then retry. Check quota at aistudio.google.com.', canRetry: true };
+  if (msg.includes('403') || msg.toLowerCase().includes('permission'))
+    return { title: 'Permission denied', hint: 'Your API key may lack Imagen access. Check aistudio.google.com.', canRetry: false };
+  if (msg.includes('401') || msg.toLowerCase().includes('auth'))
+    return { title: 'Invalid API key', hint: 'Re-save your API key and try again.', canRetry: false };
+  if (msg.toLowerCase().includes('safety') || msg.toLowerCase().includes('blocked'))
+    return { title: 'Prompt blocked', hint: 'Edit the scene description to remove sensitive content.', canRetry: false };
+  if (msg.includes('400') || msg.toLowerCase().includes('invalid'))
+    return { title: 'Bad request', hint: 'The prompt may be too long or contain unsupported content.', canRetry: true };
+  if (msg.includes('500') || msg.includes('503'))
+    return { title: 'Server error', hint: 'Gemini is having issues. Try again in a moment.', canRetry: true };
+  if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network'))
+    return { title: 'Network error', hint: 'Check your internet connection and retry.', canRetry: true };
+  return { title: 'Generation failed', hint: msg.length < 120 ? msg : 'An unexpected error occurred. Try again.', canRetry: true };
+}
+
 // Robust JSON parser for Gemini responses (handles markdown fences, trailing commas, missing quotes, extra text)
 function parseGeminiJson(text) {
   // Strip markdown code fences
@@ -913,6 +933,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
   createSubtitleLanguage = $('create-subtitle-language')?.value || '';
 
   btnCreateTranscribe.disabled = true;
+  if (typeof updateCreateBreadcrumb === 'function') updateCreateBreadcrumb('Transcript');
   resetCreateAgentTasks('storyboard');
   updateCreateAgent('storyboard', 'running', '');
   // Pre-register all expected subtasks so "all done" check doesn't fire prematurely
@@ -1852,7 +1873,7 @@ btnCreateRegeneratePrompts.addEventListener('click', async () => {
   const key = getCreateGeminiKey();
   if (!key || !createTranscript) return;
 
-  if (!confirm('This will overwrite all your current image prompts with new AI-generated ones. Continue?')) return;
+  if (!await showConfirm('This will overwrite all your current image prompts with new AI-generated ones. Continue?', 'Regenerate', true)) return;
 
   btnCreateRegeneratePrompts.disabled = true;
   btnCreateRegeneratePrompts.innerHTML = '<span class="spinner"></span> Regenerating...';
@@ -2676,13 +2697,26 @@ function updateSceneCardStatus(idx, errorMsg) {
   statusEl.className = 'scene-status ' + scene.status;
   statusEl.textContent = scene.status === 'done' ? '✓ Done'
     : scene.status === 'generating' ? '⏳ Generating...'
-    : scene.status === 'error' ? `✗ ${errorMsg || 'Error'}`
+    : scene.status === 'error' ? '✗ Failed'
     : '○ Pending';
   // Show/hide download button on this card
   const card = statusEl.closest('.scene-card');
   if (card) {
     const dlBtn = card.querySelector('.btn-download-img');
     if (dlBtn) dlBtn.style.display = scene.imgDataUrl ? '' : 'none';
+    // Update structured error block
+    let errBlock = card.querySelector('.scene-error-block');
+    if (scene.status === 'error' && errorMsg) {
+      const info = classifyError(errorMsg);
+      if (!errBlock) {
+        errBlock = document.createElement('div');
+        errBlock.className = 'scene-error-block';
+        card.appendChild(errBlock);
+      }
+      errBlock.innerHTML = `<span class="scene-error-title">${info.title}</span><span class="scene-error-hint">${info.hint}</span>`;
+    } else if (errBlock) {
+      errBlock.remove();
+    }
   }
   // Show/hide Download All button
   const btnDlAll = $('btn-download-all-images');
@@ -2745,6 +2779,7 @@ async function runImageGeneration(scenesToGen) {
   btnCreatePause.textContent = '⏸ Pause';
   generatePaused = false;
   generateRunning = true;
+  if (typeof updateCreateBreadcrumb === 'function') updateCreateBreadcrumb('Generating');
   resetCreateAgentTasks('image');
   updateCreateAgent('image', 'running', '');
   updateCreateAgentTask('image', 'gen', 'running', `Generating 0/${scenesToGen.length} images…`);
@@ -2921,6 +2956,7 @@ async function runImageGeneration(scenesToGen) {
   }
 
   generateRunning = false;
+  if (typeof updateCreateBreadcrumb === 'function') updateCreateBreadcrumb('Review');
   btnCreatePause.style.display = 'none';
   const doneCount = createScenes.filter(s => s.status === 'done').length;
   const failedCount = createScenes.filter(s => s.status === 'error').length;

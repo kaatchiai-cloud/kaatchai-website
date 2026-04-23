@@ -158,7 +158,7 @@ function createGalleryCard(p) {
   `;
   card.querySelector('.gallery-card-delete').addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (confirm(`Delete "${p.name}"?`)) {
+    if (await showConfirm(`Delete "${p.name}"?\n\nThis cannot be undone.`, 'Delete')) {
       await deleteGalleryProject(p.id);
       renderProjectGallery();
     }
@@ -313,7 +313,7 @@ const btnGalleryClear = $('btn-gallery-clear');
 if (btnGalleryClear) {
   btnGalleryClear.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (!confirm('Delete all saved projects from gallery?')) return;
+    if (!await showConfirm('Delete all saved projects from gallery?\n\nThis cannot be undone.', 'Delete All')) return;
     await clearGallery();
     renderProjectGallery();
   });

@@ -586,7 +586,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
     if (failedScenes > 0) msg += `\n${failedScenes} scene(s) failed — you can retry them.`;
     if (pendingScenes > 0) msg += `\n${pendingScenes} scene(s) not yet generated.`;
     msg += '\n\nScenes without images will be skipped. Continue?';
-    if (!confirm(msg)) return;
+    if (!await showConfirm(msg, 'Continue', true)) return;
   }
 
   // Reset editor state

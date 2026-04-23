@@ -87,6 +87,12 @@ body:has(#drop-zone:not(.hidden)) {
     radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
     radial-gradient(ellipse 70% 35% at 50% 88%, rgba(100,220,180,0.08), transparent 55%),
     #050814;
+  animation: bg-drift 60s ease-in-out infinite alternate;
+}
+@keyframes bg-drift {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 100%; }
 }
 .lp-hero, .lp-section, .lp-nav, .lp-modes, .lp-marquee,
 .lp-pillars, .lp-scrubber-sec, .lp-storyboard-sec,
@@ -613,14 +619,16 @@ body:has(#drop-zone:not(.hidden)) {
   inherits: false;
 }
 
-/* ── Scroll-triggered reveal ── */
+/* ── Scroll-triggered reveal (blur-to-sharp) ── */
 .lp-enhanced .lp-hero, .lp-enhanced .lp-modes, .lp-enhanced .lp-marquee, .lp-enhanced .lp-pillars,
 .lp-enhanced .lp-scrubber-sec, .lp-enhanced .lp-storyboard-sec, .lp-enhanced .lp-styles-sec,
 .lp-enhanced .lp-pipeline, .lp-enhanced .lp-pricing {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(30px);
+  filter: blur(8px);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lp-hero.in-view, .lp-modes.in-view, .lp-marquee.in-view,
 .lp-pillars.in-view, .lp-scrubber-sec.in-view,
@@ -628,18 +636,20 @@ body:has(#drop-zone:not(.hidden)) {
 .lp-pipeline.in-view, .lp-pricing.in-view {
   opacity: 1;
   transform: translateY(0);
+  filter: blur(0);
 }
-/* Staggered children for grids */
+/* Staggered children for grids (with blur) */
 .lp-pillars-grid.in-view > .lp-pillar-card:nth-child(1) { transition-delay: 0s; }
 .lp-pillars-grid.in-view > .lp-pillar-card:nth-child(2) { transition-delay: 0.08s; }
 .lp-pillars-grid.in-view > .lp-pillar-card:nth-child(3) { transition-delay: 0.16s; }
 .lp-pillar-card {
-  opacity: 0; transform: translateY(20px);
+  opacity: 0; transform: translateY(20px); filter: blur(6px);
   transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+              filter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               border-color 0.15s, box-shadow 0.3s;
 }
-.lp-pillar-card.in-view { opacity: 1; transform: translateY(0); }
+.lp-pillar-card.in-view { opacity: 1; transform: translateY(0); filter: blur(0); }
 .lp-pillar-card.in-view:nth-child(1) { transition-delay: 0.05s; }
 .lp-pillar-card.in-view:nth-child(2) { transition-delay: 0.15s; }
 .lp-pillar-card.in-view:nth-child(3) { transition-delay: 0.25s; }
@@ -650,15 +660,16 @@ body:has(#drop-zone:not(.hidden)) {
 }
 .lp-pillar-card:hover::before { opacity: 0.40; }
 
-/* Style cards stagger */
+/* Style cards stagger (with blur) */
 .lp-styles-grid.in-view > .lp-style-card {
-  opacity: 0; transform: translateY(16px) scale(0.97);
+  opacity: 0; transform: translateY(16px) scale(0.97); filter: blur(6px);
   transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+              filter 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               box-shadow 0.4s;
 }
 .lp-styles-grid.in-view > .lp-style-card.in-view {
-  opacity: 1; transform: translateY(0) scale(1);
+  opacity: 1; transform: translateY(0) scale(1); filter: blur(0);
 }
 .lp-styles-grid.in-view > .lp-style-card.in-view:nth-child(1) { transition-delay: 0s; }
 .lp-styles-grid.in-view > .lp-style-card.in-view:nth-child(2) { transition-delay: 0.05s; }
@@ -676,14 +687,15 @@ body:has(#drop-zone:not(.hidden)) {
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 
-/* Pipeline steps stagger */
+/* Pipeline steps stagger (with blur) */
 .lp-pipe-step {
-  opacity: 0; transform: translateY(16px);
+  opacity: 0; transform: translateY(16px); filter: blur(6px);
   transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+              filter 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0s,
               border-color 0.3s, box-shadow 0.3s;
 }
-.lp-pipe-step.in-view { opacity: 1; transform: translateY(0); }
+.lp-pipe-step.in-view { opacity: 1; transform: translateY(0); filter: blur(0); }
 .lp-pipe-step.in-view:nth-of-type(1) { transition-delay: 0s; }
 .lp-pipe-step.in-view:nth-of-type(2) { transition-delay: 0.12s; }
 .lp-pipe-step.in-view:nth-of-type(3) { transition-delay: 0.24s; }
@@ -693,13 +705,14 @@ body:has(#drop-zone:not(.hidden)) {
   box-shadow: 0 0 20px rgba(120,220,255,0.12);
 }
 
-/* Pricing cards stagger */
+/* Pricing cards stagger (with blur) */
 .lp-price-card {
-  opacity: 0; transform: translateY(20px);
+  opacity: 0; transform: translateY(20px); filter: blur(6px);
   transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s,
-              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+              filter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0s;
 }
-.lp-price-card.in-view { opacity: 1; transform: translateY(0); }
+.lp-price-card.in-view { opacity: 1; transform: translateY(0); filter: blur(0); }
 .lp-price-card.in-view:nth-child(1) { transition-delay: 0s; }
 .lp-price-card.in-view:nth-child(2) { transition-delay: 0.1s; }
 .lp-price-card.in-view:nth-child(3) { transition-delay: 0.2s; }
@@ -1126,6 +1139,7 @@ body:has(#drop-zone:not(.hidden)) {
   .lp-enhanced .lp-pipeline, .lp-enhanced .lp-pricing {
     opacity: 1 !important;
     transform: none !important;
+    filter: blur(0) !important;
     transition: none !important;
   }
   .lp-enhanced .lp-pillar-card,
@@ -1134,11 +1148,14 @@ body:has(#drop-zone:not(.hidden)) {
   .lp-enhanced .lp-price-card {
     opacity: 1 !important;
     transform: none !important;
+    filter: blur(0) !important;
     transition: none !important;
   }
   .lp-marquee-scroll { animation: none !important; }
   .lp-h1-cursor { display: none; }
   .lp-scroll-progress-bar { transition: none !important; }
+  .lp-bgart { animation: none !important; }
+  .lp-btn-primary.magnetic-move, .lp-btn-solid.magnetic-move { transform: none !important; }
 }
 
 /* ── Focus ring system ── */
@@ -1167,6 +1184,52 @@ body:has(#drop-zone:not(.hidden)) {
   transition: transform 0.3s ease;
 }
 
+/* ── Video container for hero ── */
+.lp-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.lp-hero-video-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lp-font-ui);
+  font-size: 14px;
+  color: rgba(238,244,255,0.4);
+}
+
+/* ── Style card morph hover effect ── */
+.lp-style-card .lp-style-morph {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.lp-style-card:hover .lp-style-morph {
+  opacity: 1;
+}
+.lp-style-card .lp-style-morph-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 14px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.lp-style-card:hover .lp-style-morph-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ── Smooth scroll ── */
 .lp-enhanced { scroll-behavior: smooth; }
 
@@ -1174,6 +1237,102 @@ body:has(#drop-zone:not(.hidden)) {
 @media (max-width: 768px) {
   .lp-section-dots { right: 10px; gap: 10px; }
   .lp-section-dot { width: 6px; height: 6px; }
+}
+
+/* ── Cursor Spotlight ── */
+.lp-enhanced::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(600px circle at var(--cursor-x, 50%) var(--cursor-y, 50%), rgba(120,220,255,0.04), transparent 60%);
+}
+
+/* ── Magnetic Buttons ── */
+.lp-btn-primary, .lp-btn-solid {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease, background 0.15s;
+}
+
+/* ── Social Proof Section ── */
+.lp-social-proof {
+  padding: 60px 36px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.lp-proof-row {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+.lp-proof-card {
+  flex: 1;
+  max-width: 340px;
+  min-width: 280px;
+  background: rgba(255,255,255,0.035);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  opacity: 0;
+  transform: translateY(20px);
+  filter: blur(6px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.15s;
+}
+.lp-proof-card.in-view {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+.lp-proof-card:nth-child(1).in-view { transition-delay: 0s; }
+.lp-proof-card:nth-child(2).in-view { transition-delay: 0.1s; }
+.lp-proof-card:nth-child(3).in-view { transition-delay: 0.2s; }
+.lp-proof-quote {
+  font-family: var(--lp-font-ui);
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(238,244,255,0.85);
+  margin: 0 0 16px;
+  font-style: italic;
+}
+.lp-proof-author {
+  font-family: var(--lp-font-mono);
+  font-size: 12px;
+  color: rgba(238,244,255,0.50);
+  letter-spacing: 0.05em;
+}
+.lp-proof-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.lp-proof-logo-text {
+  font-family: var(--lp-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(238,244,255,0.40);
+}
+.lp-proof-logo {
+  opacity: 0.35;
+  filter: grayscale(1) brightness(1.2);
+  transition: opacity 0.15s, filter 0.15s;
+}
+.lp-proof-logo:hover {
+  opacity: 0.6;
+  filter: grayscale(0) brightness(1);
+}
+@media (max-width: 768px) {
+  .lp-proof-row { flex-direction: column; align-items: center; }
+  .lp-proof-card { max-width: 100%; }
 }
 
 </style>
@@ -1318,28 +1477,32 @@ body:has(#drop-zone:not(.hidden)) {
               <!-- Scene strip -->
               <div class="lp-scene-strip" id="lp-hero-strip">
                 <div class="lp-scene-cell">
-                  <div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d">
+                  <div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;position:relative;">
+                    <img src="assets/scenes/lighthouse-fog.webp" alt="Coastal night lighthouse scene" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
                     <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 75 Q 40 45, 80 60 T 160 55 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/><circle cx="30" cy="20" r="8" fill="rgba(255,255,255,0.15)"/></svg>
                     <span class="lp-scn-label">SCN 01</span>
                   </div>
                   <span class="lp-timecode-pill">0:00 · est.</span>
                 </div>
                 <div class="lp-scene-cell">
-                  <div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a">
+                  <div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;position:relative;">
+                    <img src="assets/scenes/elena-kitchen.webp" alt="Elena in kitchen amber light" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
                     <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 80 Q 50 55, 100 65 T 160 60 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.35)"/></svg>
                     <span class="lp-scn-label">SCN 02</span>
                   </div>
                   <span class="lp-timecode-pill">0:04 · est.</span>
                 </div>
                 <div class="lp-scene-cell">
-                  <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc">
+                  <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;position:relative;">
+                    <img src="assets/scenes/morse-look.webp" alt="Morse looks at the door" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
                     <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 70 Q 60 50, 110 62 T 160 58 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/><rect x="65" y="10" width="30" height="50" rx="2" fill="rgba(255,255,255,0.08)"/></svg>
                     <span class="lp-scn-label">SCN 03</span>
                   </div>
                   <span class="lp-timecode-pill">0:11 · gen.</span>
                 </div>
                 <div class="lp-scene-cell">
-                  <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261">
+                  <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;position:relative;">
+                    <img src="assets/scenes/doorway.webp" alt="Knock at the door" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
                     <svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMax meet"><path d="M0 72 Q 45 48, 90 60 T 160 56 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
                     <span class="lp-scn-label">SCN 04</span>
                   </div>
@@ -1435,6 +1598,32 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
+    <!-- ═══ Social Proof ═══ -->
+    <section class="lp-social-proof">
+      <div class="lp-proof-row">
+        <div class="lp-proof-card" tabindex="0">
+          <p class="lp-proof-quote">"Perfect for my weekly podcast clips. I ship in 20 minutes what used to take all afternoon."</p>
+          <span class="lp-proof-author">— @maker_sara, Creator</span>
+        </div>
+        <div class="lp-proof-card" tabindex="0">
+          <p class="lp-proof-quote">"Shipped a 20-minute documentary in a day. The storyboard agent actually understands narrative pacing."</p>
+          <span class="lp-proof-author">— @film_craft_co, Producer</span>
+        </div>
+        <div class="lp-proof-card" tabindex="0">
+          <p class="lp-proof-quote">"Our entire post team lives in Kaatchi. It's like having an editor who never sleeps."</p>
+          <span class="lp-proof-author">— @narrative_studio, Studio Lead</span>
+        </div>
+      </div>
+      <div class="lp-proof-logo-row">
+        <span class="lp-proof-logo-text">Trusted by creators at</span>
+        <!-- Placeholder logos (gradient fallbacks) -->
+        <div class="lp-proof-logo" style="width:60px;height:20px;background:linear-gradient(90deg,rgba(238,244,255,0.4),rgba(120,220,255,0.3));border-radius:4px;"></div>
+        <div class="lp-proof-logo" style="width:70px;height:20px;background:linear-gradient(90deg,rgba(238,244,255,0.35),rgba(200,100,255,0.25));border-radius:4px;"></div>
+        <div class="lp-proof-logo" style="width:55px;height:20px;background:linear-gradient(90deg,rgba(238,244,255,0.4),rgba(100,220,180,0.3));border-radius:4px;"></div>
+        <div class="lp-proof-logo" style="width:65px;height:20px;background:linear-gradient(90deg,rgba(238,244,255,0.35),rgba(120,220,255,0.25));border-radius:4px;"></div>
+      </div>
+    </section>
+
     <!-- ═══ Pillars ═══ -->
     <section class="lp-pillars" id="lp-features">
       <div class="lp-section-header">
@@ -1514,7 +1703,8 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="lp-scene-row">
           <span class="lp-scene-tc">0:00 · 00:04</span>
           <div class="lp-scene-thumb">
-            <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc">
+            <div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;position:relative;">
+              <img src="assets/scenes/lighthouse-coastal.webp" alt="Lighthouse beam through fog" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
               <svg viewBox="0 0 160 90"><path d="M0 70 Q 60 50, 110 62 T 160 58 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
             </div>
           </div>
@@ -1527,7 +1717,8 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="lp-scene-row">
           <span class="lp-scene-tc">0:04 · 00:07</span>
           <div class="lp-scene-thumb">
-            <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261">
+            <div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;position:relative;">
+              <img src="assets/scenes/elena-teacup.webp" alt="Elena's hands cradling teacup" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
               <svg viewBox="0 0 160 90"><path d="M0 72 Q 45 48, 90 60 T 160 56 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.4)"/></svg>
             </div>
           </div>
@@ -1540,7 +1731,8 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="lp-scene-row">
           <span class="lp-scene-tc">0:11 · 00:07</span>
           <div class="lp-scene-thumb">
-            <div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff">
+            <div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;position:relative;">
+              <img src="assets/scenes/morse-door.webp" alt="Morse the dog at the door" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
               <svg viewBox="0 0 160 90"><path d="M0 78 Q 50 55, 100 65 T 160 62 L 160 90 L 0 90 Z" fill="rgba(0,0,0,0.35)"/></svg>
             </div>
           </div>
@@ -1590,14 +1782,14 @@ body:has(#drop-zone:not(.hidden)) {
         <h2 class="lp-sec-h2" style="font-size:56px;margin-top:16px">A style for every story.</h2>
       </div>
       <div class="lp-styles-grid">
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
-        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1a0b2e;--c2:#4a1b6d;--c3:#ff6b9d;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/cinematic.webp" alt="Cinematic style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 01</span><span class="lp-style-name">Cinematic</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#001d3d;--c2:#003566;--c3:#ffd60a;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/watercolor.webp" alt="Watercolor style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 02</span><span class="lp-style-name">Watercolor</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0a2540;--c2:#1a5775;--c3:#a8dadc;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/charcoal.webp" alt="Charcoal style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 03</span><span class="lp-style-name">Charcoal</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#2d1810;--c2:#6e3b20;--c3:#f4a261;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/anime.webp" alt="Anime style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 04</span><span class="lp-style-name">Anime</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0d0d0d;--c2:#2d1b4e;--c3:#c77dff;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/35mm.webp" alt="35mm style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 05</span><span class="lp-style-name">35mm</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#08141e;--c2:#2d4a6b;--c3:#e0fbfc;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/16mm-grain.webp" alt="16mm Grain style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 06</span><span class="lp-style-name">16mm Grain</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#1b0a1a;--c2:#5c1a36;--c3:#ffb5a7;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/paper-cutout.webp" alt="Paper cutout style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 07</span><span class="lp-style-name">Paper cutout</span></div></div></div>
+        <div class="lp-style-card" tabindex="0"><div class="lp-fauxscene" style="--c1:#0f1e1a;--c2:#2d5441;--c3:#b8e0d2;aspect-ratio:4/5;border-radius:14px;position:relative;"><img src="assets/styles/blueprint.webp" alt="Blueprint style" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;"><div class="lp-style-overlay"></div><div class="lp-style-info"><span class="lp-style-num">STYLE · 08</span><span class="lp-style-name">Blueprint</span></div></div></div>
       </div>
     </section>
 
@@ -1714,6 +1906,14 @@ body:has(#drop-zone:not(.hidden)) {
   </div>
 
   <div id="create-page">
+    <!-- Breadcrumb -->
+    <nav id="create-breadcrumb" class="create-breadcrumb" aria-label="Location">
+      <span class="bc-home">Stori</span>
+      <span class="bc-sep">›</span>
+      <span class="bc-section">Create Story</span>
+      <span class="bc-sep">›</span>
+      <span id="bc-step" class="bc-step">Setup</span>
+    </nav>
     <!-- Main heading row -->
     <div class="create-main-heading">
       <h2>Copilot <em>— Long Video</em></h2>
@@ -1901,6 +2101,7 @@ body:has(#drop-zone:not(.hidden)) {
             <option value="custom">Custom...</option>
           </select>
         </label>
+        <button id="btn-surprise-me" class="btn-surprise" type="button" title="Pick a random style for me">🎲 Surprise Me</button>
         <input type="text" id="create-style-prompt" placeholder="Custom style..." style="flex:1; min-width:140px;" disabled>
         <label class="text-secondary">Text in images:
           <select id="create-image-text-mode" class="text-sm">
@@ -2564,6 +2765,16 @@ body:has(#drop-zone:not(.hidden)) {
       <button id="btn-editor-home" class="btn-md">← Home</button>
       <button id="btn-back-to-create" style="font-size:0.8rem; padding:6px 14px; display:none;">← Back to Create</button>
       <button id="btn-back-to-reel" class="btn-sm hidden">← Back to Reel</button>
+    </div>
+    <!-- Empty state — shown when editor has no content -->
+    <div id="editor-empty-state" class="editor-empty-state" style="display:none;">
+      <div class="editor-empty-icon">🎬</div>
+      <h3 class="editor-empty-title">Nothing here yet</h3>
+      <p class="editor-empty-sub">Create a story or reel first, then come back to edit and export.</p>
+      <div class="editor-empty-actions">
+        <button class="btn-md primary" onclick="navigateTo('create')">🎬 Create Story</button>
+        <button class="btn-md" onclick="navigateTo('reel')">⚡ Create Reel</button>
+      </div>
     </div>
     <!-- Language variation cards (shown when multiple languages available) -->
     <div id="editor-lang-cards" style="display:none; margin-bottom:14px;">
@@ -3335,12 +3546,13 @@ body:has(#drop-zone:not(.hidden)) {
   (function(){
     document.documentElement.classList.add('lp-enhanced');
     var LP = {
-      sections: '.lp-hero,.lp-modes,.lp-marquee,.lp-pillars,.lp-scrubber-sec,.lp-storyboard-sec,.lp-styles-sec,.lp-pipeline,.lp-pricing,.lp-footer',
+      sections: '.lp-hero,.lp-modes,.lp-marquee,.lp-social-proof,.lp-pillars,.lp-scrubber-sec,.lp-storyboard-sec,.lp-styles-sec,.lp-pipeline,.lp-pricing,.lp-footer',
       childStagger: {
         '.lp-pillars-grid': '.lp-pillar-card',
         '.lp-styles-grid': '.lp-style-card',
         '.lp-pipeline-box': '.lp-pipe-step',
-        '.lp-price-grid': '.lp-price-card'
+        '.lp-price-grid': '.lp-price-card',
+        '.lp-proof-row': '.lp-proof-card'
       }
     };
 
@@ -3712,13 +3924,196 @@ body:has(#drop-zone:not(.hidden)) {
       updateDots();
     }
 
+    function initMagneticButtons(){
+      var btns = document.querySelectorAll('.lp-btn-primary, .lp-btn-solid');
+      for(var i=0;i<btns.length;i++){
+        (function(btn){
+          btn.addEventListener('mousemove',function(e){
+            var r = btn.getBoundingClientRect();
+            var x = e.clientX - r.left - r.width/2;
+            var y = e.clientY - r.top - r.height/2;
+            btn.style.transform = 'translate('+(x*0.15)+'px,'+(y*0.15)+'px)';
+          });
+          btn.addEventListener('mouseleave',function(){
+            btn.style.transform = '';
+          });
+        })(btns[i]);
+      }
+    }
+
+    function initCursorSpotlight(){
+      var root = document.documentElement;
+      var ticking = false;
+      document.addEventListener('mousemove',function(e){
+        if(!ticking){
+          requestAnimationFrame(function(){
+            root.style.setProperty('--cursor-x', e.clientX + 'px');
+            root.style.setProperty('--cursor-y', e.clientY + 'px');
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+    }
+
+    function initInteractiveScrubber(){
+      var widgets = document.querySelectorAll('.lp-scrubber-widget');
+      for(var w=0;w<widgets.length;w++){
+        (function(widget){
+          var playhead = widget.querySelector('.lp-scrubber-playhead');
+          var bars = widget.querySelectorAll('.lp-bar');
+          if(!playhead || !bars.length) return;
+          
+          var dragging = false;
+          var sweepPaused = false;
+          var resumeTimeout = null;
+          
+          widget.style.cursor = 'grab';
+          
+          function updatePlayhead(x){
+            var rect = widget.getBoundingClientRect();
+            var pct = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
+            playhead.style.left = pct + '%';
+            playhead.style.transition = 'none';
+            var widgetWidth = widget.offsetWidth;
+            var currentLeft = pct / 100 * widgetWidth;
+            for(var b=0;b<bars.length;b++){
+              if(bars[b].offsetLeft <= currentLeft){
+                bars[b].classList.add('passed');
+              } else {
+                bars[b].classList.remove('passed');
+              }
+            }
+          }
+          
+          widget.addEventListener('mousedown',function(e){
+            if(e.target.closest('.lp-scrubber-knob') || e.target.closest('.lp-bar')) return;
+            dragging = true;
+            widget.style.cursor = 'grabbing';
+            widget.classList.remove('sweeping');
+            if(resumeTimeout) clearTimeout(resumeTimeout);
+            updatePlayhead(e.clientX);
+          });
+          
+          document.addEventListener('mousemove',function(e){
+            if(!dragging) return;
+            updatePlayhead(e.clientX);
+          });
+          
+          document.addEventListener('mouseup',function(){
+            if(!dragging) return;
+            dragging = false;
+            widget.style.cursor = 'grab';
+            resumeTimeout = setTimeout(function(){
+              widget.classList.add('sweeping');
+            }, 5000);
+          });
+          
+          widget.addEventListener('touchstart',function(e){
+            dragging = true;
+            widget.classList.remove('sweeping');
+            if(resumeTimeout) clearTimeout(resumeTimeout);
+            if(e.touches.length > 0) updatePlayhead(e.touches[0].clientX);
+          },{passive:true});
+          
+          widget.addEventListener('touchmove',function(e){
+            if(!dragging || e.touches.length === 0) return;
+            updatePlayhead(e.touches[0].clientX);
+          },{passive:true});
+          
+          widget.addEventListener('touchend',function(){
+            if(!dragging) return;
+            dragging = false;
+            resumeTimeout = setTimeout(function(){
+              widget.classList.add('sweeping');
+            }, 5000);
+          });
+        })(widgets[w]);
+      }
+    }
+
     if(document.readyState==='loading'){
       document.addEventListener('DOMContentLoaded',function(){
-        initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();
+        initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();initMagneticButtons();initCursorSpotlight();initInteractiveScrubber();
       });
     } else {
-      initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();
+      initScrollReveal();initTypewriter();initParallax();initPreviewTilt();initPlayheadSweep();initCounter();initPipelineGlow();initRenderingChip();initSceneTypewriter();initSceneParallax();initScrollProgress();initSectionDots();initMagneticButtons();initCursorSpotlight();initInteractiveScrubber();
     }
+  })();
+  </script>
+
+  <!-- ═══ Confirm Modal ═══ -->
+  <div id="confirm-modal" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
+    <div class="confirm-box">
+      <p id="confirm-msg"></p>
+      <div class="confirm-actions">
+        <button id="confirm-cancel-btn" class="confirm-cancel-btn">Cancel</button>
+        <button id="confirm-ok-btn" class="confirm-ok-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ═══ Global UI Utilities ═══
+
+  // Custom confirm() replacement — returns Promise<boolean>
+  function showConfirm(message, okLabel, isSafe) {
+    return new Promise(function(resolve) {
+      var modal = document.getElementById('confirm-modal');
+      var msgEl = document.getElementById('confirm-msg');
+      var okBtn = document.getElementById('confirm-ok-btn');
+      var cancelBtn = document.getElementById('confirm-cancel-btn');
+      if (!modal) { resolve(window.confirm(message)); return; }
+      msgEl.textContent = message;
+      okBtn.textContent = okLabel || 'Confirm';
+      okBtn.className = 'confirm-ok-btn' + (isSafe ? ' is-safe' : '');
+      modal.style.display = 'flex';
+      function finish(result) {
+        modal.style.display = 'none';
+        okBtn.onclick = null; cancelBtn.onclick = null;
+        resolve(result);
+      }
+      okBtn.onclick = function() { finish(true); };
+      cancelBtn.onclick = function() { finish(false); };
+      // Close on backdrop click
+      modal.onclick = function(e) { if (e.target === modal) finish(false); };
+    });
+  }
+
+  // Editor empty-state toggle
+  function updateEditorEmptyState() {
+    var emptyEl = document.getElementById('editor-empty-state');
+    if (!emptyEl) return;
+    var hasScenes = typeof createScenes !== 'undefined' && Array.isArray(createScenes) && createScenes.length > 0;
+    var hasReelJobs = typeof reelJobs !== 'undefined' && Array.isArray(reelJobs) && reelJobs.length > 0;
+    var hasAudio = typeof currentBuffer !== 'undefined' && currentBuffer != null;
+    emptyEl.style.display = (hasScenes || hasReelJobs || hasAudio) ? 'none' : 'flex';
+  }
+
+  // Create page breadcrumb updater
+  function updateCreateBreadcrumb(stepName) {
+    var el = document.getElementById('bc-step');
+    if (el) el.textContent = stepName || 'Setup';
+  }
+
+  // Surprise Me — randomise style preset
+  (function() {
+    var btn = document.getElementById('btn-surprise-me');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var sel = document.getElementById('create-style-preset');
+      if (!sel) return;
+      // Gather all non-empty, non-custom options
+      var opts = Array.from(sel.options).filter(function(o) { return o.value && o.value !== 'custom'; });
+      if (!opts.length) return;
+      var pick = opts[Math.floor(Math.random() * opts.length)];
+      sel.value = pick.value;
+      sel.dispatchEvent(new Event('change'));
+      // Brief feedback
+      var orig = btn.textContent;
+      btn.textContent = '✓ ' + pick.text;
+      setTimeout(function() { btn.textContent = orig; }, 1600);
+    });
   })();
   </script>
 </body>
