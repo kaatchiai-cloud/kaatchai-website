@@ -1,1 +1,4 @@
 .DS_Store
+
+# Pre-ship audit working docs — timestamped plan files, kept locally only
+pre-ship-audit-*.md
