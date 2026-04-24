@@ -1255,7 +1255,8 @@ if (btnManageSub) btnManageSub.addEventListener('click', () => {
 });
 
 function updateUserSection() {
-  const userData = JSON.parse(localStorage.getItem('stori_user') || 'null');
+  let userData = null;
+  try { userData = JSON.parse(localStorage.getItem('stori_user') || 'null'); } catch(_) { userData = null; }
   const signedOut = $('user-signed-out');
   const signedIn = $('user-signed-in');
   if (!signedOut || !signedIn) return;

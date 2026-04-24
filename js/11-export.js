@@ -86,12 +86,14 @@
       const canvas = document.createElement('canvas');
       canvas.width = exportW; canvas.height = exportH;
       const ctx = canvas.getContext('2d');
+      if (!ctx) { setStatus('Export failed: canvas context unavailable.'); exportProgress.classList.remove('visible'); return; }
       const sorted = [...photoItems].sort((a, b) => a.startTime - b.startTime);
       const stream = canvas.captureStream(fps);
 
       const videoBitrate = Math.round(baseBitrate(exportH) * QUALITY_PRESETS[quality].bitrateMultiplier);
       console.log(`[export] ${fileExt} | ${exportW}×${exportH} | ${fps}fps | ${quality} | ${(videoBitrate/1e6).toFixed(1)}Mbps`);
 
+      let timerWorker = null;
       try {
         exportLabel.textContent = 'Recording frames...';
         const audioDest = ensureAudioCtx().createMediaStreamDestination();
@@ -113,15 +115,20 @@
         const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
         const chunks = [];
         recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-        const done = new Promise(r => { recorder.onstop = r; });
+        const done = new Promise((resolve, reject) => {
+          recorder.onstop = resolve;
+          recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+        });
 
         const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
         const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
 
         // Use a Web Worker timer so frames keep rendering even when tab is in background.
-        const timerWorker = new Worker(URL.createObjectURL(new Blob([
+        const _timerWorkerUrl = URL.createObjectURL(new Blob([
           `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-        ], { type: 'text/javascript' })));
+        ], { type: 'text/javascript' }));
+        timerWorker = new Worker(_timerWorkerUrl);
+        URL.revokeObjectURL(_timerWorkerUrl);
 
         // Animated mode: pre-seek and start first clip before recording
         let exportActiveClipIdx = -1;
@@ -219,7 +226,7 @@
         a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         setStatus(`Exported ${fileName} (${(videoBlob.size / 1048576).toFixed(1)} MB) — ${exportW}×${exportH}, ${fps}fps, ${quality}`);
-      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
+      } catch (e) { if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; } if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
       exportProgress.classList.remove('visible');
     });
 
@@ -267,10 +274,12 @@
           exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})...`;
           exportBar.style.width = '0%';
 
+          let timerWorker = null;
           try {
             const canvas = document.createElement('canvas');
             canvas.width = exportW; canvas.height = exportH;
             const ctx = canvas.getContext('2d');
+            if (!ctx) { setStatus(`Export failed for ${track.label}: canvas context unavailable.`); continue; }
             const stream = canvas.captureStream(fps);
 
             const audioDest = ensureAudioCtx().createMediaStreamDestination();
@@ -288,7 +297,10 @@
             const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
             const chunks = [];
             recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-            const done = new Promise(r => { recorder.onstop = r; });
+            const done = new Promise((resolve, reject) => {
+              recorder.onstop = resolve;
+              recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+            });
 
             const trackSortedTexts = track.subtitles ? [...track.subtitles].sort((a, b) => a.startTime - b.startTime) : sortedTexts;
             // Build photo list with per-language timings
@@ -296,9 +308,11 @@
               ? sorted.map((p, i) => ({ ...p, startTime: track.photoTimings[i]?.startTime ?? p.startTime, duration: track.photoTimings[i]?.duration ?? p.duration }))
               : sorted;
 
-            const timerWorker = new Worker(URL.createObjectURL(new Blob([
+            const _timerWorkerUrl = URL.createObjectURL(new Blob([
               `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-            ], { type: 'text/javascript' })));
+            ], { type: 'text/javascript' }));
+            timerWorker = new Worker(_timerWorkerUrl);
+            URL.revokeObjectURL(_timerWorkerUrl);
 
             recorder.start(100); audioSource.start();
             const t0 = performance.now();
@@ -337,6 +351,7 @@
             a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 60000);
           } catch (e) {
+            if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; }
             console.error(`Export ${track.label} error:`, e);
             setStatus(`Export failed for ${track.label}. Try a different format.`);
           }

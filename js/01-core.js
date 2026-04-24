@@ -293,6 +293,12 @@ function navigateTo(view, pushHistory) {
   if (currentView === 'reel' && view !== 'reel') {
     const reelStatus = $('reel-generate-status');
     if (reelStatus) reelStatus.textContent = '';
+    // Bug 22/23 — cancel in-flight reel generation + stop autosave interval on nav-away.
+    // typeof guards are safe: 20-reels-creator.js is lazy-loaded and these names may be absent.
+    try { if (typeof reelAbortController !== 'undefined' && reelAbortController) reelAbortController.abort(); } catch(_) {}
+    try { if (typeof stopReelAutosave === 'function') stopReelAutosave(); } catch(_) {}
+    // Bug 28 — stop in-flight segment preview (video + audio + state reset).
+    try { if (typeof stopSegPreview === 'function') stopSegPreview(); } catch(_) {}
   }
   currentView = view;
   // Hide all views
@@ -310,6 +316,10 @@ function navigateTo(view, pushHistory) {
   if (view === 'home') {
     dropZone.classList.remove('hidden');
     if (typeof renderProjectGallery === 'function') renderProjectGallery();
+    // Bug 26 — clear stale data-metaphor on Create/Reel pages so future CSS
+    // rules scoped on [data-metaphor] can't leak across nav cycles.
+    if (createPage) createPage.removeAttribute('data-metaphor');
+    if (reelPage) reelPage.removeAttribute('data-metaphor');
   } else if (view === 'editor') {
     editorEl.classList.add('visible');
     if (typeof updateEditorEmptyState === 'function') updateEditorEmptyState();
@@ -345,7 +355,10 @@ function navigateTo(view, pushHistory) {
 
 // Handle browser back/forward
 window.addEventListener('popstate', (e) => {
-  const view = e.state?.view || 'home';
+  // Bug 27 — whitelist view before dispatch; fall back to 'home' on anything else.
+  const VALID_VIEWS = ['home', 'editor', 'create', 'reel'];
+  const raw = e.state && e.state.view;
+  const view = VALID_VIEWS.includes(raw) ? raw : 'home';
   if (view !== 'home' && typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
     loadEditorScripts(function() { navigateTo(view, false); });
   } else {
@@ -373,6 +386,8 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
   function applyTheme(mode){
     document.documentElement.setAttribute('data-theme', mode);
     try { localStorage.setItem('stori_theme_mode', mode); } catch(e){}
+    // Bug 24 — re-sync wavesurfer colors. typeof guard: 13-wavesurfer.js lazy-loaded.
+    try { if (typeof updateWavesurferTheme === 'function') updateWavesurferTheme(mode); } catch(_){}
   }
   function toggleTheme(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -389,6 +404,7 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
 
 // ── Keyboard Shortcuts ──
 document.addEventListener('keydown', (e) => {
+  const _activeTag = (document.activeElement && document.activeElement.tagName) || '';
   // Cmd/Ctrl + S: Save project
   if ((e.metaKey || e.ctrlKey) && e.key === 's') {
     e.preventDefault();
@@ -401,7 +417,7 @@ document.addEventListener('keydown', (e) => {
     }
   }
   // Space: Play/pause (when not in input/textarea)
-  if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+  if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(_activeTag)) {
     e.preventDefault();
     if (currentView === 'editor' && wavesurfer) {
       if (wavesurfer.isPlaying()) wavesurfer.pause();
@@ -422,7 +438,7 @@ document.addEventListener('keydown', (e) => {
     }
   }
   // ?: Show shortcuts help (future implementation)
-  if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+  if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(_activeTag)) {
     // Placeholder for shortcuts help modal
   }
 });

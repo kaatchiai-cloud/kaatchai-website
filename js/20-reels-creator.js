@@ -750,7 +750,7 @@ function renderReelPresetSegments() {
         if (!vid) return;
         vid.currentTime = seg.start;
         vid.muted = false;
-        vid.play();
+        vid.play().catch(() => {});
         const interval = setInterval(() => {
           if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
           const elapsed = vid.currentTime - seg.start;
@@ -3964,7 +3964,7 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
     const vidOffset = activeResult ? activeResult.videoStart : 0;
     reelVideoEl.currentTime = vidOffset;
     reelVideoEl.muted = true;
-    reelVideoEl.play();
+    reelVideoEl.play().catch(() => {});
   }
 
   const platform = REEL_PLATFORMS[reelPlatform];
@@ -4809,6 +4809,7 @@ async function exportSingleReel() {
   exportLabel.textContent = 'Preparing export...';
   if (btnReelExport) btnReelExport.disabled = true;
 
+  let timerWorker = null;
   try {
     // Auto-detect best format (MP4 if available, else WebM)
     const resolved = typeof resolveMime === 'function' ? resolveMime('mp4') || resolveMime('auto') : null;
@@ -4834,7 +4835,10 @@ async function exportSingleReel() {
     const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    const done = new Promise(r => { recorder.onstop = r; });
+    const done = new Promise((resolve, reject) => {
+      recorder.onstop = resolve;
+      recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+    });
 
     const isVid = reelScenes && reelScenes.some(s => s.isVideo);
     const isAnimated = reelVideoMode === 'animated' && reelScenes.some(s => s.videoUrl);
@@ -4871,7 +4875,7 @@ async function exportSingleReel() {
     if (!isAnimated) {
       if (isVid && reelVideoEl) {
         const vidOffset = activeResult ? activeResult.videoStart : 0;
-        reelVideoEl.currentTime = vidOffset; reelVideoEl.muted = true; reelVideoEl.play();
+        reelVideoEl.currentTime = vidOffset; reelVideoEl.muted = true; reelVideoEl.play().catch(() => {});
       }
     }
 
@@ -4942,9 +4946,11 @@ async function exportSingleReel() {
       drawReelOverlays(ctx, platform.width, platform.height, elapsed);
     }
 
-    const timerWorker = new Worker(URL.createObjectURL(new Blob([
+    const _timerWorkerUrl = URL.createObjectURL(new Blob([
       `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-    ], { type: 'text/javascript' })));
+    ], { type: 'text/javascript' }));
+    timerWorker = new Worker(_timerWorkerUrl);
+    URL.revokeObjectURL(_timerWorkerUrl);
 
     timerWorker.onmessage = () => {
       if (stopped) return;
@@ -4974,6 +4980,7 @@ async function exportSingleReel() {
     setStatus(`Reel exported as ${fileExt.toUpperCase()} (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
     reelDirty = false;
   } catch(e) {
+    if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; }
     console.error('[ReelExport] Error:', e);
     setStatus('Export failed: ' + (e.message || 'Try a different browser or shorter duration.'));
   }

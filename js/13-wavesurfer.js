@@ -18,6 +18,18 @@
       regions.on('region-created', r => { regions.getRegions().forEach(x => { if (x.id !== r.id) x.remove(); }); activeRegion = r; updateRB(); });
       regions.on('region-updated', () => updateRB());
       regions.on('region-removed', () => { activeRegion = null; updateRB(); });
+      // Bug 24 — sync waveform colors to current theme at init.
+      try { updateWavesurferTheme(); } catch(_) {}
+    }
+    // Bug 24 — re-applies wave/progress colors on theme toggle. Called from
+    // applyTheme() in 01-core.js. Safe no-op if wavesurfer isn't initialized.
+    function updateWavesurferTheme(mode) {
+      if (!wavesurfer) return;
+      var m = mode || document.documentElement.getAttribute('data-theme') || 'dark';
+      var colors = (m === 'light')
+        ? { waveColor: '#4a42cc', progressColor: '#2e298a' }
+        : { waveColor: '#6c63ff', progressColor: '#4a42cc' };
+      try { wavesurfer.setOptions(colors); } catch(_) {}
     }
     function updateRB() {
       const h = !!activeRegion;
