@@ -1,0 +1,185 @@
+/* ════════════════════════════════════════════════════════════════
+   Stori Themes — Aurora Light (token-swap architecture)
+   -----------------------------------------------------------------
+   This file is ADDITIVE and redefines ONLY the `--lp-*` and
+   editor tokens for `html[data-theme="light"]`. The landing CSS in
+   index.html consumes tokens directly, so a token swap is enough —
+   no per-component overrides are needed for most of the page.
+
+   Load order (index.html <head>):
+     1. css/styles.css                  (Family A dark values)
+     2. inline <style> block in <head>  (Family B dark tokens + CSS)
+     3. css/themes.css  ← THIS FILE     (light token overrides)
+
+   Structural overrides (non-token) kept below:
+     • `.lp-bgart` — different gradient stack in light (Kaatchi)
+     • Body + scrollbar — body tag hardcodes dark bg in styles.css
+     • Copilot video-mode cards — styles.css hardcodes identity colors
+     • `.theme-toggle` — shared button styling across placements
+   ════════════════════════════════════════════════════════════════ */
+
+
+/* ───────────────────────────────────────────────────────────
+   Universal light palette (aurora.light)
+   Kaatchi.html aurora.light canonical values (lines 132-149).
+   Key paradigm: WHITE lifted cards on blue-grey page.
+   ─────────────────────────────────────────────────────────── */
+html[data-theme="light"] {
+  /* ── Family B — Landing/Copilot/Autopilot token set ── */
+  --lp-bg:         #eef2f7;
+  --lp-bg2:        #e3e9f1;
+  --lp-card:       rgba(255,255,255,0.85);
+  --lp-card-bdr:   rgba(10,30,60,0.10);
+  --lp-card-bdr-h: rgba(20,110,180,0.40);
+  --lp-text:       #0a1628;
+  --lp-dim:        rgba(10,22,40,0.72);   /* body text */
+  --lp-mute:       rgba(10,22,40,0.55);   /* secondary */
+  --lp-faint:      rgba(10,22,40,0.42);   /* caption / meta */
+  --lp-accent:     oklch(50% 0.16 220);
+  --lp-accent-h:   oklch(45% 0.18 220);    /* accent hover (darker) */
+  --lp-accent2:    oklch(55% 0.18 340);
+  --lp-on-accent:  #ffffff;                /* text on accent button */
+  --lp-glow:       rgba(20,110,180,0.18);
+  --lp-glow-soft:  rgba(20,110,180,0.10);
+  --lp-bdr:        rgba(10,30,60,0.10);
+  --lp-bdr-h:      rgba(20,110,180,0.40);
+  /* Legacy --lp-* aliases (kept in sync for landing JS compat) */
+  --lp-primary:    oklch(50% 0.16 220);
+  --lp-surf:       #0a1628;
+  --lp-op:         #eef2f7;
+  --lp-muted:      rgba(10,22,40,0.72);
+  --lp-pc:         oklch(50% 0.16 220);
+  --lp-bdr-p:      rgba(20,110,180,0.22);
+  --lp-bg-low:     #e3e9f1;
+  --lp-bg-card:    rgba(255,255,255,0.85);
+
+  /* ── Family A — Editor palette ── */
+  --bg-primary:    #eef2f7;
+  --bg-secondary:  #e3e9f1;
+  --bg-card:       #f6f8fb;
+  --bg-elevated:   #ffffff;
+  --bg-input:      #ffffff;
+  --border:        rgba(10,22,40,0.12);
+  --border-hover:  rgba(10,22,40,0.24);
+  --border-active: rgba(20,90,170,0.50);
+  --accent:        oklch(50% 0.16 220);
+  --accent-hover:  color-mix(in oklch, oklch(50% 0.16 220) 80%, black);
+  --accent-glow:   rgba(20,90,170,0.18);
+  --accent-soft:   rgba(20,90,170,0.08);
+  --red:           #c03c3c;
+  --red-soft:      rgba(192,60,60,0.10);
+  --green:         #1a9a48;
+  --green-soft:    rgba(26,154,72,0.10);
+  --amber:         #b87300;
+  --amber-soft:    rgba(184,115,0,0.10);
+  --cyan:          #1189a1;
+  --cyan-soft:     rgba(17,137,161,0.10);
+  --text-primary:   #0a1628;
+  --text-secondary: rgba(10,22,40,0.72);
+  --text-muted:     rgba(10,22,40,0.55);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+   Body + scrollbar (light) — body hardcodes dark in styles.css
+   ─────────────────────────────────────────────────────────── */
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background: var(--lp-bg);
+  color: var(--lp-text);
+}
+html[data-theme="light"] ::-webkit-scrollbar-track { background: var(--lp-bg); }
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(10,22,40,0.18);
+  border: 2px solid var(--lp-bg);
+}
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(20,110,180,0.45);
+}
+html[data-theme="light"] ::selection {
+  background: rgba(20,110,180,0.28);
+  color: var(--lp-text);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+   .lp-bgart — structural gradient swap
+   Kaatchi aurora.light uses 2 soft gradients (not 4 like dark).
+   Can't be derived from tokens; must override directly.
+   ─────────────────────────────────────────────────────────── */
+html[data-theme="light"] .lp-bgart {
+  background:
+    radial-gradient(ellipse 60% 35% at 20% 10%, rgba(20,130,200,0.10), transparent 55%),
+    radial-gradient(ellipse 60% 35% at 80% 30%, rgba(180,80,200,0.10), transparent 55%),
+    var(--lp-bg);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+   .lp-bar — waveform default bars
+   index.html uses var(--lp-faint). In light mode the 0.42 alpha
+   on a dark text color (rgba(10,22,40,0.42)) is too faint on the
+   light card; lift to a dedicated shade for visibility.
+   ─────────────────────────────────────────────────────────── */
+html[data-theme="light"] .lp-bar { background: rgba(10,22,40,0.22); }
+
+
+/* ───────────────────────────────────────────────────────────
+   Copilot (#create-page) video-mode cards (light)
+   styles.css bakes identity colors #a078ff / #6ec6d8 directly.
+   Keep both identities but shift them darker for AA contrast.
+   ─────────────────────────────────────────────────────────── */
+html[data-theme="light"] #create-page .mode-card-illustrated,
+html[data-theme="light"] #create-page .video-mode-card.illustrated {
+  background: color-mix(in oklch, var(--lp-accent2) 6%, var(--bg-card));
+  border-color: color-mix(in oklch, var(--lp-accent2) 35%, transparent);
+}
+html[data-theme="light"] #create-page .mode-card-animated,
+html[data-theme="light"] #create-page .video-mode-card.animated {
+  background: color-mix(in oklch, var(--lp-accent) 6%, var(--bg-card));
+  border-color: color-mix(in oklch, var(--lp-accent) 35%, transparent);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+   Editor: intentional-dark content preserved
+   Video preview letterbox, phone-frame bezel, and modal
+   backdrops stay dark even in light mode — they represent
+   media content and focus dimming, not chrome.
+   (No rule needed — they already use rgba(0,0,0,*) / #000.)
+   ─────────────────────────────────────────────────────────── */
+
+
+/* ───────────────────────────────────────────────────────────
+   Theme toggle button — shared style across placements
+   ─────────────────────────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-secondary, var(--lp-dim));
+  background: transparent;
+  border: 1px solid var(--border, var(--lp-bdr));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.theme-toggle:hover {
+  color: var(--text-primary, var(--lp-text));
+  border-color: var(--border-hover, var(--lp-bdr-h));
+  background: var(--bg-card, var(--lp-card));
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent, var(--lp-accent));
+  outline-offset: 2px;
+}
+/* Icon glyph — one span per icon, swapped by JS */
+.theme-toggle .ti-sun  { display: none; }
+.theme-toggle .ti-moon { display: inline; }
+html[data-theme="light"] .theme-toggle .ti-sun  { display: inline; }
+html[data-theme="light"] .theme-toggle .ti-moon { display: none; }

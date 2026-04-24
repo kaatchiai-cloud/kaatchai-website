@@ -179,7 +179,7 @@ button.danger:hover { background: var(--red-soft); }
 .btn-lg { padding: 12px 36px; font-size: var(--text-lg); border-radius: var(--radius); font-weight: 600; }
 button.btn-ghost, .btn-ghost {
   background: var(--bg-elevated) !important;
-  border: 2px solid rgba(255,255,255,0.15) !important;
+  border: 2px solid var(--border) !important;
   color: var(--text-secondary) !important;
   font-size: var(--text-sm); padding: 10px 24px;
   border-radius: var(--radius);
@@ -946,11 +946,11 @@ input[type="file"] { display: none; }
 
 .photo-block {
   position: absolute; top: 4px; height: 102px; border-radius: 8px; overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.1); cursor: grab; user-select: none;
+  border: 2px solid var(--border); cursor: grab; user-select: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .photo-block:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
-.photo-block.selected { border-color: var(--cyan); box-shadow: 0 0 12px rgba(6,182,212,0.4); }
+.photo-block.selected { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-soft); }
 .photo-block.multi-selected { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
 #marquee-box {
   position: absolute; border: 1px dashed var(--accent); background: var(--accent-soft);
@@ -958,14 +958,14 @@ input[type="file"] { display: none; }
 }
 .photo-block img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .photo-block .video-badge {
-  position: absolute; top: 4px; left: 4px; background: rgba(139,92,246,0.85);
+  position: absolute; top: 4px; left: 4px; background: var(--accent);
   color: #fff; font-size: 0.55rem; padding: 1px 5px; border-radius: 4px;
   pointer-events: none; font-weight: 600; z-index: 5; line-height: 1.4;
 }
 .photo-block .resize-handle-left,
 .photo-block .resize-handle-right {
   position: absolute; top: 0; width: 8px; height: 100%;
-  cursor: ew-resize; background: rgba(139,92,246,0.6);
+  cursor: ew-resize; background: color-mix(in oklch, var(--accent) 60%, transparent);
   opacity: 0; transition: opacity 0.15s;
 }
 .photo-block .resize-handle-left { left: 0; border-radius: 8px 0 0 8px; }
@@ -1111,21 +1111,21 @@ input[type="file"] { display: none; }
 #video-timeline-container { position: relative; width: 100%; height: 70px; }
 .video-block {
   position: absolute; top: 4px; height: 62px; border-radius: 6px; overflow: hidden;
-  border: 2px solid rgba(139,92,246,0.3); cursor: grab; user-select: none;
+  border: 2px solid var(--accent-soft); cursor: grab; user-select: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .video-block:hover { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
-.video-block.selected { border-color: var(--cyan); box-shadow: 0 0 12px rgba(6,182,212,0.4); }
+.video-block.selected { border-color: var(--cyan); box-shadow: 0 0 12px var(--cyan-soft); }
 .video-block img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .video-block .video-badge {
-  position: absolute; top: 3px; left: 3px; background: rgba(139,92,246,0.85);
+  position: absolute; top: 3px; left: 3px; background: var(--accent);
   color: #fff; font-size: 0.5rem; padding: 1px 4px; border-radius: 3px;
   pointer-events: none; font-weight: 600;
 }
 .video-block .resize-handle-left,
 .video-block .resize-handle-right {
   position: absolute; top: 0; width: 6px; height: 100%;
-  cursor: ew-resize; background: rgba(139,92,246,0.6);
+  cursor: ew-resize; background: color-mix(in oklch, var(--accent) 60%, transparent);
   opacity: 0; transition: opacity 0.15s;
 }
 .video-block .resize-handle-left { left: 0; border-radius: 6px 0 0 6px; }
@@ -2714,7 +2714,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 
 /* ── Selects ── */
 #reel-page .rp-ctrl-col select {
-  background-color: rgba(255,255,255,0.05);
+  background-color: var(--lp-card);
   border: 1px solid var(--lp-card-bdr); border-radius: 6px;
   outline: none; cursor: pointer;
   color: var(--lp-text); font-family: var(--lp-font-ui);
@@ -2725,8 +2725,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   background-repeat: no-repeat; background-position: right 5px center;
 }
 #reel-page .rp-ctrl-col select:hover {
-  background-color: rgba(255,255,255,0.09);
-  border-color: var(--lp-card-bdr-h, rgba(255,255,255,0.2));
+  background-color: color-mix(in oklch, var(--lp-card) 80%, var(--lp-text) 8%);
+  border-color: var(--lp-card-bdr-h, var(--lp-bdr-h));
 }
 #reel-page .rp-ctrl-col select option {
   background: var(--lp-bg2); color: var(--lp-text);
@@ -2887,8 +2887,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
 
 /* ═══════════════════════════════════════════════
    Aurora overrides — scoped to #create-page
@@ -4099,7 +4099,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 @keyframes confirm-fade-in { from { opacity: 0 } to { opacity: 1 } }
 .confirm-box {
   background: var(--bg-card, #1a1a2e);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 28px 32px 24px;
   max-width: 420px;
@@ -4152,13 +4152,13 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: rgba(255,255,255,0.38);
+  color: var(--text-muted);
   padding: 0 0 10px;
   letter-spacing: 0.03em;
   font-family: var(--font-mono, monospace);
 }
 .bc-sep { opacity: 0.4; }
-.bc-home, .bc-section { color: rgba(255,255,255,0.38); }
+.bc-home, .bc-section { color: var(--text-muted); }
 .bc-step {
   color: var(--lp-accent-create, #a078ff);
   font-weight: 600;
@@ -4311,8 +4311,8 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 .ghost-scene-card {
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   padding: 0 0 8px;
 }
 .ghost-thumb {
@@ -4325,8 +4325,8 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
   padding: 6px 8px 4px;
   font-size: 11px;
 }
-.ghost-num { color: rgba(255,255,255,0.5); font-weight: 600; }
-.ghost-time { color: rgba(255,255,255,0.3); font-family: monospace; }
+.ghost-num { color: var(--text-secondary); font-weight: 600; }
+.ghost-time { color: var(--text-muted); font-family: monospace; }
 .ghost-prompt {
   height: 28px;
   margin: 0 8px;
@@ -4344,7 +4344,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 }
 .handoff-card {
   background: var(--bg-card, #161625);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 36px 40px 32px;
   max-width: 480px;
@@ -4397,7 +4397,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 }
 .publish-box {
   background: var(--bg-card, #1a1a2e);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 28px 32px 24px;
   max-width: 440px;
@@ -4415,8 +4415,8 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
   margin-bottom: 18px;
 }
 .platform-btn {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px 18px;
   cursor: pointer;
@@ -4427,7 +4427,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
   transition: background 0.15s, border-color 0.15s;
   min-width: 110px;
 }
-.platform-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(160,120,255,0.4); }
+.platform-btn:hover { background: var(--bg-elevated); border-color: color-mix(in oklch, var(--accent) 40%, transparent); }
 .platform-btn strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
 .platform-btn small { color: var(--text-muted, #888); font-size: 0.72rem; }
 .btn-publish {

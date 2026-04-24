@@ -21,6 +21,17 @@ if (fs.existsSync(cssPath)) {
   );
 }
 
+// 1b. Inline themes.css: replace <link rel="stylesheet" href="css/themes.css"> with <style>...</style>
+//     Must load AFTER styles.css AND the inline <style> block to win specificity.
+const themesPath = path.join(ROOT, 'css', 'themes.css');
+if (fs.existsSync(themesPath)) {
+  const themesCss = fs.readFileSync(themesPath, 'utf8');
+  html = html.replace(
+    /\s*<link\s+rel="stylesheet"\s+href="css\/themes\.css"\s*\/?>/,
+    `\n  <style>\n${themesCss}\n  </style>`
+  );
+}
+
 // 2. Inline vendor scripts: replace <script src="vendor/..."> with inline <script>
 const vendorRegex = /\s*<script\s+(?:defer\s+)?src="vendor\/([^"]+)"><\/script>/g;
 const vendorFiles = [];
@@ -106,4 +117,4 @@ fs.writeFileSync(OUT, html);
 
 const sizeKB = (Buffer.byteLength(html) / 1024).toFixed(0);
 console.log(`✓ Built: dist/index.html (${sizeKB} KB, ${html.split('\n').length} lines)`);
-console.log(`  CSS inlined from css/styles.css`);
+console.log(`  CSS inlined from css/styles.css + css/themes.css`);
