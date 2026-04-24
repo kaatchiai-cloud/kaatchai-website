@@ -9349,6 +9349,12 @@ function navigateTo(view, pushHistory) {
   if (currentView === 'reel' && view !== 'reel') {
     const reelStatus = $('reel-generate-status');
     if (reelStatus) reelStatus.textContent = '';
+    // Bug 22/23 — cancel in-flight reel generation + stop autosave interval on nav-away.
+    // typeof guards are safe: 20-reels-creator.js is lazy-loaded and these names may be absent.
+    try { if (typeof reelAbortController !== 'undefined' && reelAbortController) reelAbortController.abort(); } catch(_) {}
+    try { if (typeof stopReelAutosave === 'function') stopReelAutosave(); } catch(_) {}
+    // Bug 28 — stop in-flight segment preview (video + audio + state reset).
+    try { if (typeof stopSegPreview === 'function') stopSegPreview(); } catch(_) {}
   }
   currentView = view;
   // Hide all views
@@ -9366,6 +9372,10 @@ function navigateTo(view, pushHistory) {
   if (view === 'home') {
     dropZone.classList.remove('hidden');
     if (typeof renderProjectGallery === 'function') renderProjectGallery();
+    // Bug 26 — clear stale data-metaphor on Create/Reel pages so future CSS
+    // rules scoped on [data-metaphor] can't leak across nav cycles.
+    if (createPage) createPage.removeAttribute('data-metaphor');
+    if (reelPage) reelPage.removeAttribute('data-metaphor');
   } else if (view === 'editor') {
     editorEl.classList.add('visible');
     if (typeof updateEditorEmptyState === 'function') updateEditorEmptyState();
@@ -9401,7 +9411,10 @@ function navigateTo(view, pushHistory) {
 
 // Handle browser back/forward
 window.addEventListener('popstate', (e) => {
-  const view = e.state?.view || 'home';
+  // Bug 27 — whitelist view before dispatch; fall back to 'home' on anything else.
+  const VALID_VIEWS = ['home', 'editor', 'create', 'reel'];
+  const raw = e.state && e.state.view;
+  const view = VALID_VIEWS.includes(raw) ? raw : 'home';
   if (view !== 'home' && typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
     loadEditorScripts(function() { navigateTo(view, false); });
   } else {
@@ -9429,6 +9442,8 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
   function applyTheme(mode){
     document.documentElement.setAttribute('data-theme', mode);
     try { localStorage.setItem('stori_theme_mode', mode); } catch(e){}
+    // Bug 24 — re-sync wavesurfer colors. typeof guard: 13-wavesurfer.js lazy-loaded.
+    try { if (typeof updateWavesurferTheme === 'function') updateWavesurferTheme(mode); } catch(_){}
   }
   function toggleTheme(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -9445,6 +9460,7 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
 
 // ── Keyboard Shortcuts ──
 document.addEventListener('keydown', (e) => {
+  const _activeTag = (document.activeElement && document.activeElement.tagName) || '';
   // Cmd/Ctrl + S: Save project
   if ((e.metaKey || e.ctrlKey) && e.key === 's') {
     e.preventDefault();
@@ -9457,7 +9473,7 @@ document.addEventListener('keydown', (e) => {
     }
   }
   // Space: Play/pause (when not in input/textarea)
-  if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+  if (e.key === ' ' && !['INPUT', 'TEXTAREA'].includes(_activeTag)) {
     e.preventDefault();
     if (currentView === 'editor' && wavesurfer) {
       if (wavesurfer.isPlaying()) wavesurfer.pause();
@@ -9478,7 +9494,7 @@ document.addEventListener('keydown', (e) => {
     }
   }
   // ?: Show shortcuts help (future implementation)
-  if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+  if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(_activeTag)) {
     // Placeholder for shortcuts help modal
   }
 });
@@ -10801,7 +10817,8 @@ if (btnManageSub) btnManageSub.addEventListener('click', () => {
 });
 
 function updateUserSection() {
-  const userData = JSON.parse(localStorage.getItem('stori_user') || 'null');
+  let userData = null;
+  try { userData = JSON.parse(localStorage.getItem('stori_user') || 'null'); } catch(_) { userData = null; }
   const signedOut = $('user-signed-out');
   const signedIn = $('user-signed-in');
   if (!signedOut || !signedIn) return;
@@ -14979,12 +14996,14 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const canvas = document.createElement('canvas');
       canvas.width = exportW; canvas.height = exportH;
       const ctx = canvas.getContext('2d');
+      if (!ctx) { setStatus('Export failed: canvas context unavailable.'); exportProgress.classList.remove('visible'); return; }
       const sorted = [...photoItems].sort((a, b) => a.startTime - b.startTime);
       const stream = canvas.captureStream(fps);
 
       const videoBitrate = Math.round(baseBitrate(exportH) * QUALITY_PRESETS[quality].bitrateMultiplier);
       console.log(`[export] ${fileExt} | ${exportW}×${exportH} | ${fps}fps | ${quality} | ${(videoBitrate/1e6).toFixed(1)}Mbps`);
 
+      let timerWorker = null;
       try {
         exportLabel.textContent = 'Recording frames...';
         const audioDest = ensureAudioCtx().createMediaStreamDestination();
@@ -15006,15 +15025,20 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
         const chunks = [];
         recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-        const done = new Promise(r => { recorder.onstop = r; });
+        const done = new Promise((resolve, reject) => {
+          recorder.onstop = resolve;
+          recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+        });
 
         const sortedTexts = [...textItems].sort((a, b) => a.startTime - b.startTime);
         const sortedSubs = [...subtitleItems].sort((a, b) => a.startTime - b.startTime);
 
         // Use a Web Worker timer so frames keep rendering even when tab is in background.
-        const timerWorker = new Worker(URL.createObjectURL(new Blob([
+        const _timerWorkerUrl = URL.createObjectURL(new Blob([
           `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-        ], { type: 'text/javascript' })));
+        ], { type: 'text/javascript' }));
+        timerWorker = new Worker(_timerWorkerUrl);
+        URL.revokeObjectURL(_timerWorkerUrl);
 
         // Animated mode: pre-seek and start first clip before recording
         let exportActiveClipIdx = -1;
@@ -15112,7 +15136,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         setStatus(`Exported ${fileName} (${(videoBlob.size / 1048576).toFixed(1)} MB) — ${exportW}×${exportH}, ${fps}fps, ${quality}`);
-      } catch (e) { if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
+      } catch (e) { if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; } if (e.name !== 'AbortError') { console.error('Export error:', e); setStatus('Export failed. Try a different format or lower resolution.'); } }
       exportProgress.classList.remove('visible');
     });
 
@@ -15160,10 +15184,12 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
           exportLabel.textContent = `Exporting ${track.label} (${ti + 1}/${tracksToExport.length})...`;
           exportBar.style.width = '0%';
 
+          let timerWorker = null;
           try {
             const canvas = document.createElement('canvas');
             canvas.width = exportW; canvas.height = exportH;
             const ctx = canvas.getContext('2d');
+            if (!ctx) { setStatus(`Export failed for ${track.label}: canvas context unavailable.`); continue; }
             const stream = canvas.captureStream(fps);
 
             const audioDest = ensureAudioCtx().createMediaStreamDestination();
@@ -15181,7 +15207,10 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
             const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
             const chunks = [];
             recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-            const done = new Promise(r => { recorder.onstop = r; });
+            const done = new Promise((resolve, reject) => {
+              recorder.onstop = resolve;
+              recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+            });
 
             const trackSortedTexts = track.subtitles ? [...track.subtitles].sort((a, b) => a.startTime - b.startTime) : sortedTexts;
             // Build photo list with per-language timings
@@ -15189,9 +15218,11 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
               ? sorted.map((p, i) => ({ ...p, startTime: track.photoTimings[i]?.startTime ?? p.startTime, duration: track.photoTimings[i]?.duration ?? p.duration }))
               : sorted;
 
-            const timerWorker = new Worker(URL.createObjectURL(new Blob([
+            const _timerWorkerUrl = URL.createObjectURL(new Blob([
               `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-            ], { type: 'text/javascript' })));
+            ], { type: 'text/javascript' }));
+            timerWorker = new Worker(_timerWorkerUrl);
+            URL.revokeObjectURL(_timerWorkerUrl);
 
             recorder.start(100); audioSource.start();
             const t0 = performance.now();
@@ -15230,6 +15261,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
             a.href = URL.createObjectURL(videoBlob); a.download = fileName; a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 60000);
           } catch (e) {
+            if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; }
             console.error(`Export ${track.label} error:`, e);
             setStatus(`Export failed for ${track.label}. Try a different format.`);
           }
@@ -15309,6 +15341,18 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       regions.on('region-created', r => { regions.getRegions().forEach(x => { if (x.id !== r.id) x.remove(); }); activeRegion = r; updateRB(); });
       regions.on('region-updated', () => updateRB());
       regions.on('region-removed', () => { activeRegion = null; updateRB(); });
+      // Bug 24 — sync waveform colors to current theme at init.
+      try { updateWavesurferTheme(); } catch(_) {}
+    }
+    // Bug 24 — re-applies wave/progress colors on theme toggle. Called from
+    // applyTheme() in 01-core.js. Safe no-op if wavesurfer isn't initialized.
+    function updateWavesurferTheme(mode) {
+      if (!wavesurfer) return;
+      var m = mode || document.documentElement.getAttribute('data-theme') || 'dark';
+      var colors = (m === 'light')
+        ? { waveColor: '#4a42cc', progressColor: '#2e298a' }
+        : { waveColor: '#6c63ff', progressColor: '#4a42cc' };
+      try { wavesurfer.setOptions(colors); } catch(_) {}
     }
     function updateRB() {
       const h = !!activeRegion;
@@ -22724,7 +22768,7 @@ function renderReelPresetSegments() {
         if (!vid) return;
         vid.currentTime = seg.start;
         vid.muted = false;
-        vid.play();
+        vid.play().catch(() => {});
         const interval = setInterval(() => {
           if (segPreviewPlaying !== idx) { clearInterval(interval); return; }
           const elapsed = vid.currentTime - seg.start;
@@ -25938,7 +25982,7 @@ if (btnReelPlay) btnReelPlay.addEventListener('click', () => {
     const vidOffset = activeResult ? activeResult.videoStart : 0;
     reelVideoEl.currentTime = vidOffset;
     reelVideoEl.muted = true;
-    reelVideoEl.play();
+    reelVideoEl.play().catch(() => {});
   }
 
   const platform = REEL_PLATFORMS[reelPlatform];
@@ -26783,6 +26827,7 @@ async function exportSingleReel() {
   exportLabel.textContent = 'Preparing export...';
   if (btnReelExport) btnReelExport.disabled = true;
 
+  let timerWorker = null;
   try {
     // Auto-detect best format (MP4 if available, else WebM)
     const resolved = typeof resolveMime === 'function' ? resolveMime('mp4') || resolveMime('auto') : null;
@@ -26808,7 +26853,10 @@ async function exportSingleReel() {
     const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: videoBitrate });
     const chunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    const done = new Promise(r => { recorder.onstop = r; });
+    const done = new Promise((resolve, reject) => {
+      recorder.onstop = resolve;
+      recorder.onerror = (ev) => reject(new Error('MediaRecorder error: ' + ((ev && ev.error && ev.error.message) || 'unknown')));
+    });
 
     const isVid = reelScenes && reelScenes.some(s => s.isVideo);
     const isAnimated = reelVideoMode === 'animated' && reelScenes.some(s => s.videoUrl);
@@ -26845,7 +26893,7 @@ async function exportSingleReel() {
     if (!isAnimated) {
       if (isVid && reelVideoEl) {
         const vidOffset = activeResult ? activeResult.videoStart : 0;
-        reelVideoEl.currentTime = vidOffset; reelVideoEl.muted = true; reelVideoEl.play();
+        reelVideoEl.currentTime = vidOffset; reelVideoEl.muted = true; reelVideoEl.play().catch(() => {});
       }
     }
 
@@ -26916,9 +26964,11 @@ async function exportSingleReel() {
       drawReelOverlays(ctx, platform.width, platform.height, elapsed);
     }
 
-    const timerWorker = new Worker(URL.createObjectURL(new Blob([
+    const _timerWorkerUrl = URL.createObjectURL(new Blob([
       `let id; self.onmessage = e => { if (e.data==="start") id=setInterval(()=>self.postMessage("t"),${1000/fps}); else clearInterval(id); };`
-    ], { type: 'text/javascript' })));
+    ], { type: 'text/javascript' }));
+    timerWorker = new Worker(_timerWorkerUrl);
+    URL.revokeObjectURL(_timerWorkerUrl);
 
     timerWorker.onmessage = () => {
       if (stopped) return;
@@ -26948,6 +26998,7 @@ async function exportSingleReel() {
     setStatus(`Reel exported as ${fileExt.toUpperCase()} (${(videoBlob.size / 1048576).toFixed(1)} MB)`);
     reelDirty = false;
   } catch(e) {
+    if (timerWorker) { try { timerWorker.postMessage('stop'); timerWorker.terminate(); } catch(_) {} timerWorker = null; }
     console.error('[ReelExport] Error:', e);
     setStatus('Export failed: ' + (e.message || 'Try a different browser or shorter duration.'));
   }
@@ -27945,16 +27996,16 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if(e.dataTransfer.files[0]) loadFileIntoEditor(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', () => { if(fileInput.files[0]) loadFileIntoEditor(fileInput.files[0]); fileInput.value=''; });
 btnLoad.addEventListener('click', () => fileInput.click());
-btnPlay.addEventListener('click', () => { wavesurfer.isPlaying() ? wavesurfer.pause() : wavesurfer.play(); });
+btnPlay.addEventListener('click', () => { if (!wavesurfer) return; wavesurfer.isPlaying() ? wavesurfer.pause() : wavesurfer.play(); });
 btnPlaySelection.addEventListener('click', () => {
   if (!activeRegion || !wavesurfer) return;
   activeRegion.play();
 });
-btnStop.addEventListener('click', () => wavesurfer.stop());
+btnStop.addEventListener('click', () => { if (wavesurfer) wavesurfer.stop(); });
 btnKeep.addEventListener('click', async () => { if(!activeRegion) return; pushUndo(); currentBuffer=extractRegion(currentBuffer,activeRegion.start,activeRegion.end); setStatus(`Kept: ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
 btnDelete.addEventListener('click', async () => { if(!activeRegion) return; pushUndo(); const r=deleteRegion(currentBuffer,activeRegion.start,activeRegion.end); if(!r){setStatus('Cannot delete all');return;} currentBuffer=r; setStatus(`Deleted. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
 btnInsert.addEventListener('click', () => insertInput.click());
-insertInput.addEventListener('change', async () => { const f=insertInput.files[0]; if(!f)return; insertInput.value=''; const ct=wavesurfer.getCurrentTime(); setStatus(`Inserting at ${fmt(ct)}...`); try{const ib=await loadAudioBuffer(f);pushUndo();currentBuffer=insertAudioAt(currentBuffer,ib,ct);setStatus(`Inserted. ${fmt(currentBuffer.duration)}`);await refreshWaveform();}catch(e){setStatus('Error: '+e.message);} });
+insertInput.addEventListener('change', async () => { const f=insertInput.files[0]; if(!f)return; insertInput.value=''; if(!wavesurfer){setStatus('Load audio first.');return;} const ct=wavesurfer.getCurrentTime(); setStatus(`Inserting at ${fmt(ct)}...`); try{const ib=await loadAudioBuffer(f);pushUndo();currentBuffer=insertAudioAt(currentBuffer,ib,ct);setStatus(`Inserted. ${fmt(currentBuffer.duration)}`);await refreshWaveform();}catch(e){setStatus('Error: '+e.message);} });
 btnUndo.addEventListener('click', async () => { if(!undoStack.length)return; currentBuffer=undoStack.pop(); if(!undoStack.length)btnUndo.disabled=true; setStatus(`Undo. ${fmt(currentBuffer.duration)}`); await refreshWaveform(); });
 window.addEventListener('resize', () => { drawRuler(); renderPhotos(); renderVideoTimeline(); renderTexts(); renderSubtitles(); });
 
