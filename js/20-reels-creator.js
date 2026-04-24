@@ -3256,7 +3256,13 @@ async function reelRunImageGeneration(scenesToGen) {
     try {
       window.startEmojiReel(scenesToGen, {
         panel: 'reel',
-        audio: (typeof reelAudioBuffer !== 'undefined') ? reelAudioBuffer : null,
+        // Pass only the trimmed region so playback stops at the end of the
+        // selected narration, not the full uploaded audio file.
+        audio: (typeof reelAudioBuffer !== 'undefined' && reelAudioBuffer)
+          ? (reelAudioRegion && typeof extractRegion === 'function'
+              ? extractRegion(reelAudioBuffer, reelAudioRegion.start, reelAudioRegion.end)
+              : reelAudioBuffer)
+          : null,
       });
     } catch (_) {}
   }

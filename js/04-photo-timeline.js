@@ -202,8 +202,8 @@
       if (!item) { hideProps(); return; }
       propThumb.src = item.imgSrc;
       propStart.value = item.startTime.toFixed(1);
-      propDuration.value = item.duration.toFixed(1);
-      propEnd.textContent = (item.startTime + item.duration).toFixed(1) + 's';
+      propEnd.value = (item.startTime + item.duration).toFixed(1);
+      propDuration.textContent = item.duration.toFixed(1) + 's';
       propTransition.value = item.transition;
       propTransDur.value = item.transDur;
       propMotion.value = item.motion || 'none';
@@ -228,9 +228,13 @@
       const item = getSelectedPhoto();
       if (item) { item.startTime = Math.max(0, parseFloat(propStart.value) || 0); renderPhotos(); showProps(item.id); }
     });
-    propDuration.addEventListener('change', () => {
+    propEnd.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.duration = Math.max(0.3, parseFloat(propDuration.value) || 1); renderPhotos(); showProps(item.id); }
+      if (item) {
+        const end = Math.max(item.startTime + 0.3, parseFloat(propEnd.value) || 0);
+        item.duration = parseFloat((end - item.startTime).toFixed(1));
+        renderPhotos(); showProps(item.id);
+      }
     });
     propTransition.addEventListener('change', () => {
       const item = getSelectedPhoto();

@@ -4,7 +4,7 @@
       regions = WaveSurfer.Regions.create();
       wavesurfer = WaveSurfer.create({
         container: '#waveform', waveColor: '#6c63ff', progressColor: '#4a42cc',
-        cursorColor: '#ff6b6b', cursorWidth: 2, height: 100, barWidth: 2, barGap: 1, barRadius: 2,
+        cursorColor: '#ff6b6b', cursorWidth: 2, height: 60, barWidth: 2, barGap: 1, barRadius: 2,
         autoScroll: false, autoCenter: false,
         plugins: [regions],
       });

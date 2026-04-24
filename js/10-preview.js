@@ -556,50 +556,79 @@
       const items = window._editorReelOverlays || [];
       if (!items.length) { editorOverlayChips.style.display = 'none'; return; }
       editorOverlayChips.style.display = 'flex';
+      editorOverlayChips.style.flexDirection = 'column';
       const totalDur = currentBuffer ? currentBuffer.duration : 60;
       const FONTS = ['Poppins','Montserrat','Anton','Bebas Neue','Oswald','Inter'];
-      editorOverlayChips.innerHTML = items.map((item, i) => {
-        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[item.type] : null;
-        const label = def ? def.label : item.type;
-        const p = item.params || {};
-        const endTime = (item.startTime + item.duration).toFixed(1);
-        const isWide = item.type === 'fade-title' || item.type === 'lower-third';
-        let paramsHtml = '';
-        if (item.type === 'lower-third') {
-          paramsHtml = `
-            <input type="text" class="eov-name" data-idx="${i}" value="${p.name||''}" placeholder="Name" style="width:70px;font-size:inherit;padding:2px 4px;">
-            <input type="text" class="eov-title-text" data-idx="${i}" value="${p.title||''}" placeholder="Role" style="width:70px;font-size:inherit;padding:2px 4px;">
-            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#000000'}" title="BG" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-accent-color" data-idx="${i}" value="${p.accentColor||'#a855f7'}" title="Accent" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        } else if (item.type === 'fade-title') {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:90px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Text color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-bg-color" data-idx="${i}" value="${p.bgColor||'#000000'}" title="BG color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
-            <select class="eov-position" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:70px;">
-              <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
-              <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
-              <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
-            </select>`;
-        } else if (item.type === 'subscribe' || item.type === 'follow') {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:80px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ff0000'}" title="Button color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text/icon color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        } else {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:100px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        }
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:0;${isWide?'flex-wrap:wrap;max-width:100%;':''}">
-          <span style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;">${label}</span>
-          ${paramsHtml}
-          <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="End">s
-          <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
-        </span>`;
+      const OVERLAY_EMOJI = { subscribe:'🔴', follow:'💜', 'lower-third':'📛', 'cta-arrow':'👇', 'fade-title':'✨' };
+
+      // Group items by type, preserving insertion order
+      const groups = {}, groupOrder = [];
+      items.forEach((item, i) => {
+        if (!groups[item.type]) { groups[item.type] = []; groupOrder.push(item.type); }
+        groups[item.type].push({ item, i });
+      });
+
+      editorOverlayChips.innerHTML = groupOrder.map(type => {
+        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[type] : null;
+        const label = def ? def.label : type;
+        const emoji = OVERLAY_EMOJI[type] || '✨';
+        const itemRows = groups[type].map(({ item, i }, gi) => {
+          const endTime = (item.startTime + item.duration).toFixed(1);
+          const p = item.params || {};
+          const cs = 'width:18px;height:18px;padding:0;border:none;cursor:pointer;flex-shrink:0;'; // color swatch
+          // Line 1: text box(es) — Line 2: timing + colors + extras
+          let line1Html = '', line2Html = '';
+          if (type === 'lower-third') {
+            line1Html = `
+              <input type="text" class="eov-name" data-idx="${i}" value="${p.name||''}" placeholder="Name" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">
+              <input type="text" class="eov-title-text" data-idx="${i}" value="${p.title||''}" placeholder="Role" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#000000'}" title="BG" style="${cs}">
+              <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text" style="${cs}">
+              <input type="color" class="eov-accent-color" data-idx="${i}" value="${p.accentColor||'#a855f7'}" title="Accent" style="${cs}">
+              <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;flex:1;min-width:0;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>`;
+          } else if (type === 'fade-title') {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Text color" style="${cs}">
+              <input type="color" class="eov-bg-color" data-idx="${i}" value="${p.bgColor||'#000000'}" title="BG" style="${cs}">
+              <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;flex:1;min-width:0;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
+              <select class="eov-position" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:60px;">
+                <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
+                <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
+                <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
+              </select>`;
+          } else if (type === 'subscribe' || type === 'follow') {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ff0000'}" title="Button color" style="${cs}">
+              <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text/icon color" style="${cs}">`;
+          } else {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Color" style="${cs}">`;
+          }
+          const sep = gi > 0 ? 'border-top:1px solid var(--border);margin-top:4px;padding-top:4px;' : '';
+          return `<div style="${sep}">
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;margin-bottom:3px;">
+              ${line1Html}
+              <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.85rem;padding:0 4px;line-height:1;flex-shrink:0;">✕</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;">
+              <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:36px;font-size:inherit;padding:2px 3px;" title="Start (s)">
+              <span style="color:var(--text-muted);">–</span>
+              <input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:36px;font-size:inherit;padding:2px 3px;" title="End (s)">s
+              ${line2Html}
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:0.72rem;">
+          <div style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${emoji} ${label}</div>
+          ${itemRows}
+        </div>`;
       }).join('');
 
       // Wire param inputs
@@ -790,6 +819,9 @@
         renderEditorOverlayChips();
         // Show panel if hidden
         if (reelPropsPanel) reelPropsPanel.style.display = '';
+        // Scroll the overlay chips into view so user sees the added overlay
+        const _chips = $('editor-overlay-chips');
+        if (_chips) _chips.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     });
 

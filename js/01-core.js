@@ -301,6 +301,9 @@ function navigateTo(view, pushHistory) {
     try { if (typeof stopSegPreview === 'function') stopSegPreview(); } catch(_) {}
   }
   currentView = view;
+  // Show/hide nav back buttons (editor only; nav is hidden on create/reel by CSS)
+  var navBackBtns = document.getElementById('nav-back-buttons');
+  if (navBackBtns) navBackBtns.classList.toggle('hidden', view !== 'editor');
   // Hide all views
   dropZone.classList.add('hidden');
   editorEl.classList.remove('visible');

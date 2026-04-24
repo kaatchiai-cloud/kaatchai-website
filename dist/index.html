@@ -821,7 +821,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 
 /* ── Editor ── */
-#editor { width: 100%; max-width: 1080px; display: none; padding-top: 72px; }
+#editor { width: 100%; max-width: 1080px; display: none; padding-top: 0; }
 #editor.visible { display: block; }
 
 /* ── Editor Two-Column Layout (desktop ≥900px) ── */
@@ -840,35 +840,55 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
     flex: 0 0 272px;
     width: 272px;
     position: sticky;
-    top: 80px;
-    max-height: calc(100vh - 96px);
+    top: 24px;
+    height: calc(100vh - 32px);
+    display: grid;
+    grid-template-rows: 1fr auto;
+    overflow: hidden;
+  }
+  /* Scrollable zone — 1fr fills all space above the pinned preview */
+  #editor-props-scroll {
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 16px;
+    padding: 0 0 8px;
+    min-height: 0;
   }
-  /* Scrollbar for props column */
-  #editor-props-col::-webkit-scrollbar { width: 4px; }
-  #editor-props-col::-webkit-scrollbar-track { background: transparent; }
-  #editor-props-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  #editor-props-scroll::-webkit-scrollbar { width: 4px; }
+  #editor-props-scroll::-webkit-scrollbar-track { background: transparent; }
+  #editor-props-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  /* Reel Frame & Overlays — fixed height, scrolls internally */
+  #reel-editor-props {
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+  }
+  #reel-editor-props::-webkit-scrollbar { width: 4px; }
+  #reel-editor-props::-webkit-scrollbar-track { background: transparent; }
+  #reel-editor-props::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  /* Preview — auto-row in grid = always pinned at the bottom, never moves */
+  #inline-preview-panel {
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+    margin-top: 0;
+    overflow: hidden;
+  }
   /* Full-width items that stay at #editor level */
   #editor > .action-bar,
   #editor > #export-settings,
   #editor > #project-input {
     flex: 1 1 100%;
   }
-  /* Inline preview always visible in props column — remove margin-top */
-  #editor-props-col #inline-preview-panel {
-    margin-top: 0;
-  }
 }
 
 #waveform-clip {
   overflow: hidden; position: relative;
   background: var(--bg-secondary); border-radius: var(--radius);
-  padding: 8px; margin-bottom: 4px; min-height: 100px;
+  padding: 8px; margin-bottom: 4px; min-height: 60px;
   border: 1px solid var(--border);
 }
 #waveform {
@@ -1032,23 +1052,41 @@ input[type="file"] { display: none; }
   position: relative;
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px 14px;
-  margin-top: 8px; display: none; gap: 10px; align-items: center;
-  font-size: 0.78rem; flex-wrap: wrap;
+  margin-top: 8px; display: none; flex-direction: column; gap: 8px;
+  font-size: 0.78rem;
 }
 #photo-props.visible { display: flex; }
 #photo-props label { color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
 #photo-props input[type="number"] {
-  width: 65px; background: var(--bg-input); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+  width: 52px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); padding: 4px 6px; font-size: 0.78rem;
 }
+#prop-trans-dur { width: 44px !important; }
 #photo-props select {
   background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+  color: var(--text-primary); padding: 4px 6px; font-size: 0.78rem;
 }
 #photo-props .prop-thumb {
   width: 48px; height: 36px; border-radius: 6px; object-fit: cover;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border); flex-shrink: 0;
 }
+/* Compact thumbnail + time-range row */
+.prop-thumb-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.prop-time-range {
+  display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: nowrap;
+  color: var(--text-secondary);
+}
+.prop-range-sep { color: var(--text-muted); }
+.prop-dur-display {
+  color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; margin-left: 2px;
+}
+/* Motion row — select + remove button inline */
+.prop-motion-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.prop-motion-row label { flex: 1; }
 
 /* Reference cards (characters/environments) */
 .ref-cards { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -1382,6 +1420,7 @@ input[type="file"] { display: none; }
 }
 .zoom-controls .zoom-info { color: var(--accent); font-weight: 600; min-width: 120px; font-family: 'SF Mono', monospace; font-size: 0.7rem; }
 .zoom-controls button { font-size: 0.68rem; padding: 3px 10px; }
+#zoom-reset { padding: 3px 8px; font-size: 0.85rem; line-height: 1; }
 
 /* ── Export progress ── */
 #export-progress { display: none; margin-top: 10px; width: 100%; }
@@ -4589,6 +4628,24 @@ body:has(#drop-zone:not(.hidden)) {
   box-shadow: 0 1px 0 var(--lp-glow-soft), 0 12px 40px -8px color-mix(in srgb, var(--lp-bg) 60%, transparent);
   height: 67px;
 }
+/* Editor only — let nav scroll with the page */
+[data-section="editor"] .lp-nav {
+  position: relative;
+  z-index: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 0 var(--lp-glow-soft);
+}
+#nav-back-buttons { display: flex; align-items: center; gap: 8px; margin-right: 16px; }
+#nav-back-buttons.hidden { display: none !important; }
+.lp-nav-back-btn {
+  font-family: var(--lp-font-ui, 'Poppins', sans-serif); font-size: 12.5px; font-weight: 400;
+  color: var(--lp-dim, rgba(238,244,255,0.65)); background: transparent;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.08)); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.lp-nav-back-btn:hover { background: var(--lp-card, rgba(255,255,255,0.035)); color: var(--lp-text, #eef4ff); border-color: var(--lp-card-bdr-h, rgba(120,220,255,0.40)); }
 .lp-nav-inner {
   max-width: 1280px; margin: 0 auto; padding: 0 36px;
   height: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -6025,6 +6082,11 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
   <nav class="lp-nav">
     <div class="lp-nav-inner">
       <div class="lp-nav-left">
+        <div id="nav-back-buttons" class="hidden">
+          <button id="btn-editor-home" class="lp-nav-back-btn">← Home</button>
+          <button id="btn-back-to-create" class="lp-nav-back-btn" style="display:none;">← Back to Create</button>
+          <button id="btn-back-to-reel" class="lp-nav-back-btn hidden">← Back to Reel</button>
+        </div>
         <a class="lp-logo" href="#">
           <span class="lp-logo-dot"></span>
           <span class="lp-logo-text">Kaatchi</span>
@@ -7477,14 +7539,6 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
   <div id="editor">
     <!-- Reel tabs (shown when editing multiple reels) -->
     <div id="editor-reel-tabs" class="editor-reel-tabs hidden"></div>
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-      <button id="btn-editor-home" class="btn-md">← Home</button>
-      <button id="btn-back-to-create" style="font-size:0.8rem; padding:6px 14px; display:none;">← Back to Create</button>
-      <button id="btn-back-to-reel" class="btn-sm hidden">← Back to Reel</button>
-      <button type="button" class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle light/dark theme" style="margin-left:auto;">
-        <span class="ti-sun" aria-hidden="true">☀︎</span><span class="ti-moon" aria-hidden="true">☾</span>
-      </button>
-    </div>
     <!-- Empty state — shown when editor has no content -->
     <div id="editor-empty-state" class="editor-empty-state" style="display:none;">
       <div class="editor-empty-icon">🎬</div>
@@ -7567,7 +7621,7 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
         <input type="range" id="zoom-scroll" min="0" max="1" step="0.001" value="0">
       </label>
       <button id="zoom-scroll-right" class="btn-xs">▶</button>
-      <button id="zoom-reset">Reset</button>
+      <button id="zoom-reset" title="Reset zoom">↺</button>
     </div>
 
     <div class="section-label">
@@ -7714,12 +7768,19 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
 
     <div id="photo-props">
       <button id="prop-close" class="props-close-btn" title="Close">✕</button>
-      <img class="prop-thumb" id="prop-thumb" src="" alt="">
-      <label>Start: <input type="number" id="prop-start" step="0.1" min="0">s</label>
-      <label>Duration: <input type="number" id="prop-duration" step="0.1" min="0.5">s</label>
-      <label>End: <span id="prop-end" class="text-secondary">—</span></label>
-      <label>Transition:
-        <select id="prop-transition">
+      <!-- Row 1: thumbnail + compact time range -->
+      <div class="prop-thumb-row">
+        <img class="prop-thumb" id="prop-thumb" src="" alt="">
+        <div class="prop-time-range">
+          <input type="number" id="prop-start" step="0.1" min="0">
+          <span class="prop-range-sep">–</span>
+          <input type="number" id="prop-end" step="0.1" min="0">s
+          <span id="prop-duration" class="prop-dur-display"></span>
+        </div>
+      </div>
+      <!-- Row 2: transition -->
+      <label>Trans:
+        <select id="prop-transition" style="max-width:110px;">
           <optgroup label="Basic">
             <option value="none">None (Cut)</option>
             <option value="fade">Fade</option>
@@ -7754,20 +7815,24 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
             <option value="film-grain">Film Grain</option>
           </optgroup>
         </select>
+        <input type="number" id="prop-trans-dur" step="0.1" min="0.1" max="5" value="0.5">s
       </label>
-      <label>Trans. dur: <input type="number" id="prop-trans-dur" step="0.1" min="0.1" max="5" value="0.5">s</label>
-      <label>Motion:
-        <select id="prop-motion">
-          <option value="none">None</option>
-          <option value="ken-burns">Ken Burns</option>
-          <option value="slow-zoom-in">Slow Zoom In</option>
-          <option value="slow-zoom-out">Slow Zoom Out</option>
-          <option value="pan-left">Pan Left</option>
-          <option value="pan-right">Pan Right</option>
-          <option value="pan-up">Pan Up</option>
-          <option value="pan-down">Pan Down</option>
-        </select>
-      </label>
+      <!-- Row 3: motion + remove inline -->
+      <div class="prop-motion-row">
+        <label>Motion:
+          <select id="prop-motion" style="max-width:100px;">
+            <option value="none">None</option>
+            <option value="ken-burns">Ken Burns</option>
+            <option value="slow-zoom-in">Slow Zoom In</option>
+            <option value="slow-zoom-out">Slow Zoom Out</option>
+            <option value="pan-left">Pan Left</option>
+            <option value="pan-right">Pan Right</option>
+            <option value="pan-up">Pan Up</option>
+            <option value="pan-down">Pan Down</option>
+          </select>
+        </label>
+        <button id="prop-delete" class="danger btn-sm">Remove</button>
+      </div>
       <div id="video-props-extra" style="display:none; width:100%; border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
         <span class="text-sm font-semibold" style="color:var(--accent);">🎬 Video Trim</span>
         <div class="form-row mt-xs">
@@ -7776,7 +7841,6 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
           <label>Source: <span id="prop-video-dur" class="text-secondary">—</span></label>
         </div>
       </div>
-      <button id="prop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Video Timeline -->
@@ -8049,7 +8113,7 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
           <button class="btn-xs" data-editor-overlay="cta-arrow">👇 CTA</button>
           <button class="btn-xs" data-editor-overlay="fade-title">✨ Title</button>
         </div>
-        <div id="editor-overlay-chips" style="display:none; flex-wrap:wrap; gap:4px; max-width:100%; overflow:hidden;"></div>
+        <div id="editor-overlay-chips" style="display:none; flex-direction:column; gap:6px; max-width:100%;"></div>
       </div>
     </div>
 
@@ -8995,7 +9059,8 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
     if (!editor) return;
 
     // Props panel IDs to move into the right column
-    var propIds = ['pip-props', 'photo-props', 'video-props', 'sub-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
+    // inline-preview-panel is pinned to the bottom of propsCol; all others go into the scrollable zone
+    var propIds = ['pip-props', 'photo-props', 'video-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
     var propIdSet = {};
     propIds.forEach(function(id) { propIdSet[id] = true; });
 
@@ -9007,18 +9072,28 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
     mainCol.id = 'editor-main-col';
     var propsCol = document.createElement('div');
     propsCol.id = 'editor-props-col';
+    // Scrollable inner zone — all panels except preview
+    var scrollZone = document.createElement('div');
+    scrollZone.id = 'editor-props-scroll';
 
     // Snapshot children before DOM manipulation
     var children = Array.from(editor.children);
     children.forEach(function(child) {
       if (propIdSet[child.id]) {
-        propsCol.appendChild(child);
+        if (child.id === 'inline-preview-panel') {
+          // Preview goes directly into propsCol (pinned at bottom, outside scroll zone)
+          propsCol.appendChild(child);
+        } else {
+          scrollZone.appendChild(child);
+        }
       } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
         // Leave at editor level — do not move
       } else {
         mainCol.appendChild(child);
       }
     });
+    // scrollZone goes before the pinned preview (insert at position 0)
+    propsCol.insertBefore(scrollZone, propsCol.firstChild);
 
     // Insert mainCol and propsCol before action-bar
     var actionBar = editor.querySelector('.action-bar');
@@ -9357,6 +9432,9 @@ function navigateTo(view, pushHistory) {
     try { if (typeof stopSegPreview === 'function') stopSegPreview(); } catch(_) {}
   }
   currentView = view;
+  // Show/hide nav back buttons (editor only; nav is hidden on create/reel by CSS)
+  var navBackBtns = document.getElementById('nav-back-buttons');
+  if (navBackBtns) navBackBtns.classList.toggle('hidden', view !== 'editor');
   // Hide all views
   dropZone.classList.add('hidden');
   editorEl.classList.remove('visible');
@@ -11687,8 +11765,8 @@ function drawRuler() {
       if (!item) { hideProps(); return; }
       propThumb.src = item.imgSrc;
       propStart.value = item.startTime.toFixed(1);
-      propDuration.value = item.duration.toFixed(1);
-      propEnd.textContent = (item.startTime + item.duration).toFixed(1) + 's';
+      propEnd.value = (item.startTime + item.duration).toFixed(1);
+      propDuration.textContent = item.duration.toFixed(1) + 's';
       propTransition.value = item.transition;
       propTransDur.value = item.transDur;
       propMotion.value = item.motion || 'none';
@@ -11713,9 +11791,13 @@ function drawRuler() {
       const item = getSelectedPhoto();
       if (item) { item.startTime = Math.max(0, parseFloat(propStart.value) || 0); renderPhotos(); showProps(item.id); }
     });
-    propDuration.addEventListener('change', () => {
+    propEnd.addEventListener('change', () => {
       const item = getSelectedPhoto();
-      if (item) { item.duration = Math.max(0.3, parseFloat(propDuration.value) || 1); renderPhotos(); showProps(item.id); }
+      if (item) {
+        const end = Math.max(item.startTime + 0.3, parseFloat(propEnd.value) || 0);
+        item.duration = parseFloat((end - item.startTime).toFixed(1));
+        renderPhotos(); showProps(item.id);
+      }
     });
     propTransition.addEventListener('change', () => {
       const item = getSelectedPhoto();
@@ -14657,50 +14739,79 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const items = window._editorReelOverlays || [];
       if (!items.length) { editorOverlayChips.style.display = 'none'; return; }
       editorOverlayChips.style.display = 'flex';
+      editorOverlayChips.style.flexDirection = 'column';
       const totalDur = currentBuffer ? currentBuffer.duration : 60;
       const FONTS = ['Poppins','Montserrat','Anton','Bebas Neue','Oswald','Inter'];
-      editorOverlayChips.innerHTML = items.map((item, i) => {
-        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[item.type] : null;
-        const label = def ? def.label : item.type;
-        const p = item.params || {};
-        const endTime = (item.startTime + item.duration).toFixed(1);
-        const isWide = item.type === 'fade-title' || item.type === 'lower-third';
-        let paramsHtml = '';
-        if (item.type === 'lower-third') {
-          paramsHtml = `
-            <input type="text" class="eov-name" data-idx="${i}" value="${p.name||''}" placeholder="Name" style="width:70px;font-size:inherit;padding:2px 4px;">
-            <input type="text" class="eov-title-text" data-idx="${i}" value="${p.title||''}" placeholder="Role" style="width:70px;font-size:inherit;padding:2px 4px;">
-            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#000000'}" title="BG" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-accent-color" data-idx="${i}" value="${p.accentColor||'#a855f7'}" title="Accent" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        } else if (item.type === 'fade-title') {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:90px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Text color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-bg-color" data-idx="${i}" value="${p.bgColor||'#000000'}" title="BG color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:90px;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
-            <select class="eov-position" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:70px;">
-              <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
-              <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
-              <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
-            </select>`;
-        } else if (item.type === 'subscribe' || item.type === 'follow') {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:80px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ff0000'}" title="Button color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">
-            <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text/icon color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        } else {
-          paramsHtml = `
-            <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="width:100px;font-size:inherit;padding:2px 4px;">
-            <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Color" style="width:22px;height:22px;padding:0;border:none;cursor:pointer;">`;
-        }
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:0.72rem;flex-shrink:0;${isWide?'flex-wrap:wrap;max-width:100%;':''}">
-          <span style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;">${label}</span>
-          ${paramsHtml}
-          <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="Start">–<input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:40px;font-size:inherit;padding:2px 3px;" title="End">s
-          <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:inherit;padding:0 2px;line-height:1;">✕</button>
-        </span>`;
+      const OVERLAY_EMOJI = { subscribe:'🔴', follow:'💜', 'lower-third':'📛', 'cta-arrow':'👇', 'fade-title':'✨' };
+
+      // Group items by type, preserving insertion order
+      const groups = {}, groupOrder = [];
+      items.forEach((item, i) => {
+        if (!groups[item.type]) { groups[item.type] = []; groupOrder.push(item.type); }
+        groups[item.type].push({ item, i });
+      });
+
+      editorOverlayChips.innerHTML = groupOrder.map(type => {
+        const def = (typeof REEL_OVERLAY_PRESETS !== 'undefined') ? REEL_OVERLAY_PRESETS[type] : null;
+        const label = def ? def.label : type;
+        const emoji = OVERLAY_EMOJI[type] || '✨';
+        const itemRows = groups[type].map(({ item, i }, gi) => {
+          const endTime = (item.startTime + item.duration).toFixed(1);
+          const p = item.params || {};
+          const cs = 'width:18px;height:18px;padding:0;border:none;cursor:pointer;flex-shrink:0;'; // color swatch
+          // Line 1: text box(es) — Line 2: timing + colors + extras
+          let line1Html = '', line2Html = '';
+          if (type === 'lower-third') {
+            line1Html = `
+              <input type="text" class="eov-name" data-idx="${i}" value="${p.name||''}" placeholder="Name" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">
+              <input type="text" class="eov-title-text" data-idx="${i}" value="${p.title||''}" placeholder="Role" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#000000'}" title="BG" style="${cs}">
+              <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text" style="${cs}">
+              <input type="color" class="eov-accent-color" data-idx="${i}" value="${p.accentColor||'#a855f7'}" title="Accent" style="${cs}">
+              <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;flex:1;min-width:0;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>`;
+          } else if (type === 'fade-title') {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Text color" style="${cs}">
+              <input type="color" class="eov-bg-color" data-idx="${i}" value="${p.bgColor||'#000000'}" title="BG" style="${cs}">
+              <select class="eov-font" data-idx="${i}" style="font-size:inherit;padding:2px 3px;flex:1;min-width:0;">${FONTS.map(f=>`<option value="${f}" ${(p.font||'Poppins')===f?'selected':''}>${f}</option>`).join('')}</select>
+              <select class="eov-position" data-idx="${i}" style="font-size:inherit;padding:2px 3px;max-width:60px;">
+                <option value="top" ${(p.position||'center')==='top'?'selected':''}>Top</option>
+                <option value="center" ${(p.position||'center')==='center'?'selected':''}>Center</option>
+                <option value="bottom" ${(p.position||'center')==='bottom'?'selected':''}>Bottom</option>
+              </select>`;
+          } else if (type === 'subscribe' || type === 'follow') {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ff0000'}" title="Button color" style="${cs}">
+              <input type="color" class="eov-text-color" data-idx="${i}" value="${p.textColor||'#ffffff'}" title="Text/icon color" style="${cs}">`;
+          } else {
+            line1Html = `
+              <input type="text" class="eov-text" data-idx="${i}" value="${p.text||''}" placeholder="Text" style="flex:1;min-width:0;font-size:inherit;padding:2px 4px;">`;
+            line2Html = `
+              <input type="color" class="eov-color" data-idx="${i}" value="${p.color||'#ffffff'}" title="Color" style="${cs}">`;
+          }
+          const sep = gi > 0 ? 'border-top:1px solid var(--border);margin-top:4px;padding-top:4px;' : '';
+          return `<div style="${sep}">
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;margin-bottom:3px;">
+              ${line1Html}
+              <button class="eov-del" data-idx="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.85rem;padding:0 4px;line-height:1;flex-shrink:0;">✕</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;">
+              <input type="number" class="eov-start" data-idx="${i}" value="${item.startTime.toFixed(1)}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:36px;font-size:inherit;padding:2px 3px;" title="Start (s)">
+              <span style="color:var(--text-muted);">–</span>
+              <input type="number" class="eov-end" data-idx="${i}" value="${endTime}" min="0" max="${totalDur.toFixed(1)}" step="0.5" style="width:36px;font-size:inherit;padding:2px 3px;" title="End (s)">s
+              ${line2Html}
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:0.72rem;">
+          <div style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${emoji} ${label}</div>
+          ${itemRows}
+        </div>`;
       }).join('');
 
       // Wire param inputs
@@ -14891,6 +15002,9 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         renderEditorOverlayChips();
         // Show panel if hidden
         if (reelPropsPanel) reelPropsPanel.style.display = '';
+        // Scroll the overlay chips into view so user sees the added overlay
+        const _chips = $('editor-overlay-chips');
+        if (_chips) _chips.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     });
 
@@ -15327,7 +15441,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       regions = WaveSurfer.Regions.create();
       wavesurfer = WaveSurfer.create({
         container: '#waveform', waveColor: '#6c63ff', progressColor: '#4a42cc',
-        cursorColor: '#ff6b6b', cursorWidth: 2, height: 100, barWidth: 2, barGap: 1, barRadius: 2,
+        cursorColor: '#ff6b6b', cursorWidth: 2, height: 60, barWidth: 2, barGap: 1, barRadius: 2,
         autoScroll: false, autoCenter: false,
         plugins: [regions],
       });
@@ -25274,7 +25388,13 @@ async function reelRunImageGeneration(scenesToGen) {
     try {
       window.startEmojiReel(scenesToGen, {
         panel: 'reel',
-        audio: (typeof reelAudioBuffer !== 'undefined') ? reelAudioBuffer : null,
+        // Pass only the trimmed region so playback stops at the end of the
+        // selected narration, not the full uploaded audio file.
+        audio: (typeof reelAudioBuffer !== 'undefined' && reelAudioBuffer)
+          ? (reelAudioRegion && typeof extractRegion === 'function'
+              ? extractRegion(reelAudioBuffer, reelAudioRegion.start, reelAudioRegion.end)
+              : reelAudioBuffer)
+          : null,
       });
     } catch (_) {}
   }

@@ -799,7 +799,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 }
 
 /* ── Editor ── */
-#editor { width: 100%; max-width: 1080px; display: none; padding-top: 72px; }
+#editor { width: 100%; max-width: 1080px; display: none; padding-top: 0; }
 #editor.visible { display: block; }
 
 /* ── Editor Two-Column Layout (desktop ≥900px) ── */
@@ -818,35 +818,55 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
     flex: 0 0 272px;
     width: 272px;
     position: sticky;
-    top: 80px;
-    max-height: calc(100vh - 96px);
+    top: 24px;
+    height: calc(100vh - 32px);
+    display: grid;
+    grid-template-rows: 1fr auto;
+    overflow: hidden;
+  }
+  /* Scrollable zone — 1fr fills all space above the pinned preview */
+  #editor-props-scroll {
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 16px;
+    padding: 0 0 8px;
+    min-height: 0;
   }
-  /* Scrollbar for props column */
-  #editor-props-col::-webkit-scrollbar { width: 4px; }
-  #editor-props-col::-webkit-scrollbar-track { background: transparent; }
-  #editor-props-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  #editor-props-scroll::-webkit-scrollbar { width: 4px; }
+  #editor-props-scroll::-webkit-scrollbar-track { background: transparent; }
+  #editor-props-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  /* Reel Frame & Overlays — fixed height, scrolls internally */
+  #reel-editor-props {
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+  }
+  #reel-editor-props::-webkit-scrollbar { width: 4px; }
+  #reel-editor-props::-webkit-scrollbar-track { background: transparent; }
+  #reel-editor-props::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  /* Preview — auto-row in grid = always pinned at the bottom, never moves */
+  #inline-preview-panel {
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+    margin-top: 0;
+    overflow: hidden;
+  }
   /* Full-width items that stay at #editor level */
   #editor > .action-bar,
   #editor > #export-settings,
   #editor > #project-input {
     flex: 1 1 100%;
   }
-  /* Inline preview always visible in props column — remove margin-top */
-  #editor-props-col #inline-preview-panel {
-    margin-top: 0;
-  }
 }
 
 #waveform-clip {
   overflow: hidden; position: relative;
   background: var(--bg-secondary); border-radius: var(--radius);
-  padding: 8px; margin-bottom: 4px; min-height: 100px;
+  padding: 8px; margin-bottom: 4px; min-height: 60px;
   border: 1px solid var(--border);
 }
 #waveform {
@@ -1010,23 +1030,41 @@ input[type="file"] { display: none; }
   position: relative;
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px 14px;
-  margin-top: 8px; display: none; gap: 10px; align-items: center;
-  font-size: 0.78rem; flex-wrap: wrap;
+  margin-top: 8px; display: none; flex-direction: column; gap: 8px;
+  font-size: 0.78rem;
 }
 #photo-props.visible { display: flex; }
 #photo-props label { color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
 #photo-props input[type="number"] {
-  width: 65px; background: var(--bg-input); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+  width: 52px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); padding: 4px 6px; font-size: 0.78rem;
 }
+#prop-trans-dur { width: 44px !important; }
 #photo-props select {
   background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text-primary); padding: 5px 7px; font-size: 0.78rem;
+  color: var(--text-primary); padding: 4px 6px; font-size: 0.78rem;
 }
 #photo-props .prop-thumb {
   width: 48px; height: 36px; border-radius: 6px; object-fit: cover;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border); flex-shrink: 0;
 }
+/* Compact thumbnail + time-range row */
+.prop-thumb-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.prop-time-range {
+  display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: nowrap;
+  color: var(--text-secondary);
+}
+.prop-range-sep { color: var(--text-muted); }
+.prop-dur-display {
+  color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; margin-left: 2px;
+}
+/* Motion row — select + remove button inline */
+.prop-motion-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.prop-motion-row label { flex: 1; }
 
 /* Reference cards (characters/environments) */
 .ref-cards { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -1360,6 +1398,7 @@ input[type="file"] { display: none; }
 }
 .zoom-controls .zoom-info { color: var(--accent); font-weight: 600; min-width: 120px; font-family: 'SF Mono', monospace; font-size: 0.7rem; }
 .zoom-controls button { font-size: 0.68rem; padding: 3px 10px; }
+#zoom-reset { padding: 3px 8px; font-size: 0.85rem; line-height: 1; }
 
 /* ── Export progress ── */
 #export-progress { display: none; margin-top: 10px; width: 100%; }

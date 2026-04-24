@@ -121,6 +121,24 @@ body:has(#drop-zone:not(.hidden)) {
   box-shadow: 0 1px 0 var(--lp-glow-soft), 0 12px 40px -8px color-mix(in srgb, var(--lp-bg) 60%, transparent);
   height: 67px;
 }
+/* Editor only — let nav scroll with the page */
+[data-section="editor"] .lp-nav {
+  position: relative;
+  z-index: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 0 var(--lp-glow-soft);
+}
+#nav-back-buttons { display: flex; align-items: center; gap: 8px; margin-right: 16px; }
+#nav-back-buttons.hidden { display: none !important; }
+.lp-nav-back-btn {
+  font-family: var(--lp-font-ui, 'Poppins', sans-serif); font-size: 12.5px; font-weight: 400;
+  color: var(--lp-dim, rgba(238,244,255,0.65)); background: transparent;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.08)); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.lp-nav-back-btn:hover { background: var(--lp-card, rgba(255,255,255,0.035)); color: var(--lp-text, #eef4ff); border-color: var(--lp-card-bdr-h, rgba(120,220,255,0.40)); }
 .lp-nav-inner {
   max-width: 1280px; margin: 0 auto; padding: 0 36px;
   height: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -1370,6 +1388,11 @@ body:has(#drop-zone:not(.hidden)) {
   <nav class="lp-nav">
     <div class="lp-nav-inner">
       <div class="lp-nav-left">
+        <div id="nav-back-buttons" class="hidden">
+          <button id="btn-editor-home" class="lp-nav-back-btn">← Home</button>
+          <button id="btn-back-to-create" class="lp-nav-back-btn" style="display:none;">← Back to Create</button>
+          <button id="btn-back-to-reel" class="lp-nav-back-btn hidden">← Back to Reel</button>
+        </div>
         <a class="lp-logo" href="#">
           <span class="lp-logo-dot"></span>
           <span class="lp-logo-text">Kaatchi</span>
@@ -2822,14 +2845,6 @@ body:has(#drop-zone:not(.hidden)) {
   <div id="editor">
     <!-- Reel tabs (shown when editing multiple reels) -->
     <div id="editor-reel-tabs" class="editor-reel-tabs hidden"></div>
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-      <button id="btn-editor-home" class="btn-md">← Home</button>
-      <button id="btn-back-to-create" style="font-size:0.8rem; padding:6px 14px; display:none;">← Back to Create</button>
-      <button id="btn-back-to-reel" class="btn-sm hidden">← Back to Reel</button>
-      <button type="button" class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle light/dark theme" style="margin-left:auto;">
-        <span class="ti-sun" aria-hidden="true">☀︎</span><span class="ti-moon" aria-hidden="true">☾</span>
-      </button>
-    </div>
     <!-- Empty state — shown when editor has no content -->
     <div id="editor-empty-state" class="editor-empty-state" style="display:none;">
       <div class="editor-empty-icon">🎬</div>
@@ -2912,7 +2927,7 @@ body:has(#drop-zone:not(.hidden)) {
         <input type="range" id="zoom-scroll" min="0" max="1" step="0.001" value="0">
       </label>
       <button id="zoom-scroll-right" class="btn-xs">▶</button>
-      <button id="zoom-reset">Reset</button>
+      <button id="zoom-reset" title="Reset zoom">↺</button>
     </div>
 
     <div class="section-label">
@@ -3059,12 +3074,19 @@ body:has(#drop-zone:not(.hidden)) {
 
     <div id="photo-props">
       <button id="prop-close" class="props-close-btn" title="Close">✕</button>
-      <img class="prop-thumb" id="prop-thumb" src="" alt="">
-      <label>Start: <input type="number" id="prop-start" step="0.1" min="0">s</label>
-      <label>Duration: <input type="number" id="prop-duration" step="0.1" min="0.5">s</label>
-      <label>End: <span id="prop-end" class="text-secondary">—</span></label>
-      <label>Transition:
-        <select id="prop-transition">
+      <!-- Row 1: thumbnail + compact time range -->
+      <div class="prop-thumb-row">
+        <img class="prop-thumb" id="prop-thumb" src="" alt="">
+        <div class="prop-time-range">
+          <input type="number" id="prop-start" step="0.1" min="0">
+          <span class="prop-range-sep">–</span>
+          <input type="number" id="prop-end" step="0.1" min="0">s
+          <span id="prop-duration" class="prop-dur-display"></span>
+        </div>
+      </div>
+      <!-- Row 2: transition -->
+      <label>Trans:
+        <select id="prop-transition" style="max-width:110px;">
           <optgroup label="Basic">
             <option value="none">None (Cut)</option>
             <option value="fade">Fade</option>
@@ -3099,20 +3121,24 @@ body:has(#drop-zone:not(.hidden)) {
             <option value="film-grain">Film Grain</option>
           </optgroup>
         </select>
+        <input type="number" id="prop-trans-dur" step="0.1" min="0.1" max="5" value="0.5">s
       </label>
-      <label>Trans. dur: <input type="number" id="prop-trans-dur" step="0.1" min="0.1" max="5" value="0.5">s</label>
-      <label>Motion:
-        <select id="prop-motion">
-          <option value="none">None</option>
-          <option value="ken-burns">Ken Burns</option>
-          <option value="slow-zoom-in">Slow Zoom In</option>
-          <option value="slow-zoom-out">Slow Zoom Out</option>
-          <option value="pan-left">Pan Left</option>
-          <option value="pan-right">Pan Right</option>
-          <option value="pan-up">Pan Up</option>
-          <option value="pan-down">Pan Down</option>
-        </select>
-      </label>
+      <!-- Row 3: motion + remove inline -->
+      <div class="prop-motion-row">
+        <label>Motion:
+          <select id="prop-motion" style="max-width:100px;">
+            <option value="none">None</option>
+            <option value="ken-burns">Ken Burns</option>
+            <option value="slow-zoom-in">Slow Zoom In</option>
+            <option value="slow-zoom-out">Slow Zoom Out</option>
+            <option value="pan-left">Pan Left</option>
+            <option value="pan-right">Pan Right</option>
+            <option value="pan-up">Pan Up</option>
+            <option value="pan-down">Pan Down</option>
+          </select>
+        </label>
+        <button id="prop-delete" class="danger btn-sm">Remove</button>
+      </div>
       <div id="video-props-extra" style="display:none; width:100%; border-top:1px solid var(--border); padding-top:6px; margin-top:2px;">
         <span class="text-sm font-semibold" style="color:var(--accent);">🎬 Video Trim</span>
         <div class="form-row mt-xs">
@@ -3121,7 +3147,6 @@ body:has(#drop-zone:not(.hidden)) {
           <label>Source: <span id="prop-video-dur" class="text-secondary">—</span></label>
         </div>
       </div>
-      <button id="prop-delete" class="danger btn-sm">Remove</button>
     </div>
 
     <!-- Video Timeline -->
@@ -3394,7 +3419,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button class="btn-xs" data-editor-overlay="cta-arrow">👇 CTA</button>
           <button class="btn-xs" data-editor-overlay="fade-title">✨ Title</button>
         </div>
-        <div id="editor-overlay-chips" style="display:none; flex-wrap:wrap; gap:4px; max-width:100%; overflow:hidden;"></div>
+        <div id="editor-overlay-chips" style="display:none; flex-direction:column; gap:6px; max-width:100%;"></div>
       </div>
     </div>
 
@@ -4343,7 +4368,8 @@ body:has(#drop-zone:not(.hidden)) {
     if (!editor) return;
 
     // Props panel IDs to move into the right column
-    var propIds = ['pip-props', 'photo-props', 'video-props', 'sub-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
+    // inline-preview-panel is pinned to the bottom of propsCol; all others go into the scrollable zone
+    var propIds = ['pip-props', 'photo-props', 'video-props', 'text-props', 'reel-editor-props', 'inline-preview-panel'];
     var propIdSet = {};
     propIds.forEach(function(id) { propIdSet[id] = true; });
 
@@ -4355,18 +4381,28 @@ body:has(#drop-zone:not(.hidden)) {
     mainCol.id = 'editor-main-col';
     var propsCol = document.createElement('div');
     propsCol.id = 'editor-props-col';
+    // Scrollable inner zone — all panels except preview
+    var scrollZone = document.createElement('div');
+    scrollZone.id = 'editor-props-scroll';
 
     // Snapshot children before DOM manipulation
     var children = Array.from(editor.children);
     children.forEach(function(child) {
       if (propIdSet[child.id]) {
-        propsCol.appendChild(child);
+        if (child.id === 'inline-preview-panel') {
+          // Preview goes directly into propsCol (pinned at bottom, outside scroll zone)
+          propsCol.appendChild(child);
+        } else {
+          scrollZone.appendChild(child);
+        }
       } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
         // Leave at editor level — do not move
       } else {
         mainCol.appendChild(child);
       }
     });
+    // scrollZone goes before the pinned preview (insert at position 0)
+    propsCol.insertBefore(scrollZone, propsCol.firstChild);
 
     // Insert mainCol and propsCol before action-bar
     var actionBar = editor.querySelector('.action-bar');
