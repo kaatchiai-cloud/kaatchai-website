@@ -280,6 +280,12 @@ function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 let currentView = 'home'; // home | editor | create | reel
 
 function navigateTo(view, pushHistory) {
+  // metaphor-plan.md Exception 3 — set data-section on <html> per route.
+  // Consumed by css/themes.css and future css/filmstrip.css / css/reel.css.
+  document.documentElement.setAttribute('data-section',
+    view === 'home'   ? 'landing'   :
+    view === 'create' ? 'copilot'   :
+    view === 'reel'   ? 'autopilot' : 'editor');
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
   }
@@ -315,9 +321,25 @@ function navigateTo(view, pushHistory) {
   } else if (view === 'create') {
     if (createPage) createPage.classList.add('visible');
     if (createHeaderWrapper) createHeaderWrapper.style.display = 'block';
+    // metaphor-plan.md §3 — restore last-chosen Copilot metaphor on entry.
+    try {
+      var cm = localStorage.getItem('stori_copilot_metaphor') || 'filmstrip';
+      if (createPage) createPage.setAttribute('data-metaphor', cm);
+    } catch(e){}
   } else if (view === 'reel') {
     if (reelPage) reelPage.classList.add('visible');
     if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'block';
+    // metaphor-plan.md §3 — restore last-chosen Autopilot metaphor on entry.
+    try {
+      var rm = localStorage.getItem('stori_autopilot_metaphor') || 'reel';
+      if (reelPage) reelPage.setAttribute('data-metaphor', rm);
+    } catch(e){}
+    // metaphor-plan.md Exception 1 addendum — dispatch 'idle' phase so the
+    // dial lands on the `record` agent when the user arrives at Autopilot.
+    // (Safe no-op until js/24-reel.js ships; no listeners today.)
+    try {
+      document.dispatchEvent(new CustomEvent('reel:phase', { detail: { phase: 'idle' }}));
+    } catch(e){}
   }
 }
 
@@ -333,6 +355,37 @@ window.addEventListener('popstate', (e) => {
 
 // Set initial state
 history.replaceState({ view: 'home' }, '', location.hash || '#home');
+// metaphor-plan.md Exception 3 — initial data-section (navigateTo sets it on
+// subsequent transitions; this covers the first paint before any route change).
+(function(){
+  var initial = (location.hash || '#home').replace('#','');
+  document.documentElement.setAttribute('data-section',
+    initial === 'home'   ? 'landing'   :
+    initial === 'create' ? 'copilot'   :
+    initial === 'reel'   ? 'autopilot' : 'editor');
+})();
+
+// ── Theme toggle (dark ↔ light) ──────────────────────────────────────
+// metaphor-plan.md §3 localStorage contract: key 'stori_theme_mode'.
+// data-theme is already set pre-paint by the FOUC script in index.html
+// <head>. These handlers just flip + persist on click.
+(function(){
+  function applyTheme(mode){
+    document.documentElement.setAttribute('data-theme', mode);
+    try { localStorage.setItem('stori_theme_mode', mode); } catch(e){}
+  }
+  function toggleTheme(){
+    var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  }
+  // Delegate: any .theme-toggle button anywhere flips the theme.
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('.theme-toggle');
+    if (btn) { e.preventDefault(); toggleTheme(); }
+  });
+  // Expose for keyboard shortcut / programmatic use if needed.
+  window.storiToggleTheme = toggleTheme;
+})();
 
 // ── Keyboard Shortcuts ──
 document.addEventListener('keydown', (e) => {
