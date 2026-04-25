@@ -463,8 +463,8 @@ function initCreateWaveSurfer() {
   createRegionsPlugin = WaveSurfer.Regions.create();
   createWavesurfer = WaveSurfer.create({
     container: createWaveformEl,
-    waveColor: '#6c63ff',
-    progressColor: '#4a42cc',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     cursorColor: '#ff6b6b',
     cursorWidth: 2,
     height: 80,
@@ -2560,8 +2560,8 @@ function initCreateBgmWaveform(url) {
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
-    waveColor: 'rgba(167,139,250,0.5)',
-    progressColor: '#7c3aed',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     height: 72,
     barWidth: 2,
     barGap: 1,

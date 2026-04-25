@@ -6,7 +6,12 @@ function drawRuler() {
   c.style.width = w + 'px'; c.style.height = '20px';
   const ctx = c.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w, 20);
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const rulerBg   = isLight ? '#e3e9f1' : '#111';
+  const rulerTick = isLight ? '#8899aa' : '#444';
+  const rulerText = isLight ? '#556677' : '#666';
+
+  ctx.fillStyle = rulerBg; ctx.fillRect(0, 0, w, 20);
 
   const visDur = visibleDuration();
   const visStart = visibleStart();
@@ -21,7 +26,7 @@ function drawRuler() {
   else if (visDur > 2) interval = 0.5;
   else interval = 0.25;
 
-  ctx.fillStyle = '#666'; ctx.font = '9px sans-serif'; ctx.strokeStyle = '#444';
+  ctx.fillStyle = rulerText; ctx.font = '9px sans-serif'; ctx.strokeStyle = rulerTick;
   const firstTick = Math.floor(visStart / interval) * interval;
   for (let t = firstTick; t <= visStart + visDur; t += interval) {
     const x = ((t - visStart) / visDur) * w;

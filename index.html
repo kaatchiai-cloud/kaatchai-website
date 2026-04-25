@@ -2776,7 +2776,7 @@ body:has(#drop-zone:not(.hidden)) {
 
       <!-- Legacy BGM status/player (kept for JS compatibility) -->
       <div id="reel-bgm-status" class="text-sm text-muted reel-orphan" style="display:none;"></div>
-      <div id="reel-bgm-player" class="reel-orphan" style="display:none; margin-top:12px;">
+      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
         <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
           <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
@@ -4395,8 +4395,10 @@ body:has(#drop-zone:not(.hidden)) {
         } else {
           scrollZone.appendChild(child);
         }
-      } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
+      } else if (keepAtEditor[child.id]) {
         // Leave at editor level — do not move
+      } else if (child.classList.contains('action-bar')) {
+        mainCol.appendChild(child); // action-bar goes at the bottom of main col
       } else {
         mainCol.appendChild(child);
       }
@@ -4404,15 +4406,19 @@ body:has(#drop-zone:not(.hidden)) {
     // scrollZone goes before the pinned preview (insert at position 0)
     propsCol.insertBefore(scrollZone, propsCol.firstChild);
 
-    // Insert mainCol and propsCol before action-bar
-    var actionBar = editor.querySelector('.action-bar');
-    if (actionBar) {
-      editor.insertBefore(mainCol, actionBar);
-      editor.insertBefore(propsCol, actionBar);
-    } else {
-      editor.appendChild(mainCol);
-      editor.appendChild(propsCol);
+    editor.appendChild(mainCol);
+    editor.appendChild(propsCol);
+
+    // Sync propsCol height to mainCol height (capped at viewport)
+    // so preview bottom always aligns with action bar bottom.
+    function syncPropsHeight() {
+      var maxH = window.innerHeight - 32;
+      propsCol.style.height = Math.min(mainCol.offsetHeight, maxH) + 'px';
     }
+    var ro = new ResizeObserver(syncPropsHeight);
+    ro.observe(mainCol);
+    window.addEventListener('resize', syncPropsHeight);
+    syncPropsHeight();
   }
 
   // Surprise Me — randomise style preset

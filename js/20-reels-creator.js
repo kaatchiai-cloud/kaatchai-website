@@ -436,8 +436,8 @@ function initReelAudioWaveform() {
   if (reelAudioWavesurfer) reelAudioWavesurfer.destroy();
   reelAudioWavesurfer = WaveSurfer.create({
     container: '#reel-audio-waveform',
-    waveColor: 'rgba(160,120,255,0.4)',
-    progressColor: 'rgba(160,120,255,0.7)',
+    waveColor: 'rgba(29,168,204,0.45)',
+    progressColor: 'rgba(80,208,240,0.80)',
     height: 60,
     barWidth: 2,
     barGap: 1,
@@ -453,7 +453,7 @@ function initReelAudioWaveform() {
     const regionDur = Math.min(reelDuration, dur);
     reelAudioRegion = regionsPlugin.addRegion({
       start: 0, end: regionDur,
-      color: 'rgba(160,120,255,0.2)',
+      color: 'rgba(80,208,240,0.18)',
       drag: true, resize: true,
     });
     updateReelAudioInfo();
@@ -595,8 +595,8 @@ function initReelWaveform() {
   if (reelWavesurfer) reelWavesurfer.destroy();
   reelWavesurfer = WaveSurfer.create({
     container: '#reel-waveform',
-    waveColor: 'rgba(160,120,255,0.4)',
-    progressColor: 'rgba(160,120,255,0.7)',
+    waveColor: 'rgba(29,168,204,0.45)',
+    progressColor: 'rgba(80,208,240,0.80)',
     height: 60,
     barWidth: 2,
     barGap: 1,
@@ -612,7 +612,7 @@ function initReelWaveform() {
     const regionDur = Math.min(reelDuration, dur);
     reelRegion = regionsPlugin.addRegion({
       start: 0, end: regionDur,
-      color: 'rgba(160,120,255,0.2)',
+      color: 'rgba(80,208,240,0.18)',
       drag: true, resize: true,
     });
     updateReelSegmentInfo();
@@ -4375,11 +4375,16 @@ let reelBgmWavesurfer = null;
 function initReelBgmWaveform(url) {
   const container = $('reel-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
+  // Hide faux wave, show real WaveSurfer waveform (same as initCreateBgmWaveform)
+  const fauxWave = $('reel-bgm-faux-wave');
+  if (fauxWave) fauxWave.style.display = 'none';
+  const bgmPlayer = $('reel-bgm-player');
+  if (bgmPlayer) bgmPlayer.style.display = '';
   if (reelBgmWavesurfer) { try { reelBgmWavesurfer.destroy(); } catch(e) {} reelBgmWavesurfer = null; }
   reelBgmWavesurfer = WaveSurfer.create({
     container: '#reel-bgm-waveform',
-    waveColor: 'rgba(167,139,250,0.5)',
-    progressColor: '#7c3aed',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     height: 72,
     barWidth: 2,
     barGap: 1,

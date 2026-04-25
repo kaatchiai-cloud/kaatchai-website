@@ -3,7 +3,7 @@
       if (wavesurfer) wavesurfer.destroy();
       regions = WaveSurfer.Regions.create();
       wavesurfer = WaveSurfer.create({
-        container: '#waveform', waveColor: '#6c63ff', progressColor: '#4a42cc',
+        container: '#waveform', waveColor: '#1da8cc', progressColor: '#50d0f0',
         cursorColor: '#ff6b6b', cursorWidth: 2, height: 60, barWidth: 2, barGap: 1, barRadius: 2,
         autoScroll: false, autoCenter: false,
         plugins: [regions],
@@ -14,7 +14,7 @@
       wavesurfer.on('pause', () => { btnPlay.innerHTML = '&#9654; Play'; updatePlayhead(); });
       wavesurfer.on('seek', () => updatePlayhead());
       wavesurfer.on('ready', () => updatePlayhead());
-      regions.enableDragSelection({ color: 'rgba(108,99,255,0.25)' });
+      regions.enableDragSelection({ color: 'rgba(80,208,240,0.20)' });
       regions.on('region-created', r => { regions.getRegions().forEach(x => { if (x.id !== r.id) x.remove(); }); activeRegion = r; updateRB(); });
       regions.on('region-updated', () => updateRB());
       regions.on('region-removed', () => { activeRegion = null; updateRB(); });
@@ -27,8 +27,8 @@
       if (!wavesurfer) return;
       var m = mode || document.documentElement.getAttribute('data-theme') || 'dark';
       var colors = (m === 'light')
-        ? { waveColor: '#4a42cc', progressColor: '#2e298a' }
-        : { waveColor: '#6c63ff', progressColor: '#4a42cc' };
+        ? { waveColor: '#1a7a9a', progressColor: '#1da8cc' }
+        : { waveColor: '#1da8cc', progressColor: '#50d0f0' };
       try { wavesurfer.setOptions(colors); } catch(_) {}
     }
     function updateRB() {

@@ -391,6 +391,8 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
     try { localStorage.setItem('stori_theme_mode', mode); } catch(e){}
     // Bug 24 — re-sync wavesurfer colors. typeof guard: 13-wavesurfer.js lazy-loaded.
     try { if (typeof updateWavesurferTheme === 'function') updateWavesurferTheme(mode); } catch(_){}
+    // Re-sync BGM canvas waveform color to theme
+    try { if (typeof drawBgmWaveform === 'function') drawBgmWaveform(); } catch(_){}
   }
   function toggleTheme(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';

@@ -28,11 +28,11 @@
   --bg-input: #12121a;
   --border: #2a2a3a;
   --border-hover: #3a3a4c;
-  --border-active: rgba(124,58,237,0.5);
-  --accent: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-glow: rgba(124,58,237,0.25);
-  --accent-soft: rgba(124,58,237,0.12);
+  --border-active: rgba(120,220,255,0.40);
+  --accent: oklch(80% 0.14 200);
+  --accent-hover: oklch(75% 0.16 200);
+  --accent-glow: rgba(120,220,255,0.22);
+  --accent-soft: rgba(120,220,255,0.10);
   --red: #ef4444;
   --red-soft: rgba(239,68,68,0.15);
   --green: #22c55e;
@@ -71,7 +71,7 @@ body {
   padding-right: calc(24px + env(safe-area-inset-right));
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
-  background-image: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.06) 0%, transparent 60%);
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(120,220,255,0.05) 0%, transparent 60%);
 }
 /* ── Global Loading Indicators ── */
 /* Top progress bar */
@@ -499,7 +499,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   transition: background 0.3s;
 }
 .create-step.step-done h3 .step-num { background: #10b981; }
-.create-step.step-active h3 .step-num { background: var(--accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.3); }
+.create-step.step-active h3 .step-num { background: var(--accent); box-shadow: 0 0 0 3px rgba(120,220,255,0.28); }
 /* Video Mode Cards */
 .video-mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 0; }
 .video-mode-card {
@@ -512,22 +512,22 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 .video-mode-desc { font-size: 0.71rem; }
 .video-mode-cost { font-size: 0.68rem; border-radius: 10px; padding: 2px 10px; font-weight: 600; margin-top: 2px; }
 
-/* Illustrated — purple */
+/* Illustrated — cyan (Aurora) */
 #create-card-illustrated, #reel-card-illustrated {
-  border-color: rgba(124,58,237,0.3);
-  background: rgba(124,58,237,0.04);
+  border-color: rgba(120,220,255,0.25);
+  background: rgba(120,220,255,0.04);
 }
-#create-card-illustrated .video-mode-desc, #reel-card-illustrated .video-mode-desc { color: #9d8fce; }
+#create-card-illustrated .video-mode-desc, #reel-card-illustrated .video-mode-desc { color: rgba(120,220,255,0.75); }
 #create-card-illustrated .video-mode-cost, #reel-card-illustrated .video-mode-cost {
-  color: #a855f7; background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.35);
+  color: oklch(80% 0.14 200); background: rgba(120,220,255,0.14); border: 1px solid rgba(120,220,255,0.30);
 }
-#create-card-illustrated:hover, #reel-card-illustrated:hover { border-color: rgba(168,85,247,0.6); background: rgba(124,58,237,0.08); }
+#create-card-illustrated:hover, #reel-card-illustrated:hover { border-color: rgba(120,220,255,0.50); background: rgba(120,220,255,0.08); }
 #create-card-illustrated.active, #reel-card-illustrated.active {
-  border-color: #a855f7;
-  background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(168,85,247,0.1));
-  box-shadow: 0 0 0 3px rgba(124,58,237,0.2), inset 0 1px 0 rgba(168,85,247,0.15);
+  border-color: oklch(80% 0.14 200);
+  background: linear-gradient(135deg, rgba(120,220,255,0.18), rgba(120,220,255,0.06));
+  box-shadow: 0 0 0 3px rgba(120,220,255,0.18), inset 0 1px 0 rgba(120,220,255,0.12);
 }
-#create-card-illustrated.active .video-mode-title, #reel-card-illustrated.active .video-mode-title { color: #c4b5fd; }
+#create-card-illustrated.active .video-mode-title, #reel-card-illustrated.active .video-mode-title { color: oklch(88% 0.12 200); }
 
 /* Animated — cyan */
 #create-card-animated, #reel-card-animated {
@@ -589,7 +589,7 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   display: flex; flex-direction: column; justify-content: flex-end;
 }
 .template-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-.template-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(139,92,246,0.4); }
+.template-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(120,220,255,0.30); }
 .template-card-name {
   font-size: 0.78rem; font-weight: 600; color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,0.5); margin-bottom: 3px;
@@ -839,9 +839,9 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
   #editor-props-col {
     flex: 0 0 272px;
     width: 272px;
+    align-self: flex-start;
     position: sticky;
     top: 24px;
-    height: calc(100vh - 32px);
     display: grid;
     grid-template-rows: 1fr auto;
     overflow: hidden;
@@ -878,7 +878,6 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
     overflow: hidden;
   }
   /* Full-width items that stay at #editor level */
-  #editor > .action-bar,
   #editor > #export-settings,
   #editor > #project-input {
     flex: 1 1 100%;
@@ -903,6 +902,8 @@ input[type="range"] { accent-color: var(--accent); vertical-align: middle; }
 
 /* ── Buttons (extended) ── */
 .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.controls button { padding: 3px 10px; font-size: var(--text-xs); }
+.section-label button.btn-sm { padding: 3px 10px; font-size: var(--text-xs); }
 button.success { background: var(--green-soft); border-color: rgba(34,197,94,0.3); color: var(--green); }
 button.success:hover { background: rgba(34,197,94,0.25); border-color: var(--green); }
 button.warn { background: var(--amber-soft); border-color: rgba(245,158,11,0.3); color: var(--amber); }
@@ -1721,7 +1722,7 @@ input:focus, select:focus, textarea:focus {
 .bgm-remove-btn:hover { background: var(--red); color: #fff; }
 #bgm-timeline-wrap {
   position: relative; width: 100%; height: 64px; overflow: hidden;
-  background: #0d1117;
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 0 0 var(--radius) var(--radius);
   cursor: crosshair;
@@ -2636,7 +2637,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   border-radius: 12px; overflow: hidden;
 }
 #reel-page .reel-bgm-wave-bar {
-  flex: 1; background: var(--lp-accent2);
+  flex: 1; background: var(--lp-accent);
   border-radius: 1px;
 }
 
@@ -3889,7 +3890,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 }
 #create-page .create-bgm-wave-bar {
   flex: 1;
-  background: linear-gradient(180deg, var(--lp-accent) 0%, var(--lp-accent2) 100%);
+  background: var(--lp-accent);
   border-radius: 1px;
   opacity: var(--wave-opacity, 0.6);
 }
@@ -4205,7 +4206,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 }
 .confirm-ok-btn:hover { background: #e74c3c; }
 .confirm-ok-btn.is-safe { background: var(--accent, #a078ff); }
-.confirm-ok-btn.is-safe:hover { background: #b899ff; }
+.confirm-ok-btn.is-safe:hover { background: oklch(75% 0.16 200); }
 
 /* ═══ Create Breadcrumb ═══ */
 .create-breadcrumb {
@@ -4417,7 +4418,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 .handoff-card h2 {
   font-size: 1.5rem;
   margin: 0 0 6px;
-  background: linear-gradient(90deg, #a078ff, #6ad0ff);
+  background: linear-gradient(90deg, oklch(80% 0.14 200), oklch(88% 0.10 180));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .handoff-card .handoff-tagline { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 24px; }
@@ -4492,7 +4493,7 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
 .platform-btn strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
 .platform-btn small { color: var(--text-muted, #888); font-size: 0.72rem; }
 .btn-publish {
-  background: linear-gradient(135deg, #a078ff, #6ad0ff);
+  background: linear-gradient(135deg, oklch(80% 0.14 200), oklch(88% 0.10 180));
   color: #fff;
   border: none;
   padding: 7px 18px;
@@ -7470,7 +7471,7 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
 
       <!-- Legacy BGM status/player (kept for JS compatibility) -->
       <div id="reel-bgm-status" class="text-sm text-muted reel-orphan" style="display:none;"></div>
-      <div id="reel-bgm-player" class="reel-orphan" style="display:none; margin-top:12px;">
+      <div id="reel-bgm-player" style="display:none; margin-top:12px;">
         <div id="reel-bgm-waveform" style="width:100%; border-radius:8px; overflow:hidden; background:var(--bg-elevated);"></div>
         <div class="create-row" style="margin-top:8px; align-items:center; gap:8px;">
           <button id="reel-bgm-play-btn" class="btn-sm" style="min-width:80px;">▶ Play</button>
@@ -9086,8 +9087,10 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
         } else {
           scrollZone.appendChild(child);
         }
-      } else if (keepAtEditor[child.id] || child.classList.contains('action-bar')) {
+      } else if (keepAtEditor[child.id]) {
         // Leave at editor level — do not move
+      } else if (child.classList.contains('action-bar')) {
+        mainCol.appendChild(child); // action-bar goes at the bottom of main col
       } else {
         mainCol.appendChild(child);
       }
@@ -9095,15 +9098,19 @@ html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
     // scrollZone goes before the pinned preview (insert at position 0)
     propsCol.insertBefore(scrollZone, propsCol.firstChild);
 
-    // Insert mainCol and propsCol before action-bar
-    var actionBar = editor.querySelector('.action-bar');
-    if (actionBar) {
-      editor.insertBefore(mainCol, actionBar);
-      editor.insertBefore(propsCol, actionBar);
-    } else {
-      editor.appendChild(mainCol);
-      editor.appendChild(propsCol);
+    editor.appendChild(mainCol);
+    editor.appendChild(propsCol);
+
+    // Sync propsCol height to mainCol height (capped at viewport)
+    // so preview bottom always aligns with action bar bottom.
+    function syncPropsHeight() {
+      var maxH = window.innerHeight - 32;
+      propsCol.style.height = Math.min(mainCol.offsetHeight, maxH) + 'px';
     }
+    var ro = new ResizeObserver(syncPropsHeight);
+    ro.observe(mainCol);
+    window.addEventListener('resize', syncPropsHeight);
+    syncPropsHeight();
   }
 
   // Surprise Me — randomise style preset
@@ -9522,6 +9529,8 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
     try { localStorage.setItem('stori_theme_mode', mode); } catch(e){}
     // Bug 24 — re-sync wavesurfer colors. typeof guard: 13-wavesurfer.js lazy-loaded.
     try { if (typeof updateWavesurferTheme === 'function') updateWavesurferTheme(mode); } catch(_){}
+    // Re-sync BGM canvas waveform color to theme
+    try { if (typeof drawBgmWaveform === 'function') drawBgmWaveform(); } catch(_){}
   }
   function toggleTheme(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -11433,6 +11442,16 @@ window.morphFromReel = morphFromReel;
 window.ptIsTransitioning = () => _ptTransitioning;
 
     // ── 02-zoom.js ──
+// ── Range fill helper — fills track up to thumb with accent color ──
+function updateRangeFill(input) {
+  const min = parseFloat(input.min) || 0;
+  const max = parseFloat(input.max) || 1;
+  const val = parseFloat(input.value) || 0;
+  const pct = ((val - min) / (max - min)) * 100;
+  input.style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--bg-input) ${pct}%)`;
+}
+
 // ── Timeline Zoom State ──
 let zoomLevel = 1;   // 1 = full timeline, 10 = zoomed 10x
 let zoomOffset = 0;  // start time in seconds of visible window
@@ -11497,12 +11516,15 @@ zoomLevelInput.addEventListener('input', () => {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = Math.min(zoomOffset, maxOffset);
   zoomScrollInput.value = maxOffset > 0 ? zoomOffset / maxOffset : 0;
+  updateRangeFill(zoomLevelInput);
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
 
 zoomScrollInput.addEventListener('input', () => {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = parseFloat(zoomScrollInput.value) * maxOffset;
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
 
@@ -11511,6 +11533,7 @@ function scrollTimeline(direction) {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = Math.max(0, Math.min(maxOffset, zoomOffset + direction * step));
   zoomScrollInput.value = maxOffset > 0 ? zoomOffset / maxOffset : 0;
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 }
 
@@ -11520,8 +11543,14 @@ zoomScrollRightBtn.addEventListener('click', () => scrollTimeline(1));
 zoomResetBtn.addEventListener('click', () => {
   zoomLevel = 1; zoomOffset = 0;
   zoomLevelInput.value = 1; zoomScrollInput.value = 0;
+  updateRangeFill(zoomLevelInput);
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
+
+// Initial fill on page load
+updateRangeFill(zoomLevelInput);
+updateRangeFill(zoomScrollInput);
 
 
     // ── 03-ruler.js ──
@@ -11533,7 +11562,12 @@ function drawRuler() {
   c.style.width = w + 'px'; c.style.height = '20px';
   const ctx = c.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w, 20);
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const rulerBg   = isLight ? '#e3e9f1' : '#111';
+  const rulerTick = isLight ? '#8899aa' : '#444';
+  const rulerText = isLight ? '#556677' : '#666';
+
+  ctx.fillStyle = rulerBg; ctx.fillRect(0, 0, w, 20);
 
   const visDur = visibleDuration();
   const visStart = visibleStart();
@@ -11548,7 +11582,7 @@ function drawRuler() {
   else if (visDur > 2) interval = 0.5;
   else interval = 0.25;
 
-  ctx.fillStyle = '#666'; ctx.font = '9px sans-serif'; ctx.strokeStyle = '#444';
+  ctx.fillStyle = rulerText; ctx.font = '9px sans-serif'; ctx.strokeStyle = rulerTick;
   const firstTick = Math.floor(visStart / interval) * interval;
   for (let t = firstTick; t <= visStart + visDur; t += interval) {
     const x = ((t - visStart) / visDur) * w;
@@ -15440,7 +15474,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       if (wavesurfer) wavesurfer.destroy();
       regions = WaveSurfer.Regions.create();
       wavesurfer = WaveSurfer.create({
-        container: '#waveform', waveColor: '#6c63ff', progressColor: '#4a42cc',
+        container: '#waveform', waveColor: '#1da8cc', progressColor: '#50d0f0',
         cursorColor: '#ff6b6b', cursorWidth: 2, height: 60, barWidth: 2, barGap: 1, barRadius: 2,
         autoScroll: false, autoCenter: false,
         plugins: [regions],
@@ -15451,7 +15485,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       wavesurfer.on('pause', () => { btnPlay.innerHTML = '&#9654; Play'; updatePlayhead(); });
       wavesurfer.on('seek', () => updatePlayhead());
       wavesurfer.on('ready', () => updatePlayhead());
-      regions.enableDragSelection({ color: 'rgba(108,99,255,0.25)' });
+      regions.enableDragSelection({ color: 'rgba(80,208,240,0.20)' });
       regions.on('region-created', r => { regions.getRegions().forEach(x => { if (x.id !== r.id) x.remove(); }); activeRegion = r; updateRB(); });
       regions.on('region-updated', () => updateRB());
       regions.on('region-removed', () => { activeRegion = null; updateRB(); });
@@ -15464,8 +15498,8 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       if (!wavesurfer) return;
       var m = mode || document.documentElement.getAttribute('data-theme') || 'dark';
       var colors = (m === 'light')
-        ? { waveColor: '#4a42cc', progressColor: '#2e298a' }
-        : { waveColor: '#6c63ff', progressColor: '#4a42cc' };
+        ? { waveColor: '#1a7a9a', progressColor: '#1da8cc' }
+        : { waveColor: '#1da8cc', progressColor: '#50d0f0' };
       try { wavesurfer.setOptions(colors); } catch(_) {}
     }
     function updateRB() {
@@ -15725,7 +15759,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       btnPlay.disabled = !hasAudio;
       btnStop.disabled = !hasAudio;
       audioStatusEl.textContent = hasAudio ? fmt(currentBuffer.duration) : 'No audio';
-      audioStatusEl.style.background = hasAudio ? '#43a047' : '#6c63ff';
+      audioStatusEl.style.background = hasAudio ? '#43a047' : '#1da8cc';
       if (hasAudio) {
         selectionInfoEl.textContent = 'Click and drag on waveform to select a region';
       }
@@ -15741,8 +15775,12 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
-    // Segment colors for multi-clip BGM
-    const BGM_SEG_COLORS = ['#6c63ff','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+    // Segment colors for multi-clip BGM (index 0 is theme-aware, set per draw)
+    const BGM_SEG_COLORS = ['#1da8cc','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+    function bgmWaveColor() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      return isLight ? '#1a7a9a' : '#1da8cc';
+    }
     let bgmSegments = []; // [{start, end, color}]
 
     function drawBgmWaveform() {
@@ -15764,7 +15802,8 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const ctx = canvas.getContext('2d');
       ctx.scale(dpr, dpr);
 
-      ctx.fillStyle = '#0d1117';
+      const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#12121a';
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, w, h);
 
       const data = bgmBuffer.getChannelData(0);
@@ -15773,9 +15812,11 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
       const loop = bgmLoopCheckbox ? bgmLoopCheckbox.checked : bgmLoop;
       const visStart = visibleStart();
       const visDur = visibleDuration();
-      const samplesPerPx = Math.max(1, Math.floor(sampleRate * visDur / w));
+      const BAR_W = 2, BAR_GAP = 1, BAR_STEP = BAR_W + BAR_GAP;
+      const samplesPerBar = Math.max(1, Math.floor(sampleRate * visDur / w * BAR_STEP));
+      const midY = h / 2;
 
-      for (let px = 0; px < w; px++) {
+      for (let px = 0; px < w; px += BAR_STEP) {
         const t = visStart + (px / w) * visDur;
         if (t < 0 || t > totalDur) continue;
         const srcT = loop ? (t % bgmDur) : t;
@@ -15783,29 +15824,24 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
 
         const startSample = Math.floor(srcT * sampleRate);
         let peak = 0;
-        const end = Math.min(startSample + samplesPerPx, data.length);
+        const end = Math.min(startSample + samplesPerBar, data.length);
         for (let i = startSample; i < end; i++) {
           const abs = Math.abs(data[i]);
           if (abs > peak) peak = abs;
         }
         const barH = Math.max(2, peak * (h - 8));
-        const midY = h / 2;
-        // Color by segment, fallback to looping purple
+        // Color by segment, fallback
         let segColor = null;
         if (bgmSegments.length > 0) {
           const seg = bgmSegments.find(s => srcT >= s.start && srcT < s.end);
           if (seg) segColor = seg.color;
         }
         if (!segColor) {
-          const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
-          segColor = rep === 0 ? '#6c63ff' : '#8b83ff';
+          segColor = bgmWaveColor();
         }
-        ctx.strokeStyle = segColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + 0.5, midY - barH / 2);
-        ctx.lineTo(px + 0.5, midY + barH / 2);
-        ctx.stroke();
+        // fillRect matches WaveSurfer's solid bar rendering (stroke anti-aliases and appears lighter)
+        ctx.fillStyle = segColor;
+        ctx.fillRect(px, Math.round(midY - barH / 2), BAR_W, Math.max(1, Math.round(barH)));
       }
       // Segment boundary dividers
       if (bgmSegments.length > 1) {
@@ -15837,9 +15873,9 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         const x1 = ((bgmSel.start - visStart) / visDur) * w;
         const x2 = ((bgmSel.end - visStart) / visDur) * w;
         if (x2 > 0 && x1 < w) {
-          ctx.fillStyle = 'rgba(108,99,255,0.35)';
+          ctx.fillStyle = 'rgba(80,208,240,0.22)';
           ctx.fillRect(Math.max(0, x1), 0, Math.min(w, x2) - Math.max(0, x1), h);
-          ctx.strokeStyle = '#a09dff'; ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#50d0f0'; ctx.lineWidth = 1.5;
           if (x1 >= 0 && x1 <= w) { ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, h); ctx.stroke(); }
           if (x2 >= 0 && x2 <= w) { ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, h); ctx.stroke(); }
         }
@@ -15971,9 +16007,10 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         const arrayBuf = await file.arrayBuffer();
         bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
         bgmSel = null; bgmDragging = null;
-        bgmSegments = [{ start: 0, end: bgmBuffer.duration, color: BGM_SEG_COLORS[0] }];
+        bgmSegments = [{ start: 0, end: bgmBuffer.duration, color: bgmWaveColor() }];
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
+        if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
         drawBgmWaveform();
         setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
@@ -15996,6 +16033,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
         bgmSegments.push({ start: prevDur, end: bgmBuffer.duration, color });
         bgmNameEl.textContent = `${bgmSegments.length} clips`;
         bgmSection.style.display = '';
+        if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
         drawBgmWaveform();
         setStatus(`BGM appended: ${file.name} (${fmtShort(newBuf.duration)})`);
       } catch(e) { setStatus('BGM append error: ' + e.message); }
@@ -16004,6 +16042,7 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
     bgmVolumeSlider.addEventListener('input', () => {
       bgmVolume = bgmVolumeSlider.value / 100;
       bgmVolumeLabel.textContent = bgmVolumeSlider.value + '%';
+      if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
       if (bgmGainNode) bgmGainNode.gain.value = bgmVolume;
     });
 
@@ -18195,8 +18234,8 @@ function initCreateWaveSurfer() {
   createRegionsPlugin = WaveSurfer.Regions.create();
   createWavesurfer = WaveSurfer.create({
     container: createWaveformEl,
-    waveColor: '#6c63ff',
-    progressColor: '#4a42cc',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     cursorColor: '#ff6b6b',
     cursorWidth: 2,
     height: 80,
@@ -20292,8 +20331,8 @@ function initCreateBgmWaveform(url) {
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
-    waveColor: 'rgba(167,139,250,0.5)',
-    progressColor: '#7c3aed',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     height: 72,
     barWidth: 2,
     barGap: 1,
@@ -22568,8 +22607,8 @@ function initReelAudioWaveform() {
   if (reelAudioWavesurfer) reelAudioWavesurfer.destroy();
   reelAudioWavesurfer = WaveSurfer.create({
     container: '#reel-audio-waveform',
-    waveColor: 'rgba(160,120,255,0.4)',
-    progressColor: 'rgba(160,120,255,0.7)',
+    waveColor: 'rgba(29,168,204,0.45)',
+    progressColor: 'rgba(80,208,240,0.80)',
     height: 60,
     barWidth: 2,
     barGap: 1,
@@ -22585,7 +22624,7 @@ function initReelAudioWaveform() {
     const regionDur = Math.min(reelDuration, dur);
     reelAudioRegion = regionsPlugin.addRegion({
       start: 0, end: regionDur,
-      color: 'rgba(160,120,255,0.2)',
+      color: 'rgba(80,208,240,0.18)',
       drag: true, resize: true,
     });
     updateReelAudioInfo();
@@ -22727,8 +22766,8 @@ function initReelWaveform() {
   if (reelWavesurfer) reelWavesurfer.destroy();
   reelWavesurfer = WaveSurfer.create({
     container: '#reel-waveform',
-    waveColor: 'rgba(160,120,255,0.4)',
-    progressColor: 'rgba(160,120,255,0.7)',
+    waveColor: 'rgba(29,168,204,0.45)',
+    progressColor: 'rgba(80,208,240,0.80)',
     height: 60,
     barWidth: 2,
     barGap: 1,
@@ -22744,7 +22783,7 @@ function initReelWaveform() {
     const regionDur = Math.min(reelDuration, dur);
     reelRegion = regionsPlugin.addRegion({
       start: 0, end: regionDur,
-      color: 'rgba(160,120,255,0.2)',
+      color: 'rgba(80,208,240,0.18)',
       drag: true, resize: true,
     });
     updateReelSegmentInfo();
@@ -26507,11 +26546,16 @@ let reelBgmWavesurfer = null;
 function initReelBgmWaveform(url) {
   const container = $('reel-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
+  // Hide faux wave, show real WaveSurfer waveform (same as initCreateBgmWaveform)
+  const fauxWave = $('reel-bgm-faux-wave');
+  if (fauxWave) fauxWave.style.display = 'none';
+  const bgmPlayer = $('reel-bgm-player');
+  if (bgmPlayer) bgmPlayer.style.display = '';
   if (reelBgmWavesurfer) { try { reelBgmWavesurfer.destroy(); } catch(e) {} reelBgmWavesurfer = null; }
   reelBgmWavesurfer = WaveSurfer.create({
     container: '#reel-bgm-waveform',
-    waveColor: 'rgba(167,139,250,0.5)',
-    progressColor: '#7c3aed',
+    waveColor: '#1da8cc',
+    progressColor: '#50d0f0',
     height: 72,
     barWidth: 2,
     barGap: 1,

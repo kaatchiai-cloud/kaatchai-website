@@ -1,3 +1,13 @@
+// ── Range fill helper — fills track up to thumb with accent color ──
+function updateRangeFill(input) {
+  const min = parseFloat(input.min) || 0;
+  const max = parseFloat(input.max) || 1;
+  const val = parseFloat(input.value) || 0;
+  const pct = ((val - min) / (max - min)) * 100;
+  input.style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--bg-input) ${pct}%)`;
+}
+
 // ── Timeline Zoom State ──
 let zoomLevel = 1;   // 1 = full timeline, 10 = zoomed 10x
 let zoomOffset = 0;  // start time in seconds of visible window
@@ -62,12 +72,15 @@ zoomLevelInput.addEventListener('input', () => {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = Math.min(zoomOffset, maxOffset);
   zoomScrollInput.value = maxOffset > 0 ? zoomOffset / maxOffset : 0;
+  updateRangeFill(zoomLevelInput);
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
 
 zoomScrollInput.addEventListener('input', () => {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = parseFloat(zoomScrollInput.value) * maxOffset;
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
 
@@ -76,6 +89,7 @@ function scrollTimeline(direction) {
   const maxOffset = Math.max(0, aDur() - visibleDuration());
   zoomOffset = Math.max(0, Math.min(maxOffset, zoomOffset + direction * step));
   zoomScrollInput.value = maxOffset > 0 ? zoomOffset / maxOffset : 0;
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 }
 
@@ -85,5 +99,11 @@ zoomScrollRightBtn.addEventListener('click', () => scrollTimeline(1));
 zoomResetBtn.addEventListener('click', () => {
   zoomLevel = 1; zoomOffset = 0;
   zoomLevelInput.value = 1; zoomScrollInput.value = 0;
+  updateRangeFill(zoomLevelInput);
+  updateRangeFill(zoomScrollInput);
   applyZoom();
 });
+
+// Initial fill on page load
+updateRangeFill(zoomLevelInput);
+updateRangeFill(zoomScrollInput);

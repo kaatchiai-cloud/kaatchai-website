@@ -5,7 +5,7 @@
       btnPlay.disabled = !hasAudio;
       btnStop.disabled = !hasAudio;
       audioStatusEl.textContent = hasAudio ? fmt(currentBuffer.duration) : 'No audio';
-      audioStatusEl.style.background = hasAudio ? '#43a047' : '#6c63ff';
+      audioStatusEl.style.background = hasAudio ? '#43a047' : '#1da8cc';
       if (hasAudio) {
         selectionInfoEl.textContent = 'Click and drag on waveform to select a region';
       }
@@ -21,8 +21,12 @@
     const bgmLoopCheckbox = $('bgm-loop');
     const btnAddBgm = $('btn-add-bgm');
 
-    // Segment colors for multi-clip BGM
-    const BGM_SEG_COLORS = ['#6c63ff','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+    // Segment colors for multi-clip BGM (index 0 is theme-aware, set per draw)
+    const BGM_SEG_COLORS = ['#1da8cc','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+    function bgmWaveColor() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      return isLight ? '#1a7a9a' : '#1da8cc';
+    }
     let bgmSegments = []; // [{start, end, color}]
 
     function drawBgmWaveform() {
@@ -44,7 +48,8 @@
       const ctx = canvas.getContext('2d');
       ctx.scale(dpr, dpr);
 
-      ctx.fillStyle = '#0d1117';
+      const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#12121a';
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, w, h);
 
       const data = bgmBuffer.getChannelData(0);
@@ -53,9 +58,11 @@
       const loop = bgmLoopCheckbox ? bgmLoopCheckbox.checked : bgmLoop;
       const visStart = visibleStart();
       const visDur = visibleDuration();
-      const samplesPerPx = Math.max(1, Math.floor(sampleRate * visDur / w));
+      const BAR_W = 2, BAR_GAP = 1, BAR_STEP = BAR_W + BAR_GAP;
+      const samplesPerBar = Math.max(1, Math.floor(sampleRate * visDur / w * BAR_STEP));
+      const midY = h / 2;
 
-      for (let px = 0; px < w; px++) {
+      for (let px = 0; px < w; px += BAR_STEP) {
         const t = visStart + (px / w) * visDur;
         if (t < 0 || t > totalDur) continue;
         const srcT = loop ? (t % bgmDur) : t;
@@ -63,29 +70,24 @@
 
         const startSample = Math.floor(srcT * sampleRate);
         let peak = 0;
-        const end = Math.min(startSample + samplesPerPx, data.length);
+        const end = Math.min(startSample + samplesPerBar, data.length);
         for (let i = startSample; i < end; i++) {
           const abs = Math.abs(data[i]);
           if (abs > peak) peak = abs;
         }
         const barH = Math.max(2, peak * (h - 8));
-        const midY = h / 2;
-        // Color by segment, fallback to looping purple
+        // Color by segment, fallback
         let segColor = null;
         if (bgmSegments.length > 0) {
           const seg = bgmSegments.find(s => srcT >= s.start && srcT < s.end);
           if (seg) segColor = seg.color;
         }
         if (!segColor) {
-          const rep = loop ? Math.floor(t / bgmDur) % 2 : 0;
-          segColor = rep === 0 ? '#6c63ff' : '#8b83ff';
+          segColor = bgmWaveColor();
         }
-        ctx.strokeStyle = segColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + 0.5, midY - barH / 2);
-        ctx.lineTo(px + 0.5, midY + barH / 2);
-        ctx.stroke();
+        // fillRect matches WaveSurfer's solid bar rendering (stroke anti-aliases and appears lighter)
+        ctx.fillStyle = segColor;
+        ctx.fillRect(px, Math.round(midY - barH / 2), BAR_W, Math.max(1, Math.round(barH)));
       }
       // Segment boundary dividers
       if (bgmSegments.length > 1) {
@@ -117,9 +119,9 @@
         const x1 = ((bgmSel.start - visStart) / visDur) * w;
         const x2 = ((bgmSel.end - visStart) / visDur) * w;
         if (x2 > 0 && x1 < w) {
-          ctx.fillStyle = 'rgba(108,99,255,0.35)';
+          ctx.fillStyle = 'rgba(80,208,240,0.22)';
           ctx.fillRect(Math.max(0, x1), 0, Math.min(w, x2) - Math.max(0, x1), h);
-          ctx.strokeStyle = '#a09dff'; ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#50d0f0'; ctx.lineWidth = 1.5;
           if (x1 >= 0 && x1 <= w) { ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, h); ctx.stroke(); }
           if (x2 >= 0 && x2 <= w) { ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, h); ctx.stroke(); }
         }
@@ -251,9 +253,10 @@
         const arrayBuf = await file.arrayBuffer();
         bgmBuffer = await ensureAudioCtx().decodeAudioData(arrayBuf);
         bgmSel = null; bgmDragging = null;
-        bgmSegments = [{ start: 0, end: bgmBuffer.duration, color: BGM_SEG_COLORS[0] }];
+        bgmSegments = [{ start: 0, end: bgmBuffer.duration, color: bgmWaveColor() }];
         bgmNameEl.textContent = file.name;
         bgmSection.style.display = '';
+        if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
         drawBgmWaveform();
         setStatus(`BGM loaded: ${file.name} (${fmtShort(bgmBuffer.duration)})`);
       } catch(e) { setStatus('BGM error: ' + e.message); }
@@ -276,6 +279,7 @@
         bgmSegments.push({ start: prevDur, end: bgmBuffer.duration, color });
         bgmNameEl.textContent = `${bgmSegments.length} clips`;
         bgmSection.style.display = '';
+        if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
         drawBgmWaveform();
         setStatus(`BGM appended: ${file.name} (${fmtShort(newBuf.duration)})`);
       } catch(e) { setStatus('BGM append error: ' + e.message); }
@@ -284,6 +288,7 @@
     bgmVolumeSlider.addEventListener('input', () => {
       bgmVolume = bgmVolumeSlider.value / 100;
       bgmVolumeLabel.textContent = bgmVolumeSlider.value + '%';
+      if (typeof updateRangeFill === 'function') updateRangeFill(bgmVolumeSlider);
       if (bgmGainNode) bgmGainNode.gain.value = bgmVolume;
     });
 
