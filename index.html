@@ -56,9 +56,9 @@
   --lp-bg-low:     #0a0f20;
   --lp-bg-card:    rgba(255,255,255,0.035);
   /* Font stack */
-  --lp-font-display: 'Space Grotesk', sans-serif;
-  --lp-font-ui:      'Geist', sans-serif;
-  --lp-font-mono:    'Geist Mono', monospace;
+  --lp-font-display: 'Poppins', sans-serif;
+  --lp-font-ui:      'Poppins', sans-serif;
+  --lp-font-mono:    'Poppins', sans-serif;
 }
 
 /* ── GLOBAL BASE ── */
@@ -1458,6 +1458,7 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="lp-hero-ctas">
           <button id="btn-create-content" class="lp-btn-primary">🎬 Copilot — Long Video</button>
           <button id="btn-create-reel" class="lp-btn-solid">⚡ Autopilot — Short Reel</button>
+          <button id="btn-create-photopilot" class="lp-btn-solid">📸 Photopilot — Photo Reel</button>
         </div>
         <p class="text-xs text-muted" style="margin-top:12px;text-align:center;opacity:0.7;">Pay as you go · Buy credits</p>
         <div class="lp-hero-extras">
@@ -2842,6 +2843,535 @@ body:has(#drop-zone:not(.hidden)) {
     </div><!-- /#reel-body -->
   </div>
 
+  <!-- ═══ Photopilot Header (outside #photopilot-page for full-width) ═══ -->
+  <div id="photopilot-header-wrapper" style="display:none;">
+    <div class="reel-header">
+      <div class="reel-header-inner">
+        <div class="reel-header-left">
+          <button id="btn-pp-back" class="btn-sm reel-header-btn">← Exit</button>
+          <div class="reel-header-divider"></div>
+          <span class="reel-auto-pill">📸 PHOTOPILOT</span>
+        </div>
+        <div class="reel-header-right">
+          <button type="button" class="theme-toggle" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">
+            <span class="ti-sun" aria-hidden="true">☀︎</span><span class="ti-moon" aria-hidden="true">☾</span>
+          </button>
+          <div class="create-api-bar reel-header-keybar">
+            <span id="pp-key-status-inline" class="text-xs text-muted">🔑 No key</span>
+            <button id="btn-pp-toggle-key" class="btn-xs">Change Key</button>
+            <div id="pp-key-expand" style="display:none;">
+              <input type="password" id="pp-api-key" placeholder="Gemini API key" style="width:200px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+              <button id="btn-pp-save-key" class="primary btn-xs">Save</button>
+              <span id="pp-key-status" class="text-xs"></span>
+              <a href="https://aistudio.google.com/apikey" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key</a>
+            </div>
+          </div>
+          <button id="btn-pp-save-top" class="btn-sm reel-header-btn">💾 Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Photopilot — Photo Reel ═══ -->
+  <div id="photopilot-page">
+    <div class="reel-main-heading">
+      <h2>Photopilot <em>— Photo Reel</em></h2>
+    </div>
+
+  <div id="pp-body">
+
+  <!-- ═══ LEFT PANEL — Agent Panel (always visible) ═══ -->
+  <div id="pp-agent-panel">
+    <div class="agent-panel-label">
+      <span>AI Agents</span>
+      <span class="agent-panel-mode-badge">⚡ PHOTO</span>
+    </div>
+    <div class="agent-list" id="pp-agent-list"></div>
+  </div><!-- /#pp-agent-panel -->
+
+  <!-- ═══ MAIN WORKFLOW ═══ -->
+  <div id="pp-workflow">
+
+  <!-- ═══ ZONE 1 — Input Card ═══ -->
+  <div class="reel-step" id="pp-input-card" style="margin-bottom:12px;">
+
+    <!-- Format row -->
+    <div class="pp-option-group">
+      <div class="pp-option-label">Format</div>
+      <div class="pp-btn-group" id="pp-aspect-group" style="margin-bottom:8px;">
+        <button class="pp-opt-btn active" id="pp-aspect-916" data-val="9:16">9:16</button>
+        <button class="pp-opt-btn" id="pp-aspect-45" data-val="4:5">4:5</button>
+        <button class="pp-opt-btn" id="pp-aspect-11" data-val="1:1">1:1</button>
+        <span style="width:1px;background:var(--border);margin:0 4px;"></span>
+        <button class="pp-opt-btn" id="pp-dur-15" data-val="15">15s</button>
+        <button class="pp-opt-btn active" id="pp-dur-30" data-val="30">30s</button>
+        <button class="pp-opt-btn" id="pp-dur-60" data-val="60">60s</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--text-muted);">
+          Mood
+          <select id="pp-mood-select" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:var(--text-xs);padding:4px 8px;">
+            <option value="cinematic">🎬 Cinematic</option>
+            <option value="clean">✨ Clean</option>
+            <option value="romantic">💕 Romantic</option>
+            <option value="dramatic">⚡ Dramatic</option>
+            <option value="vintage">📷 Vintage</option>
+            <option value="product">📦 Product</option>
+            <option value="travel">🌍 Travel</option>
+            <option value="editorial">🖼 Editorial</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--text-muted);cursor:pointer;">
+          <input type="checkbox" id="pp-smart-toggle" checked
+                 style="accent-color:var(--accent);">
+          Smart Suggestions
+        </label>
+      </div>
+    </div>
+
+    <hr class="pp-input-divider">
+
+    <!-- Content input -->
+    <div class="pp-option-group" style="margin-bottom:0;">
+      <div class="pp-mode-tabs" style="margin-bottom:10px;">
+        <button class="pp-mode-tab active" data-mode="title" id="pp-tab-title">✎ Title</button>
+        <button class="pp-mode-tab" data-mode="text" id="pp-tab-text">✎ Script</button>
+        <button class="pp-mode-tab" data-mode="audio" id="pp-tab-audio">🎵 Audio</button>
+      </div>
+      <div id="pp-content-title">
+        <div class="pp-option-label" style="margin-bottom:6px;">Topic or title — AI writes the script</div>
+        <input type="text" id="pp-title-input" class="pp-text-field"
+               placeholder="e.g. A morning routine that changed my life"
+               style="width:100%;box-sizing:border-box;">
+        <div class="pp-option-label" style="margin-top:10px;margin-bottom:6px;">
+          Instructions <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.78rem;">(optional)</span>
+        </div>
+        <textarea id="pp-title-instructions" class="pp-textarea" rows="2"
+                  placeholder="e.g. Emotional tone, 3 acts, end with a CTA..."
+                  style="width:100%;box-sizing:border-box;"></textarea>
+      </div>
+      <div id="pp-content-text" style="display:none;">
+        <div class="pp-option-label" style="margin-bottom:6px;">Your script — AI polishes and times it</div>
+        <textarea id="pp-script-input" class="pp-textarea" rows="4"
+                  placeholder="Paste your script here..."
+                  style="width:100%;box-sizing:border-box;resize:vertical;"></textarea>
+      </div>
+      <div id="pp-content-audio" style="display:none;">
+        <div class="pp-audio-drop" id="pp-audio-drop">
+          <span class="pp-drop-icon">🎵</span>
+          <span class="pp-drop-text">Drop audio here or</span>
+          <label style="color:var(--accent);cursor:pointer;text-decoration:underline;">
+            browse<input type="file" id="pp-audio-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac" class="hidden">
+          </label>
+        </div>
+        <div class="pp-audio-status" id="pp-audio-status" style="display:none;"></div>
+      </div>
+    </div>
+
+    <hr class="pp-input-divider">
+
+    <!-- Photos strip -->
+    <div class="pp-option-group" style="margin-bottom:0;">
+      <div class="pp-photo-counter-row">
+        <span class="pp-option-label" style="margin-bottom:0;">Photos</span>
+        <span id="pp-photo-counter" style="font-size:var(--text-xs);color:var(--text-muted);margin-left:6px;">0 / 6</span>
+        <label class="pp-opt-btn" style="margin-left:auto;cursor:pointer;">
+          + Add
+          <input type="file" id="pp-photos-input" accept="image/*" multiple class="hidden">
+        </label>
+      </div>
+      <div class="pp-photo-strip" id="pp-photo-strip">
+        <!-- Thumbnails injected by JS. Strip add tile injected by JS. -->
+        <div class="pp-photo-strip-add" id="pp-strip-add-tile">＋</div>
+      </div>
+      <div id="pp-drop-hint" style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:4px;">
+        Up to 6 photos for 30s
+      </div>
+    </div>
+
+    <div class="pp-input-footer">
+      <button class="primary btn-md" id="btn-pp-generate" style="min-width:160px;">
+        ✨ Generate Script →
+      </button>
+    </div>
+  </div><!-- /#pp-input-card -->
+
+  <!-- ═══ SCRIPT REVIEW — editable segments (Title mode only, hidden until Phase 1 done) ═══ -->
+  <div class="reel-step hidden" id="pp-script-review" style="margin-bottom:12px;">
+    <h3>✎ Review &amp; Edit Script</h3>
+    <div id="pp-script-segments"></div>
+    <div class="pp-script-review-footer">
+      <button class="btn-sm" id="btn-pp-regen-script">↺ Regenerate Script</button>
+      <button class="primary btn-md" id="btn-pp-gen-reel">✨ Generate Reel →</button>
+    </div>
+  </div><!-- /#pp-script-review -->
+
+  <!-- ═══ ZONE 2 — Fine-tune (collapsible, hidden until generate done) ═══ -->
+  <div id="pp-finetune-section" class="hidden" style="margin-bottom:12px;">
+    <button class="pp-accordion-hdr" id="pp-finetune-toggle">
+      <span>⚙ Fine-tune Effects</span>
+      <span class="pp-acc-arrow">▶</span>
+    </button>
+    <div class="pp-finetune-body hidden" id="pp-finetune-body">
+
+      <!-- Tab strip — full width -->
+      <div class="pp-btn-group" style="margin-bottom:16px;">
+        <button class="pp-opt-btn active" data-pptab="segment" id="pp-tab-btn-segment">Segment</button>
+        <button class="pp-opt-btn" data-pptab="overlays" id="pp-tab-btn-overlays">Overlays</button>
+      </div>
+
+      <!-- Segment tab -->
+      <div class="pp-tab-panel active" id="pp-tab-segment">
+
+        <!-- Timeline — full width -->
+        <div style="margin-bottom:12px;">
+          <div class="pp-props-label">Timeline</div>
+          <div class="pp-timeline" id="pp-timeline"></div>
+        </div>
+
+        <!-- Segment props -->
+        <div id="pp-segment-props" style="display:none;">
+
+          <!-- Photo row — full width -->
+          <div class="pp-sp-photo-row">
+            <img class="pp-sp-thumb" id="pp-sp-thumb" src="" alt="">
+            <div class="pp-sp-photo-meta">
+              <div id="pp-sp-seg-label" style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px;">Segment 1</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn-xs" id="btn-pp-seg-prev">← Prev</button>
+                <button class="btn-xs" id="btn-pp-seg-next">Next →</button>
+                <button class="btn-xs" id="btn-pp-swap-photo">⇄ Swap</button>
+              </div>
+              <div style="margin-top:4px;font-size:var(--text-2xs);color:var(--text-muted);">
+                Duration: <span id="pp-sp-duration">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Two-col: controls left, live preview right -->
+          <div class="pp-ft-two-col">
+
+            <!-- Controls column -->
+            <div class="pp-ft-prop-col">
+
+              <!-- MOTION -->
+              <div class="pp-props-section">
+                <div class="pp-props-label">Motion</div>
+                <label class="form-label">Direction
+                  <select id="pp-kb-direction">
+                    <option value="auto">Auto</option>
+                    <option value="zoomIn">Zoom In</option>
+                    <option value="zoomOut">Zoom Out</option>
+                    <option value="panRight">Pan Right</option>
+                    <option value="panLeft">Pan Left</option>
+                    <option value="panUp">Pan Up</option>
+                    <option value="panDown">Pan Down</option>
+                  </select>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Intensity
+                  <input type="range" id="pp-kb-intensity" min="0" max="1" step="0.05" value="0.3" style="flex:1;">
+                  <span id="pp-kb-intensity-label" class="text-2xs">0.3</span>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Easing
+                  <select id="pp-kb-easing">
+                    <option value="easeOutQuad">Ease Out</option>
+                    <option value="linear">Linear</option>
+                    <option value="easeInOutCubic">Ease In-Out</option>
+                  </select>
+                  <button class="pp-inline-btn" id="btn-pp-kb-reverse" title="Reverse">⇄</button>
+                  <button class="pp-inline-btn" id="btn-pp-kb-recompute" title="Recompute">↻</button>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Shake
+                  <div class="pp-intensity-wrap">
+                    <input type="range" id="pp-shake" min="0" max="0.5" step="0.01" value="0">
+                    <div class="pp-intensity-scale"><span>subtle</span><span>strong</span></div>
+                  </div>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Zoom Punch
+                  <div class="pp-intensity-wrap">
+                    <input type="range" id="pp-zoom-punch" min="0" max="0.5" step="0.01" value="0">
+                    <div class="pp-intensity-scale"><span>subtle</span><span>strong</span></div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- LOOK -->
+              <div class="pp-props-section">
+                <div class="pp-props-label">Look</div>
+                <label class="form-label">Color
+                  <select id="pp-color-preset">
+                    <option value="none">None</option>
+                    <option value="cinematic">Cinematic</option>
+                    <option value="warm">Warm</option>
+                    <option value="cool">Cool</option>
+                    <option value="moody">Moody</option>
+                    <option value="vibrant">Vibrant</option>
+                    <option value="faded">Faded</option>
+                    <option value="bw">B&amp;W</option>
+                    <option value="golden">Golden</option>
+                    <option value="matte">Matte</option>
+                  </select>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Vignette
+                  <input type="range" id="pp-vignette" min="0" max="1" step="0.05" value="0.3" style="flex:1;">
+                  <span id="pp-vignette-label" class="text-2xs">0.3</span>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Film Grain
+                  <input type="range" id="pp-film-grain" min="0" max="1" step="0.05" value="0" style="flex:1;">
+                  <span id="pp-film-grain-label" class="text-2xs">0.0</span>
+                </label>
+              </div>
+
+              <!-- FRAME -->
+              <div class="pp-props-section">
+                <div class="pp-props-label">Frame</div>
+                <label class="form-label">Style
+                  <select id="pp-frame-style">
+                    <option value="none">None</option>
+                    <option value="polaroid">Polaroid</option>
+                    <option value="filmStrip">Film Strip</option>
+                    <option value="cornerBurns">Corner Burns</option>
+                  </select>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Spotlight
+                  <input type="checkbox" id="pp-spotlight-toggle" style="width:auto;margin-left:auto;cursor:pointer;">
+                </label>
+                <div id="pp-spotlight-sliders" style="display:none;">
+                  <label class="form-label" style="margin-top:6px;">X
+                    <input type="range" id="pp-spotlight-x" min="0" max="1" step="0.05" value="0.5" style="flex:1;">
+                    <span id="pp-spotlight-x-label" class="text-2xs">0.5</span>
+                  </label>
+                  <label class="form-label" style="margin-top:6px;">Y
+                    <input type="range" id="pp-spotlight-y" min="0" max="1" step="0.05" value="0.5" style="flex:1;">
+                    <span id="pp-spotlight-y-label" class="text-2xs">0.5</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- PARTICLES -->
+              <div class="pp-props-section">
+                <div class="pp-props-label">Particles</div>
+                <label class="form-label">Type
+                  <select id="pp-particles">
+                    <option value="none">None</option>
+                    <option value="hearts">Hearts</option>
+                    <option value="sparkle">Sparkle</option>
+                    <option value="dust">Dust</option>
+                  </select>
+                </label>
+              </div>
+
+              <!-- TRANSITION -->
+              <div class="pp-props-section">
+                <div class="pp-props-label">Transition</div>
+                <label class="form-label">Type
+                  <select id="pp-transition-type">
+                    <option value="fade">Fade</option>
+                    <option value="cut">Cut</option>
+                    <option value="slide">Slide</option>
+                    <option value="zoom">Zoom</option>
+                    <option value="whipPan">Whip Pan</option>
+                    <option value="lightLeak">Light Leak</option>
+                    <option value="whiteCrossfade">White Flash</option>
+                    <option value="iris">Iris</option>
+                    <option value="morphBlend">Morph</option>
+                  </select>
+                </label>
+                <label class="form-label" style="margin-top:6px;">Duration
+                  <input type="range" id="pp-transition-dur" min="0.1" max="1.0" step="0.05" value="0.4" style="flex:1;">
+                  <span id="pp-transition-dur-label" class="text-2xs">0.4s</span>
+                </label>
+              </div>
+
+            </div><!-- /.pp-ft-prop-col -->
+
+            <!-- Live preview column -->
+            <div class="pp-ft-preview" id="pp-ft-preview">
+              <div class="pp-ft-preview-label">Live Preview</div>
+              <div class="pp-ft-canvas-frame">
+                <canvas id="pp-ft-canvas"></canvas>
+              </div>
+              <div class="pp-ft-transport">
+                <button class="pp-ft-play-btn" id="pp-ft-play" title="Play / Pause">▶</button>
+                <input type="range" id="pp-ft-scrub" min="0" max="100" value="0" step="1">
+                <span id="pp-ft-scrub-label" class="text-2xs">0%</span>
+              </div>
+              <div id="pp-ft-seg-name" class="pp-ft-seg-name"></div>
+            </div><!-- /.pp-ft-preview -->
+
+          </div><!-- /.pp-ft-two-col -->
+        </div><!-- /#pp-segment-props -->
+      </div><!-- /#pp-tab-segment -->
+
+      <!-- Overlays tab — full width -->
+      <div class="pp-tab-panel" id="pp-tab-overlays">
+        <div class="pp-btn-group" style="margin-bottom:12px;">
+          <button class="pp-opt-btn" id="btn-pp-add-colour-pic">+ Colour Pic</button>
+          <button class="pp-opt-btn" id="btn-pp-add-time-pic">+ Time Pic</button>
+        </div>
+        <div id="pp-overlay-list">
+          <div style="font-size:var(--text-xs);color:var(--text-muted);">No overlays added yet.</div>
+        </div>
+      </div><!-- /#pp-tab-overlays -->
+
+    </div><!-- /#pp-finetune-body -->
+  </div><!-- /#pp-finetune-section -->
+
+  <!-- ═══ ZONE 3 — Preview (hidden until generate done) ═══ -->
+  <div class="reel-step hidden" id="pp-preview-section">
+    <div class="reel-preview-layout">
+
+      <!-- Phone frame -->
+      <div class="reel-phone-frame">
+        <div class="reel-phone-screen" id="pp-phone-screen">
+          <canvas id="pp-canvas"></canvas>
+        </div>
+        <div class="reel-phone-transport">
+          <button class="reel-phone-play" id="pp-phone-play" type="button">▶</button>
+          <span class="reel-phone-time" id="pp-phone-time">0:00 / 0:30</span>
+        </div>
+        <input type="range" id="pp-scrub" min="0" max="1000" value="0"
+               style="width:100%;height:3px;margin-top:4px;accent-color:var(--accent);">
+      </div>
+
+      <!-- Controls column -->
+      <div class="rp-ctrl-col" id="pp-ctrl-col">
+
+        <!-- Subtitle Style -->
+        <div>
+          <div class="pp-ctrl-section-label">Subtitle Style</div>
+          <label class="form-label">PRESET
+            <select id="pp-sub-preset">
+              <option value="">Custom</option>
+              <option value="hormozi">Hormozi</option>
+              <option value="classic">Classic</option>
+              <option value="karaoke">Karaoke</option>
+              <option value="bold">Bold Center</option>
+              <option value="minimal">Minimal</option>
+            </select>
+          </label>
+          <label class="form-label" style="margin-top:4px;">STYLE
+            <select id="pp-sub-style">
+              <option value="word-by-word">Word by Word</option>
+              <option value="highlight">Highlight</option>
+              <option value="karaoke">Karaoke</option>
+              <option value="bold-center">Bold Center</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="form-label" style="margin-top:4px;">FONT
+            <select id="pp-sub-font">
+              <option value="Poppins">Poppins</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Anton">Anton</option>
+              <option value="Bebas Neue">Bebas Neue</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Inter">Inter</option>
+            </select>
+          </label>
+          <label class="form-label" style="margin-top:4px;">
+            <input type="checkbox" id="pp-sub-allcaps"> ALL CAPS
+          </label>
+          <label class="form-label" style="margin-top:4px;">COLOR
+            <input type="color" id="pp-sub-color" value="#ffffff">
+          </label>
+          <label class="form-label" style="margin-top:4px;">ACCENT
+            <input type="color" id="pp-sub-accent" value="#7c3aed">
+          </label>
+          <label class="form-label" style="margin-top:4px;">OUTLINE
+            <input type="color" id="pp-sub-outline" value="#000000">
+          </label>
+          <label class="form-label" style="margin-top:4px;">BACKDROP
+            <select id="pp-sub-backdrop">
+              <option value="dark">Dark</option>
+              <option value="shadow">Shadow</option>
+              <option value="blur">Blur</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="form-label" style="margin-top:4px;">SIZE
+            <input type="range" id="pp-sub-size" min="2" max="8" step="0.5" value="4" style="flex:1;">
+            <span id="pp-sub-size-label" class="text-2xs">4</span>
+          </label>
+          <label class="form-label" style="margin-top:4px;">POSITION
+            <input type="range" id="pp-sub-pos" min="0" max="100" value="85" style="flex:1;">
+            <span id="pp-sub-pos-label" class="text-2xs">85%</span>
+          </label>
+        </div>
+
+        <!-- Subscribe overlay -->
+        <div>
+          <div class="pp-ctrl-section-label">🔴 Subscribe</div>
+          <label class="form-label">
+            <input type="checkbox" id="pp-ov-sub-show"> Show
+          </label>
+          <label class="form-label" style="margin-top:4px;">AT
+            <input type="range" id="pp-ov-sub-at" min="0" max="58" step="0.5" value="2" style="flex:1;">
+            <span id="pp-ov-sub-at-label" class="text-2xs">2s</span>
+          </label>
+          <label class="form-label" style="margin-top:4px;">DUR
+            <input type="number" id="pp-ov-sub-dur" value="3" min="1" max="10" step="0.5" style="width:44px;">s
+          </label>
+          <label class="form-label" style="margin-top:4px;">COLOR
+            <input type="color" id="pp-ov-sub-color" value="#ff0000">
+          </label>
+          <label class="form-label" style="margin-top:4px;">TEXT
+            <input type="color" id="pp-ov-sub-text" value="#ffffff">
+          </label>
+        </div>
+
+        <!-- Follow overlay -->
+        <div>
+          <div class="pp-ctrl-section-label">💜 Follow</div>
+          <label class="form-label">
+            <input type="checkbox" id="pp-ov-fol-show"> Show
+          </label>
+          <label class="form-label" style="margin-top:4px;">AT
+            <input type="range" id="pp-ov-fol-at" min="0" max="58" step="0.5" value="5" style="flex:1;">
+            <span id="pp-ov-fol-at-label" class="text-2xs">5s</span>
+          </label>
+          <label class="form-label" style="margin-top:4px;">DUR
+            <input type="number" id="pp-ov-fol-dur" value="3" min="1" max="10" step="0.5" style="width:44px;">s
+          </label>
+          <label class="form-label" style="margin-top:4px;">COLOR
+            <input type="color" id="pp-ov-fol-color" value="#a855f7">
+          </label>
+          <label class="form-label" style="margin-top:4px;">TEXT
+            <input type="color" id="pp-ov-fol-text" value="#ffffff">
+          </label>
+        </div>
+
+        <!-- Timeline mini -->
+        <div>
+          <div class="pp-ctrl-section-label">Timeline</div>
+          <div id="pp-timeline-mini" style="width:100%;height:36px;position:relative;"></div>
+        </div>
+
+        <!-- Export -->
+        <div>
+          <button id="btn-pp-export" class="primary btn-md" style="width:100%;margin-bottom:8px;">
+            ⬇ Export MP4
+          </button>
+          <div id="pp-render-progress" style="display:none;">
+            <div style="background:var(--bg-secondary);border-radius:4px;height:4px;overflow:hidden;margin-bottom:4px;">
+              <div id="pp-render-bar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
+            </div>
+            <div id="pp-render-label" style="font-size:var(--text-2xs);color:var(--text-muted);text-align:center;">Rendering…</div>
+          </div>
+          <div id="pp-render-dl" style="display:none;text-align:center;">
+            <a id="pp-dl-link" class="primary btn-sm" style="display:inline-block;">⬇ Download</a>
+          </div>
+          <div id="pp-render-error" style="display:none;color:var(--red);font-size:var(--text-xs);margin-top:4px;"></div>
+        </div>
+
+      </div><!-- /#pp-ctrl-col -->
+    </div><!-- /.reel-preview-layout -->
+  </div><!-- /#pp-preview-section -->
+
+  </div><!-- /#pp-workflow -->
+  </div><!-- /#pp-body -->
+  </div><!-- /#photopilot-page -->
+
   <div id="editor">
     <!-- Reel tabs (shown when editing multiple reels) -->
     <div id="editor-reel-tabs" class="editor-reel-tabs hidden"></div>
@@ -3568,7 +4098,7 @@ body:has(#drop-zone:not(.hidden)) {
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
       'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js',
-      'js/22-emoji-reel.js'
+      'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -3591,7 +4121,7 @@ body:has(#drop-zone:not(.hidden)) {
   }
 
   // Intercept landing page buttons — load scripts, then re-click
-  ['btn-create-content','btn-create-reel','btn-new-project','btn-load-project-home'].forEach(function(id) {
+  ['btn-create-content','btn-create-reel','btn-create-photopilot','btn-new-project','btn-load-project-home'].forEach(function(id) {
     var btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', function handler(e) {

@@ -2658,48 +2658,48 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 /* ═══ Preview step — 9/16 phone frame + CtrlRow grid ═══ */
-#reel-page .reel-preview-layout {
+.reel-preview-layout {
   display: grid; grid-template-columns: 240px 1fr;
   gap: 24px; align-items: start;
 }
-#reel-page .reel-phone-frame {
+.reel-phone-frame {
   display: flex; flex-direction: column; gap: 10px;
 }
-#reel-page .reel-phone-screen {
+.reel-phone-screen {
   aspect-ratio: 9/16; background: #000;
   border-radius: 20px; overflow: hidden; position: relative;
   border: 1px solid var(--lp-card-bdr);
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   display: flex; align-items: center; justify-content: center;
 }
-#reel-page .reel-phone-placeholder {
+.reel-phone-placeholder {
   font-family: var(--lp-font-mono); font-size: var(--rp-meta);
   color: var(--lp-faint); text-align: center;
   padding: 16px; letter-spacing: 0.06em;
 }
-#reel-page .reel-phone-transport {
+.reel-phone-transport {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 2px;
 }
-#reel-page .reel-phone-play {
+.reel-phone-play {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--lp-text); color: var(--lp-bg);
   border: none; font-size: var(--rp-body); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
 }
-#reel-page .reel-phone-time {
+.reel-phone-time {
   font-family: var(--lp-font-mono); font-size: var(--rp-label);
   color: var(--lp-faint); letter-spacing: 0.06em;
 }
 
 /* ── Ctrl column — holds reel-previews-container after pipeline ── */
-#reel-page .reel-ctrl-column {
+.reel-ctrl-column {
   display: flex; flex-direction: column; gap: 0;
   min-width: 0; overflow: hidden;
 }
 
 /* Waiting placeholder (before pipeline runs) */
-#reel-page .reel-ctrl-waiting {
+.reel-ctrl-waiting {
   font-family: var(--lp-font-mono); font-size: var(--rp-meta);
   color: var(--lp-faint); letter-spacing: 0.06em;
   text-align: center; padding: 32px 16px;
@@ -2721,7 +2721,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 #reel-page .rp-canvas-col .reel-mp-time { font-size: var(--rp-meta); }
 
 /* Controls column expands to full width */
-#reel-page .rp-ctrl-col {
+.rp-ctrl-col {
   width: 100% !important; min-width: 0 !important;
   display: flex; flex-direction: column;
   gap: 4px; font-size: var(--rp-sm) !important;
@@ -2729,22 +2729,22 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 /* ── Each control row group ── */
-#reel-page .rp-ctrl-col > div {
+.rp-ctrl-col > div {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   padding: 8px 10px; border-radius: 10px;
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
 }
 /* The BGM/Frame row has a border-top separator via inline style — keep it, remove the extra bg */
-#reel-page .rp-ctrl-col > div[style*="border-top"] {
+.rp-ctrl-col > div[style*="border-top"] {
   border-top: 1px solid var(--lp-card-bdr) !important;
 }
 /* reel-overlay-chips: JS-controlled display, no card bg */
-#reel-page #reel-overlay-chips {
+#reel-overlay-chips {
   background: transparent !important; border: none !important; padding: 4px 0 !important;
 }
 
 /* ── form-label — the "Label: control" pairs ── */
-#reel-page .rp-ctrl-col .form-label {
+.rp-ctrl-col .form-label {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--lp-font-mono); font-size: var(--rp-xs);
   color: var(--lp-faint); letter-spacing: 0.12em;
@@ -2753,7 +2753,7 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 /* ── Selects ── */
-#reel-page .rp-ctrl-col select {
+.rp-ctrl-col select {
   background-color: var(--lp-card);
   border: 1px solid var(--lp-card-bdr); border-radius: 6px;
   outline: none; cursor: pointer;
@@ -2764,16 +2764,16 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%23eef4ff' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 5px center;
 }
-#reel-page .rp-ctrl-col select:hover {
+.rp-ctrl-col select:hover {
   background-color: color-mix(in oklch, var(--lp-card) 80%, var(--lp-text) 8%);
   border-color: var(--lp-card-bdr-h, var(--lp-bdr-h));
 }
-#reel-page .rp-ctrl-col select option {
+.rp-ctrl-col select option {
   background: var(--lp-bg2); color: var(--lp-text);
 }
 
 /* ── Range sliders with left-to-thumb fill ── */
-#reel-page .rp-ctrl-col input[type=range] {
+.rp-ctrl-col input[type=range] {
   appearance: none; -webkit-appearance: none;
   height: 4px; border-radius: 2px;
   background: linear-gradient(to right,
@@ -2784,13 +2784,13 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   );
   outline: none; cursor: pointer; padding: 0; margin: 0;
 }
-#reel-page .rp-ctrl-col input[type=range]::-webkit-slider-thumb {
+.rp-ctrl-col input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 12px; height: 12px; border-radius: 50%;
   background: #fff; border: 2px solid var(--lp-accent);
   cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
-#reel-page .rp-ctrl-col input[type=range]::-moz-range-thumb {
+.rp-ctrl-col input[type=range]::-moz-range-thumb {
   width: 12px; height: 12px; border-radius: 50%;
   background: #fff; border: 2px solid var(--lp-accent);
   cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
@@ -2798,18 +2798,18 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 /* ── Color pickers ── */
-#reel-page .rp-ctrl-col input[type=color] {
+.rp-ctrl-col input[type=color] {
   appearance: none; -webkit-appearance: none;
   width: 28px; height: 18px; border-radius: 4px;
   border: 1px solid var(--lp-card-bdr);
   background: transparent; padding: 0; cursor: pointer;
 }
-#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 3px; overflow: hidden; }
-#reel-page .rp-ctrl-col input[type=color]::-webkit-color-swatch { border: none; border-radius: 3px; }
-#reel-page .rp-ctrl-col input[type=color]::-moz-color-swatch { border: none; border-radius: 3px; }
+.rp-ctrl-col input[type=color]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 3px; overflow: hidden; }
+.rp-ctrl-col input[type=color]::-webkit-color-swatch { border: none; border-radius: 3px; }
+.rp-ctrl-col input[type=color]::-moz-color-swatch { border: none; border-radius: 3px; }
 
 /* ── Checkboxes ── */
-#reel-page .rp-ctrl-col input[type=checkbox] {
+.rp-ctrl-col input[type=checkbox] {
   appearance: none; -webkit-appearance: none;
   width: 14px; height: 14px; border-radius: 3px;
   border: 1.5px solid var(--lp-card-bdr);
@@ -2817,18 +2817,18 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   margin: 0; flex-shrink: 0;
   transition: all 150ms ease; position: relative;
 }
-#reel-page .rp-ctrl-col input[type=checkbox]:hover { border-color: var(--lp-card-bdr-h); }
-#reel-page .rp-ctrl-col input[type=checkbox]:checked {
+.rp-ctrl-col input[type=checkbox]:hover { border-color: var(--lp-card-bdr-h); }
+.rp-ctrl-col input[type=checkbox]:checked {
   background: var(--lp-accent); border-color: var(--lp-accent);
 }
-#reel-page .rp-ctrl-col input[type=checkbox]:checked::after {
+.rp-ctrl-col input[type=checkbox]:checked::after {
   content: '✓'; position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   color: var(--lp-bg); font-size: 9px; font-weight: 700;
 }
 
 /* ── Text inputs (frame text) ── */
-#reel-page .rp-ctrl-col input[type=text] {
+.rp-ctrl-col input[type=text] {
   background: transparent; border: none; outline: none;
   border-bottom: 1px solid var(--lp-card-bdr);
   color: var(--lp-text); font-size: var(--rp-meta);
@@ -2836,8 +2836,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 /* ── Overlay buttons → Aurora pill style ── */
-#reel-page .rp-ctrl-col [data-overlay],
-#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var) {
+.rp-ctrl-col [data-overlay],
+.rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var) {
   appearance: none;
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
@@ -2846,17 +2846,17 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
   cursor: pointer; transition: all 150ms ease;
   white-space: nowrap;
 }
-#reel-page .rp-ctrl-col [data-overlay]:hover,
-#reel-page .rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var):hover {
+.rp-ctrl-col [data-overlay]:hover,
+.rp-ctrl-col .btn-xs:not(.reel-mp-play):not(.reel-mp-stop):not(.reel-retry-var):hover {
   border-color: var(--lp-card-bdr-h); color: var(--lp-text);
 }
 
 /* ── rc-frame sub-control rows visibility (already JS-managed via inline style) ── */
-#reel-page .rc-frame-tpl-row,
-#reel-page .rc-frame-png-row { gap: 6px; align-items: center; }
+.rc-frame-tpl-row,
+.rc-frame-png-row { gap: 6px; align-items: center; }
 
 /* ── Overlay chips ── */
-#reel-page #reel-overlay-chips .reel-overlay-chip {
+#reel-overlay-chips .reel-overlay-chip {
   display: inline-flex; align-items: center; gap: 4px;
   background: color-mix(in oklch, var(--lp-accent2) 12%, transparent);
   border: 1px solid color-mix(in oklch, var(--lp-accent2) 35%, transparent);
@@ -2865,8 +2865,8 @@ details[open] > .reel-summary::before { transform: rotate(90deg); }
 }
 
 @media (max-width: 900px) {
-  #reel-page .reel-preview-layout { grid-template-columns: 1fr; }
-  #reel-page .reel-phone-frame { max-width: 240px; margin: 0 auto; }
+  .reel-preview-layout { grid-template-columns: 1fr; }
+  .reel-phone-frame { max-width: 240px; margin: 0 auto; }
 }
 
 /* ═══ Export step — eyebrow + cost estimate + ghost buttons ═══ */
@@ -4499,4 +4499,483 @@ body:has(#create-page.visible) .lp-nav { display: none !important; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ═══ Photopilot — Photo Reel ═══ */
+
+/* Aurora token overrides — scoped to Photopilot page.
+   Mirrors #reel-page and #create-page so all three share
+   the same glass-card aesthetic and type scale. */
+#photopilot-page::before {
+  content: '';
+  position: fixed;
+  top: -30%; left: 20%;
+  width: 60%; height: 60%;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklch, var(--lp-accent) 6%, transparent) 0%,
+    color-mix(in oklch, var(--lp-accent2) 3%, transparent) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(80px);
+  animation: ambient-drift 20s ease-in-out infinite alternate;
+}
+
+#photopilot-page {
+  --accent:       var(--lp-accent);
+  --accent-hover: color-mix(in oklch, var(--lp-accent) 80%, white);
+  --accent-glow:  var(--lp-glow);
+  --accent2:      var(--lp-accent2);
+  --bg-primary:   var(--lp-bg);
+  --bg-card:      var(--lp-card);
+  --bg-elevated:  color-mix(in oklch, var(--lp-bg) 55%, transparent);
+  --bg-input:     var(--lp-bg2);
+  --border:       var(--lp-card-bdr);
+  --border-hover: var(--lp-card-bdr-h);
+  --text-primary:   var(--lp-text);
+  --text-secondary: var(--lp-dim);
+  --text-muted:     var(--lp-faint);
+  --radius-lg:    18px;
+  --rp-xs:      9px;
+  --rp-label:   10px;
+  --rp-meta:    11px;
+  --rp-sm:      12px;
+  --rp-body:    13px;
+  --rp-ui:      14px;
+  --rp-step:    15px;
+  --rp-display: 36px;
+  width: 100%; max-width: 1080px; display: none; padding: 20px 12px 0;
+}
+#photopilot-page.visible { display: flex; flex-direction: column; }
+body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
+
+/* Option groups */
+#photopilot-page .pp-option-group { margin-bottom: 18px; }
+#photopilot-page .pp-option-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+#photopilot-page .pp-btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+#photopilot-page .pp-opt-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-muted); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+#photopilot-page .pp-opt-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+#photopilot-page .pp-opt-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Photo step */
+#photopilot-page .pp-photo-counter-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.82rem; color: var(--text-muted); }
+#photopilot-page .pp-photo-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 32px 20px; text-align: center; color: var(--text-muted); cursor: pointer; transition: border-color 0.15s; margin-bottom: 12px; }
+#photopilot-page .pp-photo-drop.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+#photopilot-page .pp-drop-icon { font-size: 2rem; margin-bottom: 8px; }
+#photopilot-page .pp-drop-text { font-size: 0.85rem; margin-bottom: 4px; }
+#photopilot-page .pp-drop-hint { font-size: 0.72rem; color: var(--text-faint, #666); }
+#photopilot-page .pp-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; min-height: 0; }
+#photopilot-page .pp-photo-thumb { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; cursor: grab; border: 2px solid transparent; transition: border-color 0.15s; }
+#photopilot-page .pp-photo-thumb:hover { border-color: var(--border-hover); }
+#photopilot-page .pp-photo-thumb.dragging { opacity: 0.5; border-color: var(--accent); }
+#photopilot-page .pp-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+#photopilot-page .pp-photo-delete { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff; border: none; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+#photopilot-page .pp-photo-thumb:hover .pp-photo-delete { opacity: 1; }
+
+/* Content step */
+#photopilot-page .pp-mode-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+#photopilot-page .pp-mode-tab { padding: 8px 16px; font-size: 0.82rem; border: none; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); cursor: pointer; font-weight: 500; margin-bottom: -1px; transition: all 0.15s; }
+#photopilot-page .pp-mode-tab:hover { color: var(--text-primary); }
+#photopilot-page .pp-mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+#photopilot-page .pp-text-field { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); font-size: 0.9rem; }
+#photopilot-page .pp-text-field:focus { outline: none; border-color: var(--accent); }
+#photopilot-page .pp-textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem; resize: vertical; font-family: inherit; }
+#photopilot-page .pp-textarea:focus { outline: none; border-color: var(--accent); }
+#photopilot-page .pp-audio-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 24px 20px; text-align: center; color: var(--text-muted); transition: border-color 0.15s; margin-bottom: 10px; }
+#photopilot-page .pp-audio-drop.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+#photopilot-page .pp-audio-status { font-size: 0.82rem; color: var(--text-muted); padding: 8px 0; }
+
+/* Agent task list */
+#photopilot-page .pp-agent-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+#photopilot-page .pp-agent-task { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); font-size: 0.82rem; }
+#photopilot-page .pp-agent-task.running { border-color: var(--accent); }
+#photopilot-page .pp-agent-task.done { color: var(--text-muted); }
+#photopilot-page .pp-agent-task.error { border-color: var(--red); color: var(--red); }
+#photopilot-page .pp-task-icon { width: 16px; text-align: center; font-size: 0.75rem; }
+#photopilot-page .pp-generate-launch { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+
+/* Script disclosure (Step 5) */
+#photopilot-page .pp-disclosure { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+#photopilot-page .pp-disclosure-toggle { width: 100%; padding: 8px 14px; background: var(--bg-card); border: none; color: var(--text-muted); font-size: 0.8rem; text-align: left; cursor: pointer; }
+#photopilot-page .pp-disclosure-toggle:hover { color: var(--text-primary); }
+#photopilot-page .pp-disclosure-panel { padding: 10px 14px; background: var(--bg-secondary); max-height: 220px; overflow-y: auto; }
+#photopilot-page .pp-disclosure-sentence { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; color: var(--text-muted); gap: 12px; }
+#photopilot-page .pp-disclosure-sentence:hover { background: var(--bg-card); color: var(--text-primary); }
+#photopilot-page .pp-disclosure-sentence.active { background: var(--accent-soft); color: var(--accent); }
+#photopilot-page .pp-disclosure-ts { font-size: 0.7rem; color: var(--text-faint, #666); white-space: nowrap; flex-shrink: 0; }
+
+/* Timeline */
+#photopilot-page .pp-timeline { position: relative; height: 44px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden; cursor: default; border: 1px solid var(--border); }
+#photopilot-page .pp-seg-bar { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: var(--accent-soft); border: 1px solid var(--accent); cursor: pointer; transition: background 0.1s; display: flex; align-items: center; padding: 0 4px; overflow: hidden; }
+#photopilot-page .pp-seg-bar.active { background: var(--accent); }
+#photopilot-page .pp-seg-bar:hover { background: var(--accent-glow); }
+#photopilot-page .pp-seg-label { font-size: 0.6rem; color: var(--accent); white-space: nowrap; overflow: hidden; pointer-events: none; }
+#photopilot-page .pp-seg-bar.active .pp-seg-label { color: #fff; }
+#photopilot-page .pp-seg-drag-handle { position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: col-resize; background: rgba(255,255,255,0.15); }
+#photopilot-page .pp-timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff6b6b; pointer-events: none; }
+
+/* Segment props */
+#photopilot-page .pp-segment-props { background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border); padding: 12px 14px; }
+#photopilot-page .pp-sp-photo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+#photopilot-page .pp-sp-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+#photopilot-page .pp-sp-photo-meta { display: flex; flex-direction: column; gap: 4px; }
+#photopilot-page .pp-props-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+#photopilot-page .pp-props-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+#photopilot-page .pp-props-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+#photopilot-page .pp-btn-row { display: flex; gap: 6px; margin-top: 6px; }
+
+/* Inline ⇄ ↻ buttons beside Easing select */
+#photopilot-page .pp-inline-btn {
+  padding: 3px 7px; font-size: 13px; line-height: 1;
+  border-radius: 5px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-secondary);
+  cursor: pointer; flex-shrink: 0; transition: border-color 0.15s, color 0.15s;
+}
+#photopilot-page .pp-inline-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* subtle / strong range wrapper */
+#photopilot-page .pp-intensity-wrap { flex: 1; min-width: 0; }
+#photopilot-page .pp-intensity-wrap input[type=range] { width: 100%; max-width: none; display: block; }
+#photopilot-page .pp-intensity-scale {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: var(--text-muted);
+  margin-top: 1px; padding: 0 2px;
+  pointer-events: none;
+}
+
+/* Render & Review */
+#photopilot-page .pp-render-progress-bar-outer { flex: 1; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+#photopilot-page .pp-render-progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+#photopilot-page .pp-render-progress-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+#photopilot-page .pp-render-phone { margin: 0 auto 14px; max-width: 200px; }
+#photopilot-page .pp-render-stats { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; text-align: center; }
+#photopilot-page .pp-render-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#photopilot-page .pp-render-error-msg { color: var(--red); margin-bottom: 10px; }
+
+/* Photopilot — Zone 1 input card */
+#photopilot-page .pp-input-divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+#photopilot-page .pp-input-footer {
+  display: flex; justify-content: flex-end; margin-top: 16px;
+}
+
+/* Photopilot — photo strip (horizontal, replaces grid in Zone 1) */
+#photopilot-page .pp-photo-strip {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 4px 2px 8px; align-items: center; flex-wrap: nowrap;
+}
+#photopilot-page .pp-photo-strip .pp-photo-thumb {
+  flex: 0 0 64px; width: 64px; height: 64px; cursor: default;
+}
+#photopilot-page .pp-photo-strip .pp-photo-thumb img {
+  width: 64px; height: 64px; border-radius: 6px; object-fit: cover;
+}
+#photopilot-page .pp-photo-strip-add {
+  flex: 0 0 64px; width: 64px; height: 64px;
+  border: 1px dashed var(--border); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; color: var(--text-muted); cursor: pointer;
+  background: var(--bg-secondary); flex-shrink: 0;
+}
+#photopilot-page .pp-photo-strip-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Photopilot — Zone 2 fine-tune collapsible */
+#photopilot-page .pp-accordion-hdr {
+  width: 100%; text-align: left;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 13px 18px;
+  font-size: var(--text-sm); font-weight: 600; color: var(--text-primary);
+  cursor: pointer; margin-bottom: 0; display: flex; align-items: center; gap: 8px;
+  transition: border-color 0.15s;
+}
+#photopilot-page .pp-accordion-hdr:hover { border-color: var(--accent); }
+#photopilot-page .pp-accordion-hdr .pp-acc-arrow { transition: transform 0.2s; margin-left: auto; }
+#photopilot-page .pp-accordion-hdr.open .pp-acc-arrow { transform: rotate(90deg); }
+#photopilot-page .pp-finetune-body {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: 16px; margin-bottom: 12px;
+}
+
+/* Photopilot — Zone 2 two-column split (controls + live preview) */
+#photopilot-page .pp-ft-two-col {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 4px;
+  overflow: hidden;
+}
+#photopilot-page .pp-ft-prop-col {
+  flex: 1;
+  min-width: 0;
+}
+#photopilot-page .pp-ft-preview {
+  width: 240px;
+  flex-shrink: 0;
+  min-width: 0;
+  position: sticky;
+  top: 70px;
+  overflow: hidden;
+}
+#photopilot-page .pp-ft-prop-col input[type=range] {
+  max-width: 160px;
+}
+#photopilot-page .pp-ft-preview-label {
+  font-size: var(--rp-label, 10px); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+#photopilot-page .pp-ft-canvas-frame {
+  border-radius: 12px; overflow: hidden;
+  background: #000; border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  margin-bottom: 6px;
+}
+#photopilot-page .pp-ft-canvas-frame canvas {
+  display: block; width: 100%; height: auto;
+}
+#photopilot-page .pp-ft-transport {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px; width: 100%;
+}
+#photopilot-page .pp-ft-play-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 10px; cursor: pointer; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+#photopilot-page .pp-ft-play-btn:hover { opacity: 0.85; }
+#photopilot-page .pp-ft-transport input[type=range] {
+  flex: 1; min-width: 0; accent-color: var(--accent);
+}
+#photopilot-page #pp-ft-scrub-label { display: none; }
+#photopilot-page .pp-ft-seg-name {
+  text-align: center; font-size: var(--rp-label, 10px);
+  color: var(--text-muted); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Photopilot — Zone 2 tab strip (reuses pp-btn-group + pp-opt-btn) */
+#photopilot-page .pp-tab-panel { display: none; }
+#photopilot-page .pp-tab-panel.active { display: block; }
+
+/* Photopilot — Zone 2 overlay list items */
+#photopilot-page .pp-overlay-item {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 8px 10px; background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 6px; font-size: var(--text-xs);
+}
+#photopilot-page .pp-overlay-item-label {
+  font-weight: 600; color: var(--text-primary); min-width: 80px;
+}
+#photopilot-page .pp-overlay-remove {
+  margin-left: auto; background: none; border: none;
+  color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;
+}
+#photopilot-page .pp-overlay-remove:hover { color: var(--red); }
+
+/* Photopilot — Zone 3 canvas fills phone screen */
+#photopilot-page #pp-canvas {
+  width: 100%; height: 100%; display: block; object-fit: contain;
+}
+
+/* Photopilot — Zone 3 scrub bar */
+#photopilot-page #pp-scrub {
+  width: 100%; height: 3px; margin-top: 6px;
+  accent-color: var(--accent);
+}
+
+/* Photopilot — Zone 3 ctrl column section dividers */
+#photopilot-page .pp-ctrl-section-label {
+  font-family: var(--lp-font-mono, monospace); font-size: 9px;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--lp-faint, var(--text-muted)); margin-bottom: 6px;
+}
+
+/* ── Photopilot — Two-column layout ── */
+#pp-body {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+#pp-agent-panel {
+  position: sticky;
+  top: 56px;
+  width: 260px;
+  flex-shrink: 0;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding: 18px;
+  background: color-mix(in oklch, var(--lp-bg, #050814) 60%, transparent);
+}
+
+#pp-workflow {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px 0 16px;
+}
+
+/* ── Photopilot — Script Review zone ── */
+#pp-script-review { margin-bottom: 12px; }
+#pp-script-review h3 {
+  font-size: var(--rp-step, 15px); font-weight: 600;
+  margin-bottom: 14px; color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px;
+}
+
+#pp-script-segments {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;
+}
+
+.pp-script-segment {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.pp-script-segment-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pp-script-segment-thumb {
+  width: 36px; height: 36px; object-fit: cover;
+  border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0;
+}
+
+.pp-script-segment-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.pp-script-segment-label {
+  font-size: var(--rp-sm, 12px); font-weight: 600; color: var(--text-primary);
+}
+
+.pp-script-segment-ts {
+  font-size: var(--rp-label, 10px); color: var(--text-muted);
+  font-family: var(--lp-font-mono, monospace);
+}
+
+.pp-script-segment textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-primary);
+  font-size: var(--rp-body, 13px); font-family: inherit;
+  resize: vertical; min-height: 56px;
+  transition: border-color 0.15s;
+}
+.pp-script-segment textarea:focus { outline: none; border-color: var(--accent); }
+.pp-script-segment textarea[readonly] {
+  opacity: 0.6; cursor: default; resize: none;
+}
+
+.pp-script-review-footer {
+  display: flex; justify-content: flex-end;
+  gap: 10px; align-items: center; padding-top: 4px;
+}
+
+/* ── Photopilot — Agent panel header (matches #reel-page exactly) ── */
+#photopilot-page .agent-panel-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--lp-font-display);
+  font-size: var(--rp-label, 10px); font-weight: 400;
+  color: var(--lp-faint); letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+#photopilot-page .agent-panel-mode-badge { margin-bottom: 0; }
+
+/* ── Photopilot — Agent panel scoped status dots ── */
+#pp-agent-panel .agent-status-dot { margin-left: auto; flex-shrink: 0; }
+
+/* ── Photopilot — Agent row (one row + subtasks, matches #reel-page) ── */
+#photopilot-page .agent-row {
+  display: grid; grid-template-columns: 32px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 6px 10px; border-radius: 12px;
+  background: transparent; border: 1px solid transparent;
+  margin-bottom: 0; transition: all 150ms ease;
+}
+#photopilot-page .agent-row-top { display: contents; }
+#photopilot-page .agent-row:hover { background: var(--lp-card); }
+#photopilot-page .agent-row.active {
+  background: var(--lp-card); border-color: var(--lp-card-bdr-h);
+}
+#photopilot-page .agent-row-icon {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  color: var(--lp-dim);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--rp-ui); line-height: 1; flex-shrink: 0;
+  transition: all 150ms ease;
+}
+#photopilot-page .agent-row.active .agent-row-icon {
+  background: color-mix(in oklch, var(--lp-accent) 16%, transparent);
+  border-color: var(--lp-accent); color: var(--lp-accent);
+}
+#photopilot-page .agent-row-label {
+  font-family: var(--lp-font-ui); font-size: var(--rp-body); font-weight: 600;
+  color: var(--lp-text); line-height: 1.3;
+}
+#photopilot-page .agent-status-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-left: 0;
+}
+#photopilot-page .agent-row-body {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px;
+  padding: 2px 0 2px 10px;
+}
+#photopilot-page .agent-subtask {
+  display: flex; align-items: center; gap: 7px;
+  font-size: var(--rp-meta); line-height: 1.45; color: var(--lp-dim);
+}
+#photopilot-page .agent-subtask.waiting { color: var(--lp-faint); }
+#photopilot-page .agent-subtask.warn    { color: #f59e0b; }
+#photopilot-page .agent-subtask.error   { color: #ef4444; }
+#photopilot-page .agent-subtask-icon {
+  width: 12px; height: 12px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 12px; font-size: var(--rp-xs); font-weight: 700;
+  background: transparent; border: 1px solid var(--lp-card-bdr); color: var(--lp-dim);
+}
+#photopilot-page .agent-subtask.done .agent-subtask-icon {
+  background: color-mix(in oklch, var(--lp-accent) 22%, transparent);
+  border-color: transparent; color: var(--lp-accent);
+}
+#photopilot-page .agent-subtask.warn .agent-subtask-icon  { border-color: #f59e0b; color: #f59e0b; }
+#photopilot-page .agent-subtask.error .agent-subtask-icon { border-color: #ef4444; color: #ef4444; }
+#photopilot-page .agent-subtask.running .agent-subtask-icon {
+  border-color: #f59e0b; color: #f59e0b;
+  animation: aurora-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Photopilot — Responsive ── */
+@media (max-width: 680px) {
+  #pp-body { flex-direction: column; }
+  #pp-agent-panel {
+    width: 100%; height: auto; position: static;
+    border-right: none; border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: flex; flex-direction: row; align-items: center; gap: 4px;
+    overflow-x: auto; overflow-y: hidden;
+  }
+  #pp-agent-panel .agent-panel-label { display: none; }
+  #pp-agent-panel .agent-list {
+    display: flex; flex-direction: row; flex-wrap: nowrap; gap: 2px;
+  }
+  #pp-agent-panel .agent-row {
+    flex-direction: row; align-items: center;
+    padding: 5px 8px; min-width: max-content;
+  }
+  #pp-agent-panel .agent-row-detail { display: none; }
+  #pp-workflow { padding: 0 4px; }
+  #photopilot-page .pp-ft-two-col { flex-direction: column; }
+  #photopilot-page .pp-ft-preview { width: 100%; position: static; }
+  #photopilot-page .pp-ft-canvas-frame canvas { max-height: 200px; width: auto; margin: 0 auto; display: block; }
 }
