@@ -2899,9 +2899,9 @@ body:has(#drop-zone:not(.hidden)) {
     <div class="pp-option-group">
       <div class="pp-option-label">Format</div>
       <div class="pp-btn-group" id="pp-aspect-group" style="margin-bottom:8px;">
-        <button class="pp-opt-btn active" id="pp-aspect-916" data-val="9:16">9:16</button>
-        <button class="pp-opt-btn" id="pp-aspect-45" data-val="4:5">4:5</button>
-        <button class="pp-opt-btn" id="pp-aspect-11" data-val="1:1">1:1</button>
+        <button class="pp-opt-btn active" id="pp-aspect-916" data-val="9:16">TikTok</button>
+        <button class="pp-opt-btn" id="pp-aspect-45" data-val="4:5">Instagram</button>
+        <button class="pp-opt-btn" id="pp-aspect-11" data-val="1:1">Square</button>
         <span style="width:1px;background:var(--border);margin:0 4px;"></span>
         <button class="pp-opt-btn" id="pp-dur-15" data-val="15">15s</button>
         <button class="pp-opt-btn active" id="pp-dur-30" data-val="30">30s</button>
@@ -2911,14 +2911,49 @@ body:has(#drop-zone:not(.hidden)) {
         <label style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--text-muted);">
           Mood
           <select id="pp-mood-select" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:var(--text-xs);padding:4px 8px;">
-            <option value="cinematic">🎬 Cinematic</option>
-            <option value="clean">✨ Clean</option>
-            <option value="romantic">💕 Romantic</option>
-            <option value="dramatic">⚡ Dramatic</option>
-            <option value="vintage">📷 Vintage</option>
-            <option value="product">📦 Product</option>
-            <option value="travel">🌍 Travel</option>
-            <option value="editorial">🖼 Editorial</option>
+            <option value="cinematic">Cinematic</option>
+            <option value="clean">Clean</option>
+            <option value="romantic">Romantic</option>
+            <option value="dramatic">Dramatic</option>
+            <option value="vintage">Vintage</option>
+            <option value="product">Product</option>
+            <option value="travel">Travel</option>
+            <option value="editorial">Editorial</option>
+          </select>
+        </label>
+        <label id="pp-voice-label" style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--text-muted);">
+          Voice
+          <select id="pp-voice-select" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:var(--text-xs);padding:4px 8px;">
+            <option value="Zephyr">Zephyr (Bright)</option>
+            <option value="Puck">Puck (Upbeat)</option>
+            <option value="Charon">Charon (Informative)</option>
+            <option value="Kore" selected>Kore (Firm)</option>
+            <option value="Fenrir">Fenrir (Excitable)</option>
+            <option value="Leda">Leda (Youthful)</option>
+            <option value="Orus">Orus (Firm)</option>
+            <option value="Aoede">Aoede (Breezy)</option>
+            <option value="Callirhoe">Callirhoe (Easy-going)</option>
+            <option value="Autonoe">Autonoe (Bright)</option>
+            <option value="Enceladus">Enceladus (Breathy)</option>
+            <option value="Iapetus">Iapetus (Clear)</option>
+            <option value="Umbriel">Umbriel (Easy-going)</option>
+            <option value="Algieba">Algieba (Smooth)</option>
+            <option value="Despina">Despina (Smooth)</option>
+            <option value="Erinome">Erinome (Clear)</option>
+            <option value="Algenib">Algenib (Gravelly)</option>
+            <option value="Rasalhaue">Rasalhaue (Informative)</option>
+            <option value="Laomedeia">Laomedeia (Upbeat)</option>
+            <option value="Achernar">Achernar (Soft)</option>
+            <option value="Alnilam">Alnilam (Firm)</option>
+            <option value="Schedar">Schedar (Even)</option>
+            <option value="Gacrux">Gacrux (Mature)</option>
+            <option value="Pulcherrima">Pulcherrima (Forward)</option>
+            <option value="Achird">Achird (Friendly)</option>
+            <option value="Zubenelgenubi">Zubenelgenubi (Casual)</option>
+            <option value="Vindemiatrix">Vindemiatrix (Gentle)</option>
+            <option value="Sadachbia">Sadachbia (Lively)</option>
+            <option value="Sadaltager">Sadaltager (Knowledgeable)</option>
+            <option value="Sulafat">Sulafat (Warm)</option>
           </select>
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--text-muted);cursor:pointer;">
@@ -2926,6 +2961,10 @@ body:has(#drop-zone:not(.hidden)) {
                  style="accent-color:var(--accent);">
           Smart Suggestions
         </label>
+        <span id="pp-mood-suggestion" style="display:none;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--accent);background:rgba(160,120,255,0.1);border:1px solid rgba(160,120,255,0.3);border-radius:999px;padding:3px 10px;">
+          ✨ AI suggests: <strong id="pp-mood-suggestion-name"></strong>
+          <button id="pp-mood-suggestion-apply" style="background:var(--accent);color:#fff;border:none;border-radius:999px;padding:2px 8px;font-size:var(--text-xs);cursor:pointer;">Switch</button>
+        </span>
       </div>
     </div>
 
@@ -3040,7 +3079,7 @@ body:has(#drop-zone:not(.hidden)) {
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn-xs" id="btn-pp-seg-prev">← Prev</button>
                 <button class="btn-xs" id="btn-pp-seg-next">Next →</button>
-                <button class="btn-xs" id="btn-pp-swap-photo">⇄ Swap</button>
+                <button class="btn-xs" id="btn-pp-swap-photo">🖼 Change Photo</button>
               </div>
               <div style="margin-top:4px;font-size:var(--text-2xs);color:var(--text-muted);">
                 Duration: <span id="pp-sp-duration">—</span>
@@ -3082,16 +3121,10 @@ body:has(#drop-zone:not(.hidden)) {
                   <button class="pp-inline-btn" id="btn-pp-kb-recompute" title="Recompute">↻</button>
                 </label>
                 <label class="form-label" style="margin-top:6px;">Shake
-                  <div class="pp-intensity-wrap">
-                    <input type="range" id="pp-shake" min="0" max="0.5" step="0.01" value="0">
-                    <div class="pp-intensity-scale"><span>subtle</span><span>strong</span></div>
-                  </div>
+                  <input type="range" id="pp-shake" min="0" max="0.5" step="0.01" value="0" style="flex:1;">
                 </label>
                 <label class="form-label" style="margin-top:6px;">Zoom Punch
-                  <div class="pp-intensity-wrap">
-                    <input type="range" id="pp-zoom-punch" min="0" max="0.5" step="0.01" value="0">
-                    <div class="pp-intensity-scale"><span>subtle</span><span>strong</span></div>
-                  </div>
+                  <input type="range" id="pp-zoom-punch" min="0" max="0.5" step="0.01" value="0" style="flex:1;">
                 </label>
               </div>
 
@@ -3134,7 +3167,7 @@ body:has(#drop-zone:not(.hidden)) {
                   </select>
                 </label>
                 <label class="form-label" style="margin-top:6px;">Spotlight
-                  <input type="checkbox" id="pp-spotlight-toggle" style="width:auto;margin-left:auto;cursor:pointer;">
+                  <input type="checkbox" id="pp-spotlight-toggle" style="width:auto;cursor:pointer;">
                 </label>
                 <div id="pp-spotlight-sliders" style="display:none;">
                   <label class="form-label" style="margin-top:6px;">X
@@ -3158,6 +3191,9 @@ body:has(#drop-zone:not(.hidden)) {
                     <option value="sparkle">Sparkle</option>
                     <option value="dust">Dust</option>
                   </select>
+                  <input type="color" id="pp-particle-color" value="#ffffff"
+                         title="Particle colour"
+                         style="width:28px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;flex-shrink:0;">
                 </label>
               </div>
 
@@ -3206,8 +3242,8 @@ body:has(#drop-zone:not(.hidden)) {
       <!-- Overlays tab — full width -->
       <div class="pp-tab-panel" id="pp-tab-overlays">
         <div class="pp-btn-group" style="margin-bottom:12px;">
-          <button class="pp-opt-btn" id="btn-pp-add-colour-pic">+ Colour Pic</button>
-          <button class="pp-opt-btn" id="btn-pp-add-time-pic">+ Time Pic</button>
+          <button class="pp-opt-btn" id="btn-pp-add-colour-pic">🖼 + PiP</button>
+          <button class="pp-opt-btn" id="btn-pp-add-time-pic">🕐 + Timestamp</button>
         </div>
         <div id="pp-overlay-list">
           <div style="font-size:var(--text-xs);color:var(--text-muted);">No overlays added yet.</div>
@@ -3352,14 +3388,14 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-pp-export" class="primary btn-md" style="width:100%;margin-bottom:8px;">
             ⬇ Export MP4
           </button>
-          <div id="pp-render-progress" style="display:none;">
-            <div style="background:var(--bg-secondary);border-radius:4px;height:4px;overflow:hidden;margin-bottom:4px;">
+          <div id="pp-render-progress" style="display:none;width:100%;">
+            <div style="background:var(--bg-secondary);border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px;width:100%;">
               <div id="pp-render-bar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
             </div>
             <div id="pp-render-label" style="font-size:var(--text-2xs);color:var(--text-muted);text-align:center;">Rendering…</div>
           </div>
           <div id="pp-render-dl" style="display:none;text-align:center;">
-            <a id="pp-dl-link" class="primary btn-sm" style="display:inline-block;">⬇ Download</a>
+            <a id="pp-dl-link" class="primary btn-sm" style="display:inline-block;width:100%;box-sizing:border-box;">⬇ Download</a>
           </div>
           <div id="pp-render-error" style="display:none;color:var(--red);font-size:var(--text-xs);margin-top:4px;"></div>
         </div>

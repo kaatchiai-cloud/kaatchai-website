@@ -30,7 +30,8 @@ const photopilotProject = {
   format: { aspect: '9:16', duration: 30 },
   effectsConfig: {
     mood: 'cinematic',
-    smartSuggestions: true
+    smartSuggestions: true,
+    ttsVoice: 'Kore'
   },
   photos: [],         // [{id, src, blob, naturalW, naturalH, img, focusPoint}]
   contentSource: { mode: 'title', value: '', instructions: '', audioBuffer: null },
@@ -63,6 +64,15 @@ const photopilotProject = {
   renderedBlob: null,
   renderedBlobUrl: null,
 };
+
+// ── Slider fill utility ──────────────────────────────────────────────────────
+// Sets --slider-pct on a range input so the CSS gradient fills up to the thumb
+function syncSliderFill(el) {
+  const min = parseFloat(el.min) || 0;
+  const max = parseFloat(el.max) || 100;
+  const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+  el.style.setProperty('--slider-pct', pct.toFixed(1) + '%');
+}
 
 // Preview state
 let ppRafId = null;
@@ -515,6 +525,7 @@ async function runPhase1() {
   let script = '';
   if (cs.mode === 'title') {
     setPPTask('analyse', 'running');
+    setPPTask('script', 'running');   // both blink together — single combined LLM call
     const combined = await llmAnalyseAndWriteScript(
       photopilotProject.photos, cs.value, totalDur,
       photopilotProject.effectsConfig.mood, cs.instructions || ''
@@ -546,9 +557,33 @@ async function runPhase1() {
         });
       }
     });
+    // Show mood recommendation if AI suggests something different
+    if (combined.recommendedMood && combined.recommendedMood !== photopilotProject.effectsConfig.mood) {
+      const chip  = $('pp-mood-suggestion');
+      const label = $('pp-mood-suggestion-name');
+      const applyBtn = $('pp-mood-suggestion-apply');
+      if (chip && label) {
+        const moodLabels = { cinematic:'Cinematic', clean:'Clean', romantic:'Romantic',
+          dramatic:'Dramatic', vintage:'Vintage', product:'Product', travel:'Travel', editorial:'Editorial' };
+        label.textContent = moodLabels[combined.recommendedMood] || combined.recommendedMood;
+        chip.style.display = 'flex';
+        if (applyBtn) applyBtn.onclick = function() {
+          const sel = $('pp-mood-select');
+          if (sel) { sel.value = combined.recommendedMood; sel.dispatchEvent(new Event('change')); }
+          chip.style.display = 'none';
+        };
+      }
+    }
+    // Apply per-segment subtitle positions and harmonize color grades
+    applySubtitlePositions(photopilotProject.segments);
+    harmonizeColorPresets(photopilotProject.segments);
     setPPTask('analyse', 'done');
     setPPTask('script', 'running');
-    script = combined.script;
+    // scriptLines: each segment gets its own dedicated line
+    script = combined.scriptLines.join(' ');
+    photopilotProject.segments.forEach(function(seg, i) {
+      seg.script = combined.scriptLines[i] || '';
+    });
   } else if (cs.mode === 'text') {
     setPPTask('script', 'running');
     script = await llmPolishText(cs.value, totalDur);
@@ -558,16 +593,16 @@ async function runPhase1() {
   }
   photopilotProject._phase1Script = script;
 
-  // Distribute script text across segments for the review panel.
-  // Split by words proportionally so every segment always gets content,
-  // regardless of how many sentences the LLM produced.
-  const words = script.trim().split(/\s+/).filter(Boolean);
-  const nSegs = Math.max(1, photopilotProject.segments.length);
-  photopilotProject.segments.forEach(function(seg, i) {
-    const start = Math.round(i * words.length / nSegs);
-    const end   = Math.round((i + 1) * words.length / nSegs);
-    seg.script  = words.slice(start, end).join(' ');
-  });
+  // For non-title modes, still distribute script proportionally
+  if (cs.mode !== 'title') {
+    const words = script.trim().split(/\s+/).filter(Boolean);
+    const nSegs = Math.max(1, photopilotProject.segments.length);
+    photopilotProject.segments.forEach(function(seg, i) {
+      const start = Math.round(i * words.length / nSegs);
+      const end   = Math.round((i + 1) * words.length / nSegs);
+      seg.script  = words.slice(start, end).join(' ');
+    });
+  }
   setPPTask('script', 'done');
 
   return script;
@@ -585,16 +620,12 @@ async function runPhase2() {
   setPPTask('tts', 'running');
   if (cs.mode === 'title' || cs.mode === 'text') {
     try {
-      const ttsResult = await generateTTSGemini(script, 'Kore', getPPApiKey());
+      const ttsResult = await generateTTSGemini(script, photopilotProject.effectsConfig.ttsVoice || 'Kore', getPPApiKey());
       const { audioBuffer: ttsAudioBuffer } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
       cs.audioBuffer = ttsAudioBuffer;
       const actualDur = Math.min(ttsAudioBuffer.duration, photopilotProject.format.duration);
       photopilotProject.effectiveDuration = actualDur;
-      const perPhoto2 = actualDur / photopilotProject.photos.length;
-      photopilotProject.segments.forEach(function(seg, i) {
-        seg.startTime = i * perPhoto2;
-        seg.endTime   = (i + 1) * perPhoto2;
-      });
+      allocateSegmentDurations(photopilotProject.segments, actualDur);
       setPPTask('tts', 'done');
     } catch(ttsErr) {
       console.warn('[PP] TTS failed, using synthetic timings:', ttsErr);
@@ -656,9 +687,15 @@ async function runPhase2() {
         seg.aiAnalysis = null;
       }
     }));
-    const pos = pickSubtitlePosition(photopilotProject.segments);
-    photopilotProject.subtitle.subPosition = pos;
+    applySubtitlePositions(photopilotProject.segments);
+    harmonizeColorPresets(photopilotProject.segments);
+  } else {
+    // No AI analysis — set default subtitle positions
+    photopilotProject.segments.forEach(function(seg) { seg.subtitleY = 85; });
   }
+  // Global fallback subtitle position (used if per-segment value is missing)
+  const pos = pickSubtitlePosition(photopilotProject.segments);
+  photopilotProject.subtitle.subPosition = pos;
   if (!inTitleMode) setPPTask('analysis', 'done');
 }
 
@@ -797,6 +834,7 @@ async function llmAnalyseAndWriteScript(photos, title, durationSec, moodName, in
     'Duration: ~' + durationSec + ' seconds, script target: ~' + wordTarget + ' words.' + instrClause + '\n\n' +
     'Return ONLY valid JSON (no markdown) in this exact shape:\n' +
     '{\n' +
+    '  "recommendedMood": "cinematic"|"clean"|"romantic"|"dramatic"|"vintage"|"product"|"travel"|"editorial",\n' +
     '  "analyses": [\n' +
     '    {\n' +
     '      "photoIndex": 0,\n' +
@@ -815,12 +853,15 @@ async function llmAnalyseAndWriteScript(photos, title, durationSec, moodName, in
     '      "skipColorPreset": false\n' +
     '    }\n' +
     '  ],\n' +
-    '  "script": "narration script text here"\n' +
+    '  "scriptLines": ["one sentence for photo 1", "one sentence for photo 2"]\n' +
     '}\n\n' +
     'Rules:\n' +
+    '- recommendedMood: pick the single best mood preset for the entire photo set.\n' +
     '- analyses: one entry per photo, in order, 0-indexed.\n' +
-    '- script: a personal, engaging narration that references what is actually visible in the photos. ' +
-    'No hashtags, no emojis, no section labels. Plain text only.'
+    '- transitionInHint: consider the PAIR of consecutive photos. Same subject/scene → morphBlend or fade. ' +
+    'Location/mood change → whipPan or lightLeak. Emotional peak → lightLeak. Hard cut for contrast → whiteCrossfade.\n' +
+    '- scriptLines: exactly ' + n + ' strings, one per photo in order. Each line is 1-2 sentences that ' +
+    'directly references what is visible in that specific photo. Personal, engaging tone. No hashtags, no emojis.'
   });
 
   const body = { contents: [{ parts: parts }] };
@@ -830,9 +871,15 @@ async function llmAnalyseAndWriteScript(photos, title, durationSec, moodName, in
     data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
     data.candidates[0].content.parts[0].text) || '';
   const parsed = parseGeminiJson(text);
+  const analyses    = (parsed && Array.isArray(parsed.analyses)) ? parsed.analyses : [];
+  const scriptLines = (parsed && Array.isArray(parsed.scriptLines)) ? parsed.scriptLines
+                    : (parsed && typeof parsed.script === 'string')  // fallback: split old shape
+                      ? parsed.script.trim().split(/(?<=[.!?])\s+/)
+                      : [];
   return {
-    analyses: (parsed && Array.isArray(parsed.analyses)) ? parsed.analyses : [],
-    script:   (parsed && typeof parsed.script === 'string') ? parsed.script.trim() : ''
+    analyses,
+    scriptLines,
+    recommendedMood: (parsed && typeof parsed.recommendedMood === 'string') ? parsed.recommendedMood : null
   };
 }
 
@@ -956,7 +1003,7 @@ async function llmAnalyzePhoto(photo, prevPhoto, moodName) {
       parts: [
         { inlineData: { mimeType: 'image/jpeg', data: base64 } },
         {
-          text: `You are analyzing a photo for a short vertical reel. Return ONLY valid JSON.\nMood: ${moodName}\n${prevPhoto ? 'There is a previous photo in the sequence.' : 'This is the first photo.'}\n\nReturn:\n{"subject":"face"|"group"|"product"|"landscape"|"food"|"action"|"still-life"|"other","subjectPosition":{"x":0.5,"y":0.5},"subjectVerticalZone":"top"|"middle"|"bottom","energy":"calm"|"moderate"|"high","lighting":"golden-hour"|"harsh"|"soft"|"low-light"|"studio"|"bw","alreadyGraded":false,"isMonochrome":false,"kenBurnsHint":"pan-left-to-right"|"pan-right-to-left"|"zoom-in"|"zoom-out"|"pan-up"|"pan-down","transitionInHint":"fade"|"whipPan"|"lightLeak"|"whiteCrossfade"|"morphBlend"|"iris","particleHint":"none"|"hearts"|"dust"|"sparkle","frameHint":"none"|"polaroid"|"filmStrip","skipColorPreset":false}`
+          text: `You are analyzing a photo for a short vertical reel. Return ONLY valid JSON.\nMood: ${moodName}\n${prevPhoto ? 'There is a previous photo in the sequence — consider how this photo relates to it when choosing transitionInHint.' : 'This is the first photo.'}\nFor transitionInHint: same subject/scene as previous → morphBlend or fade; location/mood change → whipPan or lightLeak; emotional moment → lightLeak; hard contrast → whiteCrossfade.\n\nReturn:\n{"subject":"face"|"group"|"product"|"landscape"|"food"|"action"|"still-life"|"other","subjectPosition":{"x":0.5,"y":0.5},"subjectVerticalZone":"top"|"middle"|"bottom","energy":"calm"|"moderate"|"high","lighting":"golden-hour"|"harsh"|"soft"|"low-light"|"studio"|"bw","alreadyGraded":false,"isMonochrome":false,"kenBurnsHint":"pan-left-to-right"|"pan-right-to-left"|"zoom-in"|"zoom-out"|"pan-up"|"pan-down","transitionInHint":"fade"|"whipPan"|"lightLeak"|"whiteCrossfade"|"morphBlend"|"iris","particleHint":"none"|"hearts"|"dust"|"sparkle","frameHint":"none"|"polaroid"|"filmStrip"|"cornerBurns","skipColorPreset":false}`
         }
       ]
     }]
@@ -967,6 +1014,58 @@ async function llmAnalyzePhoto(photo, prevPhoto, moodName) {
     data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
     data.candidates[0].content.parts[0].text) || '';
   return parseGeminiJson(text);
+}
+
+// Energy-weighted segment duration allocation.
+// calm photos get more time, high-energy photos get less.
+function allocateSegmentDurations(segments, totalDur) {
+  const energyWeights = { calm: 1.3, moderate: 1.0, high: 0.7 };
+  const weights = segments.map(function(seg) {
+    return energyWeights[(seg.aiAnalysis && seg.aiAnalysis.energy) || 'moderate'] || 1.0;
+  });
+  const sum = weights.reduce(function(a, b) { return a + b; }, 0);
+  let t = 0;
+  segments.forEach(function(seg, i) {
+    const dur = (weights[i] / sum) * totalDur;
+    seg.startTime = parseFloat(t.toFixed(4));
+    seg.endTime   = parseFloat((t + dur).toFixed(4));
+    t += dur;
+  });
+}
+
+// Per-segment subtitle Y position based on where the subject sits in each photo.
+// Subject at bottom → subtitle moves to top to avoid overlap, and vice versa.
+function applySubtitlePositions(segments) {
+  segments.forEach(function(seg) {
+    const zone = seg.aiAnalysis && seg.aiAnalysis.subjectVerticalZone;
+    seg.subtitleY = (zone === 'bottom') ? 15 : 85;
+  });
+}
+
+// Color grading consistency: find the majority colorPreset across the set
+// and apply it to segments that have no specific AI reason to be different.
+function harmonizeColorPresets(segments) {
+  const counts = {};
+  segments.forEach(function(seg) {
+    const ai = seg.aiAnalysis;
+    const isLocked = ai && (ai.alreadyGraded || ai.isMonochrome || ai.skipColorPreset);
+    const hasUserOverride = seg.userOverrides && seg.userOverrides.colorPreset;
+    if (!isLocked && !hasUserOverride) {
+      const p = seg.effect.colorPreset || 'none';
+      counts[p] = (counts[p] || 0) + 1;
+    }
+  });
+  const keys = Object.keys(counts);
+  if (keys.length <= 1) return; // already consistent
+  const majority = keys.sort(function(a, b) { return counts[b] - counts[a]; })[0];
+  segments.forEach(function(seg) {
+    const ai = seg.aiAnalysis;
+    const isLocked = ai && (ai.alreadyGraded || ai.isMonochrome || ai.skipColorPreset);
+    const hasUserOverride = seg.userOverrides && seg.userOverrides.colorPreset;
+    if (!isLocked && !hasUserOverride) {
+      seg.effect.colorPreset = majority;
+    }
+  });
 }
 
 function pickSubtitlePosition(segments) {
@@ -1043,12 +1142,16 @@ function renderFrame() {
   if (photo && photo.img && seg.effect && seg.effect.kenBurns) {
     const filter = COLOR_PRESETS[seg.effect.colorPreset || 'none'] || '';
     if (filter) ctx.filter = filter;
-    if (seg.effect.shake > 0) {
-      ctx.save();
-      applyShakeTransform(ctx, seg.effect.shake);
+    ctx.save();
+    if (seg.effect.shake > 0) applyShakeTransform(ctx, seg.effect.shake);
+    if (seg.effect.zoomPunch > 0 && segT < 0.25) {
+      const punch = seg.effect.zoomPunch * (1 - segT / 0.25);
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(1 + punch, 1 + punch);
+      ctx.translate(-W / 2, -H / 2);
     }
     drawKenBurnsFrame(ctx, photo.img, seg.effect.kenBurns, segT, W, H, (seg.effect.kenBurns.easing || 'easeOutQuad'));
-    if (seg.effect.shake > 0) ctx.restore();
+    ctx.restore();
     ctx.filter = 'none';
   } else {
     ctx.fillStyle = '#111';
@@ -1081,10 +1184,11 @@ function renderFrame() {
     drawFrameDecoration(ctx, seg.effect.frameStyle, W, H);
   }
 
-  // 4. Subtitles
+  // 4. Subtitles — use per-segment Y position if AI set one
   const subStyle = photopilotProject.subtitle.style || 'classic';
   if (subStyle !== 'none' && photopilotProject.subtitle.words.length > 0) {
     syncSubtitleGlobals();
+    if (seg && seg.subtitleY !== undefined) reelSubPosition = seg.subtitleY;
     try { renderReelSubtitle(ctx, W, H, ppCurrentTime, photopilotProject.subtitle.words, subStyle); } catch(_) {}
   }
 
@@ -1201,35 +1305,138 @@ function renderOverlayList() {
   const container = $('pp-overlay-list');
   if (!container) return;
   const items = photopilotProject.overlays.items;
+  const totalDur = photopilotProject.effectiveDuration || 30;
+
   if (!items.length) {
     container.innerHTML = '<div style="font-size:var(--text-xs);color:var(--text-muted);">No overlays added yet.</div>';
     return;
   }
+
   container.innerHTML = '';
+
   items.forEach(function(item) {
-    const row = document.createElement('div');
-    row.className = 'pp-overlay-item';
+    const isPip = item.type === 'colour-pic';
+    const endTime = item.startTime + item.duration;
+    const p = item.params;
+    // Timestamp order: 4 slots, each 'none'|'day'|'month'|'year'|'time'
+    const order = p.order || ['day', 'month', 'year', 'none'];
+    const corner = p.position || p.corner || (isPip ? 'br' : 'tl');
 
-    const label = document.createElement('span');
-    label.className = 'pp-overlay-item-label';
-    label.textContent = (item.type === 'colour-pic' ? '🖼 Colour Pic' : '🕐 Time Pic') +
-      ` · @${item.startTime.toFixed(1)}s · ${item.duration.toFixed(1)}s`;
+    const card = document.createElement('div');
+    card.className = 'pp-overlay-card';
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'pp-overlay-remove';
-    removeBtn.textContent = '✕';
-    removeBtn.onclick = function() {
-      photopilotProject.overlays.items = photopilotProject.overlays.items.filter(function(i) {
-        return i.id !== item.id;
-      });
-      renderOverlayList();
-      invalidateRender();
-      requestPreviewFrame();
+    // ── Header ──────────────────────────────────────────────
+    const hdr = document.createElement('div');
+    hdr.className = 'pp-overlay-card-hdr';
+    hdr.innerHTML = '<span>' + (isPip ? '🖼 PiP' : '🕐 Timestamp') + '</span>';
+    const rm = document.createElement('button');
+    rm.className = 'pp-overlay-remove'; rm.textContent = '✕';
+    rm.onclick = function() {
+      photopilotProject.overlays.items = photopilotProject.overlays.items.filter(function(i) { return i.id !== item.id; });
+      renderOverlayList(); invalidateRender(); requestPreviewFrame();
+    };
+    hdr.appendChild(rm);
+    card.appendChild(hdr);
+
+    function row(labelTxt, controlsHtml) {
+      const d = document.createElement('div');
+      d.className = 'pp-overlay-row';
+      d.innerHTML = '<span class="pp-overlay-row-lbl">' + labelTxt + '</span><span class="pp-overlay-row-ctrl">' + controlsHtml + '</span>';
+      return d;
+    }
+
+    // ── Start / End — number inputs ─────────────────────────
+    const timingRow = row('Time',
+      'Start <input type="number" class="ov-start" min="0" max="' + totalDur.toFixed(1) + '" step="0.1" value="' + item.startTime.toFixed(1) + '">s' +
+      '&nbsp;&nbsp;End <input type="number" class="ov-end" min="0" max="' + totalDur.toFixed(1) + '" step="0.1" value="' + endTime.toFixed(1) + '">s');
+    card.appendChild(timingRow);
+
+    timingRow.querySelector('.ov-start').onchange = function() {
+      const v = Math.max(0, Math.min(parseFloat(this.value) || 0, totalDur));
+      this.value = v.toFixed(1);
+      item.startTime = v;
+      const endEl = timingRow.querySelector('.ov-end');
+      if (parseFloat(endEl.value) < v) { endEl.value = v.toFixed(1); }
+      item.duration = Math.max(0, parseFloat(timingRow.querySelector('.ov-end').value) - v);
+      invalidateRender(); requestPreviewFrame();
+    };
+    timingRow.querySelector('.ov-end').onchange = function() {
+      const v = Math.max(item.startTime, Math.min(parseFloat(this.value) || 0, totalDur));
+      this.value = v.toFixed(1);
+      item.duration = v - item.startTime;
+      invalidateRender(); requestPreviewFrame();
     };
 
-    row.appendChild(label);
-    row.appendChild(removeBtn);
-    container.appendChild(row);
+    // ── Corner + Colours — single compact row ───────────────
+    function cornerOpt(val, label) {
+      return '<option value="' + val + '"' + (corner === val ? ' selected' : '') + '>' + label + '</option>';
+    }
+    const styleRow = row('Style',
+      '<select class="ov-corner ov-corner-sm">' +
+        cornerOpt('tl','Top Left') + cornerOpt('tr','Top Right') + cornerOpt('bl','Bot Left') + cornerOpt('br','Bot Right') +
+      '</select>' +
+      (isPip
+        ? ' <span class="ov-colour-lbl">Border</span><input type="color" class="ov-border-color" value="' + (p.borderColor||'#ffffff') + '">' +
+          ' <span class="ov-colour-lbl">Size</span><input type="range" class="ov-size" min="0.1" max="0.5" step="0.01" value="' + (p.size||0.25).toFixed(2) + '">' +
+          '<span class="ov-size-lbl">' + Math.round((p.size||0.25)*100) + '%</span>'
+        : ' <span class="ov-colour-lbl">BG</span><input type="color" class="ov-bg-color" value="' + (p.bgColorHex||'#000000') + '">' +
+          ' <input type="range" class="ov-bg-opacity" min="0" max="1" step="0.05" value="' + (p.bgOpacity!==undefined?p.bgOpacity:0.65).toFixed(2) + '">' +
+          ' <span class="ov-colour-lbl">Text</span><input type="color" class="ov-txt-color" value="' + (p.textColor||'#ffffff') + '">'
+      )
+    );
+    card.appendChild(styleRow);
+
+    styleRow.querySelector('.ov-corner').onchange = function() {
+      p.position = this.value; if (isPip) p.corner = this.value;
+      invalidateRender(); requestPreviewFrame();
+    };
+    if (isPip) {
+      styleRow.querySelector('.ov-border-color').oninput = function() {
+        p.borderColor = this.value; invalidateRender(); requestPreviewFrame();
+      };
+      styleRow.querySelector('.ov-size').oninput = function() {
+        p.size = parseFloat(this.value);
+        styleRow.querySelector('.ov-size-lbl').textContent = Math.round(p.size * 100) + '%';
+        invalidateRender(); requestPreviewFrame();
+      };
+    } else {
+      styleRow.querySelector('.ov-bg-color').oninput = function() {
+        p.bgColorHex = this.value; invalidateRender(); requestPreviewFrame();
+      };
+      styleRow.querySelector('.ov-bg-opacity').oninput = function() {
+        p.bgOpacity = parseFloat(this.value); invalidateRender(); requestPreviewFrame();
+      };
+      styleRow.querySelector('.ov-txt-color').oninput = function() {
+        p.textColor = this.value; invalidateRender(); requestPreviewFrame();
+      };
+    }
+
+    if (!isPip) {
+      // ── Timestamp: 4 order dropdowns ────────────────────
+      const opts = ['none','day','month','year','time'];
+      const optLabels = { none:'None', day:'Day', month:'Month', year:'Year', time:'Time' };
+      function slotSelect(slotIdx) {
+        const cur = order[slotIdx] || 'none';
+        return '<select class="ov-order-slot" data-slot="' + slotIdx + '">' +
+          opts.map(function(o) {
+            return '<option value="' + o + '"' + (cur === o ? ' selected' : '') + '>' + optLabels[o] + '</option>';
+          }).join('') +
+        '</select>';
+      }
+      const showRow = row('Show',
+        slotSelect(0) + slotSelect(1) + slotSelect(2) + slotSelect(3));
+      card.appendChild(showRow);
+
+      showRow.querySelectorAll('.ov-order-slot').forEach(function(sel) {
+        sel.onchange = function() {
+          if (!p.order) p.order = ['day','month','year','none'];
+          p.order[parseInt(sel.dataset.slot)] = sel.value;
+          invalidateRender(); requestPreviewFrame();
+        };
+      });
+    }
+
+    container.appendChild(card);
   });
 }
 
@@ -1411,12 +1618,21 @@ function renderFinetunePreview() {
   // Ken Burns at ppFtScrubT
   const filter = COLOR_PRESETS[seg.effect.colorPreset || 'none'] || '';
   if (filter) ctx.filter = filter;
+  ctx.save();
+  if (seg.effect.shake > 0) applyShakeTransform(ctx, seg.effect.shake);
+  if (seg.effect.zoomPunch > 0 && ppFtScrubT < 0.25) {
+    const punch = seg.effect.zoomPunch * (1 - ppFtScrubT / 0.25);
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(1 + punch, 1 + punch);
+    ctx.translate(-W / 2, -H / 2);
+  }
   if (seg.effect.kenBurns) {
     drawKenBurnsFrame(ctx, photo.img, seg.effect.kenBurns, ppFtScrubT, W, H,
       seg.effect.kenBurns.easing || 'easeOutQuad');
   } else {
     ctx.drawImage(photo.img, 0, 0, W, H);
   }
+  ctx.restore();
   ctx.filter = 'none';
 
   // Vignette, grain, etc. — skip frame decoration (drawn after)
@@ -1565,6 +1781,8 @@ function selectSegment(segId) {
   // Particles
   const partEl = $('pp-particles');
   if (partEl) partEl.value = (seg.effect && seg.effect.particles) || 'none';
+  const partColorEl = $('pp-particle-color');
+  if (partColorEl) partColorEl.value = (seg.effect && seg.effect.particleColor) || '#ffffff';
 
   // Stop any playing finetune preview, reset scrub to start, refresh
   pauseFinetunePlay();
@@ -1731,6 +1949,10 @@ function initSegmentPropControls() {
   // Particles
   const partEl = $('pp-particles');
   if (partEl) partEl.onchange = function() { updateSeg('particles', partEl.value); };
+
+  // Particle color
+  const partColorEl = $('pp-particle-color');
+  if (partColorEl) partColorEl.oninput = function() { updateSeg('particleColor', partColorEl.value); };
 
   // Prev / Next segment navigation
   const btnPrev = $('btn-pp-seg-prev');
@@ -1917,12 +2139,21 @@ async function renderToBlob(onProgress) {
 
         exportCtx.clearRect(0, 0, W, H);
 
-        // 1. Ken Burns + color
+        // 1. Ken Burns + color + shake + zoom punch
         if (photo && photo.img && seg.effect && seg.effect.kenBurns) {
           const filter = COLOR_PRESETS[seg.effect.colorPreset || 'none'] || '';
           if (filter) exportCtx.filter = filter;
+          exportCtx.save();
+          if (seg.effect.shake > 0) applyShakeTransform(exportCtx, seg.effect.shake);
+          if (seg.effect.zoomPunch > 0 && segT < 0.25) {
+            const punch = seg.effect.zoomPunch * (1 - segT / 0.25);
+            exportCtx.translate(W / 2, H / 2);
+            exportCtx.scale(1 + punch, 1 + punch);
+            exportCtx.translate(-W / 2, -H / 2);
+          }
           drawKenBurnsFrame(exportCtx, photo.img, seg.effect.kenBurns, segT, W, H,
             (seg.effect.kenBurns.easing || 'easeOutQuad'));
+          exportCtx.restore();
           exportCtx.filter = 'none';
         } else {
           exportCtx.fillStyle = '#111';
@@ -1952,10 +2183,11 @@ async function renderToBlob(onProgress) {
           drawFrameDecoration(exportCtx, seg.effect.frameStyle, W, H);
         }
 
-        // 4. Subtitles
+        // 4. Subtitles — use per-segment Y position if AI set one
         const subStyle = photopilotProject.subtitle.style || 'classic';
         if (subStyle !== 'none' && photopilotProject.subtitle.words.length > 0) {
           syncSubtitleGlobals();
+          if (seg && seg.subtitleY !== undefined) reelSubPosition = seg.subtitleY;
           try { renderReelSubtitle(exportCtx, W, H, t, photopilotProject.subtitle.words, subStyle); } catch(_) {}
         }
 
@@ -2019,13 +2251,16 @@ function initExportControls() {
       photopilotProject.renderedBlobUrl = URL.createObjectURL(blob);
 
       if (progDiv) progDiv.style.display = 'none';
-      if (dlDiv)   dlDiv.style.display   = '';
       const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      const sizeMb = (blob.size / 1024 / 1024).toFixed(1);
       if (dlLink) {
         dlLink.href     = photopilotProject.renderedBlobUrl;
         dlLink.download = `photopilot-${Date.now()}.${ext}`;
-        dlLink.textContent = `⬇ Download ${ext.toUpperCase()} · ${(blob.size / 1024 / 1024).toFixed(1)} MB`;
+        dlLink.textContent = `⬇ Save ${ext.toUpperCase()} · ${sizeMb} MB`;
       }
+      if (dlDiv) dlDiv.style.display = '';
+      // Auto-download — browser will trigger save dialog immediately
+      triggerDownload(blob);
     } catch(err) {
       if (progDiv) progDiv.style.display = 'none';
       if (errDiv)  { errDiv.style.display = ''; errDiv.textContent = '❌ ' + (err.message || 'Render failed.'); }
@@ -2165,6 +2400,20 @@ function initZone1() {
     };
   }
 
+  // ── Voice dropdown (hidden in audio mode) ───────────────────────────────────
+  const voiceSel   = $('pp-voice-select');
+  const voiceLbl   = $('pp-voice-label');
+  function syncVoiceVisibility(mode) {
+    if (voiceLbl) voiceLbl.style.display = (mode === 'audio') ? 'none' : 'flex';
+  }
+  if (voiceSel) {
+    voiceSel.value = photopilotProject.effectsConfig.ttsVoice || 'Kore';
+    voiceSel.onchange = function() {
+      photopilotProject.effectsConfig.ttsVoice = voiceSel.value;
+    };
+  }
+  syncVoiceVisibility(photopilotProject.contentSource.mode);
+
   // ── Smart toggle ────────────────────────────────────────────────────────────
   const smartToggle = $('pp-smart-toggle');
   if (smartToggle) {
@@ -2201,6 +2450,7 @@ function initZone1() {
       const panel = $('pp-content-' + mode);
       if (panel) panel.style.display = '';
       updateGenerateBtn(mode);
+      syncVoiceVisibility(mode);
       // Hide script review if switching tabs mid-flow
       hideScriptReview();
     };
@@ -2364,7 +2614,7 @@ function initZone2() {
         duration: photopilotProject.effectiveDuration,
         params: {
           _imgEl: imgEl,
-          corner: 'br',
+          position: 'br',
           size: 0.25,
           borderColor: '#ffffff',
           borderWidth: 3
@@ -2385,9 +2635,10 @@ function initZone2() {
       startTime: 0,
       duration: photopilotProject.effectiveDuration,
       params: {
-        corner: 'tl',
-        format: 'datetime',
-        bgColor: 'rgba(0,0,0,0.6)',
+        position: 'tl',
+        order: ['day', 'month', 'year', 'none'],
+        bgColorHex: '#000000',
+        bgOpacity: 0.65,
         textColor: '#ffffff'
       }
     });
@@ -2454,6 +2705,17 @@ function initZone3() {
 
   // ── Export ───────────────────────────────────────────────────────────────────
   initExportControls();
+
+  // ── Slider fills — #pp-ctrl-col ──────────────────────────────────────────────
+  const _ctrlCol = $('pp-ctrl-col');
+  if (_ctrlCol) {
+    // Fill all existing sliders on init
+    _ctrlCol.querySelectorAll('input[type=range]').forEach(syncSliderFill);
+    // Keep fills updated on any input event (works for dynamically added sliders too)
+    _ctrlCol.addEventListener('input', function(e) {
+      if (e.target.type === 'range') syncSliderFill(e.target);
+    });
+  }
 
   // ── Start preview paused ─────────────────────────────────────────────────────
   ppCurrentTime = 0;

@@ -366,7 +366,7 @@ function applyInPhotoEffects(ctx, seg, segT, canvasW, canvasH, opts) {
 
   // Particles (drawn on top of everything)
   if (e.particles && e.particles !== 'none') {
-    drawParticles(ctx, e.particles, segT, canvasW, canvasH);
+    drawParticles(ctx, e.particles, segT, canvasW, canvasH, e.particleColor || '#ffffff');
   }
 
   // Frame decoration (drawn last, on top)
@@ -380,8 +380,8 @@ function applyInPhotoEffects(ctx, seg, segT, canvasW, canvasH, opts) {
 function applyShakeTransform(ctx, shake) {
   if (!shake || shake === 0) return;
   ctx.translate(
-    (Math.random() - 0.5) * shake * 6,
-    (Math.random() - 0.5) * shake * 6
+    (Math.random() - 0.5) * shake * 40,
+    (Math.random() - 0.5) * shake * 40
   );
 }
 
@@ -395,28 +395,36 @@ function drawVignette(ctx, intensity, w, h) {
 }
 
 // Simple particle system — 16 particles per type, drift upward, based on segT
-function drawParticles(ctx, type, segT, w, h) {
+function drawParticles(ctx, type, segT, w, h, color) {
+  color = color || '#ffffff';
   const N = 16;
   ctx.save();
   for (let i = 0; i < N; i++) {
-    const x     = ((i * 0.618033 + segT * 0.1) % 1) * w;
-    const baseY = ((i * 0.381966) % 1) * h;
-    const y     = (baseY - segT * h * 0.4 * (0.5 + (i % 3) * 0.25)) % h;
+    // X: golden ratio distribution across width + gentle sine sway
+    const baseX = ((i * 0.618033) % 1) * w;
+    const x     = baseX + Math.sin(segT * Math.PI * 2 + i * 1.3) * w * 0.025;
+    // Y: use sqrt(3)-1 = 0.7320508 — avoids the anti-diagonal that forms when
+    //    X uses 0.618033 and Y uses its complement 0.381966 (they always sum to 1)
+    const baseY = ((i * 0.7320508) % 1) * h;
+    const speed = 0.5 + (i % 3) * 0.25;
+    const y     = ((baseY - segT * h * 0.4 * speed) % h + h) % h;
     const alpha = 0.6 + 0.4 * Math.sin(segT * Math.PI * 2 + i);
     ctx.globalAlpha = Math.max(0, alpha);
     const size = 4 + (i % 4) * 2;
+    const fy = y;
 
     if (type === 'hearts') {
       ctx.font = `${size * 3}px serif`;
-      ctx.fillText('❤', x, ((y % h) + h) % h);
+      ctx.fillStyle = color;
+      ctx.fillText('❤', x, fy);
     } else if (type === 'sparkle') {
-      ctx.strokeStyle = '#ffe87a'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x, ((y%h)+h)%h - size); ctx.lineTo(x, ((y%h)+h)%h + size);
-      ctx.moveTo(x - size, ((y%h)+h)%h); ctx.lineTo(x + size, ((y%h)+h)%h);
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, fy - size); ctx.lineTo(x, fy + size);
+      ctx.moveTo(x - size, fy); ctx.lineTo(x + size, fy);
       ctx.stroke();
     } else if (type === 'dust') {
-      ctx.fillStyle = 'rgba(255,240,200,0.7)';
-      ctx.beginPath(); ctx.arc(x, ((y%h)+h)%h, size/3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x, fy, size / 3, 0, Math.PI * 2); ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
@@ -533,6 +541,7 @@ function resolveSegmentEffect(seg, moodName, aiAnalysis, userOverrides) {
       radius:  (u.spotlightRadius !== undefined) ? u.spotlightRadius : 0.35
     },
     particles:     u.particles     !== undefined ? u.particles     : aiParticles,
+    particleColor: u.particleColor || '#ffffff',
     frameStyle:    u.frameStyle    || aiFrame,
     vignette:      (u.vignette      !== undefined) ? u.vignette      : aiVignette,
     vignettePulse: (u.vignettePulse !== undefined) ? u.vignettePulse : mood.vignettePulse,
@@ -589,7 +598,7 @@ function drawColourPicOverlay(ctx, imgEl, params, progress, W, H) {
   const sz     = W * clamp(params.size || 0.25, 0.1, 0.5);
   const border = Math.max(2, sz * 0.04);
   const margin = sz * 0.06;
-  const pos    = params.position || 'br';
+  const pos    = params.position || params.corner || 'br';
 
   let x, y;
   if (pos === 'tl')      { x = margin;           y = margin; }
@@ -632,24 +641,43 @@ function drawTimePicOverlay(ctx, params, progress, W, H) {
   const alpha   = Math.min(fadeIn, fadeOut);
   if (alpha <= 0) return;
 
-  const now = new Date();
+  const now    = new Date();
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let label = '';
-  const fmt = params.format || 'date';
-  if (fmt === 'time') {
-    label = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-  } else if (fmt === 'datetime') {
-    label = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear()
-          + '  ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-  } else {
-    label = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+  // order: array of 4 slots, each 'none'|'day'|'month'|'year'|'time'
+  // legacy parts fallback for old saved projects
+  let order = params.order;
+  if (!order) {
+    const parts = params.parts || { day: true, month: true, year: true, time: false };
+    order = [];
+    if (parts.day)   order.push('day');
+    if (parts.month) order.push('month');
+    if (parts.year)  order.push('year');
+    if (parts.time)  order.push('time');
+    while (order.length < 4) order.push('none');
+  }
+  const pieces = order.map(function(slot) {
+    if (slot === 'day')   return String(now.getDate());
+    if (slot === 'month') return months[now.getMonth()];
+    if (slot === 'year')  return String(now.getFullYear());
+    if (slot === 'time')  return now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    return '';
+  }).filter(Boolean);
+  const label = pieces.join(' ') || '—';
+
+  // Background color: support new bgColorHex+bgOpacity or legacy bgColor string
+  let bgColor = params.bgColor || 'rgba(0,0,0,0.65)';
+  if (params.bgColorHex) {
+    const r = parseInt(params.bgColorHex.slice(1,3), 16);
+    const g = parseInt(params.bgColorHex.slice(3,5), 16);
+    const b = parseInt(params.bgColorHex.slice(5,7), 16);
+    bgColor = 'rgba(' + r + ',' + g + ',' + b + ',' + (params.bgOpacity !== undefined ? params.bgOpacity : 0.65) + ')';
   }
 
   const fs      = W * 0.045;
   const padX    = fs * 0.8;
   const padY    = fs * 0.5;
   const margin  = W * 0.05;
-  const pos     = params.position || 'br';
+  const pos     = params.position || params.corner || 'tl';
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -665,7 +693,7 @@ function drawTimePicOverlay(ctx, params, progress, W, H) {
   else                   { bx = W - bw - margin;  by = H - bh - margin; }
 
   // Background pill
-  ctx.fillStyle = params.bgColor || 'rgba(0,0,0,0.65)';
+  ctx.fillStyle = bgColor;
   ctx.beginPath();
   ctx.roundRect(bx, by, bw, bh, bh / 2);
   ctx.fill();

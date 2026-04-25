@@ -4765,17 +4765,69 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
 #photopilot-page .pp-tab-panel.active { display: block; }
 
 /* Photopilot — Zone 2 overlay list items */
-#photopilot-page .pp-overlay-item {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-  padding: 8px 10px; background: var(--bg-secondary);
-  border: 1px solid var(--border); border-radius: var(--radius);
+/* Overlay card — expanded controls */
+#photopilot-page .pp-overlay-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+  margin-bottom: 10px; font-size: var(--text-xs);
+}
+#photopilot-page .pp-overlay-card-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 8px;
+}
+#photopilot-page .pp-overlay-row {
+  display: flex; align-items: center; gap: 8px;
   margin-bottom: 6px; font-size: var(--text-xs);
 }
-#photopilot-page .pp-overlay-item-label {
-  font-weight: 600; color: var(--text-primary); min-width: 80px;
+#photopilot-page .pp-overlay-row-lbl {
+  min-width: 42px; color: var(--text-muted); font-weight: 500;
+  text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+#photopilot-page .pp-overlay-row-ctrl {
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+}
+#photopilot-page .pp-overlay-row-ctrl input[type=range] {
+  flex: 1; min-width: 0;
+}
+#photopilot-page .pp-overlay-row-ctrl input[type=number] {
+  width: 52px; background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text-primary); font-size: var(--text-xs);
+  padding: 2px 5px; text-align: center;
+}
+#photopilot-page .pp-overlay-row-ctrl select {
+  flex: 1; background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text-primary); font-size: var(--text-xs);
+  padding: 2px 4px; cursor: pointer;
+}
+#photopilot-page .ov-corner-sm {
+  flex: 0 0 auto; width: 82px; min-width: 0;
+}
+#photopilot-page .ov-colour-lbl {
+  font-size: 10px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+}
+#photopilot-page .ov-bg-opacity {
+  width: 56px; flex: 0 0 56px;
+}
+#photopilot-page .ov-order-slot {
+  flex: 1; min-width: 0;
+}
+#photopilot-page .pp-overlay-row-ctrl input[type=color] {
+  width: 26px; height: 22px; padding: 0; border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; flex-shrink: 0;
+}
+#photopilot-page .ov-start-lbl,
+#photopilot-page .ov-end-lbl,
+#photopilot-page .ov-size-lbl {
+  font-size: 10px; color: var(--text-muted); white-space: nowrap; min-width: 28px;
+}
+#photopilot-page .ov-part-lbl {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--text-secondary); cursor: pointer; white-space: nowrap;
 }
 #photopilot-page .pp-overlay-remove {
-  margin-left: auto; background: none; border: none;
+  background: none; border: none;
   color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;
 }
 #photopilot-page .pp-overlay-remove:hover { color: var(--red); }
@@ -4793,9 +4845,20 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
 
 /* Photopilot — Zone 3 ctrl column section dividers */
 #photopilot-page .pp-ctrl-section-label {
-  font-family: var(--lp-font-mono, monospace); font-size: 9px;
-  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--lp-faint, var(--text-muted)); margin-bottom: 6px;
+  font-size: var(--rp-xs, 11px);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--lp-dim, var(--text-secondary)); margin-bottom: 6px;
+}
+
+/* Photopilot — ctrl column row labels: match fine-tune panel readability */
+#pp-ctrl-col .form-label {
+  color: var(--lp-dim, var(--text-secondary));
+  font-size: var(--rp-sm, 12px);
+  font-family: var(--lp-font-ui, var(--font-ui));
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  font-weight: 500;
 }
 
 /* ── Photopilot — Two-column layout ── */
