@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service — Kaatchi AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/aurora-base.css">
+  <style>
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(18px) saturate(1.4);
+      border-bottom: 1px solid var(--card-bdr);
+      height: 64px; display: flex; align-items: center;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto; width: 100%;
+      padding: 0 24px; display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 1rem;
+    }
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--glow);
+    }
+    .back-link {
+      font-size: 0.82rem; color: var(--dim); text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--text); }
+
+    .page-wrap {
+      max-width: 760px; margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+    .page-eyebrow {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+    .page-title {
+      font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .page-date { font-size: 0.8rem; color: var(--mute); margin-bottom: 48px; }
+
+    .section { margin-bottom: 40px; }
+    .section h2 {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--card-bdr);
+    }
+    .section p {
+      font-size: 0.88rem; color: var(--dim);
+      line-height: 1.8; margin-bottom: 12px;
+    }
+    .section ul {
+      list-style: none; padding: 0;
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .section ul li {
+      font-size: 0.88rem; color: var(--dim); line-height: 1.7;
+      padding-left: 16px; position: relative;
+    }
+    .section ul li::before {
+      content: "—"; position: absolute; left: 0;
+      color: var(--mute);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    footer {
+      border-top: 1px solid var(--card-bdr); padding: 28px 24px;
+    }
+    .footer-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9rem;
+    }
+    .footer-nav { display: flex; gap: 20px; }
+    .footer-nav a {
+      font-size: 0.75rem; color: var(--mute); text-decoration: none;
+      letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.15s;
+    }
+    .footer-nav a:hover { color: var(--text); }
+    .footer-copy { font-size: 0.75rem; color: var(--mute); }
+    @media (max-width: 600px) {
+      .footer-nav { display: none; }
+      .footer-inner { justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="lp-bgart"></div>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <a class="back-link" href="index.html">← Back to home</a>
+    </div>
+  </nav>
+
+  <div class="page-wrap">
+    <p class="page-eyebrow">Legal</p>
+    <h1 class="page-title">Terms of Service</h1>
+    <p class="page-date">Last updated: April 2026</p>
+
+    <div class="section">
+      <h2>1. Who We Are</h2>
+      <p>Kaatchi AI ("we", "us", "our") is an independent software product. By using Kaatchi AI at kaatchi.ai (the "Service"), you agree to these terms.</p>
+    </div>
+
+    <div class="section">
+      <h2>2. Your Account</h2>
+      <p>You must provide a valid email address to create an account. You are responsible for maintaining the confidentiality of your account credentials. You must be at least 13 years old to use the Service.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. Credits</h2>
+      <p>Credits are the in-app currency used to generate content on Kaatchi AI. Credits are non-transferable and have no cash value.</p>
+      <ul>
+        <li>Subscription credits expire at the end of each billing month</li>
+        <li>Top-up credits expire 1 year from purchase</li>
+        <li>Unused credits are forfeited on account deletion</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>4. Acceptable Use</h2>
+      <p>You may not use Kaatchi AI to generate content that is:</p>
+      <ul>
+        <li>Illegal, defamatory, or harassing</li>
+        <li>Sexually explicit or violent in a harmful context</li>
+        <li>Designed to deceive or impersonate others</li>
+        <li>In violation of third-party intellectual property rights</li>
+      </ul>
+      <p>We reserve the right to suspend accounts that violate these terms without prior notice.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. Your Content</h2>
+      <p>You retain ownership of the text, audio, and images you upload. By uploading content, you grant Kaatchi AI a limited licence to process it solely to deliver the Service. We do not use your content to train AI models.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. AI-Generated Output</h2>
+      <p>Videos and voiceovers are produced using third-party AI APIs (Google Gemini, Kling AI). Output quality may vary. We make no guarantee that generated content will meet specific requirements. You are responsible for reviewing output before publishing.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Payments</h2>
+      <p>Payments are processed by LemonSqueezy (Lemon Squeezy LLC), who acts as Merchant of Record. Local taxes are calculated and collected by LemonSqueezy at checkout. By purchasing, you also agree to LemonSqueezy's Terms of Service.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. Subscriptions</h2>
+      <p>Subscriptions renew automatically each month unless cancelled. You may cancel at any time from your account settings. Cancellation takes effect at the end of the current billing period.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Service Availability</h2>
+      <p>We aim for high availability but do not guarantee uninterrupted access. We may modify or discontinue features with reasonable notice posted on kaatchi.ai.</p>
+    </div>
+
+    <div class="section">
+      <h2>10. Limitation of Liability</h2>
+      <p>To the maximum extent permitted by law, Kaatchi AI is not liable for indirect, incidental, or consequential damages arising from your use of the Service. Our total liability is limited to the amount you paid in the 30 days preceding the claim.</p>
+    </div>
+
+    <div class="section">
+      <h2>11. Changes to Terms</h2>
+      <p>We may update these terms at any time. Continued use of the Service after changes constitutes acceptance. We will notify users of material changes by email.</p>
+    </div>
+
+    <div class="section">
+      <h2>12. Contact</h2>
+      <p>For questions about these terms: <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a></p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <a class="footer-logo" href="index.html">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <nav class="footer-nav">
+        <a href="index.html#lp-pricing">Pricing</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="refund.html">Refunds</a>
+      </nav>
+      <span class="footer-copy">© 2026 · Kaatchi AI</span>
+    </div>
+  </footer>
+
+</body>
+</html>
