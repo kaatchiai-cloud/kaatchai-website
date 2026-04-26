@@ -1762,6 +1762,22 @@ input:focus, select:focus, textarea:focus {
 
 #reel-page { width: 100%; max-width: 1080px; display: none; padding: 20px 12px 0; }
 #reel-page.visible { display: flex; flex-direction: column; }
+#reel-page::before {
+  content: '';
+  position: fixed;
+  top: -30%; left: 20%;
+  width: 60%; height: 60%;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklch, var(--lp-accent) 6%, transparent) 0%,
+    color-mix(in oklch, var(--lp-accent2) 3%, transparent) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(80px);
+  animation: ambient-drift 20s ease-in-out infinite alternate;
+}
 #reel-body { display: flex; align-items: flex-start; }
 #reel-agent-panel {
   position: sticky; top: 56px;
@@ -1968,6 +1984,16 @@ body:has(#reel-page.visible) .lp-nav { display: none !important; }
 .reel-step {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 24px; margin-bottom: 18px;
+}
+#reel-page .reel-step,
+#photopilot-page .reel-step {
+  background: color-mix(in oklch, var(--lp-bg2) 85%, var(--lp-accent) 3%);
+  border: 1px solid var(--lp-card-bdr);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.3),
+    0 4px 16px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
 }
 .reel-step h3 { font-family: var(--lp-font-display); font-size: var(--rp-step); font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .reel-presets-row {
@@ -5109,6 +5135,7 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
   --lp-font-display: 'Poppins', sans-serif;
   --lp-font-ui:      'Poppins', sans-serif;
   --lp-font-mono:    'Poppins', sans-serif;
+  color-scheme: dark;
 }
 
 /* ── GLOBAL BASE ── */
@@ -6447,6 +6474,7 @@ body:has(#drop-zone:not(.hidden)) {
    Key paradigm: WHITE lifted cards on blue-grey page.
    ─────────────────────────────────────────────────────────── */
 html[data-theme="light"] {
+  color-scheme: light;
   /* ── Family B — Landing/Copilot/Autopilot token set ── */
   --lp-bg:         #eef2f7;
   --lp-bg2:        #e3e9f1;
@@ -6605,6 +6633,14 @@ html[data-theme="light"] #create-page .video-mode-card.animated {
 .theme-toggle .ti-moon { display: inline; }
 html[data-theme="light"] .theme-toggle .ti-sun  { display: inline; }
 html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
+
+/* ── Dropdown arrow — light mode overrides (dark arrow instead of near-white) ── */
+html[data-theme="light"] #reel-page .reel-optrow-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+html[data-theme="light"] .rp-ctrl-col select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
 
   </style>
 </head>
@@ -24265,19 +24301,6 @@ function sanitizeSceneWords(words, text, startTime, endTime) {
 
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
-  // If already generating, cancel instead
-  if (reelGenerating && reelAbortController) {
-    reelAbortController.abort();
-    reelAbortController = null;
-    reelGenerating = false;
-    btnReelGenerate.innerHTML = '⚡ Generate Reel';
-    btnReelGenerate.classList.remove('danger');
-    btnReelGenerate.disabled = false;
-    reelGenerateStatus.textContent = 'Cancelled';
-    renderReelJobCards();
-    return;
-  }
-
   resetSessionCost();
   console.log('[ReelGen] Generate clicked, inputMode:', reelInputMode);
   const key = getReelApiKey();
@@ -24287,13 +24310,8 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   reelDirty = true;
   setReelExportEnabled(false);
 
-  // Create abort controller for this generation
-  reelAbortController = new AbortController();
-  const signal = reelAbortController.signal;
-
-  // Update button to show cancel option
-  btnReelGenerate.innerHTML = '⏹ Cancel';
-  btnReelGenerate.classList.add('danger');
+  // Disable button during generation
+  btnReelGenerate.disabled = true;
 
   // Start auto-save during generation
   startReelAutosave();
@@ -24484,8 +24502,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const doneJobs = reelJobs.filter(j => j.status === 'done');
     if (doneJobs.length === 0) {
       updateReelAgent('preview', 'error', 'Generation failed — check API key');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
-      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       reelAbortController = null;
       return;
     }
@@ -24562,8 +24579,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressEl.classList.add('hidden');
       reelGenerateStatus.textContent = 'Error: ' + (e.message || 'Generation failed');
       setStatus('Reel generation failed');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
-      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       reelAbortController = null;
       return;
     }

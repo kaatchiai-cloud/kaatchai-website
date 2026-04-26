@@ -973,19 +973,6 @@ function sanitizeSceneWords(words, text, startTime, endTime) {
 
 // ── Generate Reel ──
 if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
-  // If already generating, cancel instead
-  if (reelGenerating && reelAbortController) {
-    reelAbortController.abort();
-    reelAbortController = null;
-    reelGenerating = false;
-    btnReelGenerate.innerHTML = '⚡ Generate Reel';
-    btnReelGenerate.classList.remove('danger');
-    btnReelGenerate.disabled = false;
-    reelGenerateStatus.textContent = 'Cancelled';
-    renderReelJobCards();
-    return;
-  }
-
   resetSessionCost();
   console.log('[ReelGen] Generate clicked, inputMode:', reelInputMode);
   const key = getReelApiKey();
@@ -995,13 +982,8 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   reelDirty = true;
   setReelExportEnabled(false);
 
-  // Create abort controller for this generation
-  reelAbortController = new AbortController();
-  const signal = reelAbortController.signal;
-
-  // Update button to show cancel option
-  btnReelGenerate.innerHTML = '⏹ Cancel';
-  btnReelGenerate.classList.add('danger');
+  // Disable button during generation
+  btnReelGenerate.disabled = true;
 
   // Start auto-save during generation
   startReelAutosave();
@@ -1192,8 +1174,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const doneJobs = reelJobs.filter(j => j.status === 'done');
     if (doneJobs.length === 0) {
       updateReelAgent('preview', 'error', 'Generation failed — check API key');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
-      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       reelAbortController = null;
       return;
     }
@@ -1270,8 +1251,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       reelProgressEl.classList.add('hidden');
       reelGenerateStatus.textContent = 'Error: ' + (e.message || 'Generation failed');
       setStatus('Reel generation failed');
-      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false; 
-      btnReelGenerate.innerHTML = '⚡ Generate Reel'; btnReelGenerate.classList.remove('danger');
+      reelGenerating = false; renderReelJobCards(); btnReelGenerate.disabled = false;
       reelAbortController = null;
       return;
     }

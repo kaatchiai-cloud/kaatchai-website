@@ -25,6 +25,7 @@
    Key paradigm: WHITE lifted cards on blue-grey page.
    ─────────────────────────────────────────────────────────── */
 html[data-theme="light"] {
+  color-scheme: light;
   /* ── Family B — Landing/Copilot/Autopilot token set ── */
   --lp-bg:         #eef2f7;
   --lp-bg2:        #e3e9f1;
@@ -183,3 +184,11 @@ html[data-theme="light"] #create-page .video-mode-card.animated {
 .theme-toggle .ti-moon { display: inline; }
 html[data-theme="light"] .theme-toggle .ti-sun  { display: inline; }
 html[data-theme="light"] .theme-toggle .ti-moon { display: none; }
+
+/* ── Dropdown arrow — light mode overrides (dark arrow instead of near-white) ── */
+html[data-theme="light"] #reel-page .reel-optrow-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+html[data-theme="light"] .rp-ctrl-col select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
