@@ -618,7 +618,7 @@
       </div>
 
       <div class="tab-panel" id="tab-script">
-        <textarea id="script-input" rows="5" placeholder="Paste your complete script (~150-180 words for 60s). AI breaks it into scenes and picks visual style."></textarea>
+        <textarea id="script-input" rows="5" placeholder="Paste your complete script (~110-135 words for 45s). AI breaks it into scenes and picks visual style."></textarea>
         <div class="form-row" style="margin-top:8px;">
           <button class="btn-pri" id="btn-add-script">+ Add to Queue</button>
         </div>
@@ -1253,7 +1253,7 @@ Return ONLY valid JSON:
 
     const prompt = `You are a YouTube Shorts content strategist for ${channelDesc}.
 
-Search for currently trending, highly engaging topics in the "${catLabel}" category that would perform well as ${langLabel} YouTube Shorts and Instagram Reels (60 seconds, illustrated style).
+Search for currently trending, highly engaging topics in the "${catLabel}" category that would perform well as ${langLabel} YouTube Shorts and Instagram Reels (45 seconds, illustrated style).
 
 Return ONLY valid JSON with no markdown fences:
 {
@@ -1327,7 +1327,7 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       contentType: preset.contentType,
       watermark: document.getElementById('chk-watermark').checked,
       intro:     document.getElementById('chk-intro').checked,
-      endcard:   document.getElementById('chk-endcard').checked,
+      endCard:   document.getElementById('chk-endcard').checked,
       imgProvider: selectedImageProvider,
       imgGenMode:  selectedImgGenMode,
       gptQuality:  gptImageQuality,
@@ -2078,17 +2078,42 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   // Robust JSON parser — handles markdown fences, trailing commas, extra text
   function parseGeminiJson(text) {
     let s = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    // Direct parse
     try { return JSON.parse(s); } catch (_) {}
+    // Trailing-comma fix on full object
     const objMatch = s.match(/\{[\s\S]*\}/);
     if (objMatch) {
       let j = objMatch[0].replace(/,\s*([\]}])/g, '$1');
       try { return JSON.parse(j); } catch (_) {}
     }
+    // Array match
     const arrMatch = s.match(/\[[\s\S]*\]/);
     if (arrMatch) {
       let j = arrMatch[0].replace(/,\s*([\]}])/g, '$1');
       try { return JSON.parse(j); } catch (_) {}
     }
+    // Truncated JSON recovery — extract all complete scene objects
+    const sceneObjects = [];
+    const objRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+    let m;
+    while ((m = objRegex.exec(s)) !== null) {
+      let objStr = m[0];
+      try {
+        const obj = JSON.parse(objStr);
+        if (obj.sceneText !== undefined || obj.sceneDescription !== undefined) sceneObjects.push(obj);
+      } catch (_) {
+        // Fix missing quotes around non-English string values
+        objStr = objStr.replace(/"(sceneText|sceneDescription)":\s*([^"\[\]{},][^,}]*)/g, (match, key, val) => {
+          val = val.trim().replace(/"/g, '\\"');
+          return `"${key}": "${val}"`;
+        });
+        try {
+          const obj = JSON.parse(objStr);
+          if (obj.sceneText !== undefined || obj.sceneDescription !== undefined) sceneObjects.push(obj);
+        } catch (_) {}
+      }
+    }
+    if (sceneObjects.length > 0) return { scenes: sceneObjects, style: { name: 'cinematic', reason: 'auto' } };
     throw new Error('Could not parse Gemini response as JSON: ' + s.slice(0, 200));
   }
 
@@ -2111,7 +2136,7 @@ LANGUAGE: ${job.langLabel} (${job.langCode})
 CONTENT TYPE: ${job.contentType}
 
 ${isLongText
-  ? 'The input is a long reference text. Condense it into the most compelling 60-second narrative. Be ruthless — cut everything that does not serve the story.'
+  ? 'The input is a long reference text. Condense it into the most compelling 45-second narrative. Be ruthless — cut everything that does not serve the story.'
   : 'The input is a story topic. Create an original, vivid narration script for this topic.'}
 
 TASK 1 — SCRIPT:
@@ -2119,7 +2144,7 @@ Write the narration script entirely in ${job.langLabel}. NOT in English (unless 
 ${job.videoMode === 'animated' ? `- ANIMATED MODE: 5 scenes exactly. Each scene = one 10-second Kling video clip.
 - STRICT per-scene duration: each scene's narration must be EXACTLY ~10 seconds when read aloud (~20-25 words for English; adjust proportionally for ${job.langLabel} speech rate).
 - Total script = 50 seconds (~100-125 words). Do NOT exceed this.
-- Split evenly — no scene should be more than 30 words or fewer than 15 words.` : `- Duration: exactly 60 seconds when read aloud (~150-180 words, adjust for ${job.langLabel} speech rate)
+- Split evenly — no scene should be more than 30 words or fewer than 15 words.` : `- Duration: exactly 45 seconds when read aloud (~110-135 words, adjust for ${job.langLabel} speech rate)
 - 6-9 natural scene breaks. Each scene = one illustration.`}
 - Pure narration only. No dialogue tags, no stage directions.
 - Vivid, visual language that paints pictures. Each scene must be a distinct visual moment.
@@ -2364,22 +2389,41 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   }
 
   async function generateTTS(job) {
-    const fullScript = job.scenes.map(s => s.sceneText).join(' ');
-    const chunks = chunkTextForTTS(fullScript);
-    const voiceName = 'Kore'; // Gemini multilingual voice
-    job.ttsChunks = chunks.length; // store for accurate cost calculation
+    const voiceName = 'Kore';
+    const sceneBuffers = [];
 
-    const audioBuffers = [];
-    for (const chunk of chunks) {
-      const { base64, mimeType } = await callGeminiTTS(chunk, voiceName);
+    // Per-scene TTS — real duration per scene, no estimation
+    for (let i = 0; i < job.scenes.length; i++) {
+      const text = (job.scenes[i].sceneText || '').trim();
+      if (!text) { sceneBuffers.push(null); continue; }
+      const { base64, mimeType } = await callGeminiTTS(text, voiceName);
       const { audioBuffer } = await decodeBase64Audio(base64, mimeType);
-      audioBuffers.push(audioBuffer);
+      sceneBuffers.push(audioBuffer);
     }
 
-    const finalBuffer = audioBuffers.length === 1 ? audioBuffers[0] : concatAudioBuffers(audioBuffers);
+    // Timings from actual TTS durations — no character-count approximation
+    let cursor = 0;
+    for (let i = 0; i < job.scenes.length; i++) {
+      const dur = sceneBuffers[i]?.duration || 3;
+      job.scenes[i].startTime = cursor;
+      job.scenes[i].endTime   = cursor + dur;
+      job.scenes[i].duration  = dur;
+      cursor += dur;
+    }
+
+    // Word timings per scene
+    for (const scene of job.scenes) {
+      scene.words = wordTimings(scene.sceneText, scene.startTime, scene.duration);
+    }
+    job.words = job.scenes.flatMap(s => s.words);
+
+    // Concatenate per-scene buffers
+    const valid = sceneBuffers.filter(Boolean);
+    const finalBuffer = valid.length === 1 ? valid[0] : concatAudioBuffers(valid);
     job.audioBuffer = finalBuffer;
-    job.audioBase64 = audioBufferToBase64(finalBuffer); // for save/load
-    job.duration = finalBuffer.duration;
+    job.audioBase64 = audioBufferToBase64(finalBuffer);
+    job.duration    = finalBuffer.duration;
+    job.ttsChunks   = job.scenes.length;
   }
 
   // ═══════════════════════════════════════════════
@@ -2487,22 +2531,30 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     const padded = [...prompts];
     while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
 
-    const CELL_POSITIONS = [
-      'top-left', 'top-center', 'top-right',
-      'middle-left', 'middle-center', 'middle-right',
-      'bottom-left', 'bottom-center', 'bottom-right'
+    // 9:16 at 2K: 1536×2752px, each cell 512×917px
+    const cw = 1536, ch = 2752;
+    const cellW = Math.round(cw / 3), cellH = Math.round(ch / 3);
+
+    const CELL_PIXELS = [
+      { pos: 'top-left',      x1: 0,        x2: cellW,      y1: 0,        y2: cellH      },
+      { pos: 'top-center',    x1: cellW,    x2: cellW * 2,  y1: 0,        y2: cellH      },
+      { pos: 'top-right',     x1: cellW*2,  x2: cw,         y1: 0,        y2: cellH      },
+      { pos: 'middle-left',   x1: 0,        x2: cellW,      y1: cellH,    y2: cellH * 2  },
+      { pos: 'middle-center', x1: cellW,    x2: cellW * 2,  y1: cellH,    y2: cellH * 2  },
+      { pos: 'middle-right',  x1: cellW*2,  x2: cw,         y1: cellH,    y2: cellH * 2  },
+      { pos: 'bottom-left',   x1: 0,        x2: cellW,      y1: cellH*2,  y2: ch         },
+      { pos: 'bottom-center', x1: cellW,    x2: cellW * 2,  y1: cellH*2,  y2: ch         },
+      { pos: 'bottom-right',  x1: cellW*2,  x2: cw,         y1: cellH*2,  y2: ch         },
     ];
 
     const stylePrefix = stylePrompt ? `Style: ${stylePrompt}\n\n` : '';
-    let gridPrompt = `Generate a 3x3 grid image with ${padded.length} separate illustration panels. NO borders, NO padding, NO whitespace, NO lines between cells — cells must touch edge to edge.\n${stylePrefix}\n`;
-    padded.forEach((p, i) => {
-      gridPrompt += `Cell ${i + 1} (${CELL_POSITIONS[i]}): ${p}\n`;
-    });
-    gridPrompt += `\nRULES:\n- Each cell MUST be a completely separate scene illustration\n- Each cell must be exactly equal in size (1/3 width, 1/3 height)\n- Do NOT draw any borders, lines, separators, padding, or whitespace between cells\n- Do NOT blend, merge, or overlap scenes across cell boundaries\n- Do NOT include any text, words, letters, numbers, or writing in any cell\n- Place the main subject and key objects at the CENTER of each cell. Keep all important elements within the center 80% of each cell\n- Maintain consistent style across all cells\n- The image should be portrait format (9:16 aspect ratio) at 2K resolution`;
-    gridPrompt = gridPrompt.slice(0, 2000);
+    const cellDescriptions = padded.map((p, i) => {
+      const c = CELL_PIXELS[i];
+      return `Cell ${i + 1} (${c.pos}) [canvas: ${cw}×${ch}px | this panel: x:${c.x1}-${c.x2}px, y:${c.y1}-${c.y2}px, size:${cellW}×${cellH}px]: ${p}`;
+    }).join('\n');
 
-    // aspectRatio: '9:16' — matches Instagram Reels / YouTube Shorts output canvas.
-    // Each cell will be portrait, composing subjects correctly for the 1080×1920 canvas.
+    const gridPrompt = `Generate a single image of exactly ${cw}×${ch} pixels (2K, 9:16 aspect ratio). This image is a 3×3 grid of 9 panels. The canvas is ${cw}px wide and ${ch}px tall, divided into exactly 3 columns and 3 rows. Each panel is ${cellW}×${cellH}px.\n${stylePrefix}\n${cellDescriptions}\n\nRULES:\n- EXACTLY 9 panels in a 3×3 layout (3 columns, 3 rows). NOT 4 rows. NOT 4 columns. NOT 12 panels.\n- Each panel MUST be drawn at its exact pixel coordinates specified above\n- Each panel MUST be a completely separate scene illustration\n- Do NOT draw any borders, lines, or separators between panels\n- Do NOT blend, merge, or overlap scenes across panel boundaries\n- Do NOT include any text, words, letters, numbers, or writing in any panel\n- Place the main subject and key objects at the CENTER of each panel. Keep all important elements within the center 80% of each panel\n- Maintain consistent style across all panels\n- Final image MUST be exactly ${cw}×${ch}px (portrait 9:16 format)`;
+
     const bodyObj = {
       contents: [{ parts: [{ text: gridPrompt }] }],
       generationConfig: {
@@ -2560,7 +2612,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       img.onload = () => {
         const cellW = img.width / cols;
         const cellH = img.height / rows;
-        const trimPct = 0.05; // 5% edge trim to avoid bleed — matches main app
+        const trimPct = 0.02; // 2% edge trim to avoid bleed
         const results = [];
         for (let i = 0; i < Math.min(rows * cols, count); i++) {
           const row = Math.floor(i / cols);
@@ -2985,8 +3037,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       updateQueueControls(); return;
     }
 
-    // ── Phase 5: Scene timings ──
-    distributeSceneTimings(job);
+    // ── Phase 5: Scene prep ──
     prepareScenes(job);
 
     // ── Subtitle translation (if subtitle language ≠ audio language) ──
@@ -3455,6 +3506,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     }));
     const imgs = previewMedia.map(m => m?.type === 'image' ? m.el : null);
     let _lastPreviewSceneIdx = -1;
+    let _previewEndCardParticles = [];
 
     let playing = false, startedAt = 0, pausedAt = 0;
     let audioSrc = null;
@@ -3520,8 +3572,15 @@ OUTPUT — Return ONLY valid JSON, no markdown:
           subEl.style.color  = job.subColor || '#fff';
         }
       }
+      // End card overlay (preview)
+      if (job.endCard && t >= job.duration) {
+        const ct = t - job.duration;
+        if (subEl) subEl.textContent = '';
+        drawEndCard(ctx, W, H, ct, _previewEndCardParticles);
+      }
       // Progress + time
-      const frac = Math.min(t / job.duration, 1);
+      const totalPreviewDur = job.duration + (job.endCard ? 5 : 0);
+      const frac = Math.min(t / totalPreviewDur, 1);
       if (progressEl) progressEl.style.width = (frac * 100) + '%';
       if (timeEl) timeEl.textContent = Math.floor(t) + 's';
     }
@@ -3529,11 +3588,13 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     // Draw first frame immediately
     drawFrame(pausedAt);
 
+    const _previewTotalDur = job.duration + (job.endCard ? 5 : 0);
+
     let rafId = null;
     function renderLoop() {
       if (!playing) return;
       const t = pausedAt + (actx.currentTime - startedAt);
-      if (t >= job.duration) {
+      if (t >= _previewTotalDur) {
         pausedAt = 0;
         playing = false;
         playBtn.textContent = '▶';
@@ -3579,7 +3640,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         const rect = seekEl.getBoundingClientRect();
         const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         if (playing) pause();
-        pausedAt = frac * job.duration;
+        pausedAt = frac * _previewTotalDur;
         drawFrame(pausedAt);
       };
     }
@@ -3590,6 +3651,162 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   function closeJobPreview() {
     if (_previewPlayer) { try { _previewPlayer.pause(); } catch {} _previewPlayer = null; }
     document.getElementById('job-preview-overlay').classList.add('hidden');
+  }
+
+  // ═══════════════════════════════════════════════
+  // END CARD RENDERER — shared by preview + export
+  // ═══════════════════════════════════════════════
+
+  // particles: array initialised once per render context (preview or export).
+  // Call with particles = [] the first time; function fills it on first call.
+  function drawEndCard(ctx, w, h, ct, particles) {
+    const easeOut  = t => 1 - Math.pow(1 - t, 3);
+    const easeBack = t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+    const ramp     = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+
+    // Init particles once
+    if (particles.length === 0) {
+      for (let i = 0; i < 45; i++) {
+        particles.push({
+          x:     Math.random() * w,
+          y:     h * (0.5 + Math.random() * 0.7),
+          speed: (0.5 + Math.random() * 1.0) * (h / 1920),
+          size:  1.2 + Math.random() * 2.8,
+          alpha: 0.25 + Math.random() * 0.5,
+          phase: Math.random() * Math.PI * 2,
+          drift: (Math.random() - 0.5) * 0.5 * (w / 1080),
+          color: Math.random() < 0.35 ? '#a855f7' : '#ffffff',
+        });
+      }
+    }
+
+    // ── Background ──
+    ctx.globalAlpha = 1;
+    const bgA    = easeOut(ramp(ct, 0, 0.5));
+    const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.38, 0, w * 0.5, h * 0.38, w * 1.1);
+    bgGrad.addColorStop(0,   `rgba(38,10,72,${bgA})`);
+    bgGrad.addColorStop(0.5, `rgba(14,6,28,${bgA})`);
+    bgGrad.addColorStop(1,   `rgba(4,4,12,${bgA})`);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // ── Particles ──
+    const pShow = easeOut(ramp(ct, 0.1, 0.6));
+    for (const p of particles) {
+      p.y -= p.speed;
+      p.x += p.drift * Math.sin(ct * 0.8 + p.phase);
+      if (p.y < -10) { p.y = h + 5; p.x = Math.random() * w; }
+      const pa = pShow * p.alpha * Math.sin(Math.PI * Math.max(0, Math.min(1, (h - p.y) / (h * 0.9))));
+      if (pa <= 0.01) continue;
+      ctx.globalAlpha = pa;
+      ctx.fillStyle   = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Glow bloom ──
+    const glowP = easeOut(ramp(ct, 0.25, 0.9));
+    if (glowP > 0) {
+      const glow = ctx.createRadialGradient(w * 0.5, h * 0.36, 0, w * 0.5, h * 0.36, w * 0.6);
+      glow.addColorStop(0,   `rgba(139,92,246,${0.28 * glowP})`);
+      glow.addColorStop(0.4, `rgba(168,85,247,${0.10 * glowP})`);
+      glow.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle   = glow;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // ── "Kaatchi AI" hero text ──
+    const logoP = easeBack(ramp(ct, 0.28, 0.95));
+    const logoA = easeOut(ramp(ct, 0.28, 0.65));
+    if (logoA > 0) {
+      const logoY = Math.round(h * 0.38 + (1 - logoP) * h * 0.07);
+      ctx.globalAlpha = logoA;
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.shadowColor = '#7c3aed';
+      ctx.shadowBlur  = Math.round(36 * logoP);
+      ctx.fillStyle   = '#ffffff';
+      ctx.font        = `800 ${Math.round(w * 0.13)}px system-ui,-apple-system,sans-serif`;
+      ctx.fillText('Kaatchi AI', w / 2, logoY);
+      ctx.shadowBlur  = 0;
+    }
+
+    // ── Divider line ──
+    const lineP = easeOut(ramp(ct, 0.85, 1.45));
+    if (lineP > 0) {
+      const lineY   = Math.round(h * 0.435);
+      const halfW   = w * 0.22 * lineP;
+      const lineGrd = ctx.createLinearGradient(w / 2 - halfW, 0, w / 2 + halfW, 0);
+      lineGrd.addColorStop(0,   'rgba(168,85,247,0)');
+      lineGrd.addColorStop(0.5, '#a855f7');
+      lineGrd.addColorStop(1,   'rgba(168,85,247,0)');
+      ctx.globalAlpha = 0.65 * easeOut(ramp(ct, 0.85, 1.2));
+      ctx.fillStyle   = lineGrd;
+      ctx.fillRect(w / 2 - halfW, lineY, halfW * 2, Math.round(h * 0.002));
+    }
+
+    // ── Tagline ──
+    const tagA = easeOut(ramp(ct, 1.1, 1.75));
+    if (tagA > 0) {
+      const tagY = Math.round(h * 0.492 + (1 - tagA) * h * 0.02);
+      ctx.globalAlpha  = tagA;
+      ctx.fillStyle    = '#c084fc';
+      ctx.font         = `${Math.round(w * 0.05)}px system-ui,-apple-system,sans-serif`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('Your stories, brought to life', w / 2, tagY);
+    }
+
+    // ── CTA pill ──
+    const ctaA = easeOut(ramp(ct, 1.85, 2.6));
+    if (ctaA > 0) {
+      const pulse   = ct > 2.8 ? 0.025 * Math.sin((ct - 2.8) * 2.4) : 0;
+      const ctaText = 'Try free  →  kaatchiai.com';
+      const fs      = Math.round(w * 0.044);
+      ctx.font      = `700 ${fs}px system-ui,-apple-system,sans-serif`;
+      const tw      = ctx.measureText(ctaText).width;
+      const padX    = w * 0.065, padY = h * 0.017;
+      const rw      = tw + padX * 2;
+      const rh      = fs + padY * 2;
+      const rx      = w / 2 - rw / 2;
+      const baseY   = h * 0.575 + (1 - ctaA) * h * 0.03;
+      const ry      = baseY - fs - padY;
+      const rad     = rh / 2;
+
+      ctx.globalAlpha = ctaA;
+      ctx.save();
+      ctx.translate(w / 2, baseY - fs / 2);
+      ctx.scale(1 + pulse, 1 + pulse);
+      ctx.translate(-w / 2, -(baseY - fs / 2));
+
+      const pillGrd = ctx.createLinearGradient(rx, 0, rx + rw, 0);
+      pillGrd.addColorStop(0, '#6d28d9');
+      pillGrd.addColorStop(1, '#a855f7');
+      ctx.fillStyle = pillGrd;
+      ctx.beginPath();
+      ctx.moveTo(rx + rad, ry);
+      ctx.lineTo(rx + rw - rad, ry);
+      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rad);
+      ctx.lineTo(rx + rw, ry + rh - rad);
+      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rad, ry + rh);
+      ctx.lineTo(rx + rad, ry + rh);
+      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rad);
+      ctx.lineTo(rx, ry + rad);
+      ctx.quadraticCurveTo(rx, ry, rx + rad, ry);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle    = '#ffffff';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(ctaText, w / 2, baseY);
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
   }
 
   // ═══════════════════════════════════════════════
@@ -3953,6 +4170,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       const t0 = performance.now();
       let frameTimer = null;
       let _lastExportSceneIdx = -1; // track scene changes for video playback
+      let _endCardParticles = null;
 
       function renderFrame() {
         if (cancelled) { clearInterval(frameTimer); return; }
@@ -4023,29 +4241,10 @@ OUTPUT — Return ONLY valid JSON, no markdown:
           drawMedia(curMedia, sceneIdx, 1);
         }
 
-        // End card
+        // End card — delegates to shared drawEndCard()
         if (job.endCard && elapsed >= job.duration) {
-          const ct = elapsed - job.duration;
-          const bgAlpha = Math.min(1, ct * 2.5);
-          ctx.globalAlpha = bgAlpha;
-          const grad = ctx.createLinearGradient(0, 0, 0, h);
-          grad.addColorStop(0, '#1a0a2e'); grad.addColorStop(1, '#0a0a15');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, w, h);
-
-          const ta = Math.min(1, ct * 1.5);
-          ctx.globalAlpha = ta;
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${Math.round(w * 0.09)}px system-ui,sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-          ctx.fillText('Stori', w / 2, Math.round(h * 0.42));
-          ctx.fillStyle = '#a855f7';
-          ctx.font = `${Math.round(w * 0.048)}px system-ui,sans-serif`;
-          ctx.fillText('AI Story Videos', w / 2, Math.round(h * 0.50));
-          ctx.fillStyle = '#7c3aed';
-          ctx.font = `bold ${Math.round(w * 0.042)}px system-ui,sans-serif`;
-          ctx.fillText('Try free → stori.app', w / 2, Math.round(h * 0.58));
-          ctx.globalAlpha = 1;
+          if (!_endCardParticles) _endCardParticles = [];
+          drawEndCard(ctx, w, h, elapsed - job.duration, _endCardParticles);
         } else {
           // Subtitles
           renderSubtitle(ctx, w, h, audioTime, job);
