@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stori — Marketing Pipeline</title>
+  <!-- Subtitle fonts — same set as Autopilot (Hormozi/Classic/Bold/Minimal presets) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;600;700&family=Montserrat:wght@500;700;900&family=Oswald:wght@500;700&family=Poppins:wght@500;700;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -273,6 +277,15 @@
         <span id="key-status" class="text-xs text-muted"></span>
       </div>
       <p class="text-xs text-muted" style="margin-bottom:14px;padding-left:130px;">Get one free at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> — used by both modes</p>
+
+      <!-- ElevenLabs key — used for sample-accurate subtitle word alignment via Scribe -->
+      <div class="form-row">
+        <label style="min-width:120px;">ElevenLabs (subs)</label>
+        <input type="password" id="elevenlabs-key-input" placeholder="ElevenLabs API key (optional)" style="width:260px;">
+        <button class="btn-pri" id="btn-save-elevenlabs-key">Save</button>
+        <span id="elevenlabs-key-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin-bottom:14px;padding-left:130px;">Optional. Get one at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank">elevenlabs.io</a>. Used for subtitle word alignment via Scribe — falls back to Gemini transcription if missing.</p>
 
       <!-- Two mode tiles -->
       <div class="api-tile-grid">
@@ -580,6 +593,19 @@
       <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
         <label>Subtitles</label>
         <select id="sub-lang-select" style="width:140px;" title="Subtitle language"></select>
+        <label style="font-size:12px;margin-left:4px;">Preset</label>
+        <select id="sub-preset-select" style="width:110px;" title="Subtitle preset (sets all fields below)">
+          <option value="">Custom</option>
+          <option value="hormozi">Hormozi</option>
+          <option value="classic" selected>Classic</option>
+          <option value="karaoke">Karaoke</option>
+          <option value="bold">Bold Center</option>
+          <option value="minimal">Minimal</option>
+        </select>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label style="font-size:12px;">Style</label>
         <select id="sub-style-select" style="width:118px;" title="Subtitle style">
           <option value="highlight">Highlight</option>
           <option value="word-by-word">Word-by-word</option>
@@ -587,20 +613,42 @@
           <option value="karaoke">Karaoke</option>
           <option value="none">Hidden</option>
         </select>
-        <select id="sub-backdrop-select" style="width:80px;" title="Backdrop">
+        <label style="font-size:12px;margin-left:4px;">Font</label>
+        <select id="sub-font-select" style="width:120px;" title="Font family">
+          <option value="Poppins">Poppins</option>
+          <option value="Montserrat">Montserrat</option>
+          <option value="Anton">Anton</option>
+          <option value="Bebas Neue">Bebas Neue</option>
+          <option value="Oswald">Oswald</option>
+          <option value="Inter">Inter</option>
+        </select>
+        <label style="font-size:12px;cursor:pointer;"><input type="checkbox" id="sub-allcaps-input"> ALL CAPS</label>
+        <select id="sub-backdrop-select" style="width:90px;" title="Backdrop">
           <option value="dark">Dark</option>
+          <option value="blur">Blur</option>
+          <option value="shadow">Shadow</option>
           <option value="none">None</option>
         </select>
         <label style="font-size:12px;margin-left:4px;" title="Text size">Sz</label>
         <input type="range" id="sub-size-range" min="2" max="8" step="0.5" value="4" style="width:54px;vertical-align:middle;">
         <span id="sub-size-label" style="font-size:11px;color:var(--text-muted);min-width:16px;">4</span>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label style="font-size:12px;">Position</label>
         <select id="sub-position-select" style="width:82px;" title="Position">
           <option value="top">Top</option>
           <option value="center">Center</option>
           <option value="bottom" selected>Bottom</option>
         </select>
-        <input type="color" id="sub-color-input" value="#ffffff" title="Text color" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
-        <input type="color" id="sub-outline-input" value="#000000" title="Outline color" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
+        <input type="range" id="sub-pos-range" min="0" max="100" step="1" value="85" style="width:80px;vertical-align:middle;" title="Vertical position (% of canvas height)">
+        <span id="sub-pos-label" style="font-size:11px;color:var(--text-muted);min-width:32px;">85%</span>
+        <label style="font-size:12px;margin-left:4px;" title="Text color">Color</label>
+        <input type="color" id="sub-color-input" value="#ffffff" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
+        <label style="font-size:12px;" title="Highlighted/active word color">Accent</label>
+        <input type="color" id="sub-accent-input" value="#7c3aed" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
+        <label style="font-size:12px;" title="Outline color">Outline</label>
+        <input type="color" id="sub-outline-input" value="#000000" style="width:28px;height:28px;cursor:pointer;padding:2px;border:1px solid var(--border);border-radius:4px;background:none;">
       </div>
 
       <div class="tab-bar">
@@ -710,6 +758,10 @@
 
   <div id="toast"></div>
 
+  <!-- Embedded Kaatchi logo as base64 data URL — needed because file:// origin taints
+       the canvas when loading external images, breaking video export of intro/end card. -->
+  <script src="kaatchi-logo-data.js"></script>
+
   <script>
   // ═══════════════════════════════════════════════
   // CONSTANTS
@@ -764,6 +816,7 @@
   let laozhangKey = '';
   let wisdomKey = '';
   let openaiKey = '';
+  let elevenLabsKey = '';
   let gptImageQuality = 'medium';
   let selectedImageProvider = 'laozhang'; // 'gemini' | 'laozhang' | 'wisdom' | 'gpt-image-mini'
   let selectedImgGenMode = 'auto'; // 'auto' | 'grid' | 'individual'
@@ -799,12 +852,36 @@
 
   // Subtitle global defaults (copied into each job at creation time)
   let subLang     = 'original'; // 'original' = same as audio
-  let subStyle    = 'highlight';
-  let subBackdrop = 'dark';
-  let subSize     = 4;          // 2–8, matches main app range (% of canvas width / 100)
-  let subPosition = 'bottom';
-  let subColor    = '#ffffff';
-  let subOutline  = '#000000';
+  let subStyle      = 'highlight';
+  let subBackdrop   = 'dark';
+  let subSize       = 4;          // 2–8, matches main app range (% of canvas width / 100)
+  let subPosition   = 'bottom';   // 'top' | 'center' | 'bottom' (preset bucket)
+  let subPosPct     = 85;         // 0–100 numeric (precise vertical % of canvas height)
+  let subColor      = '#ffffff';
+  let subOutline    = '#000000';
+  let subFont       = 'Poppins';
+  let subAllCaps    = false;
+  let subAccent     = '#7c3aed';
+
+  // Preset bundles — match Autopilot's REEL_SUB_PRESETS in js/20-reels-creator.js.
+  const SUB_PRESETS = {
+    'hormozi':  { style: 'word-by-word', color: '#ffffff', outline: '#000000', backdrop: 'shadow', size: 5,   posPct: 85, font: 'Anton',   allCaps: true,  accent: '#f7c204' },
+    'classic':  { style: 'highlight',    color: '#ffffff', outline: '#000000', backdrop: 'dark',   size: 4,   posPct: 85, font: 'Poppins', allCaps: false, accent: '#7c3aed' },
+    'karaoke':  { style: 'karaoke',      color: '#ffffff', outline: '#000000', backdrop: 'dark',   size: 3.5, posPct: 85, font: 'Poppins', allCaps: false, accent: '#7c3aed' },
+    'bold':     { style: 'bold-center',  color: '#ffffff', outline: '#000000', backdrop: 'dark',   size: 5,   posPct: 52, font: 'Poppins', allCaps: true,  accent: '#f7c204' },
+    'minimal':  { style: 'highlight',    color: '#ffffff', outline: '#000000', backdrop: 'none',   size: 3.5, posPct: 85, font: 'Inter',   allCaps: false, accent: '#7c3aed' },
+  };
+
+  function pctToPositionBucket(pct) {
+    if (pct <= 20) return 'top';
+    if (pct <= 65) return 'center';
+    return 'bottom';
+  }
+  function positionBucketToPct(pos) {
+    if (pos === 'top') return 12;
+    if (pos === 'center') return 52;
+    return 85;
+  }
 
   const SUB_LANGUAGES = [
     ['original', 'Same as audio', ''],
@@ -1334,7 +1411,8 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       videoMode: selectedVideoMode,
       klingProvider: selectedVideoMode === 'animated' ? klingProvider : null,
       subLang: 'en',  // Always English subtitles for planner jobs
-      subStyle, subBackdrop, subSize, subPosition, subColor, subOutline,
+      subStyle, subBackdrop, subSize, subPosition, subPosPct, subColor, subOutline,
+      subFont, subAllCaps, subAccent,
     };
   }
 
@@ -1385,6 +1463,11 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     if (openaiKey) {
       document.getElementById('openai-key-input').value = '●'.repeat(20);
       document.getElementById('openai-key-status').textContent = '✓ Saved';
+    }
+    elevenLabsKey = localStorage.getItem('stori_elevenlabs_key') || '';
+    if (elevenLabsKey) {
+      document.getElementById('elevenlabs-key-input').value = '●'.repeat(20);
+      document.getElementById('elevenlabs-key-status').textContent = '✓ Saved';
     }
     const savedQuality = localStorage.getItem('stori_gpt_quality');
     if (savedQuality) {
@@ -1487,6 +1570,17 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       document.getElementById('openai-key-input').value = '●'.repeat(20);
       document.getElementById('openai-key-status').textContent = '✓ Saved';
       toast('OpenAI key saved', 'success');
+    });
+
+    // ElevenLabs key save
+    document.getElementById('btn-save-elevenlabs-key').addEventListener('click', () => {
+      const val = document.getElementById('elevenlabs-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid ElevenLabs API key', 'error'); return; }
+      localStorage.setItem('stori_elevenlabs_key', val);
+      elevenLabsKey = val;
+      document.getElementById('elevenlabs-key-input').value = '●'.repeat(20);
+      document.getElementById('elevenlabs-key-status').textContent = '✓ Saved';
+      toast('ElevenLabs key saved', 'success');
     });
 
     // GPT quality change
@@ -1636,17 +1730,70 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     langSel.value = subLang;
 
     langSel.onchange = () => { subLang = langSel.value; };
-    document.getElementById('sub-style-select').onchange    = e => { subStyle    = e.target.value; };
-    document.getElementById('sub-backdrop-select').onchange = e => { subBackdrop = e.target.value; };
-    document.getElementById('sub-position-select').onchange = e => { subPosition = e.target.value; };
-    document.getElementById('sub-color-input').oninput      = e => { subColor    = e.target.value; };
-    document.getElementById('sub-outline-input').oninput    = e => { subOutline  = e.target.value; };
 
-    const sizeRange = document.getElementById('sub-size-range');
-    const sizeLabel = document.getElementById('sub-size-label');
+    const $sub = id => document.getElementById(id);
+    const sizeRange = $sub('sub-size-range');
+    const sizeLabel = $sub('sub-size-label');
+    const posRange  = $sub('sub-pos-range');
+    const posLabel  = $sub('sub-pos-label');
+    const posSelect = $sub('sub-position-select');
+    const presetSel = $sub('sub-preset-select');
+
+    presetSel.onchange = () => {
+      const p = SUB_PRESETS[presetSel.value];
+      if (!p) return; // 'Custom' — no-op
+      subStyle    = p.style;
+      subColor    = p.color;
+      subOutline  = p.outline;
+      subBackdrop = p.backdrop;
+      subSize     = p.size;
+      subPosPct   = p.posPct;
+      subPosition = pctToPositionBucket(p.posPct);
+      subFont     = p.font;
+      subAllCaps  = p.allCaps;
+      subAccent   = p.accent;
+      $sub('sub-style-select').value     = p.style;
+      $sub('sub-color-input').value      = p.color;
+      $sub('sub-outline-input').value    = p.outline;
+      $sub('sub-backdrop-select').value  = p.backdrop;
+      $sub('sub-font-select').value      = p.font;
+      $sub('sub-allcaps-input').checked  = p.allCaps;
+      $sub('sub-accent-input').value     = p.accent;
+      sizeRange.value = p.size; sizeLabel.textContent = p.size;
+      posRange.value = p.posPct; posLabel.textContent = p.posPct + '%';
+      posSelect.value = subPosition;
+    };
+
+    const markCustom = () => { presetSel.value = ''; };
+
+    $sub('sub-style-select').onchange    = e => { subStyle    = e.target.value; markCustom(); };
+    $sub('sub-font-select').onchange     = e => { subFont     = e.target.value; markCustom(); };
+    $sub('sub-allcaps-input').onchange   = e => { subAllCaps  = e.target.checked; markCustom(); };
+    $sub('sub-backdrop-select').onchange = e => { subBackdrop = e.target.value; markCustom(); };
+    $sub('sub-color-input').oninput      = e => { subColor    = e.target.value; markCustom(); };
+    $sub('sub-accent-input').oninput     = e => { subAccent   = e.target.value; markCustom(); };
+    $sub('sub-outline-input').oninput    = e => { subOutline  = e.target.value; markCustom(); };
+
     sizeRange.oninput = () => {
       subSize = parseFloat(sizeRange.value);
       sizeLabel.textContent = subSize;
+      markCustom();
+    };
+
+    posSelect.onchange = () => {
+      subPosition = posSelect.value;
+      subPosPct = positionBucketToPct(subPosition);
+      posRange.value = subPosPct;
+      posLabel.textContent = subPosPct + '%';
+      markCustom();
+    };
+
+    posRange.oninput = () => {
+      subPosPct = parseInt(posRange.value, 10);
+      posLabel.textContent = subPosPct + '%';
+      subPosition = pctToPositionBucket(subPosPct);
+      posSelect.value = subPosition;
+      markCustom();
     };
   }
 
@@ -1697,8 +1844,12 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       subBackdrop,
       subSize,
       subPosition,
+      subPosPct,
       subColor,
       subOutline,
+      subFont,
+      subAllCaps,
+      subAccent,
       // Filled by Phase 3
       autoStyle: null,     // { name, reason }
       scenes: [],          // [{ sceneText, sceneDescription }]
@@ -1858,6 +2009,175 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     });
   }
 
+  // Per-job subtitle override panel — appears on completed job cards.
+  // Lets the user re-tune subtitle settings without regenerating audio/images.
+  // Re-export picks up changes because exportJob() reads from job.subStyle, job.subFont, etc.
+  function buildPerJobSubControls(job) {
+    const styleVal     = job.subStyle    || 'highlight';
+    const fontVal      = job.subFont     || 'Poppins';
+    const allCapsVal   = !!job.subAllCaps;
+    const backdropVal  = job.subBackdrop || 'dark';
+    const sizeVal      = job.subSize     || 4;
+    const posBucketVal = job.subPosition || 'bottom';
+    const posPctVal    = typeof job.subPosPct === 'number' ? job.subPosPct
+                         : (posBucketVal === 'top' ? 12 : posBucketVal === 'center' ? 52 : 85);
+    const colorVal     = job.subColor    || '#ffffff';
+    const accentVal    = job.subAccent   || '#7c3aed';
+    const outlineVal   = job.subOutline  || '#000000';
+    const j = job.id;
+    const sel = (cur, opts) => opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('');
+    return `
+      <details class="job-sub-panel" style="margin-top:6px;font-size:11px;">
+        <summary style="cursor:pointer;color:var(--text-muted);padding:4px 0;user-select:none;">⚙ Subtitle settings (re-export to apply)</summary>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:8px 4px 4px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Preset</label>
+            <select class="js-job-sub-preset" data-j="${j}" style="font-size:11px;">
+              <option value="">Custom</option>
+              <option value="hormozi">Hormozi</option>
+              <option value="classic">Classic</option>
+              <option value="karaoke">Karaoke</option>
+              <option value="bold">Bold</option>
+              <option value="minimal">Minimal</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Style</label>
+            <select class="js-job-sub-style" data-j="${j}" style="font-size:11px;">
+              ${sel(styleVal, [['highlight','Highlight'],['word-by-word','Word-by-word'],['bold-center','Bold Center'],['karaoke','Karaoke'],['none','Hidden']])}
+            </select>
+            <label>Font</label>
+            <select class="js-job-sub-font" data-j="${j}" style="font-size:11px;">
+              ${sel(fontVal, [['Poppins','Poppins'],['Montserrat','Montserrat'],['Anton','Anton'],['Bebas Neue','Bebas Neue'],['Oswald','Oswald'],['Inter','Inter']])}
+            </select>
+            <label style="cursor:pointer;"><input type="checkbox" class="js-job-sub-caps" data-j="${j}" ${allCapsVal ? 'checked' : ''}> ALL CAPS</label>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Backdrop</label>
+            <select class="js-job-sub-backdrop" data-j="${j}" style="font-size:11px;">
+              ${sel(backdropVal, [['dark','Dark'],['blur','Blur'],['shadow','Shadow'],['none','None']])}
+            </select>
+            <label>Sz</label>
+            <input type="range" class="js-job-sub-size" data-j="${j}" min="2" max="8" step="0.5" value="${sizeVal}" style="width:54px;">
+            <span class="js-job-sub-size-lbl">${sizeVal}</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Pos</label>
+            <select class="js-job-sub-pos-select" data-j="${j}" style="font-size:11px;">
+              ${sel(posBucketVal, [['top','Top'],['center','Center'],['bottom','Bottom']])}
+            </select>
+            <input type="range" class="js-job-sub-pos-range" data-j="${j}" min="0" max="100" step="1" value="${posPctVal}" style="width:60px;">
+            <span class="js-job-sub-pos-lbl">${posPctVal}%</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Color</label>
+            <input type="color" class="js-job-sub-color" data-j="${j}" value="${colorVal}" style="width:24px;height:24px;padding:1px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;">
+            <label>Accent</label>
+            <input type="color" class="js-job-sub-accent" data-j="${j}" value="${accentVal}" style="width:24px;height:24px;padding:1px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;">
+            <label>Outline</label>
+            <input type="color" class="js-job-sub-outline" data-j="${j}" value="${outlineVal}" style="width:24px;height:24px;padding:1px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;">
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
+  function pctBucket(pct) { return pct <= 20 ? 'top' : pct <= 65 ? 'center' : 'bottom'; }
+  function bucketPct(bucket) { return bucket === 'top' ? 12 : bucket === 'center' ? 52 : 85; }
+
+  function wirePerJobSubControls(card, job) {
+    const q = sel => card.querySelector(sel);
+    const presetEl   = q('.js-job-sub-preset');
+    const styleEl    = q('.js-job-sub-style');
+    const fontEl     = q('.js-job-sub-font');
+    const capsEl     = q('.js-job-sub-caps');
+    const backdropEl = q('.js-job-sub-backdrop');
+    const sizeEl     = q('.js-job-sub-size');
+    const sizeLbl    = q('.js-job-sub-size-lbl');
+    const posSelEl   = q('.js-job-sub-pos-select');
+    const posRangeEl = q('.js-job-sub-pos-range');
+    const posLblEl   = q('.js-job-sub-pos-lbl');
+    const colorEl    = q('.js-job-sub-color');
+    const accentEl   = q('.js-job-sub-accent');
+    const outlineEl  = q('.js-job-sub-outline');
+    if (!presetEl) return; // panel not in DOM (job not done)
+
+    const stop = e => e.stopPropagation();
+    const markCustom = () => { presetEl.value = ''; };
+
+    presetEl.addEventListener('click', stop);
+    presetEl.addEventListener('change', e => {
+      stop(e);
+      const p = SUB_PRESETS[presetEl.value];
+      if (!p) return;
+      job.subStyle    = p.style;
+      job.subColor    = p.color;
+      job.subOutline  = p.outline;
+      job.subBackdrop = p.backdrop;
+      job.subSize     = p.size;
+      job.subPosPct   = p.posPct;
+      job.subPosition = pctBucket(p.posPct);
+      job.subFont     = p.font;
+      job.subAllCaps  = p.allCaps;
+      job.subAccent   = p.accent;
+      // Reflect in this card's controls
+      styleEl.value    = p.style;
+      fontEl.value     = p.font;
+      capsEl.checked   = p.allCaps;
+      backdropEl.value = p.backdrop;
+      sizeEl.value     = p.size; sizeLbl.textContent = p.size;
+      posSelEl.value   = job.subPosition;
+      posRangeEl.value = p.posPct; posLblEl.textContent = p.posPct + '%';
+      colorEl.value    = p.color;
+      accentEl.value   = p.accent;
+      outlineEl.value  = p.outline;
+    });
+
+    styleEl.addEventListener('click', stop);
+    styleEl.addEventListener('change', e => { stop(e); job.subStyle = styleEl.value; markCustom(); });
+    fontEl.addEventListener('click', stop);
+    fontEl.addEventListener('change', e => { stop(e); job.subFont = fontEl.value; markCustom(); });
+    capsEl.addEventListener('click', stop);
+    capsEl.addEventListener('change', e => { stop(e); job.subAllCaps = capsEl.checked; markCustom(); });
+    backdropEl.addEventListener('click', stop);
+    backdropEl.addEventListener('change', e => { stop(e); job.subBackdrop = backdropEl.value; markCustom(); });
+    sizeEl.addEventListener('click', stop);
+    sizeEl.addEventListener('input', e => {
+      stop(e);
+      job.subSize = parseFloat(sizeEl.value);
+      sizeLbl.textContent = job.subSize;
+      markCustom();
+    });
+    posSelEl.addEventListener('click', stop);
+    posSelEl.addEventListener('change', e => {
+      stop(e);
+      job.subPosition = posSelEl.value;
+      job.subPosPct = bucketPct(job.subPosition);
+      posRangeEl.value = job.subPosPct;
+      posLblEl.textContent = job.subPosPct + '%';
+      markCustom();
+    });
+    posRangeEl.addEventListener('click', stop);
+    posRangeEl.addEventListener('input', e => {
+      stop(e);
+      job.subPosPct = parseInt(posRangeEl.value, 10);
+      posLblEl.textContent = job.subPosPct + '%';
+      job.subPosition = pctBucket(job.subPosPct);
+      posSelEl.value = job.subPosition;
+      markCustom();
+    });
+    colorEl.addEventListener('click', stop);
+    colorEl.addEventListener('input', e => { stop(e); job.subColor = colorEl.value; markCustom(); });
+    accentEl.addEventListener('click', stop);
+    accentEl.addEventListener('input', e => { stop(e); job.subAccent = accentEl.value; markCustom(); });
+    outlineEl.addEventListener('click', stop);
+    outlineEl.addEventListener('input', e => { stop(e); job.subOutline = outlineEl.value; markCustom(); });
+
+    // Stop the <details> summary click from bubbling to the result-area click handler
+    const summary = card.querySelector('.job-sub-panel summary');
+    if (summary) summary.addEventListener('click', stop);
+  }
+
   function updateJobCard(card, job) {
     card.dataset.status = job.status;
     card.classList.toggle('selected', selectedJobIds.has(job.id));
@@ -1902,6 +2222,18 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
           <div class="scene-preview">${job.scenes.length} scenes${hasAudio ? ` · ${job.duration.toFixed(1)}s` : ''}${hasImages ? ` · ${job.scenes.filter(s=>s.imgDataUrl).length} imgs` : ''}</div>
         </div>` : ''}
       ${isError ? `<div class="job-error">${escHtml(job.error || 'Unknown error')}</div>` : ''}
+      ${isFullDone ? buildPerJobSubControls(job) : ''}
+      ${job.title ? `
+        <div style="margin-top:8px;padding:7px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:11px;">
+          <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;">
+            <span style="font-weight:600;color:var(--text);flex:1;line-height:1.35;">${escHtml(job.title)}</span>
+            <button class="btn-copy-title btn-xs" style="flex-shrink:0;padding:1px 6px;font-size:10px;">Copy</button>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--text-muted);flex:1;line-height:1.4;white-space:pre-wrap;">${escHtml(job.caption)}</span>
+            <button class="btn-copy-caption btn-xs" style="flex-shrink:0;padding:1px 6px;font-size:10px;">Copy</button>
+          </div>
+        </div>` : ''}
       <div class="job-actions">
         <button class="btn-run-job btn-run" ${isRunning ? 'disabled' : ''}>${isDone || job.status === 'done-audio' ? '↺ Re-run' : '▶ Run'}</button>
         ${isDone ? `<button class="btn-xs btn-preview-job" title="Preview / details">👁 Preview</button>` : ''}
@@ -1935,6 +2267,23 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
 
     const exportBtn = card.querySelector('.btn-export-job');
     if (exportBtn) exportBtn.addEventListener('click', e => { e.stopPropagation(); exportJob(job); });
+
+    // Per-job subtitle override panel — only present on done cards
+    wirePerJobSubControls(card, job);
+
+    const copyTitleBtn = card.querySelector('.btn-copy-title');
+    if (copyTitleBtn) copyTitleBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(job.title || '');
+      copyTitleBtn.textContent = '✓'; setTimeout(() => copyTitleBtn.textContent = 'Copy', 1500);
+    });
+
+    const copyCaptionBtn = card.querySelector('.btn-copy-caption');
+    if (copyCaptionBtn) copyCaptionBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(job.caption || '');
+      copyCaptionBtn.textContent = '✓'; setTimeout(() => copyCaptionBtn.textContent = 'Copy', 1500);
+    });
   }
 
   // ═══════════════════════════════════════════════
@@ -2005,6 +2354,12 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     'img-gpt-high': 0.052,
     // Kling v2.5 Turbo i2v — 10s 1080p per clip
     'kling-clip':   0.42,   // kie.ai ($0.42) — piapi is $0.33
+    // gemini-2.5-flash audio transcription for word alignment: ~30s audio + ~1500 output tokens
+    // Audio input ~$0.001 + tokens ~$0.0005 → ~$0.0015 per video
+    'align':        0.0015,
+    // ElevenLabs Scribe (speech-to-text) for sample-accurate word alignment.
+    // $0.40 per hour of audio → ~$0.005 per 45s video.
+    'eleven-scribe': 0.005,
   };
 
   function trackApiCost(type, count = 1) {
@@ -2030,6 +2385,10 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   // Images use whichever provider is selected in the dropdown.
   function getGeminiKey() {
     return apiKey || localStorage.getItem('stori_key_paid') || '';
+  }
+
+  function getElevenLabsKey() {
+    return elevenLabsKey || localStorage.getItem('stori_elevenlabs_key') || '';
   }
 
   function getImageKey() {
@@ -2121,11 +2480,75 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   // PHASE 3 — SCRIPT GENERATION
   // ═══════════════════════════════════════════════
 
+  // Narrator personas — pick a voice character per script for variety.
+  // Mapped by contentType so explainer/mythology/folk-tale each get appropriate options.
+  const NARRATOR_PERSONAS = {
+    'explainer': [
+      'Curious explainer — leads with questions, asks "what if", lets the surprise land before resolving it.',
+      'Awestruck enthusiast — emphasizes scale and contrast ("Three months. That\'s all it took."). Wonder, not hype.',
+      'Deadpan reporter — facts only, no editorial. Lets the weight of what happened speak for itself.',
+    ],
+    'mythology': [
+      'Storyteller grandparent — warm, intimate, "let me tell you about a king nobody remembers". Conspiratorial.',
+      'Awestruck enthusiast — emphasizes scale and stakes. The size of what was lost or won.',
+      'Deadpan reporter — quiet voice, lets the cruelty/sacrifice land without commentary.',
+    ],
+    'folk-tale': [
+      'Storyteller grandparent — warm, intimate, knowing. Treats the listener as a confidant.',
+      'Curious explainer — invites the viewer to wonder why this story survived.',
+      'Deadpan reporter — bare retelling, no moral hammered home.',
+    ],
+  };
+
+  // Genre-specific 5-beat structures — different shapes for different content types.
+  const GENRE_STRUCTURES = {
+    'explainer': [
+      'Scene 1 — HOOK: pick from hook bank. State the counterintuitive claim or contrarian fact.',
+      'Scene 2 — THE RECEIVED WISDOM: what people commonly believe (that\'s wrong/incomplete).',
+      'Scene 3 — THE MECHANISM: the surprising "how" or "why" — the gear that turns.',
+      'Scene 4 — THE IMPLICATION: what this means for the viewer\'s life, work, or worldview.',
+      'Scene 5 — ENGAGEMENT BAIT: a question that invites a reply or a save-worthy summary.',
+    ],
+    'mythology': [
+      'Scene 1 — HOOK: pick from hook bank. The bold claim or unexpected detail about the figure.',
+      'Scene 2 — STAKES: the relationship, vow, or duty that creates the tension. Name names.',
+      'Scene 3 — THE MOMENT: betrayal, sacrifice, transformation, curse — the turn that breaks something.',
+      'Scene 4 — THE CONSEQUENCE: what changed forever. Why we still tell this story.',
+      'Scene 5 — ENGAGEMENT BAIT: a moral question to debate, or a call to share with someone.',
+    ],
+    'folk-tale': [
+      'Scene 1 — HOOK: pick from hook bank. Lead with the protagonist\'s flaw or the test they face.',
+      'Scene 2 — THE WORLD: the village, the kingdom, the rule — one concrete sensory detail.',
+      'Scene 3 — THE CHOICE: the moment the character decides who they are.',
+      'Scene 4 — THE OUTCOME: what they got, what they lost, the moral baked into the result.',
+      'Scene 5 — ENGAGEMENT BAIT: a question about the moral, or a tag-someone prompt.',
+    ],
+  };
+
+  function pickNarratorPersona(contentType) {
+    const list = NARRATOR_PERSONAS[contentType] || NARRATOR_PERSONAS['explainer'];
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function genreStructure(contentType) {
+    const list = GENRE_STRUCTURES[contentType] || GENRE_STRUCTURES['explainer'];
+    return list.map(b => '- ' + b).join('\n');
+  }
+
   async function generateScript(job) {
     const styleList = Object.keys(STYLE_PRESETS).join(', ');
     const isLongText = job.input.length > 500;
+    const persona = pickNarratorPersona(job.contentType);
+    const structure = genreStructure(job.contentType);
 
-    const prompt = `You are a master storyteller creating content for a ${job.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram Reels'} channel.
+    const prompt = `You are a master short-form video scriptwriter for a ${job.platform === 'youtube' ? 'YouTube Shorts' : 'Instagram Reels'} channel. You write scripts that grip the viewer in 3 seconds and don't let go.
+
+═══════════════════════════════════════════════
+HARD DURATION CAP — READ THIS FIRST
+═══════════════════════════════════════════════
+TOTAL SCRIPT WORD COUNT: MAX 120 words. HARD LIMIT. DO NOT EXCEED. The narration MUST read aloud in 45-55 seconds at natural English pace. Going over is a failure.
+Before returning JSON, count every word across all sceneText fields. If the total exceeds 120, REWRITE shorter scenes until under the cap.
+═══════════════════════════════════════════════
 
 INPUT:
 """
@@ -2134,22 +2557,88 @@ ${job.input}
 
 LANGUAGE: ${job.langLabel} (${job.langCode})
 CONTENT TYPE: ${job.contentType}
+NARRATOR PERSONA (write the whole script in this voice): ${persona}
 
 ${isLongText
-  ? 'The input is a long reference text. Condense it into the most compelling 45-second narrative. Be ruthless — cut everything that does not serve the story.'
-  : 'The input is a story topic. Create an original, vivid narration script for this topic.'}
+  ? 'The input is a long reference text. Condense it ruthlessly. Cut everything that does not serve the 45-second story.'
+  : 'The input is a story topic. Create an original, tight narration script for this topic — within the word cap above.'}
 
 TASK 1 — SCRIPT:
 Write the narration script entirely in ${job.langLabel}. NOT in English (unless the language IS English).
-${job.videoMode === 'animated' ? `- ANIMATED MODE: 5 scenes exactly. Each scene = one 10-second Kling video clip.
-- STRICT per-scene duration: each scene's narration must be EXACTLY ~10 seconds when read aloud (~20-25 words for English; adjust proportionally for ${job.langLabel} speech rate).
-- Total script = 50 seconds (~100-125 words). Do NOT exceed this.
-- Split evenly — no scene should be more than 30 words or fewer than 15 words.` : `- Duration: exactly 45 seconds when read aloud (~110-135 words, adjust for ${job.langLabel} speech rate)
-- 6-9 natural scene breaks. Each scene = one illustration.`}
-- Pure narration only. No dialogue tags, no stage directions.
-- Vivid, visual language that paints pictures. Each scene must be a distinct visual moment.
-- Cultural authenticity. Use proper names, places, cultural terms.
-- Emotional arc: opening hook → rising tension → climax → resolution.
+
+EXACTLY 5 scenes. Not 4, not 6, not 7. Five.
+Per-scene word cap: each scene's sceneText is 18-24 words MAX for English (adjust syllable count for ${job.langLabel} to match same spoken duration). Total script: 100-120 words for English. HARD CEILING 120.
+${job.videoMode === 'animated' ? 'Each scene = one 10-second Kling animated video clip.' : 'Each scene = one illustration, ~9-11 seconds of narration.'}
+
+═══════════════════════════════════════════════
+HOOK BANK — pick ONE pattern for Scene 1, write it sharp
+═══════════════════════════════════════════════
+[A] Wrong-assumption: "Most people think X. They're wrong."
+[B] Specific-number: "In 1857, a 22-year-old fired one bullet that started a war."
+[C] Open-loop: "He had 90 seconds to make a choice. The wrong one would kill 200 people."
+[D] Anti-hook: "This story doesn't end well. That's why we tell it."
+[E] Why-question: "Why did Bhagat Singh smile when they hanged him?"
+[F] Negative-space: "There's something they never teach you about Gandhi."
+[G] Single-detail: "A barber from a Tamil village ended up running a kingdom."
+[H] Contrarian: "Akbar didn't actually invade India. The story is stranger."
+
+BANNED OPENERS for Scene 1 — never start with: "Once upon a time", "Long ago", "In ancient times", "Many years ago", "Did you know", "Have you ever", "Imagine if", "Let me tell you", "In this video", "Today we'll", "Buckle up", "Get ready". Punch first.
+
+═══════════════════════════════════════════════
+GENRE-SPECIFIC 5-BEAT STRUCTURE (${job.contentType})
+═══════════════════════════════════════════════
+${structure}
+
+═══════════════════════════════════════════════
+CONCRETE-DETAIL MANDATE
+═══════════════════════════════════════════════
+Every scene MUST include at least one specific concrete detail — pick from:
+- A proper name (person, place, river, kingdom, weapon)
+- A date or year
+- A number (age, distance, count, weight, duration)
+- A sensory image (the smell of dust, the sound of conch shells, the heat of monsoon)
+- A specific object (a brass lamp, a torn cloth, a copper coin)
+
+BANNED ABSTRACTIONS — never use: "long ago", "many people", "in a faraway land", "people say", "it is said", "thousands of years ago", "a great king", "a beautiful princess", "a small village" (without naming it), "everyone knew".
+
+GOOD: "Krishnadevaraya, who ruled Vijayanagara from 1509, kept a poet at every meal."
+BAD: "There was once a great king who loved poetry."
+
+═══════════════════════════════════════════════
+VOICE & TONE
+═══════════════════════════════════════════════
+- Hold the narrator persona throughout: ${persona}
+- Conversational, NOT literary. Talk to ONE person, not a crowd.
+- Use "you" where natural. Ask questions. Use surprising contrasts ("not X — Y").
+- Short sentences. Vary rhythm. Cut every word that doesn't pull weight.
+- No dialogue tags, no stage directions, no "meanwhile", "in the next scene", "as we shall see".
+
+═══════════════════════════════════════════════
+FORBIDDEN AI PHRASES — never use any of these
+═══════════════════════════════════════════════
+- delve into, embark on, unleash, weave, journey (as verb), tapestry, mosaic, intricate, profound
+- truly, deeply, profoundly, remarkably, undoubtedly, surely, indeed
+- buckle up, fasten your seatbelt, get ready for, dive into, dive deep
+- in this video, today we'll explore, let's discover, join me as we, stay tuned
+- "It's not just X — it's Y" (overused LLM construction)
+Any sentence that sounds like a YouTube travel vlogger intro or a chatbot is BANNED.
+
+═══════════════════════════════════════════════
+FINAL SCENE — engagement bait, NOT subscribe bait
+═══════════════════════════════════════════════
+Scene 5 ends with viewer action that drives COMMENTS or SHARES, not subscribes:
+- A question that demands a reply: "Tell us — was he a hero or a coward?"
+- A save-prompt: "Save this if you didn't know it before."
+- A tag-prompt: "Tag someone who needs to hear this."
+- A debate-prompt: "What would you have done?"
+NEVER say: "Subscribe for more", "Follow for more", "Hit the bell icon", "Like and subscribe". The algorithm rewards comments and shares — not passive views.${job.videoMode === 'animated' ? `
+
+ANIMATED VIDEO INSTRUCTIONS:
+Each scene's visual description MUST describe cinematic MOTION — this will be animated, not static.
+- Start each sceneDescription with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, close-up pull-back, dolly forward, tilt up/down.
+- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.
+- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.
+- One continuous motion per scene — no cuts within a scene.` : ''}
 ${job.videoMode === 'animated' ? `
 ANIMATED VIDEO INSTRUCTIONS:
 Each scene's visual description MUST describe cinematic MOTION — this will be animated, not static.
@@ -2162,6 +2651,11 @@ TASK 2 — VISUAL STYLE:
 Based on the story's emotional tone, cultural context, and visual requirements, pick the single best art style from:
 [${styleList}]
 
+TASK 3 — SOCIAL POST:
+Write a title and caption for posting this video on YouTube Shorts / Instagram Reels.
+- Title: catchy, under 60 chars, in ${job.langLabel}
+- Caption: 2-3 sentences in ${job.langLabel} that tease the story, then 5-8 relevant hashtags in English
+
 OUTPUT — Return ONLY valid JSON, no markdown, no extra text:
 {
   "scenes": [
@@ -2173,12 +2667,14 @@ OUTPUT — Return ONLY valid JSON, no markdown, no extra text:
   "style": {
     "name": "exact-style-name-from-list",
     "reason": "One sentence explaining why this style fits this story"
-  }
+  },
+  "title": "Catchy video title under 60 chars in ${job.langLabel}",
+  "caption": "2-3 sentence post description in ${job.langLabel} + 5-8 relevant hashtags in English"
 }`;
 
     const data = await callGemini('gemini-2.5-flash', {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.8 },
+      generationConfig: { temperature: 0.5 },
     });
     trackApiCost('script');
 
@@ -2226,6 +2722,11 @@ ANIMATED VIDEO: Each sceneDescription MUST describe cinematic MOTION.
 TASK 2 — VISUAL STYLE:
 Pick the single best art style from: [${styleList}]
 
+TASK 3 — SOCIAL POST:
+Write a title and caption for posting this video on YouTube Shorts / Instagram Reels.
+- Title: catchy, under 60 chars, in ${job.langLabel}
+- Caption: 2-3 sentences in ${job.langLabel} that tease the story, then 5-8 relevant hashtags in English
+
 OUTPUT — Return ONLY valid JSON, no markdown:
 {
   "scenes": [
@@ -2237,7 +2738,9 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   "style": {
     "name": "exact-style-name-from-list",
     "reason": "Why this style fits"
-  }
+  },
+  "title": "Catchy video title under 60 chars in ${job.langLabel}",
+  "caption": "2-3 sentence post description in ${job.langLabel} + 5-8 relevant hashtags in English"
 }`;
 
     const data = await callGemini('gemini-2.5-flash', {
@@ -2411,7 +2914,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       cursor += dur;
     }
 
-    // Word timings per scene
+    // Per-scene fallback word timings (used if transcription alignment fails)
     for (const scene of job.scenes) {
       scene.words = wordTimings(scene.sceneText, scene.startTime, scene.duration);
     }
@@ -2424,6 +2927,116 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     job.audioBase64 = audioBufferToBase64(finalBuffer);
     job.duration    = finalBuffer.duration;
     job.ttsChunks   = job.scenes.length;
+
+    // Audio-derived word timings — prefer ElevenLabs Scribe (acoustic alignment, ~50ms drift).
+    // Fall back to Gemini transcription (segment boundaries + uniform within segment).
+    // On any failure, the per-scene uniform fallback above stays in place.
+    try {
+      let aligned = null;
+      if (getElevenLabsKey()) {
+        aligned = await alignWordsWithElevenLabs(finalBuffer, job.langCode);
+      }
+      if (!aligned || !aligned.length) {
+        aligned = await alignWordsFromAudio(finalBuffer, job.scenes);
+      }
+      if (aligned && aligned.length) job.words = aligned;
+    } catch (e) {
+      console.warn('[align] word alignment failed, using per-scene uniform timings:', e.message);
+    }
+  }
+
+  // Send the concatenated TTS audio to ElevenLabs Scribe (speech-to-text) and get back
+  // sample-accurate per-word timestamps from acoustic alignment. Returns flat words array.
+  async function alignWordsWithElevenLabs(audioBuffer, langCode) {
+    const key = getElevenLabsKey();
+    if (!key) return null;
+
+    const wavBytes = wavFromBuffer(audioBuffer);
+    const formData = new FormData();
+    formData.append('file', new Blob([wavBytes], { type: 'audio/wav' }), 'audio.wav');
+    formData.append('model_id', 'scribe_v1');
+    formData.append('timestamps_granularity', 'word');
+    formData.append('tag_audio_events', 'false');
+    formData.append('diarize', 'false');
+    if (langCode) formData.append('language_code', langCode);
+
+    const resp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': key },
+      body: formData,
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      throw new Error(`ElevenLabs Scribe ${resp.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await resp.json();
+    trackApiCost('eleven-scribe');
+
+    const words = (data.words || [])
+      .filter(w => w && w.type === 'word' && typeof w.start === 'number' && typeof w.end === 'number')
+      .map(w => ({ word: w.text, start: w.start, end: w.end }));
+    return words.length ? words : null;
+  }
+
+  // Transcribe the full concatenated TTS audio with Gemini, asking for 6-9 segment boundaries
+  // at natural pauses. Distribute the original sceneText words uniformly inside each returned
+  // segment's [startTime, endTime] window. Returns a flat words array, or null if alignment fails.
+  async function alignWordsFromAudio(audioBuffer, scenes) {
+    const dur = audioBuffer.duration;
+    const wavBlob = new Blob([wavFromBuffer(audioBuffer)], { type: 'audio/wav' });
+    const b64 = await new Promise(res => {
+      const r = new FileReader();
+      r.onloadend = () => res(r.result.split(',')[1]);
+      r.readAsDataURL(wavBlob);
+    });
+
+    const body = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: 'audio/wav', data: b64 } },
+        { text: `Audio duration: ${dur.toFixed(2)} seconds. Transcribe and break into 6-9 segments at natural sentence/pause boundaries. Each segment 3-10 seconds. The segments MUST be perfectly contiguous (first startTime=0, last endTime=${dur.toFixed(2)}, no gaps). Return ONLY a JSON array, no markdown:\n[{"startTime": 0.0, "endTime": 8.0, "text": "transcribed words for this segment"}]` }
+      ]}],
+      generationConfig: { response_mime_type: 'application/json' },
+    };
+    const data = await callGemini('gemini-2.5-flash', body);
+    trackApiCost('align');
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let segs = parseGeminiJson(raw);
+    if (!Array.isArray(segs) || segs.length === 0) return null;
+
+    // Clamp + sort + bound to audio duration
+    segs = segs
+      .filter(s => typeof s.startTime === 'number' && typeof s.endTime === 'number' && s.endTime > s.startTime)
+      .sort((a, b) => a.startTime - b.startTime)
+      .map(s => ({ startTime: Math.max(0, s.startTime), endTime: Math.min(dur, s.endTime), text: (s.text || '').trim() }))
+      .filter(s => s.text);
+    if (!segs.length) return null;
+
+    // Build flat words by uniformly distributing each segment's transcribed words
+    // within its audio-derived [startTime, endTime] window.
+    const words = [];
+    for (const s of segs) {
+      const wds = s.text.split(/\s+/).filter(w => w);
+      if (!wds.length) continue;
+      const segDur = Math.max(0.1, s.endTime - s.startTime);
+      const dpw = segDur / wds.length;
+      wds.forEach((w, i) => words.push({
+        word: w,
+        start: s.startTime + i * dpw,
+        end:   s.startTime + (i + 1) * dpw,
+      }));
+    }
+    return words.length ? words : null;
+  }
+
+  // Encode AudioBuffer → 16-bit PCM WAV bytes (for sending to Gemini).
+  function wavFromBuffer(buffer) {
+    const sr = buffer.sampleRate, len = buffer.length, ch = buffer.numberOfChannels;
+    const pcm = new Int16Array(len * ch);
+    for (let c = 0; c < ch; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < len; i++) pcm[i * ch + c] = Math.max(-32768, Math.min(32767, Math.round(data[i] * 32767)));
+    }
+    return wrapPcmInWav(new Uint8Array(pcm.buffer), sr, ch, 16);
   }
 
   // ═══════════════════════════════════════════════
@@ -2968,8 +3581,11 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     }
 
     // Determine generation mode — respects user selection for both illustrated and animated jobs
+    // Skip grid for line-art/limited-palette styles — Pro 2K grid bleeds across cells for these
+    const SPECIAL_STYLES = ['sketch', 'minimalist', 'flat-design', 'comic'];
+    const isSkipStyle = SPECIAL_STYLES.includes(styleName);
     const imgGenMode = job.imgGenMode || selectedImgGenMode || 'auto';
-    const useGrid = imgGenMode === 'grid' || (imgGenMode === 'auto' && pending.length >= 4);
+    const useGrid = !isSkipStyle && (imgGenMode === 'grid' || (imgGenMode === 'auto' && pending.length >= 4));
 
     if (useGrid) {
       // Grid mode: one API call → upscale whole grid 2× → crop cells.
@@ -3018,7 +3634,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     try {
       const result = job.type === 'script' ? await breakScript(job) : await generateScript(job);
       const effectiveStyle = job.style !== 'auto' ? { name: job.style, reason: 'Manual selection' } : result.style;
-      Object.assign(job, { scenes: result.scenes, autoStyle: effectiveStyle, error: null });
+      Object.assign(job, { scenes: result.scenes, autoStyle: effectiveStyle, title: result.title || '', caption: result.caption || '', error: null });
       updateJobStatus(job, 'done-script');
     } catch (err) {
       updateJobStatus(job, 'error', { error: err.message });
@@ -3334,9 +3950,18 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         subtitleLangLabel: job.langLabel || 'English',
         segmentIndex:      0,
         settings: {
-          subtitleStyle: 'highlight', transition: job.transition || 'whip-pan',
-          subColor: '#ffffff', subOutline: '#000000', subBackdrop: 'dark',
-          subSize: 4, subPosition: 'bottom',
+          subtitleStyle: job.subStyle || 'highlight',
+          transition: job.transition || 'whip-pan',
+          subColor: job.subColor || '#ffffff',
+          subOutline: job.subOutline || '#000000',
+          subBackdrop: job.subBackdrop || 'dark',
+          subSize: job.subSize || 4,
+          // Main app's Reel editor expects subPosition as a number (% of canvas height)
+          subPosition: typeof job.subPosPct === 'number' ? job.subPosPct
+                       : (job.subPosition === 'top' ? 12 : job.subPosition === 'center' ? 52 : 85),
+          subFont: job.subFont || 'Poppins',
+          subAllCaps: !!job.subAllCaps,
+          subAccent: job.subAccent || '#7c3aed',
         },
         words:  job.words || [],
         scenes: scenesData,
@@ -3657,133 +4282,130 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   // END CARD RENDERER — shared by preview + export
   // ═══════════════════════════════════════════════
 
+  // Cached logo image — loaded once, reused for every drawEndCard / intro call.
+  // Source is a base64 data URL (loaded from kaatchi-logo-data.js) so the canvas is never
+  // tainted regardless of origin (works under file://, http://, https://). Falls back to
+  // the external file path if the data URL hasn't loaded for any reason.
+  const _kaatchiLogoImg = (() => {
+    const im = new Image();
+    im.src = window._kaatchiLogoDataUrl || 'kaatchi-logo.png';
+    return im;
+  })();
+  // Wait for the logo before starting export so the end card / intro always render it.
+  // Resolves on success OR failure — never hangs (load attempt already finished if `complete` is true).
+  function _ensureLogoReady() {
+    if (_kaatchiLogoImg.complete) return Promise.resolve();
+    return new Promise(resolve => {
+      _kaatchiLogoImg.onload  = () => resolve();
+      _kaatchiLogoImg.onerror = () => resolve(); // don't block export if logo missing
+    });
+  }
+
   // particles: array initialised once per render context (preview or export).
   // Call with particles = [] the first time; function fills it on first call.
   function drawEndCard(ctx, w, h, ct, particles) {
-    const easeOut  = t => 1 - Math.pow(1 - t, 3);
-    const easeBack = t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
-    const ramp     = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+    const easeOut = t => 1 - Math.pow(1 - t, 3);
+    const ramp    = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
 
-    // Init particles once
-    if (particles.length === 0) {
-      for (let i = 0; i < 45; i++) {
-        particles.push({
-          x:     Math.random() * w,
-          y:     h * (0.5 + Math.random() * 0.7),
-          speed: (0.5 + Math.random() * 1.0) * (h / 1920),
-          size:  1.2 + Math.random() * 2.8,
-          alpha: 0.25 + Math.random() * 0.5,
-          phase: Math.random() * Math.PI * 2,
-          drift: (Math.random() - 0.5) * 0.5 * (w / 1080),
-          color: Math.random() < 0.35 ? '#a855f7' : '#ffffff',
-        });
-      }
-    }
+    // ── Panel slides up from bottom ──
+    const slideP  = easeOut(ramp(ct, 0, 0.5));
+    const offsetY = Math.round(h * (1 - slideP));
 
-    // ── Background ──
+    ctx.save();
+    ctx.translate(0, offsetY);
+
+    // Background
     ctx.globalAlpha = 1;
-    const bgA    = easeOut(ramp(ct, 0, 0.5));
-    const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.38, 0, w * 0.5, h * 0.38, w * 1.1);
-    bgGrad.addColorStop(0,   `rgba(38,10,72,${bgA})`);
-    bgGrad.addColorStop(0.5, `rgba(14,6,28,${bgA})`);
-    bgGrad.addColorStop(1,   `rgba(4,4,12,${bgA})`);
+    ctx.fillStyle = '#08080f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Cyan radial tint
+    const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.42, 0, w * 0.5, h * 0.42, w * 0.9);
+    bgGrad.addColorStop(0,   'rgba(8,90,120,0.7)');
+    bgGrad.addColorStop(0.5, 'rgba(5,40,55,0.5)');
+    bgGrad.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // ── Particles ──
-    const pShow = easeOut(ramp(ct, 0.1, 0.6));
-    for (const p of particles) {
-      p.y -= p.speed;
-      p.x += p.drift * Math.sin(ct * 0.8 + p.phase);
-      if (p.y < -10) { p.y = h + 5; p.x = Math.random() * w; }
-      const pa = pShow * p.alpha * Math.sin(Math.PI * Math.max(0, Math.min(1, (h - p.y) / (h * 0.9))));
-      if (pa <= 0.01) continue;
-      ctx.globalAlpha = pa;
-      ctx.fillStyle   = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // ── Glow bloom ──
-    const glowP = easeOut(ramp(ct, 0.25, 0.9));
+    // ── Glow bloom — appears after panel lands ──
+    const glowP = easeOut(ramp(ct, 0.45, 1.0));
     if (glowP > 0) {
-      const glow = ctx.createRadialGradient(w * 0.5, h * 0.36, 0, w * 0.5, h * 0.36, w * 0.6);
-      glow.addColorStop(0,   `rgba(139,92,246,${0.28 * glowP})`);
-      glow.addColorStop(0.4, `rgba(168,85,247,${0.10 * glowP})`);
+      const glow = ctx.createRadialGradient(w * 0.5, h * 0.46, 0, w * 0.5, h * 0.46, w * 0.6);
+      glow.addColorStop(0,   `rgba(34,211,238,${0.32 * glowP})`);
+      glow.addColorStop(0.6, `rgba(8,160,200,${0.10 * glowP})`);
       glow.addColorStop(1,   'rgba(0,0,0,0)');
-      ctx.globalAlpha = 1;
-      ctx.fillStyle   = glow;
+      ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
     }
 
-    // ── "Kaatchi AI" hero text ──
-    const logoP = easeBack(ramp(ct, 0.28, 0.95));
-    const logoA = easeOut(ramp(ct, 0.28, 0.65));
-    if (logoA > 0) {
-      const logoY = Math.round(h * 0.38 + (1 - logoP) * h * 0.07);
-      ctx.globalAlpha = logoA;
-      ctx.textAlign   = 'center';
+    // ── "Made with" — small caption above logo ──
+    const madeP = easeOut(ramp(ct, 0.4, 0.75));
+    if (madeP > 0) {
+      const madeY = Math.round(h * 0.30 - (1 - madeP) * h * 0.02);
+      ctx.globalAlpha  = madeP;
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.shadowColor = '#7c3aed';
-      ctx.shadowBlur  = Math.round(36 * logoP);
-      ctx.fillStyle   = '#ffffff';
-      ctx.font        = `800 ${Math.round(w * 0.13)}px system-ui,-apple-system,sans-serif`;
-      ctx.fillText('Kaatchi AI', w / 2, logoY);
-      ctx.shadowBlur  = 0;
+      ctx.fillStyle    = '#a5f3fc';
+      ctx.font         = `500 ${Math.round(w * 0.045)}px system-ui,-apple-system,sans-serif`;
+      ctx.fillText('Made with', w / 2, madeY);
     }
 
-    // ── Divider line ──
-    const lineP = easeOut(ramp(ct, 0.85, 1.45));
+    // ── Logo image — simple fade-in + slight scale-up ──
+    const logoP = easeOut(ramp(ct, 0.55, 1.05));
+    if (logoP > 0 && _kaatchiLogoImg.complete && _kaatchiLogoImg.naturalWidth) {
+      const targetSize = w * 0.42;
+      const scale      = 0.85 + 0.15 * logoP;
+      const size       = targetSize * scale;
+      const cx         = w / 2;
+      const cy         = h * 0.46;
+
+      ctx.save();
+      ctx.globalAlpha = logoP;
+      ctx.shadowColor = '#22d3ee';
+      ctx.shadowBlur  = Math.round(28 * logoP);
+      ctx.drawImage(_kaatchiLogoImg, cx - size / 2, cy - size / 2, size, size);
+      ctx.restore();
+    }
+
+    // ── Divider ──
+    const lineP = easeOut(ramp(ct, 0.95, 1.35));
     if (lineP > 0) {
-      const lineY   = Math.round(h * 0.435);
+      const lineY   = Math.round(h * 0.66);
       const halfW   = w * 0.22 * lineP;
       const lineGrd = ctx.createLinearGradient(w / 2 - halfW, 0, w / 2 + halfW, 0);
-      lineGrd.addColorStop(0,   'rgba(168,85,247,0)');
-      lineGrd.addColorStop(0.5, '#a855f7');
-      lineGrd.addColorStop(1,   'rgba(168,85,247,0)');
-      ctx.globalAlpha = 0.65 * easeOut(ramp(ct, 0.85, 1.2));
+      lineGrd.addColorStop(0,   'rgba(34,211,238,0)');
+      lineGrd.addColorStop(0.5, '#22d3ee');
+      lineGrd.addColorStop(1,   'rgba(34,211,238,0)');
+      ctx.globalAlpha = 0.7 * lineP;
       ctx.fillStyle   = lineGrd;
       ctx.fillRect(w / 2 - halfW, lineY, halfW * 2, Math.round(h * 0.002));
     }
 
-    // ── Tagline ──
-    const tagA = easeOut(ramp(ct, 1.1, 1.75));
-    if (tagA > 0) {
-      const tagY = Math.round(h * 0.492 + (1 - tagA) * h * 0.02);
-      ctx.globalAlpha  = tagA;
-      ctx.fillStyle    = '#c084fc';
-      ctx.font         = `${Math.round(w * 0.05)}px system-ui,-apple-system,sans-serif`;
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('Your stories, brought to life', w / 2, tagY);
-    }
-
-    // ── CTA pill ──
-    const ctaA = easeOut(ramp(ct, 1.85, 2.6));
-    if (ctaA > 0) {
-      const pulse   = ct > 2.8 ? 0.025 * Math.sin((ct - 2.8) * 2.4) : 0;
-      const ctaText = 'Try free  →  kaatchiai.com';
-      const fs      = Math.round(w * 0.044);
+    // ── CTA pill — "Try now for free" ──
+    const ctaP = easeOut(ramp(ct, 1.18, 1.7));
+    if (ctaP > 0) {
+      const pulse   = ct > 2.4 ? 0.02 * Math.sin((ct - 2.4) * 2.5) : 0;
+      const ctaText = 'Try now for free';
+      const fs      = Math.round(w * 0.05);
       ctx.font      = `700 ${fs}px system-ui,-apple-system,sans-serif`;
       const tw      = ctx.measureText(ctaText).width;
       const padX    = w * 0.065, padY = h * 0.017;
       const rw      = tw + padX * 2;
       const rh      = fs + padY * 2;
       const rx      = w / 2 - rw / 2;
-      const baseY   = h * 0.575 + (1 - ctaA) * h * 0.03;
+      const baseY   = h * 0.78 - (1 - ctaP) * h * 0.025;
       const ry      = baseY - fs - padY;
       const rad     = rh / 2;
 
-      ctx.globalAlpha = ctaA;
+      ctx.globalAlpha = ctaP;
       ctx.save();
       ctx.translate(w / 2, baseY - fs / 2);
       ctx.scale(1 + pulse, 1 + pulse);
       ctx.translate(-w / 2, -(baseY - fs / 2));
 
       const pillGrd = ctx.createLinearGradient(rx, 0, rx + rw, 0);
-      pillGrd.addColorStop(0, '#6d28d9');
-      pillGrd.addColorStop(1, '#a855f7');
+      pillGrd.addColorStop(0, '#0891b2');
+      pillGrd.addColorStop(1, '#22d3ee');
       ctx.fillStyle = pillGrd;
       ctx.beginPath();
       ctx.moveTo(rx + rad, ry);
@@ -3805,6 +4427,17 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       ctx.restore();
     }
 
+    // ── Top shadow while panel is rising ──
+    if (slideP < 1) {
+      const shadow = ctx.createLinearGradient(0, 0, 0, h * 0.06);
+      shadow.addColorStop(0, `rgba(0,0,0,${0.5 * (1 - slideP)})`);
+      shadow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle   = shadow;
+      ctx.fillRect(0, 0, w, h * 0.06);
+    }
+
+    ctx.restore();
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
   }
@@ -3868,49 +4501,65 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   // Supports: highlight | word-by-word | bold-center | karaoke | none.
   // Supports translated subtitles: when job.subLang !== 'original', uses scene.subText.
   function renderSubtitle(ctx, w, h, currentTime, job) {
-    const style    = job.subStyle    || 'highlight';
-    const backdrop = job.subBackdrop || 'dark';
-    const sizeFactor = (job.subSize || 4) / 100;
-    const pos      = job.subPosition || 'bottom';
-    const color    = job.subColor    || '#ffffff';
-    const outline  = job.subOutline  || '#000000';
-    const accentColor = '#a078ff'; // active-word accent (same as main app)
+    const style       = job.subStyle    || 'highlight';
+    const backdrop    = job.subBackdrop || 'dark';
+    const sizeFactor  = (job.subSize || 4) / 100;
+    const color       = job.subColor    || '#ffffff';
+    const outline     = job.subOutline  || '#000000';
+    const fontFamily  = job.subFont     || 'Poppins';
+    const allCaps     = !!job.subAllCaps;
+    const accentColor = job.subAccent   || '#7c3aed';
 
     if (style === 'none') return;
 
     const fontSize = Math.round(w * sizeFactor);
-    const font     = `700 ${fontSize}px system-ui,-apple-system,sans-serif`;
-    const yFrac    = pos === 'top' ? 0.12 : pos === 'center' ? 0.52 : 0.85;
+    const font     = `700 ${fontSize}px "${fontFamily}", system-ui, -apple-system, sans-serif`;
+    let yFrac;
+    if (typeof job.subPosPct === 'number') {
+      yFrac = Math.max(0, Math.min(1, job.subPosPct / 100));
+    } else {
+      const pos = job.subPosition || 'bottom';
+      yFrac = pos === 'top' ? 0.12 : pos === 'center' ? 0.52 : 0.85;
+    }
     const y        = Math.round(h * yFrac);
     const maxWidth = w * 0.9;
     const words    = job.words || [];
+    const txCase   = s => allCaps ? s.toUpperCase() : s;
 
     ctx.save();
     ctx.font = font;
     ctx.textBaseline = 'bottom';
 
     function drawBackdrop(bx, bY, bw, bh) {
-      if (backdrop === 'none') return;
-      ctx.globalAlpha = 0.7;
-      ctx.fillStyle = '#000';
+      if (backdrop === 'none' || backdrop === 'shadow') return;
       const safeBw = Math.min(bw, maxWidth + 32);
       const safeBx = Math.max(0, w / 2 - safeBw / 2);
+      ctx.globalAlpha = backdrop === 'blur' ? 0.55 : 0.7;
+      ctx.fillStyle = '#000';
       ctx.fillRect(safeBx, bY, safeBw, bh);
       ctx.globalAlpha = 1;
     }
     function drawOutlinedText(text, tx, ty) {
+      const useShadow = backdrop === 'shadow';
+      if (useShadow) {
+        ctx.save();
+        ctx.shadowColor   = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur    = Math.round(fontSize * 0.4);
+        ctx.shadowOffsetY = Math.round(fontSize * 0.08);
+      }
       if (outline && outline !== 'transparent') {
         ctx.strokeStyle = outline; ctx.lineWidth = 3; ctx.lineJoin = 'round';
         ctx.strokeText(text, tx, ty);
       }
       ctx.fillText(text, tx, ty);
+      if (useShadow) ctx.restore();
     }
 
     // ── Translated subtitle: use scene.subText, show for scene duration ──
     const isTranslated = job.subLang && job.subLang !== 'original' && job.subLang !== job.langCode;
     if (isTranslated && job.scenes?.length) {
       const scene = [...job.scenes].reverse().find(s => (s.startTime || 0) <= currentTime);
-      const text = scene?.subText || scene?.sceneText || '';
+      const text = txCase(scene?.subText || scene?.sceneText || '');
       if (!text) { ctx.restore(); return; }
       ctx.textAlign = 'center';
       ctx.font = font;
@@ -3925,16 +4574,13 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     if (!words.length) { ctx.restore(); return; }
 
     // Find current word index
-    let curIdx = words.findIndex(wt => currentTime >= wt.start && currentTime < wt.end);
-    if (curIdx < 0) curIdx = [...words].reverse().findIndex(wt => wt.start <= currentTime);
-    if (curIdx < 0) curIdx = words.length - 1 - curIdx; // adjust reverse index
-    // Safe clamp
-    const idx = curIdx < 0 ? -1 : curIdx;
+    let idx = words.findIndex(wt => currentTime >= wt.start && currentTime < wt.end);
+    if (idx < 0) idx = words.findIndex(wt => wt.start > currentTime); // next upcoming word
 
     if (style === 'word-by-word') {
       if (idx < 0) { ctx.restore(); return; }
       const chunk = words.slice(idx, idx + 2);
-      const text = chunk.map(wt => wt.word).join(' ');
+      const text = txCase(chunk.map(wt => wt.word).join(' '));
       ctx.textAlign = 'center';
       const m = ctx.measureText(text);
       drawBackdrop(w/2 - m.width/2 - 14, y - fontSize - 4, m.width + 28, fontSize + 16);
@@ -3946,8 +4592,8 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       const start = Math.max(0, idx < 0 ? 0 : idx - 2);
       const seg   = words.slice(start, start + 5);
       if (!seg.length) { ctx.restore(); return; }
-      const sentence = seg.map(wt => wt.word).join(' ');
-      const smFont   = `600 ${Math.round(fontSize * 0.75)}px system-ui,sans-serif`;
+      const sentence = txCase(seg.map(wt => wt.word).join(' '));
+      const smFont   = `600 ${Math.round(fontSize * 0.75)}px "${fontFamily}", system-ui, sans-serif`;
       ctx.font = smFont;
       const metrics = ctx.measureText(sentence);
       drawBackdrop(w/2 - metrics.width/2 - 12, y - fontSize * 0.75 - 4, metrics.width + 24, fontSize * 0.75 + 16);
@@ -3956,7 +4602,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         const isActive = currentTime >= wt.start && currentTime < wt.end;
         ctx.fillStyle = isActive ? accentColor : color;
         ctx.textAlign = 'left';
-        const wStr = wt.word + ' ';
+        const wStr = txCase(wt.word) + ' ';
         drawOutlinedText(wStr, xPos, y);
         xPos += ctx.measureText(wStr).width;
       }
@@ -3964,8 +4610,8 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     } else if (style === 'karaoke') {
       const visible = words.filter(wt => currentTime >= wt.start).slice(-4);
       if (!visible.length) { ctx.restore(); return; }
-      const text = visible.map(wt => wt.word).join(' ');
-      const kFont = `600 ${Math.round(fontSize * 0.8)}px system-ui,sans-serif`;
+      const text = txCase(visible.map(wt => wt.word).join(' '));
+      const kFont = `600 ${Math.round(fontSize * 0.8)}px "${fontFamily}", system-ui, sans-serif`;
       ctx.font = kFont;
       ctx.textAlign = 'center';
       const m = ctx.measureText(text);
@@ -3979,7 +4625,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       const group = words.slice(groupStart, groupStart + 3);
       if (!group.length) { ctx.restore(); return; }
       ctx.font = font; ctx.textAlign = 'center';
-      const groupText = group.map(wt => wt.word).join(' ');
+      const groupText = txCase(group.map(wt => wt.word).join(' '));
       const m = ctx.measureText(groupText);
       drawBackdrop(w/2 - m.width/2 - 16, y - fontSize - 6, m.width + 32, fontSize + 20);
       let xPos = w / 2 - m.width / 2;
@@ -3987,7 +4633,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       for (const wt of group) {
         const isCurrent = currentTime >= wt.start && currentTime < wt.end;
         ctx.fillStyle = isCurrent ? accentColor : color;
-        const wText = wt === group[group.length - 1] ? wt.word : wt.word + ' ';
+        const wText = txCase(wt === group[group.length - 1] ? wt.word : wt.word + ' ');
         drawOutlinedText(wText, xPos, y);
         xPos += ctx.measureText(wText).width;
       }
@@ -4065,6 +4711,9 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
 
+    // Pre-load logo so end card always renders it
+    if (job.endCard) await _ensureLogoReady();
+
     // Pre-load scene media (video clips for animated, images for illustrated)
     const isAnimated = job.videoMode === 'animated';
     const mediaEls = await Promise.all(job.scenes.map(scene => {
@@ -4128,7 +4777,10 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     const { mime: mimeType, ext: fileExt } = resolveMime();
 
     const chunks = [];
-    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 4_000_000 });
+    // 8 Mbps for 1080×1920 @ 30fps. The previous 4 Mbps caused VBR encoder to produce
+    // blocky artifacts at the intro→scene transition (low-entropy intro followed by
+    // high-detail AI image overran the bitrate budget for a few frames).
+    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 128_000 });
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
     showExportOverlay(job);
@@ -4249,18 +4901,34 @@ OUTPUT — Return ONLY valid JSON, no markdown:
           // Subtitles
           renderSubtitle(ctx, w, h, audioTime, job);
 
-          // Intro card overlay (0 to introDur)
+          // Intro card overlay (0 to introDur) — "Made with" + Kaatchi logo
           if (job.intro && elapsed < introDur) {
             const t = elapsed / introDur;
             const a = t < 0.2 ? t / 0.2 : t > 0.8 ? (1 - t) / 0.2 : 1;
+
+            // Dim background
             ctx.globalAlpha = a * 0.82;
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, w, h);
-            ctx.globalAlpha = a;
-            ctx.fillStyle = '#fff';
-            ctx.font = `bold ${Math.round(w * 0.07)}px system-ui,sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('Made with Stori', w / 2, h / 2);
+
+            // "Made with" text above logo
+            ctx.globalAlpha  = a;
+            ctx.fillStyle    = '#a5f3fc';
+            ctx.font         = `500 ${Math.round(w * 0.05)}px system-ui,-apple-system,sans-serif`;
+            ctx.textAlign    = 'center';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText('Made with', w / 2, h * 0.42);
+
+            // Logo image centered below
+            if (_kaatchiLogoImg.complete && _kaatchiLogoImg.naturalWidth) {
+              const size = w * 0.42;
+              ctx.save();
+              ctx.shadowColor = '#22d3ee';
+              ctx.shadowBlur  = Math.round(28 * a);
+              ctx.drawImage(_kaatchiLogoImg, w / 2 - size / 2, h * 0.46, size, size);
+              ctx.restore();
+            }
+
             ctx.globalAlpha = 1;
           }
         }
