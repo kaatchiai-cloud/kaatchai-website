@@ -33,8 +33,10 @@ function showReelEditorStep() {
 // Input mode
 const reelModeAudio = $('reel-mode-audio');
 const reelModeVideo = $('reel-mode-video');
+const reelModeText  = $('reel-mode-text');
 const reelAudioSection = $('reel-audio-section');
 const reelVideoSection = $('reel-video-section');
+const reelTextSection  = $('reel-text-section');
 const reelAudioInput = $('reel-audio-input');
 const reelAudioName = $('reel-audio-name');
 const reelVideoInput = $('reel-video-input');
@@ -76,6 +78,7 @@ const btnReelBgm = $('btn-reel-bgm');
 // State
 let reelAudioBuffer = null;
 let reelScenes = null;
+let reelSourceLang = null; // ISO 639-1 code of source audio language, detected at transcription time
 let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
@@ -344,16 +347,21 @@ window.addEventListener('beforeunload', (e) => {
 // ── Input Mode Toggle ──
 function setReelInputMode(mode) {
   reelInputMode = mode;
-  reelModeAudio.classList.toggle('active', mode === 'audio');
-  reelModeVideo.classList.toggle('active', mode === 'video');
-  reelAudioSection.classList.toggle('hidden', mode !== 'audio');
-  reelVideoSection.classList.toggle('hidden', mode !== 'video');
+  if (reelModeAudio) reelModeAudio.classList.toggle('active', mode === 'audio');
+  if (reelModeVideo) reelModeVideo.classList.toggle('active', mode === 'video');
+  if (reelModeText)  reelModeText.classList.toggle('active',  mode === 'text');
+  if (reelAudioSection) reelAudioSection.classList.toggle('hidden', mode !== 'audio');
+  if (reelVideoSection) reelVideoSection.classList.toggle('hidden', mode !== 'video');
+  if (reelTextSection)  reelTextSection.classList.toggle('hidden',  mode !== 'text');
   const editModeRow = $('reel-edit-mode-row');
   if (editModeRow) editModeRow.classList.toggle('hidden', mode !== 'video');
   if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
   if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
   updateReelCostEstimate();
 }
+// Public alias used by Storypilot handoff (navigateTo calls this)
+window.switchReelInputMode = setReelInputMode;
+
 // Edit mode radio
 document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
@@ -364,8 +372,17 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 });
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
+if (reelModeText)  reelModeText.addEventListener('click',  () => setReelInputMode('text'));
 // Apply initial mode visibility
 setReelInputMode(reelInputMode);
+
+// Show Step 3 as soon as text is present in the textarea
+const _reelTextInput = $('reel-text-input');
+if (_reelTextInput) {
+  _reelTextInput.addEventListener('input', function() {
+    if (this.value.trim().length > 10) showReelPresets();
+  });
+}
 
 function showReelPresets() {
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
@@ -956,6 +973,39 @@ function distributeWordsToScene(sceneStartTime, sceneEndTime, allWords) {
   return allWords.filter(w => w.start != null && w.end != null && w.start < sceneEndTime && w.end > sceneStartTime);
 }
 
+// Map brainstorm finalScript scenes to time ranges using proportional word-count timing.
+// hook/cta word counts are absorbed into first/last scene boundaries.
+function matchBrainstormSceneTiming(handoffScript, reelWords, totalDuration) {
+  const s = handoffScript;
+  const parts = [];
+  if (s.hook) parts.push({ text: s.hook, type: 'hook' });
+  (s.scenes || []).forEach((sc, i) => parts.push({ text: sc.voice || '', visual: sc.visual || '', mood: sc.mood || '', type: 'scene', sceneIndex: i }));
+  if (s.cta)  parts.push({ text: s.cta,  type: 'cta'  });
+
+  const wordCounts = parts.map(p => p.text.trim().split(/\s+/).filter(Boolean).length);
+  const totalWords = wordCounts.reduce((a, b) => a + b, 0) || 1;
+  const wLen = reelWords.length;
+
+  let cumWords = 0;
+  const timed = parts.map((part, i) => {
+    const wStart = cumWords;
+    const wEnd   = cumWords + wordCounts[i];
+    cumWords = wEnd;
+    const iStart = Math.min(Math.round((wStart / totalWords) * wLen), wLen - 1);
+    const iEnd   = Math.min(Math.round((wEnd   / totalWords) * wLen) - 1, wLen - 1);
+    const startT = wLen > 0 ? reelWords[Math.max(0, iStart)].start : (wStart / totalWords) * totalDuration;
+    const endT   = wLen > 0 ? reelWords[Math.max(0, iEnd)].end   : (wEnd   / totalWords) * totalDuration;
+    return { ...part, startTime: startT, endTime: Math.max(startT + 0.5, endT) };
+  });
+
+  const scenes = timed.filter(p => p.type === 'scene');
+  const hook   = timed.find(p => p.type === 'hook');
+  const cta    = timed.find(p => p.type === 'cta');
+  if (hook && scenes.length > 0) scenes[0].startTime = hook.startTime;
+  if (cta  && scenes.length > 0) scenes[scenes.length - 1].endTime = cta.endTime;
+  return scenes;
+}
+
 function buildWordsFromText(text, startTime, endTime) {
   const wds = (text || '').trim().split(/\s+/).filter(w => w.length > 0);
   if (wds.length === 0) return [];
@@ -1016,7 +1066,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "lang": "en", "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. The "lang" field is the ISO 639-1 two-letter language code of the spoken audio (e.g. "en", "ta", "hi", "es").` }
         ]}],
         generationConfig: { response_mime_type: 'application/json' },
       };
@@ -1183,7 +1233,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const baseSubLang5 = reelVariationRows[0]?.subtitle || 'original';
     const segTransMap5 = new Map();
     console.log('[ReelSub] baseSubLang5:', baseSubLang5, 'variationRows[0].subtitle:', reelVariationRows[0]?.subtitle);
-    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none') {
+    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none' && baseSubLang5 !== reelSourceLang) {
       for (const job of doneJobs) {
         if (job.type !== 'segment') continue;
         const origText = job.words.map(w => w.word).join(' ');
@@ -1258,6 +1308,29 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   }
 
 
+  // ── Text mode: run TTS to get an audio buffer, then fall through to normal audio pipeline ──
+  if (reelInputMode === 'text') {
+    const scriptText = ($('reel-text-input')?.value || '').trim();
+    if (!scriptText) { reelGenerateStatus.textContent = 'Paste a script in the Text tab first.'; btnReelGenerate.disabled = false; return; }
+    try {
+      reelGenerateStatus.textContent = 'Generating audio from script…';
+      reelProgressEl.classList.remove('hidden');
+      reelProgressLabel.textContent = 'Narrating script with TTS…';
+      // generateTTSGemini and decodeBase64Audio are defined in 17c-create-pipeline.js (global scope)
+      const ttsResult = await generateTTSGemini(scriptText, 'Kore', key);
+      const { audioBuffer: ttsBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      reelAudioBuffer = ttsBuf;
+      trackCost('tts', 1);
+      reelProgressLabel.textContent = 'Audio ready — building reel…';
+    } catch(ttsErr) {
+      reelProgressEl.classList.add('hidden');
+      reelGenerateStatus.textContent = 'TTS failed: ' + (ttsErr.message || 'Unknown error');
+      btnReelGenerate.disabled = false;
+      reelGenerating = false;
+      return;
+    }
+  }
+
   if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio first.'; return; }
 
   // Trim audio to selected duration if longer
@@ -1289,7 +1362,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "lang": "en", "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. The "lang" field is the ISO 639-1 two-letter language code of the spoken audio (e.g. "en", "ta", "hi", "es").` }
       ]}],
       generationConfig: { response_mime_type: 'application/json' },
     };
@@ -1298,6 +1371,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeText = transcribeData.candidates?.[0]?.content?.parts?.[0]?.text;
     let segments = parseGeminiJson(transcribeText);
     segments = clampSegments(segments, 6, 9);
+    reelSourceLang = segments[0]?.lang || null;
 
     // Collect all words for subtitle rendering.
     // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
@@ -1356,22 +1430,41 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     } else {
       // Audio/Text mode: need image generation
       const totalDur = reelAudioBuffer.duration;
-      reelScenes = segments.map((s, si) => {
-        const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
-        const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
-        return {
-          prompt: s.sceneDescription || s.text,
-          startTime: st, endTime: en,
-          duration: en - st,
-          text: s.text,
-          emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
-          words: distributeWordsToScene(st, en, reelWords),
+
+      if (window.__reelHandoffScript) {
+        // Brainstorm handoff: use pre-baked visuals, skip Gemini scene-description generation
+        const bsScenes = matchBrainstormSceneTiming(window.__reelHandoffScript, reelWords, totalDur);
+        window.__reelHandoffScript = null;
+        reelScenes = bsScenes.map(sc => ({
+          prompt: [sc.visual, sc.mood].filter(Boolean).join(', '),
+          startTime: sc.startTime, endTime: sc.endTime,
+          duration: sc.endTime - sc.startTime,
+          text: sc.text || '',
+          emojis: [],
+          words: distributeWordsToScene(sc.startTime, sc.endTime, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
           motion: transPreset.motion,
-        };
-      });
+        }));
+      } else {
+        reelScenes = segments.map((s, si) => {
+          const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
+          const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
+          return {
+            prompt: s.sceneDescription || s.text,
+            startTime: st, endTime: en,
+            duration: en - st,
+            text: s.text,
+            emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
+            words: distributeWordsToScene(st, en, reelWords),
+            imgDataUrl: null, status: 'pending',
+            transition: transPreset.transition,
+            transDur: transPreset.transDur,
+            motion: transPreset.motion,
+          };
+        });
+      }
 
       // Show scene cards and auto-generate images, then preview
       reelPendingScenes = reelScenes;
@@ -2598,7 +2691,7 @@ function renderAllReelPreviews() {
       try {
         // Subtitle
         let subWords = origReel.words;
-        if (subtitleLang !== 'original' && origText) {
+        if (subtitleLang !== 'original' && subtitleLang !== reelSourceLang && origText) {
           const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[subtitleLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
           const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
           trackCost('textGeneration', 1);
@@ -3408,7 +3501,7 @@ async function reelBuildVariationsAndPreview() {
     // Apply base variation subtitle language to segment jobs (variation jobs already have their own subtitleLang)
     const baseSubLang = reelVariationRows[0]?.subtitle || 'original';
     const segTranslationMap = new Map(); // job.id → translatedWords
-    if (baseSubLang !== 'original' && baseSubLang !== 'none') {
+    if (baseSubLang !== 'original' && baseSubLang !== 'none' && baseSubLang !== reelSourceLang) {
       const tKey = getReelApiKey();
       for (const job of activeJobs) {
         if (job.type !== 'segment') continue;

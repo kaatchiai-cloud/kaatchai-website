@@ -221,6 +221,22 @@ function estimateCost(type, count) {
   return (unitCost * (count || 1)).toFixed(3);
 }
 
+// ── Storypilot token-based cost tracking ──
+const TOKEN_PRICING = {
+  gemini:    { in: 0.000000075, out: 0.000000300 },   // $0.075 / $0.30 per M tokens
+  openai:    { in: 0.000002500, out: 0.000010000 },   // $2.50  / $10   per M tokens
+  anthropic: { in: 0.000003000, out: 0.000015000 },   // $3     / $15   per M tokens
+};
+
+function trackTokenCost(promptTokens, outputTokens, provider) {
+  const p = TOKEN_PRICING[provider] || TOKEN_PRICING['gemini'];
+  const cost = (promptTokens * p.in) + (outputTokens * p.out);
+  sessionCost += cost;
+  sessionCalls += 1;
+  updateCostDisplay();
+  return cost;
+}
+
 // Load library slots when editor opens
 function loadEditorLibrary() {
   if (typeof renderLibrarySlots === 'function') renderLibrarySlots();
@@ -277,15 +293,16 @@ function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 // getSelectedImageSize() is defined in 17-create-content.js (needs createImageSize ref)
 
 // ── Navigation with browser history ──
-let currentView = 'home'; // home | editor | create | reel
+let currentView = 'home'; // home | editor | create | reel | storypilot
 
 function navigateTo(view, pushHistory) {
   // metaphor-plan.md Exception 3 — set data-section on <html> per route.
   // Consumed by css/themes.css and future css/filmstrip.css / css/reel.css.
   document.documentElement.setAttribute('data-section',
-    view === 'home'   ? 'landing'   :
-    view === 'create' ? 'copilot'   :
-    view === 'reel'   ? 'autopilot' : 'editor');
+    view === 'home'       ? 'landing'     :
+    view === 'create'     ? 'copilot'     :
+    view === 'reel'       ? 'autopilot'   :
+    view === 'storypilot' ? 'storypilot'  : 'editor');
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
   }
@@ -309,10 +326,12 @@ function navigateTo(view, pushHistory) {
   editorEl.classList.remove('visible');
   const createPage = $('create-page');
   const reelPage = $('reel-page');
+  const brainstormPage = document.getElementById('brainstorm-page');
   const reelHeaderWrapper = $('reel-header-wrapper');
   const createHeaderWrapper = $('create-header-wrapper');
   if (createPage) createPage.classList.remove('visible');
   if (reelPage) reelPage.classList.remove('visible');
+  if (brainstormPage) brainstormPage.classList.remove('visible');
   if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'none';
   if (createHeaderWrapper) createHeaderWrapper.style.display = 'none';
   // Show target view
@@ -339,6 +358,22 @@ function navigateTo(view, pushHistory) {
       var cm = localStorage.getItem('stori_copilot_metaphor') || 'filmstrip';
       if (createPage) createPage.setAttribute('data-metaphor', cm);
     } catch(e){}
+    // Storypilot handoff — pre-fill Copilot text mode
+    try {
+      var ho = window.__storiHandoff;
+      if (ho && ho.target === 'copilot') {
+        // Defer so Copilot JS has time to initialise
+        setTimeout(function() {
+          var textBtn = document.getElementById('create-mode-text');
+          if (textBtn) textBtn.click();
+          var ta = document.getElementById('create-tts-text');
+          if (ta) ta.value = ho.plainText;
+          window.__storiHandoff = null;
+          var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
+          if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Generate.' + tail);
+        }, 300);
+      }
+    } catch(e){}
   } else if (view === 'reel') {
     if (reelPage) reelPage.classList.add('visible');
     if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'block';
@@ -353,13 +388,37 @@ function navigateTo(view, pushHistory) {
     try {
       document.dispatchEvent(new CustomEvent('reel:phase', { detail: { phase: 'idle' }}));
     } catch(e){}
+    // Storypilot handoff — pre-fill Autopilot text mode
+    try {
+      var ho = window.__storiHandoff;
+      if (ho && ho.target === 'autopilot') {
+        setTimeout(function() {
+          if (typeof switchReelInputMode === 'function') switchReelInputMode('text');
+          var ta = document.getElementById('reel-text-input');
+          if (ta) {
+            ta.value = ho.plainText;
+            // Reveal Step 3 immediately — no need to click anything
+            if (typeof showReelPresets === 'function') showReelPresets();
+          }
+          // Brainstorm handoff — store structured script for direct storyboard path
+          if (ho.source === 'brainstorm' && ho.finalScript) {
+            window.__reelHandoffScript = ho.finalScript;
+          }
+          window.__storiHandoff = null;
+          var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
+          if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Launch.' + tail);
+        }, 300);
+      }
+    } catch(e){}
+  } else if (view === 'storypilot') {
+    if (brainstormPage) brainstormPage.classList.add('visible');
   }
 }
 
 // Handle browser back/forward
 window.addEventListener('popstate', (e) => {
   // Bug 27 — whitelist view before dispatch; fall back to 'home' on anything else.
-  const VALID_VIEWS = ['home', 'editor', 'create', 'reel'];
+  const VALID_VIEWS = ['home', 'editor', 'create', 'reel', 'storypilot'];
   const raw = e.state && e.state.view;
   const view = VALID_VIEWS.includes(raw) ? raw : 'home';
   if (view !== 'home' && typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
@@ -376,9 +435,10 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
 (function(){
   var initial = (location.hash || '#home').replace('#','');
   document.documentElement.setAttribute('data-section',
-    initial === 'home'   ? 'landing'   :
-    initial === 'create' ? 'copilot'   :
-    initial === 'reel'   ? 'autopilot' : 'editor');
+    initial === 'home'       ? 'landing'    :
+    initial === 'create'     ? 'copilot'    :
+    initial === 'reel'       ? 'autopilot'  :
+    initial === 'storypilot' ? 'storypilot' : 'editor');
 })();
 
 // ── Theme toggle (dark ↔ light) ──────────────────────────────────────

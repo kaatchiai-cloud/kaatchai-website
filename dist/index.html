@@ -5091,6 +5091,419 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
   #photopilot-page .pp-ft-canvas-frame canvas { max-height: 200px; width: auto; margin: 0 auto; display: block; }
 }
 
+
+/* ════════════════════════════════════════════════════════════════
+   Storypilot (#brainstorm-page) — Aurora-native chat workspace
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Page container ─────────────────────────────────────────── */
+#brainstorm-page {
+  display: none;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+#brainstorm-page.visible { display: block; }
+
+/* Aurora background gradient (same pattern as #reel-page::before) */
+#brainstorm-page::before {
+  content: ""; position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 30%, color-mix(in oklch, var(--lp-accent) 18%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 85% 75%, color-mix(in oklch, var(--lp-accent2) 14%, transparent) 0%, transparent 65%),
+    var(--lp-bg);
+  filter: blur(80px); pointer-events: none;
+}
+
+/* ── Screens ─────────────────────────────────────────────────── */
+.bs-screen { padding: 40px 20px 60px; }
+.bs-screen.hidden { display: none !important; }
+
+/* ── Hero block (wizard screen) ──────────────────────────────── */
+.bs-hero { text-align: center; margin-bottom: 40px; }
+.bs-title {
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 700; color: var(--lp-text);
+  margin: 0 0 10px;
+}
+.bs-subtitle {
+  font-size: 16px; color: var(--lp-mute);
+  margin: 0; max-width: 480px; margin: 0 auto;
+}
+
+/* ── Wizard steps ────────────────────────────────────────────── */
+.bs-wizard-step {
+  max-width: 560px; margin: 0 auto 28px;
+  animation: bs-fadein .2s ease;
+}
+@keyframes bs-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bs-wizard-q {
+  font-size: 17px; font-weight: 600; color: var(--lp-text);
+  margin: 0 0 14px; text-align: center;
+}
+
+/* Answer chips */
+.bs-wizard-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.bs-wchip {
+  background: color-mix(in oklch, var(--lp-bg2) 82%, var(--lp-accent) 4%);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; padding: 10px 20px;
+  font-size: 14px; color: var(--lp-dim); cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.bs-wchip:hover { border-color: var(--lp-accent); color: var(--lp-text); }
+.bs-wchip.selected {
+  background: color-mix(in oklch, var(--lp-accent) 18%, var(--lp-bg2));
+  border-color: var(--lp-accent); color: var(--lp-text); font-weight: 600;
+}
+
+/* Recommendation card */
+.bs-rec-card {
+  display: flex; align-items: center; gap: 16px;
+  background: color-mix(in oklch, var(--lp-bg2) 85%, var(--lp-accent) 4%);
+  border: 1px solid var(--lp-card-bdr-h);
+  border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
+}
+.bs-rec-icon   { font-size: 36px; flex-shrink: 0; }
+.bs-rec-pipeline { font-size: 16px; font-weight: 600; color: var(--lp-text); }
+.bs-rec-reason   { font-size: 13px; color: var(--lp-mute); margin-top: 3px; }
+
+.bs-rec-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; }
+.bs-btn-primary {
+  background: var(--lp-accent); color: var(--lp-on-accent);
+  border: none; border-radius: 12px; padding: 10px 28px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: filter .15s;
+}
+.bs-btn-primary:hover { filter: brightness(1.08); }
+.bs-btn-ghost {
+  background: transparent; color: var(--lp-mute);
+  border: 1px solid var(--lp-bdr); border-radius: 12px; padding: 10px 20px;
+  font-size: 14px; cursor: pointer; font-family: inherit;
+  transition: color .15s, border-color .15s;
+}
+.bs-btn-ghost:hover { color: var(--lp-text); border-color: var(--lp-bdr-h); }
+
+.bs-pricing-note {
+  text-align: center; max-width: 560px; margin: 0 auto;
+  font-size: 13px; color: var(--lp-mute);
+}
+.bs-pricing-note b { color: var(--lp-text); font-weight: 600; }
+
+/* ── Chat screen ─────────────────────────────────────────────── */
+#bs-chat { padding: 0; display: flex; flex-direction: column; height: 100vh; }
+
+/* Chat header */
+.bs-chat-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: color-mix(in oklch, var(--lp-bg) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--lp-card-bdr);
+  flex-shrink: 0; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 10;
+}
+.bs-chat-hdr-text { flex: 1; min-width: 0; }
+.bs-chat-title {
+  font-size: 15px; font-weight: 600; color: var(--lp-text);
+  display: flex; align-items: center; gap: 8px;
+}
+.bs-mode-tag {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-accent) 20%, var(--lp-bg2));
+  color: var(--lp-accent);
+}
+.bs-chat-meta { font-size: 12px; color: var(--lp-mute); margin-top: 2px; }
+.bs-meta-dot  { margin: 0 4px; }
+
+/* Icon buttons (back, new session) */
+.bs-icon-btn {
+  background: transparent; border: 1px solid var(--lp-card-bdr);
+  border-radius: 8px; padding: 6px 10px;
+  font-size: 14px; color: var(--lp-dim); cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.bs-icon-btn:hover {
+  background: color-mix(in oklch, var(--lp-bg2) 80%, transparent);
+  color: var(--lp-text); border-color: var(--lp-bdr-h);
+}
+
+/* Model picker pill control */
+.bs-model-picker {
+  display: inline-flex; align-items: stretch; gap: 0;
+  padding: 3px;
+  background: color-mix(in oklch, var(--lp-bg) 70%, transparent);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; position: relative;
+}
+.bs-model-opt {
+  background: transparent; border: none;
+  padding: 5px 12px; border-radius: 999px;
+  cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  font-family: inherit; transition: background .15s, color .15s;
+}
+.bs-model-opt .bs-model-tag   { font-size: 11px; font-weight: 600; color: var(--lp-text); }
+.bs-model-opt .bs-model-price { font-size: 10px; color: var(--lp-mute); }
+.bs-model-opt:hover { background: color-mix(in oklch, var(--lp-accent) 8%, transparent); }
+.bs-model-opt.active { background: var(--lp-accent); }
+.bs-model-opt.active .bs-model-tag,
+.bs-model-opt.active .bs-model-price { color: var(--lp-on-accent); }
+
+/* Locked state */
+.bs-model-lock-icon {
+  display: none; align-self: center;
+  padding: 0 8px; color: var(--lp-mute); font-size: 12px;
+}
+.bs-model-picker[data-locked="true"] .bs-model-opt { cursor: not-allowed; opacity: 0.55; }
+.bs-model-picker[data-locked="true"] .bs-model-opt.active { opacity: 1; }
+.bs-model-picker[data-locked="true"] .bs-model-opt:not(.active) { display: none; }
+.bs-model-picker[data-locked="true"] .bs-model-lock-icon { display: inline-flex; }
+.bs-model-picker[data-locked="true"] { padding-right: 0; }
+
+/* Alert banners */
+.bs-alert-banner {
+  background: color-mix(in oklch, var(--amber) 10%, var(--lp-bg2));
+  border-bottom: 1px solid color-mix(in oklch, var(--amber) 30%, var(--lp-card-bdr));
+  padding: 8px 16px; font-size: 13px; color: var(--lp-text);
+  align-items: center; gap: 8px; flex-shrink: 0;
+}
+
+/* Chat log */
+.bs-chat-log {
+  flex: 1; overflow-y: auto;
+  padding: 24px 16px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+  max-width: 760px; width: 100%; margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Chat bubbles */
+.bs-msg {
+  max-width: 85%; padding: 12px 16px;
+  border-radius: 14px; line-height: 1.55; font-size: 14px;
+}
+.bs-msg-ai {
+  align-self: flex-start;
+  background: color-mix(in oklch, var(--lp-bg2) 92%, var(--lp-accent) 4%);
+  border: 1px solid var(--lp-card-bdr);
+  color: var(--lp-text);
+}
+.bs-msg-user {
+  align-self: flex-end;
+  background: color-mix(in oklch, var(--lp-accent) 22%, var(--lp-bg2));
+  border: 1px solid color-mix(in oklch, var(--lp-accent) 35%, var(--lp-card-bdr));
+  color: var(--lp-text);
+}
+
+/* Typing indicator */
+.bs-msg-typing {
+  align-self: flex-start; padding: 14px 18px;
+  background: color-mix(in oklch, var(--lp-bg2) 92%, transparent);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 14px;
+}
+.bs-msg-typing .dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lp-accent); margin: 0 2px;
+  animation: bs-typing 1.2s infinite;
+}
+.bs-msg-typing .dot:nth-child(2) { animation-delay: .15s; }
+.bs-msg-typing .dot:nth-child(3) { animation-delay: .3s; }
+@keyframes bs-typing {
+  0%,60%,100% { opacity: .3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Suggestion chips */
+.bs-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; align-self: flex-start; }
+.bs-chip {
+  background: color-mix(in oklch, var(--lp-bg2) 80%, var(--lp-accent) 6%);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 999px; padding: 6px 14px;
+  font-size: 12px; color: var(--lp-dim); cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, color .15s;
+}
+.bs-chip:hover { border-color: var(--lp-accent); color: var(--lp-text); }
+
+/* Chat footer (sticky input bar + finalise row) */
+.bs-chat-footer {
+  flex-shrink: 0;
+  max-width: 760px; width: 100%; margin: 0 auto;
+  padding: 8px 16px 20px;
+  box-sizing: border-box;
+}
+.bs-chat-input-bar {
+  display: flex; gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in oklch, var(--lp-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 16px; margin-bottom: 8px;
+}
+.bs-chat-input-bar textarea {
+  flex: 1; resize: none; min-height: 40px; max-height: 160px;
+  background: transparent; border: none; outline: none;
+  color: var(--lp-text); font-family: inherit; font-size: 14px;
+  line-height: 1.5;
+}
+.bs-send-btn {
+  background: var(--lp-accent); color: var(--lp-on-accent);
+  border: none; border-radius: 12px; padding: 8px 18px;
+  font-weight: 600; font-size: 14px; cursor: pointer;
+  transition: filter .15s, opacity .15s; align-self: flex-end;
+  font-family: inherit;
+}
+.bs-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.bs-send-btn:not(:disabled):hover { filter: brightness(1.08); }
+
+.bs-chat-actions { display: flex; align-items: center; gap: 12px; }
+.bs-finalise-btn {
+  background: color-mix(in oklch, var(--lp-accent) 14%, var(--lp-bg2));
+  border: 1px solid color-mix(in oklch, var(--lp-accent) 35%, var(--lp-card-bdr));
+  border-radius: 10px; padding: 8px 18px;
+  font-size: 14px; font-weight: 600; color: var(--lp-text);
+  cursor: pointer; font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.bs-finalise-btn:not(:disabled):hover {
+  background: color-mix(in oklch, var(--lp-accent) 24%, var(--lp-bg2));
+  border-color: var(--lp-accent);
+}
+.bs-finalise-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.bs-hint { font-size: 12px; color: var(--lp-mute); }
+
+/* ── Final script screen ─────────────────────────────────────── */
+#bs-final { max-width: 860px; margin: 0 auto; }
+
+.bs-final-hdr {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 0 8px;
+}
+.bs-final-hdr h2 {
+  font-size: 20px; font-weight: 700; color: var(--lp-text); margin: 0;
+}
+
+.bs-final-card {
+  background: color-mix(in oklch, var(--lp-bg2) 88%, var(--lp-accent) 3%);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 16px; padding: 28px 32px;
+  color: var(--lp-text); line-height: 1.65; margin-bottom: 20px;
+}
+.bs-final-card h3 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+.bs-meta-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 20px; }
+.bs-meta-pill {
+  font-size: 11px; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-bg) 70%, transparent);
+  border: 1px solid var(--lp-card-bdr); color: var(--lp-dim);
+}
+.bs-scene {
+  margin: 14px 0; padding-left: 14px;
+  border-left: 2px solid var(--lp-accent);
+}
+.bs-scene-num {
+  font-size: 11px; color: var(--lp-accent);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+.bs-scene-vis   { color: var(--lp-mute); font-style: italic; font-size: 13px; }
+.bs-scene-voice { color: var(--lp-text); font-size: 14px; margin-top: 3px; }
+
+.bs-final-tools {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px;
+}
+.bs-tool-btn {
+  background: transparent; color: var(--lp-dim);
+  border: 1px solid var(--lp-card-bdr); border-radius: 8px;
+  padding: 7px 14px; font-size: 13px; cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.bs-tool-btn:hover {
+  background: color-mix(in oklch, var(--lp-bg2) 80%, transparent);
+  color: var(--lp-text); border-color: var(--lp-bdr-h);
+}
+
+.bs-handoff-h {
+  font-size: 14px; font-weight: 600; color: var(--lp-mute);
+  text-transform: uppercase; letter-spacing: .06em; margin: 0 0 12px;
+}
+.bs-handoff-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+.bs-handoff-card {
+  flex: 1; min-width: 220px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: color-mix(in oklch, var(--lp-bg2) 85%, transparent);
+  border: 1px solid var(--lp-card-bdr);
+  border-radius: 14px; padding: 18px 20px;
+  text-align: left; cursor: pointer; font-family: inherit;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.bs-handoff-card:hover {
+  border-color: var(--lp-bdr-h);
+  background: color-mix(in oklch, var(--lp-bg2) 92%, var(--lp-accent) 6%);
+  transform: translateY(-1px);
+}
+.bs-handoff-card.primary { border-color: color-mix(in oklch, var(--lp-accent) 40%, var(--lp-card-bdr)); }
+.bs-handoff-card.primary:hover { border-color: var(--lp-accent); }
+.bs-handoff-icon { font-size: 24px; }
+.bs-handoff-text {
+  font-size: 14px; font-weight: 600; color: var(--lp-text);
+}
+.bs-handoff-sub { font-size: 12px; color: var(--lp-mute); }
+
+/* ── Inline script bubble (auto-finalised at message 12) ────── */
+.bs-inline-script {
+  max-width: 96% !important;
+  align-self: flex-start;
+  background: color-mix(in oklch, var(--lp-bg2) 88%, var(--lp-accent) 5%) !important;
+  border-color: color-mix(in oklch, var(--lp-accent) 30%, var(--lp-card-bdr)) !important;
+  padding: 16px 18px !important;
+}
+.bs-inline-script-hdr {
+  font-size: 13px; font-weight: 600; color: var(--lp-accent);
+  margin-bottom: 4px;
+}
+.bs-inline-script-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+}
+.bs-inline-send {
+  font-size: 13px !important; padding: 7px 16px !important;
+}
+.bs-inline-script-note {
+  font-size: 12px; color: var(--lp-mute); margin: 8px 0 0;
+}
+
+/* ── Extend session button (in limit banner) ─────────────────── */
+.bs-extend-btn {
+  background: var(--lp-accent); color: var(--lp-on-accent);
+  border: none; border-radius: 8px; padding: 5px 14px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: inherit; margin-left: 10px;
+  transition: filter .15s;
+}
+.bs-extend-btn:hover { filter: brightness(1.08); }
+.bs-extend-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Mobile ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .bs-wizard-chips { flex-direction: column; align-items: stretch; }
+  .bs-wchip { text-align: center; }
+  .bs-rec-actions { flex-direction: column; }
+  .bs-rec-card { flex-direction: column; text-align: center; }
+  .bs-chat-hdr { flex-wrap: wrap; gap: 8px; }
+  .bs-model-picker { order: 99; width: 100%; justify-content: center; margin-top: 4px; }
+  .bs-msg { max-width: 92%; }
+  .bs-chat-log { padding: 16px 10px 16px; }
+  .bs-chat-footer { padding: 8px 10px 16px; }
+  .bs-final-card { padding: 18px 16px; }
+  .bs-handoff-grid { flex-direction: column; }
+}
+/* ── End Storypilot ────────────────────────────────────────── */
+
   </style>
   <script>
 !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).WaveSurfer=e()}(this,(function(){"use strict";function t(t,e,i,n){return new(i||(i=Promise))((function(s,r){function o(t){try{l(n.next(t))}catch(t){r(t)}}function a(t){try{l(n.throw(t))}catch(t){r(t)}}function l(t){var e;t.done?s(t.value):(e=t.value,e instanceof i?e:new i((function(t){t(e)}))).then(o,a)}l((n=n.apply(t,e||[])).next())}))}"function"==typeof SuppressedError&&SuppressedError;class e{constructor(){this.listeners={}}on(t,e,i){if(this.listeners[t]||(this.listeners[t]=new Set),null==i?void 0:i.once){const i=(...n)=>{this.un(t,i),e(...n)};return this.listeners[t].add(i),()=>this.un(t,i)}return this.listeners[t].add(e),()=>this.un(t,e)}un(t,e){var i;null===(i=this.listeners[t])||void 0===i||i.delete(e)}once(t,e){return this.on(t,e,{once:!0})}unAll(){this.listeners={}}emit(t,...e){this.listeners[t]&&this.listeners[t].forEach((t=>t(...e)))}}const i={decode:function(e,i){return t(this,void 0,void 0,(function*(){const t=new AudioContext({sampleRate:i});try{return yield t.decodeAudioData(e)}finally{t.close()}}))},createBuffer:function(t,e){if(!t||0===t.length)throw new Error("channelData must be a non-empty array");if(e<=0)throw new Error("duration must be greater than 0");if("number"==typeof t[0]&&(t=[t]),!t[0]||0===t[0].length)throw new Error("channelData must contain non-empty channel arrays");!function(t){const e=t[0];if(e.some((t=>t>1||t<-1))){const i=e.length;let n=0;for(let t=0;t<i;t++){const i=Math.abs(e[t]);i>n&&(n=i)}for(const e of t)for(let t=0;t<i;t++)e[t]/=n}}(t);const i=t.map((t=>t instanceof Float32Array?t:Float32Array.from(t)));return{duration:e,length:i[0].length,sampleRate:i[0].length/e,numberOfChannels:i.length,getChannelData:t=>{const e=i[t];if(!e)throw new Error(`Channel ${t} not found`);return e},copyFromChannel:AudioBuffer.prototype.copyFromChannel,copyToChannel:AudioBuffer.prototype.copyToChannel}}};function n(t,e){const i=e.xmlns?document.createElementNS(e.xmlns,t):document.createElement(t);for(const[t,s]of Object.entries(e))if("children"===t&&s)for(const[t,e]of Object.entries(s))e instanceof Node?i.appendChild(e):"string"==typeof e?i.appendChild(document.createTextNode(e)):i.appendChild(n(t,e));else"style"===t?Object.assign(i.style,s):"textContent"===t?i.textContent=s:i.setAttribute(t,s.toString());return i}function s(t,e,i){const s=n(t,e||{});return null==i||i.appendChild(s),s}var r=Object.freeze({__proto__:null,createElement:s,default:s});const o={fetchBlob:function(e,i,n){return t(this,void 0,void 0,(function*(){const s=yield fetch(e,n);if(s.status>=400)throw new Error(`Failed to fetch ${e}: ${s.status} (${s.statusText})`);return function(e,i){t(this,void 0,void 0,(function*(){if(!e.body||!e.headers)return;const t=e.body.getReader(),n=Number(e.headers.get("Content-Length"))||0;let s=0;const r=t=>{s+=(null==t?void 0:t.length)||0;const e=Math.round(s/n*100);i(e)};try{for(;;){const e=yield t.read();if(e.done)break;r(e.value)}}catch(t){console.warn("Progress tracking error:",t)}}))}(s.clone(),i),s.blob()}))}};function a(t){let e=t;const i=new Set;return{get value(){return e},set(t){Object.is(e,t)||(e=t,i.forEach((t=>t(e))))},update(t){this.set(t(e))},subscribe:t=>(i.add(t),()=>i.delete(t))}}function l(t,e){const i=a(t());return e.forEach((e=>e.subscribe((()=>{const e=t();Object.is(i.value,e)||i.set(e)})))),{get value(){return i.value},subscribe:t=>i.subscribe(t)}}function h(t,e){let i;const n=()=>{i&&(i(),i=void 0),i=t()},s=e.map((t=>t.subscribe(n)));return n(),()=>{i&&(i(),i=void 0),s.forEach((t=>t()))}}class u extends e{get isPlayingSignal(){return this._isPlaying}get currentTimeSignal(){return this._currentTime}get durationSignal(){return this._duration}get volumeSignal(){return this._volume}get mutedSignal(){return this._muted}get playbackRateSignal(){return this._playbackRate}get seekingSignal(){return this._seeking}constructor(t){super(),this.isExternalMedia=!1,this.reactiveMediaEventCleanups=[],t.media?(this.media=t.media,this.isExternalMedia=!0):this.media=document.createElement("audio"),this._isPlaying=a(!1),this._currentTime=a(0),this._duration=a(0),this._volume=a(this.media.volume),this._muted=a(this.media.muted),this._playbackRate=a(this.media.playbackRate||1),this._seeking=a(!1),this.setupReactiveMediaEvents(),t.mediaControls&&(this.media.controls=!0),t.autoplay&&(this.media.autoplay=!0),null!=t.playbackRate&&this.onMediaEvent("canplay",(()=>{null!=t.playbackRate&&(this.media.playbackRate=t.playbackRate)}),{once:!0})}setupReactiveMediaEvents(){this.reactiveMediaEventCleanups.push(this.onMediaEvent("play",(()=>{this._isPlaying.set(!0)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("pause",(()=>{this._isPlaying.set(!1)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("ended",(()=>{this._isPlaying.set(!1)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("timeupdate",(()=>{this._currentTime.set(this.media.currentTime)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("durationchange",(()=>{this._duration.set(this.media.duration||0)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("loadedmetadata",(()=>{this._duration.set(this.media.duration||0)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("seeking",(()=>{this._seeking.set(!0)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("seeked",(()=>{this._seeking.set(!1)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("volumechange",(()=>{this._volume.set(this.media.volume),this._muted.set(this.media.muted)}))),this.reactiveMediaEventCleanups.push(this.onMediaEvent("ratechange",(()=>{this._playbackRate.set(this.media.playbackRate)})))}onMediaEvent(t,e,i){return this.media.addEventListener(t,e,i),()=>this.media.removeEventListener(t,e,i)}getSrc(){return this.media.currentSrc||this.media.src||""}revokeSrc(){const t=this.getSrc();t.startsWith("blob:")&&URL.revokeObjectURL(t)}canPlayType(t){return""!==this.media.canPlayType(t)}setSrc(t,e){const i=this.getSrc();if(t&&i===t)return;this.revokeSrc();const n=e instanceof Blob&&(this.canPlayType(e.type)||!t)?URL.createObjectURL(e):t;if(i&&this.media.removeAttribute("src"),n||t)try{this.media.src=n}catch(e){this.media.src=t}}destroy(){this.reactiveMediaEventCleanups.forEach((t=>t())),this.reactiveMediaEventCleanups=[],this.isExternalMedia||(this.media.pause(),this.revokeSrc(),this.media.removeAttribute("src"),this.media.load(),this.media.remove())}setMediaElement(t){this.reactiveMediaEventCleanups.forEach((t=>t())),this.reactiveMediaEventCleanups=[],this.media=t,this.setupReactiveMediaEvents()}play(){return t(this,void 0,void 0,(function*(){try{return yield this.media.play()}catch(t){if(t instanceof DOMException&&"AbortError"===t.name)return;throw t}}))}pause(){this.media.pause()}isPlaying(){return!this.media.paused&&!this.media.ended}setTime(t){this.media.currentTime=Math.max(0,Math.min(t,this.getDuration()))}getDuration(){return this.media.duration}getCurrentTime(){return this.media.currentTime}getVolume(){return this.media.volume}setVolume(t){this.media.volume=t}getMuted(){return this.media.muted}setMuted(t){this.media.muted=t}getPlaybackRate(){return this.media.playbackRate}isSeeking(){return this.media.seeking}setPlaybackRate(t,e){null!=e&&(this.media.preservesPitch=e),this.media.playbackRate=t}getMediaElement(){return this.media}setSinkId(t){return this.media.setSinkId(t)}}function c({maxTop:t,maxBottom:e,halfHeight:i,vScale:n,barMinHeight:s=0,barAlign:r}){let o=Math.round(t*i*n);let a=o+Math.round(e*i*n)||1;return a<s&&(a=s,r||(o=a/2)),{topHeight:o,totalHeight:a}}function d({barAlign:t,halfHeight:e,topHeight:i,totalHeight:n,canvasHeight:s}){return"top"===t?0:"bottom"===t?s-n:e-i}function p(t,e,i){const n=e-t.left,s=i-t.top;return[n/t.width,s/t.height]}function m(t){return Boolean(t.barWidth||t.barGap||t.barAlign)}function g(t,e){if(!m(e))return t;const i=e.barWidth||.5,n=i+(e.barGap||i/2);return 0===n?t:Math.floor(t/n)*n}function f({scrollLeft:t,totalWidth:e,numCanvases:i}){if(0===e)return[0];const n=t/e,s=Math.floor(n*i);return[s-1,s,s+1]}function v(t){const e=t._cleanup;"function"==typeof e&&e()}function b(t){const e=a({scrollLeft:t.scrollLeft,scrollWidth:t.scrollWidth,clientWidth:t.clientWidth}),i=l((()=>function(t){const{scrollLeft:e,scrollWidth:i,clientWidth:n}=t;if(0===i)return{startX:0,endX:1};const s=e/i,r=(e+n)/i;return{startX:Math.max(0,Math.min(1,s)),endX:Math.max(0,Math.min(1,r))}}(e.value)),[e]),n=l((()=>function(t){return{left:t.scrollLeft,right:t.scrollLeft+t.clientWidth}}(e.value)),[e]),s=()=>{e.set({scrollLeft:t.scrollLeft,scrollWidth:t.scrollWidth,clientWidth:t.clientWidth})};t.addEventListener("scroll",s,{passive:!0});return{scrollData:e,percentages:i,bounds:n,cleanup:()=>{t.removeEventListener("scroll",s),v(e)}}}class y extends e{constructor(t,e){super(),this.timeouts=[],this.isScrollable=!1,this.audioData=null,this.resizeObserver=null,this.lastContainerWidth=0,this.isDragging=!1,this.subscriptions=[],this.unsubscribeOnScroll=[],this.dragStream=null,this.scrollStream=null,this.subscriptions=[],this.options=t;const i=this.parentFromOptionsContainer(t.container);this.parent=i;const[n,s]=this.initHtml();i.appendChild(n),this.container=n,this.scrollContainer=s.querySelector(".scroll"),this.wrapper=s.querySelector(".wrapper"),this.canvasWrapper=s.querySelector(".canvases"),this.progressWrapper=s.querySelector(".progress"),this.cursor=s.querySelector(".cursor"),e&&s.appendChild(e),this.initEvents()}parentFromOptionsContainer(t){let e;if("string"==typeof t?e=document.querySelector(t):t instanceof HTMLElement&&(e=t),!e)throw new Error("Container not found");return e}initEvents(){this.wrapper.addEventListener("click",(t=>{const e=this.wrapper.getBoundingClientRect(),[i,n]=p(e,t.clientX,t.clientY);this.emit("click",i,n)})),this.wrapper.addEventListener("dblclick",(t=>{const e=this.wrapper.getBoundingClientRect(),[i,n]=p(e,t.clientX,t.clientY);this.emit("dblclick",i,n)})),!0!==this.options.dragToSeek&&"object"!=typeof this.options.dragToSeek||this.initDrag(),this.scrollStream=b(this.scrollContainer);const t=h((()=>{const{startX:t,endX:e}=this.scrollStream.percentages.value,{left:i,right:n}=this.scrollStream.bounds.value;this.emit("scroll",t,e,i,n)}),[this.scrollStream.percentages,this.scrollStream.bounds]);if(this.subscriptions.push(t),"function"==typeof ResizeObserver){const t=this.createDelay(100);this.resizeObserver=new ResizeObserver((()=>{t().then((()=>this.onContainerResize())).catch((()=>{}))})),this.resizeObserver.observe(this.scrollContainer)}}onContainerResize(){const t=this.parent.clientWidth;t===this.lastContainerWidth&&"auto"!==this.options.height||(this.lastContainerWidth=t,this.reRender(),this.emit("resize"))}initDrag(){if(this.dragStream)return;this.dragStream=function(t,e={}){const{threshold:i=3,mouseButton:n=0,touchDelay:s=100}=e,r=a(null),o=new Map,l=matchMedia("(pointer: coarse)").matches;let h=()=>{};const u=e=>{if(e.button!==n)return;if(o.set(e.pointerId,e),o.size>1)return;let a=e.clientX,u=e.clientY,c=!1;const d=Date.now(),p=t.getBoundingClientRect(),{left:m,top:g}=p,f=t=>{if(t.defaultPrevented||o.size>1)return;if(l&&Date.now()-d<s)return;const e=t.clientX,n=t.clientY,h=e-a,p=n-u;(c||Math.abs(h)>i||Math.abs(p)>i)&&(t.preventDefault(),t.stopPropagation(),c||(r.set({type:"start",x:a-m,y:u-g}),c=!0),r.set({type:"move",x:e-m,y:n-g,deltaX:h,deltaY:p}),a=e,u=n)},v=t=>{if(o.delete(t.pointerId),c){const e=t.clientX,i=t.clientY;r.set({type:"end",x:e-m,y:i-g})}h()},b=t=>{o.delete(t.pointerId),t.relatedTarget&&t.relatedTarget!==document.documentElement||v(t)},y=t=>{c&&(t.stopPropagation(),t.preventDefault())},C=t=>{t.defaultPrevented||o.size>1||c&&t.preventDefault()};document.addEventListener("pointermove",f),document.addEventListener("pointerup",v),document.addEventListener("pointerout",b),document.addEventListener("pointercancel",b),document.addEventListener("touchmove",C,{passive:!1}),document.addEventListener("click",y,{capture:!0}),h=()=>{document.removeEventListener("pointermove",f),document.removeEventListener("pointerup",v),document.removeEventListener("pointerout",b),document.removeEventListener("pointercancel",b),document.removeEventListener("touchmove",C),setTimeout((()=>{document.removeEventListener("click",y,{capture:!0})}),10)}};return t.addEventListener("pointerdown",u),{signal:r,cleanup:()=>{h(),t.removeEventListener("pointerdown",u),o.clear(),v(r)}}}(this.wrapper);const t=h((()=>{const t=this.dragStream.signal.value;if(!t)return;const e=this.wrapper.getBoundingClientRect().width,i=(n=t.x/e)<0?0:n>1?1:n;var n;"start"===t.type?(this.isDragging=!0,this.emit("dragstart",i)):"move"===t.type?this.emit("drag",i):"end"===t.type&&(this.isDragging=!1,this.emit("dragend",i))}),[this.dragStream.signal]);this.subscriptions.push(t)}initHtml(){const t=document.createElement("div"),e=t.attachShadow({mode:"open"}),i=this.options.cspNonce&&"string"==typeof this.options.cspNonce?this.options.cspNonce.replace(/"/g,""):"";return e.innerHTML=`\n      <style${i?` nonce="${i}"`:""}>\n        :host {\n          user-select: none;\n          min-width: 1px;\n        }\n        :host audio {\n          display: block;\n          width: 100%;\n        }\n        :host .scroll {\n          overflow-x: auto;\n          overflow-y: hidden;\n          width: 100%;\n          position: relative;\n        }\n        :host .noScrollbar {\n          scrollbar-color: transparent;\n          scrollbar-width: none;\n        }\n        :host .noScrollbar::-webkit-scrollbar {\n          display: none;\n          -webkit-appearance: none;\n        }\n        :host .wrapper {\n          position: relative;\n          overflow: visible;\n          z-index: 2;\n        }\n        :host .canvases {\n          min-height: ${this.getHeight(this.options.height,this.options.splitChannels)}px;\n          pointer-events: none;\n        }\n        :host .canvases > div {\n          position: relative;\n        }\n        :host canvas {\n          display: block;\n          position: absolute;\n          top: 0;\n          image-rendering: pixelated;\n        }\n        :host .progress {\n          pointer-events: none;\n          position: absolute;\n          z-index: 2;\n          top: 0;\n          left: 0;\n          width: 0;\n          height: 100%;\n          overflow: hidden;\n        }\n        :host .progress > div {\n          position: relative;\n        }\n        :host .cursor {\n          pointer-events: none;\n          position: absolute;\n          z-index: 5;\n          top: 0;\n          left: 0;\n          height: 100%;\n          border-radius: 2px;\n        }\n      </style>\n\n      <div class="scroll" part="scroll">\n        <div class="wrapper" part="wrapper">\n          <div class="canvases" part="canvases"></div>\n          <div class="progress" part="progress"></div>\n          <div class="cursor" part="cursor"></div>\n        </div>\n      </div>\n    `,[t,e]}setOptions(t){var e;if(this.options.container!==t.container){const e=this.parentFromOptionsContainer(t.container);e.appendChild(this.container),this.parent=e}!0===t.dragToSeek||"object"==typeof this.options.dragToSeek?this.initDrag():(null===(e=this.dragStream)||void 0===e||e.cleanup(),this.dragStream=null),this.options=t,this.reRender()}getWrapper(){return this.wrapper}getWidth(){return this.scrollContainer.clientWidth}getScroll(){return this.scrollContainer.scrollLeft}setScroll(t){this.scrollContainer.scrollLeft=t}setScrollPercentage(t){const{scrollWidth:e}=this.scrollContainer,i=e*t;this.setScroll(i)}destroy(){var t;this.subscriptions.forEach((t=>t())),this.container.remove(),this.resizeObserver&&(this.resizeObserver.disconnect(),this.resizeObserver=null),null===(t=this.unsubscribeOnScroll)||void 0===t||t.forEach((t=>t())),this.unsubscribeOnScroll=[],this.dragStream&&(this.dragStream.cleanup(),this.dragStream=null),this.scrollStream&&(this.scrollStream.cleanup(),this.scrollStream=null)}createDelay(t=10){let e,i;const n=()=>{e&&(clearTimeout(e),e=void 0),i&&(i(),i=void 0)};return this.timeouts.push(n),()=>new Promise(((s,r)=>{n(),i=r,e=setTimeout((()=>{e=void 0,i=void 0,s()}),t)}))}getHeight(t,e){var i;const n=(null===(i=this.audioData)||void 0===i?void 0:i.numberOfChannels)||1;return function({optionsHeight:t,optionsSplitChannels:e,parentHeight:i,numberOfChannels:n,defaultHeight:s=128}){if(null==t)return s;const r=Number(t);if(!isNaN(r))return r;if("auto"===t){const t=i||s;return(null==e?void 0:e.every((t=>!t.overlay)))?t/n:t}return s}({optionsHeight:t,optionsSplitChannels:e,parentHeight:this.parent.clientHeight,numberOfChannels:n,defaultHeight:128})}convertColorValues(t,e){return function(t,e,i){if(!Array.isArray(t))return t||"";if(0===t.length)return"#999";if(t.length<2)return t[0]||"";const n=document.createElement("canvas"),s=n.getContext("2d"),r=null!=i?i:n.height*e,o=s.createLinearGradient(0,0,0,r||e),a=1/(t.length-1);return t.forEach(((t,e)=>{o.addColorStop(e*a,t)})),o}(t,this.getPixelRatio(),null==e?void 0:e.canvas.height)}getPixelRatio(){return t=window.devicePixelRatio,Math.max(1,t||1);var t}renderBarWaveform(t,e,i,n){const{width:s,height:r}=i.canvas,{halfHeight:o,barWidth:a,barRadius:l,barIndexScale:h,barSpacing:u,barMinHeight:p}=function({width:t,height:e,length:i,options:n,pixelRatio:s}){const r=e/2,o=n.barWidth?n.barWidth*s:1,a=n.barGap?n.barGap*s:n.barWidth?o/2:0,l=o+a||1;return{halfHeight:r,barWidth:o,barGap:a,barRadius:n.barRadius||0,barMinHeight:n.barMinHeight?n.barMinHeight*s:0,barIndexScale:i>0?t/l/i:0,barSpacing:l}}({width:s,height:r,length:(t[0]||[]).length,options:e,pixelRatio:this.getPixelRatio()}),m=function({channelData:t,barIndexScale:e,barSpacing:i,barWidth:n,halfHeight:s,vScale:r,canvasHeight:o,barAlign:a,barMinHeight:l}){const h=t[0]||[],u=t[1]||h,p=h.length,m=[];let g=0,f=0,v=0;for(let t=0;t<=p;t++){const p=Math.round(t*e);if(p>g){const{topHeight:t,totalHeight:e}=c({maxTop:f,maxBottom:v,halfHeight:s,vScale:r,barMinHeight:l,barAlign:a}),h=d({barAlign:a,halfHeight:s,topHeight:t,totalHeight:e,canvasHeight:o});m.push({x:g*i,y:h,width:n,height:e}),g=p,f=0,v=0}const b=Math.abs(h[t]||0),y=Math.abs(u[t]||0);b>f&&(f=b),y>v&&(v=y)}return m}({channelData:t,barIndexScale:h,barSpacing:u,barWidth:a,halfHeight:o,vScale:n,canvasHeight:r,barAlign:e.barAlign,barMinHeight:p});i.beginPath();for(const t of m)l&&"roundRect"in i?i.roundRect(t.x,t.y,t.width,t.height,l):i.rect(t.x,t.y,t.width,t.height);i.fill(),i.closePath()}renderLineWaveform(t,e,i,n){const{width:s,height:r}=i.canvas,o=function({channelData:t,width:e,height:i,vScale:n}){const s=i/2,r=t[0]||[];return[r,t[1]||r].map(((t,i)=>{const r=t.length,o=r?e/r:0,a=s,l=0===i?-1:1,h=[{x:0,y:a}];let u=0,c=0;for(let e=0;e<=r;e++){const i=Math.round(e*o);if(i>u){const t=a+(Math.round(c*s*n)||1)*l;h.push({x:u,y:t}),u=i,c=0}const r=Math.abs(t[e]||0);r>c&&(c=r)}return h.push({x:u,y:a}),h}))}({channelData:t,width:s,height:r,vScale:n});i.beginPath();for(const t of o)if(t.length){i.moveTo(t[0].x,t[0].y);for(let e=1;e<t.length;e++){const n=t[e];i.lineTo(n.x,n.y)}}i.fill(),i.closePath()}renderWaveform(t,e,i){if(i.fillStyle=this.convertColorValues(e.waveColor,i),e.renderFunction)return void e.renderFunction(t,i);const n=function({channelData:t,barHeight:e,normalize:i,maxPeak:n}){var s;const r=e||1;if(!i)return r;const o=t[0];if(!o||0===o.length)return r;let a=null!=n?n:0;if(!n)for(let t=0;t<o.length;t++){const e=null!==(s=o[t])&&void 0!==s?s:0,i=Math.abs(e);i>a&&(a=i)}return a?r/a:r}({channelData:t,barHeight:e.barHeight,normalize:e.normalize,maxPeak:e.maxPeak});m(e)?this.renderBarWaveform(t,e,i,n):this.renderLineWaveform(t,e,i,n)}renderSingleCanvas(t,e,i,n,s,r,o){const a=this.getPixelRatio(),l=document.createElement("canvas");l.width=Math.round(i*a),l.height=Math.round(n*a),l.style.width=`${i}px`,l.style.height=`${n}px`,l.style.left=`${Math.round(s)}px`,r.appendChild(l);const h=l.getContext("2d");if(e.renderFunction?(h.fillStyle=this.convertColorValues(e.waveColor,h),e.renderFunction(t,h)):this.renderWaveform(t,e,h),l.width>0&&l.height>0){const t=l.cloneNode(),i=t.getContext("2d");i.drawImage(l,0,0),i.globalCompositeOperation="source-in",i.fillStyle=this.convertColorValues(e.progressColor,i),i.fillRect(0,0,l.width,l.height),o.appendChild(t)}}renderMultiCanvas(t,e,i,n,s,r){const o=this.getPixelRatio(),{clientWidth:a}=this.scrollContainer,l=i/o,h=function({clientWidth:t,totalWidth:e,options:i}){return g(Math.min(8e3,t,e),i)}({clientWidth:a,totalWidth:l,options:e});let u={};if(0===h)return;const c=i=>{if(i<0||i>=d)return;if(u[i])return;u[i]=!0;const o=i*h;let a=Math.min(l-o,h);if(a=g(a,e),a<=0)return;const c=function({channelData:t,offset:e,clampedWidth:i,totalWidth:n}){return t.map((t=>{const s=Math.floor(e/n*t.length),r=Math.floor((e+i)/n*t.length);return t.slice(s,r)}))}({channelData:t,offset:o,clampedWidth:a,totalWidth:l});this.renderSingleCanvas(c,e,a,n,o,s,r)},d=Math.ceil(l/h);if(!this.isScrollable){for(let t=0;t<d;t++)c(t);return}if(f({scrollLeft:this.scrollContainer.scrollLeft,totalWidth:l,numCanvases:d}).forEach((t=>c(t))),d>1){const t=this.on("scroll",(()=>{const{scrollLeft:t}=this.scrollContainer;Object.keys(u).length>10&&(s.innerHTML="",r.innerHTML="",u={}),f({scrollLeft:t,totalWidth:l,numCanvases:d}).forEach((t=>c(t)))}));this.unsubscribeOnScroll.push(t)}}renderChannel(t,e,i,n){var{overlay:s}=e,r=function(t,e){var i={};for(var n in t)Object.prototype.hasOwnProperty.call(t,n)&&e.indexOf(n)<0&&(i[n]=t[n]);if(null!=t&&"function"==typeof Object.getOwnPropertySymbols){var s=0;for(n=Object.getOwnPropertySymbols(t);s<n.length;s++)e.indexOf(n[s])<0&&Object.prototype.propertyIsEnumerable.call(t,n[s])&&(i[n[s]]=t[n[s]])}return i}(e,["overlay"]);const o=document.createElement("div"),a=this.getHeight(r.height,r.splitChannels);o.style.height=`${a}px`,s&&n>0&&(o.style.marginTop=`-${a}px`),this.canvasWrapper.style.minHeight=`${a}px`,this.canvasWrapper.appendChild(o);const l=o.cloneNode();this.progressWrapper.appendChild(l),this.renderMultiCanvas(t,r,i,a,o,l)}render(e){return t(this,void 0,void 0,(function*(){var t;this.timeouts.forEach((t=>t())),this.timeouts=[],this.canvasWrapper.innerHTML="",this.progressWrapper.innerHTML="",null!=this.options.width&&(this.scrollContainer.style.width="number"==typeof this.options.width?`${this.options.width}px`:this.options.width);const i=this.getPixelRatio(),n=this.scrollContainer.clientWidth,{scrollWidth:s,isScrollable:r,useParentWidth:o,width:a}=function({duration:t,minPxPerSec:e=0,parentWidth:i,fillParent:n,pixelRatio:s}){const r=Math.ceil(t*e),o=r>i,a=Boolean(n&&!o);return{scrollWidth:r,isScrollable:o,useParentWidth:a,width:(a?i:r)*s}}({duration:e.duration,minPxPerSec:this.options.minPxPerSec||0,parentWidth:n,fillParent:this.options.fillParent,pixelRatio:i});if(this.isScrollable=r,this.wrapper.style.width=o?"100%":`${s}px`,this.scrollContainer.style.overflowX=this.isScrollable?"auto":"hidden",this.scrollContainer.classList.toggle("noScrollbar",!!this.options.hideScrollbar),this.cursor.style.backgroundColor=`${this.options.cursorColor||this.options.progressColor}`,this.cursor.style.width=`${this.options.cursorWidth}px`,this.audioData=e,this.emit("render"),this.options.splitChannels)for(let i=0;i<e.numberOfChannels;i++){const n=Object.assign(Object.assign({},this.options),null===(t=this.options.splitChannels)||void 0===t?void 0:t[i]);this.renderChannel([e.getChannelData(i)],n,a,i)}else{const t=[e.getChannelData(0)];e.numberOfChannels>1&&t.push(e.getChannelData(1)),this.renderChannel(t,this.options,a,0)}Promise.resolve().then((()=>this.emit("rendered")))}))}reRender(){if(this.unsubscribeOnScroll.forEach((t=>t())),this.unsubscribeOnScroll=[],!this.audioData)return;const{scrollWidth:t}=this.scrollContainer,{right:e}=this.progressWrapper.getBoundingClientRect();if(this.render(this.audioData),this.isScrollable&&t!==this.scrollContainer.scrollWidth){const{right:t}=this.progressWrapper.getBoundingClientRect(),i=function(t){const e=2*t;return(e<0?Math.floor(e):Math.ceil(e))/2}(t-e);this.scrollContainer.scrollLeft+=i}}zoom(t){this.options.minPxPerSec=t,this.reRender()}scrollIntoView(t,e=!1){const{scrollLeft:i,scrollWidth:n,clientWidth:s}=this.scrollContainer,r=t*n,o=i,a=i+s,l=s/2;if(this.isDragging){const t=30;r+t>a?this.scrollContainer.scrollLeft+=t:r-t<o&&(this.scrollContainer.scrollLeft-=t)}else{(r<o||r>a)&&(this.scrollContainer.scrollLeft=r-(this.options.autoCenter?l:0));const t=r-i-l;e&&this.options.autoCenter&&t>0&&(this.scrollContainer.scrollLeft+=t)}}renderProgress(t,e){if(isNaN(t))return;const i=100*t;this.canvasWrapper.style.clipPath=`polygon(${i}% 0%, 100% 0%, 100% 100%, ${i}% 100%)`,this.progressWrapper.style.width=`${i}%`,this.cursor.style.left=`${i}%`,this.cursor.style.transform=this.options.cursorWidth?`translateX(-${t*this.options.cursorWidth}px)`:"",this.isScrollable&&this.options.autoScroll&&this.audioData&&this.audioData.duration>0&&this.scrollIntoView(t,e)}exportImage(e,i,n){return t(this,void 0,void 0,(function*(){const t=this.canvasWrapper.querySelectorAll("canvas");if(!t.length)throw new Error("No waveform data");if("dataURL"===n){const n=Array.from(t).map((t=>t.toDataURL(e,i)));return Promise.resolve(n)}return Promise.all(Array.from(t).map((t=>new Promise(((n,s)=>{t.toBlob((t=>{t?n(t):s(new Error("Could not export image"))}),e,i)})))))}))}}class C extends e{constructor(){super(...arguments),this.animationFrameId=null,this.isRunning=!1}start(){if(this.isRunning)return;this.isRunning=!0;const t=()=>{this.isRunning&&(this.emit("tick"),this.animationFrameId=requestAnimationFrame(t))};t()}stop(){this.isRunning=!1,null!==this.animationFrameId&&(cancelAnimationFrame(this.animationFrameId),this.animationFrameId=null)}destroy(){this.stop()}}class S extends e{constructor(t=new AudioContext){super(),this.bufferNode=null,this.playStartTime=0,this.playbackPosition=0,this._muted=!1,this._playbackRate=1,this._duration=void 0,this.buffer=null,this.currentSrc="",this.paused=!0,this.crossOrigin=null,this.seeking=!1,this.autoplay=!1,this.addEventListener=this.on,this.removeEventListener=this.un,this.audioContext=t,this.gainNode=this.audioContext.createGain(),this.gainNode.connect(this.audioContext.destination)}load(){return t(this,void 0,void 0,(function*(){}))}get src(){return this.currentSrc}set src(t){if(this.currentSrc=t,this._duration=void 0,!t)return this.buffer=null,void this.emit("emptied");fetch(t).then((e=>{if(e.status>=400)throw new Error(`Failed to fetch ${t}: ${e.status} (${e.statusText})`);return e.arrayBuffer()})).then((e=>this.currentSrc!==t?null:this.audioContext.decodeAudioData(e))).then((e=>{this.currentSrc===t&&(this.buffer=e,this.emit("loadedmetadata"),this.emit("canplay"),this.autoplay&&this.play())})).catch((t=>{console.error("WebAudioPlayer load error:",t)}))}_play(){if(!this.paused)return;this.paused=!1,this.bufferNode&&(this.bufferNode.onended=null,this.bufferNode.disconnect()),this.bufferNode=this.audioContext.createBufferSource(),this.buffer&&(this.bufferNode.buffer=this.buffer),this.bufferNode.playbackRate.value=this._playbackRate,this.bufferNode.connect(this.gainNode);let t=this.playbackPosition;(t>=this.duration||t<0)&&(t=0,this.playbackPosition=0),this.bufferNode.start(this.audioContext.currentTime,t),this.playStartTime=this.audioContext.currentTime,this.bufferNode.onended=()=>{this.currentTime>=this.duration&&(this.pause(),this.emit("ended"))}}_pause(){var t;this.paused=!0,null===(t=this.bufferNode)||void 0===t||t.stop(),this.playbackPosition+=(this.audioContext.currentTime-this.playStartTime)*this._playbackRate}play(){return t(this,void 0,void 0,(function*(){this.paused&&(this._play(),this.emit("play"))}))}pause(){this.paused||(this._pause(),this.emit("pause"))}stopAt(t){const e=t-this.currentTime,i=this.bufferNode;null==i||i.stop(this.audioContext.currentTime+e),null==i||i.addEventListener("ended",(()=>{i===this.bufferNode&&(this.bufferNode=null,this.pause())}),{once:!0})}setSinkId(e){return t(this,void 0,void 0,(function*(){return this.audioContext.setSinkId(e)}))}get playbackRate(){return this._playbackRate}set playbackRate(t){const e=!this.paused;e&&this._pause(),this._playbackRate=t,e&&this._play(),this.bufferNode&&(this.bufferNode.playbackRate.value=t)}get currentTime(){return this.paused?this.playbackPosition:this.playbackPosition+(this.audioContext.currentTime-this.playStartTime)*this._playbackRate}set currentTime(t){const e=!this.paused;e&&this._pause(),this.playbackPosition=t,e&&this._play(),this.emit("seeking"),this.emit("timeupdate")}get duration(){var t,e;return null!==(t=this._duration)&&void 0!==t?t:(null===(e=this.buffer)||void 0===e?void 0:e.duration)||0}set duration(t){this._duration=t}get volume(){return this.gainNode.gain.value}set volume(t){this.gainNode.gain.value=t,this.emit("volumechange")}get muted(){return this._muted}set muted(t){this._muted!==t&&(this._muted=t,this._muted?this.gainNode.disconnect():this.gainNode.connect(this.audioContext.destination))}canPlayType(t){return/^(audio|video)\//.test(t)}getGainNode(){return this.gainNode}getChannelData(){const t=[];if(!this.buffer)return t;const e=this.buffer.numberOfChannels;for(let i=0;i<e;i++)t.push(this.buffer.getChannelData(i));return t}removeAttribute(t){switch(t){case"src":this.src="";break;case"playbackRate":this.playbackRate=0;break;case"currentTime":this.currentTime=0;break;case"duration":this.duration=0;break;case"volume":this.volume=0;break;case"muted":this.muted=!1}}}const E={waveColor:"#999",progressColor:"#555",cursorWidth:1,minPxPerSec:0,fillParent:!0,interact:!0,dragToSeek:!1,autoScroll:!0,autoCenter:!0,sampleRate:8e3};class P extends u{static create(t){return new P(t)}getState(){return this.wavesurferState}getRenderer(){return this.renderer}constructor(t){const e=t.media||("WebAudio"===t.backend?new S:void 0);super({media:e,mediaControls:t.mediaControls,autoplay:t.autoplay,playbackRate:t.audioRate}),this.plugins=[],this.decodedData=null,this.stopAtPosition=null,this.subscriptions=[],this.mediaSubscriptions=[],this.abortController=null,this.reactiveCleanups=[],this.options=Object.assign({},E,t);const{state:i,actions:n}=function(t){var e,i,n,s,r,o;const h=null!==(e=null==t?void 0:t.currentTime)&&void 0!==e?e:a(0),u=null!==(i=null==t?void 0:t.duration)&&void 0!==i?i:a(0),c=null!==(n=null==t?void 0:t.isPlaying)&&void 0!==n?n:a(!1),d=null!==(s=null==t?void 0:t.isSeeking)&&void 0!==s?s:a(!1),p=null!==(r=null==t?void 0:t.volume)&&void 0!==r?r:a(1),m=null!==(o=null==t?void 0:t.playbackRate)&&void 0!==o?o:a(1),g=a(null),f=a(null),v=a(""),b=a(0),y=a(0),C=l((()=>!c.value),[c]),S=l((()=>null!==g.value),[g]),E=l((()=>S.value&&u.value>0),[S,u]),P=l((()=>h.value),[h]),w=l((()=>u.value>0?h.value/u.value:0),[h,u]);return{state:{currentTime:h,duration:u,isPlaying:c,isPaused:C,isSeeking:d,volume:p,playbackRate:m,audioBuffer:g,peaks:f,url:v,zoom:b,scrollPosition:y,canPlay:S,isReady:E,progress:P,progressPercent:w},actions:{setCurrentTime:t=>{const e=Math.max(0,Math.min(u.value||1/0,t));h.set(e)},setDuration:t=>{u.set(Math.max(0,t))},setPlaying:t=>{c.set(t)},setSeeking:t=>{d.set(t)},setVolume:t=>{const e=Math.max(0,Math.min(1,t));p.set(e)},setPlaybackRate:t=>{const e=Math.max(.1,Math.min(16,t));m.set(e)},setAudioBuffer:t=>{g.set(t),t&&u.set(t.duration)},setPeaks:t=>{f.set(t)},setUrl:t=>{v.set(t)},setZoom:t=>{b.set(Math.max(0,t))},setScrollPosition:t=>{y.set(Math.max(0,t))}}}}({isPlaying:this.isPlayingSignal,currentTime:this.currentTimeSignal,duration:this.durationSignal,volume:this.volumeSignal,playbackRate:this.playbackRateSignal,isSeeking:this.seekingSignal});this.wavesurferState=i,this.wavesurferActions=n,this.timer=new C;const s=e?void 0:this.getMediaElement();this.renderer=new y(this.options,s),this.initPlayerEvents(),this.initRendererEvents(),this.initTimerEvents(),this.initReactiveState(),this.initPlugins();const r=this.options.url||this.getSrc()||"";Promise.resolve().then((()=>{this.emit("init");const{peaks:t,duration:e}=this.options;(r||t&&e)&&this.load(r,t,e).catch((t=>{this.emit("error",t instanceof Error?t:new Error(String(t)))}))}))}updateProgress(t=this.getCurrentTime()){return this.renderer.renderProgress(t/this.getDuration(),this.isPlaying()),t}initTimerEvents(){this.subscriptions.push(this.timer.on("tick",(()=>{if(!this.isSeeking()){const t=this.updateProgress();this.emit("timeupdate",t),this.emit("audioprocess",t),null!=this.stopAtPosition&&this.isPlaying()&&t>=this.stopAtPosition&&this.pause()}})))}initReactiveState(){this.reactiveCleanups.push(function(t,e){const i=[];i.push(h((()=>{const i=t.isPlaying.value;e.emit(i?"play":"pause")}),[t.isPlaying])),i.push(h((()=>{const i=t.currentTime.value;e.emit("timeupdate",i),t.isPlaying.value&&e.emit("audioprocess",i)}),[t.currentTime,t.isPlaying])),i.push(h((()=>{t.isSeeking.value&&e.emit("seeking",t.currentTime.value)}),[t.isSeeking,t.currentTime]));let n=!1;i.push(h((()=>{t.isReady.value&&!n&&(n=!0,e.emit("ready",t.duration.value))}),[t.isReady,t.duration]));let s=!1;return i.push(h((()=>{const i=t.isPlaying.value,n=t.currentTime.value,r=t.duration.value,o=r>0&&n>=r;s&&!i&&o&&e.emit("finish"),s=i&&o}),[t.isPlaying,t.currentTime,t.duration])),i.push(h((()=>{const i=t.zoom.value;i>0&&e.emit("zoom",i)}),[t.zoom])),()=>{i.forEach((t=>t()))}}(this.wavesurferState,{emit:this.emit.bind(this)}))}initPlayerEvents(){this.isPlaying()&&(this.emit("play"),this.timer.start()),this.mediaSubscriptions.push(this.onMediaEvent("timeupdate",(()=>{const t=this.updateProgress();this.emit("timeupdate",t)})),this.onMediaEvent("play",(()=>{this.emit("play"),this.timer.start()})),this.onMediaEvent("pause",(()=>{this.emit("pause"),this.timer.stop(),this.stopAtPosition=null})),this.onMediaEvent("emptied",(()=>{this.timer.stop(),this.stopAtPosition=null})),this.onMediaEvent("ended",(()=>{this.emit("timeupdate",this.getDuration()),this.emit("finish"),this.stopAtPosition=null})),this.onMediaEvent("seeking",(()=>{this.emit("seeking",this.getCurrentTime())})),this.onMediaEvent("error",(()=>{var t;this.emit("error",null!==(t=this.getMediaElement().error)&&void 0!==t?t:new Error("Media error")),this.stopAtPosition=null})))}initRendererEvents(){this.subscriptions.push(this.renderer.on("click",((t,e)=>{this.options.interact&&(this.seekTo(t),this.emit("interaction",t*this.getDuration()),this.emit("click",t,e))})),this.renderer.on("dblclick",((t,e)=>{this.emit("dblclick",t,e)})),this.renderer.on("scroll",((t,e,i,n)=>{const s=this.getDuration();this.emit("scroll",t*s,e*s,i,n)})),this.renderer.on("render",(()=>{this.emit("redraw")})),this.renderer.on("rendered",(()=>{this.emit("redrawcomplete")})),this.renderer.on("dragstart",(t=>{this.emit("dragstart",t)})),this.renderer.on("dragend",(t=>{this.emit("dragend",t)})),this.renderer.on("resize",(()=>{this.emit("resize")})));{let t;const e=this.renderer.on("drag",(e=>{var i;if(!this.options.interact)return;this.renderer.renderProgress(e),clearTimeout(t);let n=0;const s=this.options.dragToSeek;this.isPlaying()?n=0:!0===s?n=200:s&&"object"==typeof s&&(n=null!==(i=s.debounceTime)&&void 0!==i?i:200),t=setTimeout((()=>{this.seekTo(e)}),n),this.emit("interaction",e*this.getDuration()),this.emit("drag",e)}));this.subscriptions.push((()=>{clearTimeout(t),e()}))}}initPlugins(){var t;(null===(t=this.options.plugins)||void 0===t?void 0:t.length)&&this.options.plugins.forEach((t=>{this.registerPlugin(t)}))}unsubscribePlayerEvents(){this.mediaSubscriptions.forEach((t=>t())),this.mediaSubscriptions=[]}setOptions(t){this.options=Object.assign({},this.options,t),t.duration&&!t.peaks&&(this.decodedData=i.createBuffer(this.exportPeaks(),t.duration)),t.peaks&&t.duration&&(this.decodedData=i.createBuffer(t.peaks,t.duration)),this.renderer.setOptions(this.options),t.audioRate&&this.setPlaybackRate(t.audioRate),null!=t.mediaControls&&(this.getMediaElement().controls=t.mediaControls)}registerPlugin(t){if(this.plugins.includes(t))return t;t._init(this),this.plugins.push(t);const e=t.once("destroy",(()=>{this.plugins=this.plugins.filter((e=>e!==t)),this.subscriptions=this.subscriptions.filter((t=>t!==e))}));return this.subscriptions.push(e),t}unregisterPlugin(t){this.plugins=this.plugins.filter((e=>e!==t)),t.destroy()}getWrapper(){return this.renderer.getWrapper()}getWidth(){return this.renderer.getWidth()}getScroll(){return this.renderer.getScroll()}setScroll(t){return this.renderer.setScroll(t)}setScrollTime(t){const e=t/this.getDuration();this.renderer.setScrollPercentage(e)}getActivePlugins(){return this.plugins}loadAudio(e,n,s,r){return t(this,void 0,void 0,(function*(){var t;if(this.emit("load",e),!this.options.media&&this.isPlaying()&&this.pause(),this.decodedData=null,this.stopAtPosition=null,null===(t=this.abortController)||void 0===t||t.abort(),this.abortController=null,!n&&!s){const t=this.options.fetchParams||{};window.AbortController&&!t.signal&&(this.abortController=new AbortController,t.signal=this.abortController.signal);const i=t=>this.emit("loading",t);n=yield o.fetchBlob(e,i,t);const s=this.options.blobMimeType;s&&(n=new Blob([n],{type:s}))}this.setSrc(e,n);const a=yield new Promise((t=>{const e=r||this.getDuration();e?t(e):this.mediaSubscriptions.push(this.onMediaEvent("loadedmetadata",(()=>t(this.getDuration())),{once:!0}))}));if(!e&&!n){const t=this.getMediaElement();t instanceof S&&(t.duration=a)}if(s)this.decodedData=i.createBuffer(s,a||0);else if(n){const t=yield n.arrayBuffer();this.decodedData=yield i.decode(t,this.options.sampleRate)}this.decodedData&&(this.emit("decode",this.getDuration()),this.renderer.render(this.decodedData)),this.emit("ready",this.getDuration())}))}load(e,i,n){return t(this,void 0,void 0,(function*(){try{return yield this.loadAudio(e,void 0,i,n)}catch(t){throw this.emit("error",t),t}}))}loadBlob(e,i,n){return t(this,void 0,void 0,(function*(){try{return yield this.loadAudio("",e,i,n)}catch(t){throw this.emit("error",t),t}}))}zoom(t){if(!this.decodedData)throw new Error("No audio loaded");this.renderer.zoom(t),this.emit("zoom",t)}getDecodedData(){return this.decodedData}exportPeaks({channels:t=2,maxLength:e=8e3,precision:i=1e4}={}){if(!this.decodedData)throw new Error("The audio has not been decoded yet");const n=Math.min(t,this.decodedData.numberOfChannels),s=[];for(let t=0;t<n;t++){const n=this.decodedData.getChannelData(t),r=[],o=n.length/e;for(let t=0;t<e;t++){const e=n.slice(Math.floor(t*o),Math.ceil((t+1)*o));let s=0;for(let t=0;t<e.length;t++){const i=e[t];Math.abs(i)>Math.abs(s)&&(s=i)}r.push(Math.round(s*i)/i)}s.push(r)}return s}getDuration(){let t=super.getDuration()||0;return 0!==t&&t!==1/0||!this.decodedData||(t=this.decodedData.duration),t}toggleInteraction(t){this.options.interact=t}setTime(t){this.stopAtPosition=null,super.setTime(t),this.updateProgress(t),this.emit("timeupdate",t)}seekTo(t){const e=this.getDuration()*t;this.setTime(e)}play(e,i){const n=Object.create(null,{play:{get:()=>super.play}});return t(this,void 0,void 0,(function*(){null!=e&&this.setTime(e);const t=yield n.play.call(this);return null!=i&&(this.media instanceof S?this.media.stopAt(i):this.stopAtPosition=i),t}))}playPause(){return t(this,void 0,void 0,(function*(){return this.isPlaying()?this.pause():this.play()}))}stop(){this.pause(),this.setTime(0)}skip(t){this.setTime(this.getCurrentTime()+t)}empty(){this.load("",[[0]],.001)}setMediaElement(t){this.unsubscribePlayerEvents(),super.setMediaElement(t),this.initPlayerEvents()}exportImage(){return t(this,arguments,void 0,(function*(t="image/png",e=1,i="dataURL"){return this.renderer.exportImage(t,e,i)}))}destroy(){var t;this.emit("destroy"),null===(t=this.abortController)||void 0===t||t.abort(),this.plugins.forEach((t=>t.destroy())),this.subscriptions.forEach((t=>t())),this.unsubscribePlayerEvents(),this.reactiveCleanups.forEach((t=>t())),this.reactiveCleanups=[],this.timer.destroy(),this.renderer.destroy(),super.destroy()}}return P.BasePlugin=class extends e{constructor(t){super(),this.subscriptions=[],this.isDestroyed=!1,this.options=t}onInit(){}_init(t){this.isDestroyed&&(this.subscriptions=[],this.isDestroyed=!1),this.wavesurfer=t,this.onInit()}destroy(){this.emit("destroy"),this.subscriptions.forEach((t=>t())),this.subscriptions=[],this.isDestroyed=!0,this.wavesurfer=void 0}},P.dom=r,P}));
@@ -6729,7 +7142,8 @@ html[data-theme="light"] .rp-ctrl-col select {
         <h1 class="lp-h1"><span class="lp-h1-inner" data-typewriter="Turn your voice into|illustrated videos.">Turn your voice into<br><em>illustrated videos.</em></span><span class="lp-h1-cursor"></span></h1>
         <p class="lp-hero-sub">Kaatchi reads your script, storyboards every beat, and renders scenes in your chosen look — so you ship a finished short, not a to-do list.</p>
         <div class="lp-hero-ctas">
-          <button id="btn-create-content" class="lp-btn-primary">🎬 Copilot — Long Video</button>
+          <button id="btn-create-storypilot" class="lp-btn-primary">✨ Brainstorm — AI Script</button>
+          <button id="btn-create-content" class="lp-btn-solid">🎬 Copilot — Long Video</button>
           <button id="btn-create-reel" class="lp-btn-solid">⚡ Autopilot — Short Reel</button>
           <button id="btn-create-photopilot" class="lp-btn-solid">📸 Photopilot — Photo Reel</button>
         </div>
@@ -7842,6 +8256,17 @@ html[data-theme="light"] .rp-ctrl-col select {
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
+        <button id="reel-mode-text"  class="mode-btn">📝 Text</button>
+      </div>
+      <!-- Text Input (Storypilot handoff / manual paste) -->
+      <div id="reel-text-section" class="hidden">
+        <label class="reel-label">Paste your script</label>
+        <textarea id="reel-text-input" class="reel-text-input"
+          placeholder="Paste or type your script here. Stori will narrate and turn it into a reel."
+          rows="8"></textarea>
+        <p class="text-sm text-muted" style="margin-top:6px;">
+          Tip: Click <b>✨ Brainstorm</b> on the home page if you'd like AI help building a script first.
+        </p>
       </div>
       <div id="reel-audio-section">
         <div class="form-row">
@@ -8681,6 +9106,149 @@ html[data-theme="light"] .rp-ctrl-col select {
   </div><!-- /#pp-body -->
   </div><!-- /#photopilot-page -->
 
+  <!-- ═══ Storypilot — AI Script Brainstorm ═══ -->
+  <div id="brainstorm-page">
+
+    <!-- Screen 1: Wizard (default visible) -->
+    <section id="bs-selector" class="bs-screen">
+      <div class="bs-hero">
+        <h1 class="bs-title">✨ Storypilot</h1>
+        <p class="bs-subtitle">Answer two quick questions — we'll find the right format for you.</p>
+      </div>
+
+      <!-- Step 1: Video type -->
+      <div class="bs-wizard-step" id="bs-wizard-q1">
+        <p class="bs-wizard-q">What kind of video are you making?</p>
+        <div class="bs-wizard-chips">
+          <button class="bs-wchip" data-q="type" data-v="social">📱 Social media clip</button>
+          <button class="bs-wchip" data-q="type" data-v="brand">🏷 Brand / product video</button>
+          <button class="bs-wchip" data-q="type" data-v="tutorial">📚 Tutorial / explainer</button>
+          <button class="bs-wchip" data-q="type" data-v="personal">🎨 Personal / creative</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Length — hidden until Q1 answered -->
+      <div class="bs-wizard-step hidden" id="bs-wizard-q2">
+        <p class="bs-wizard-q">How long should it be?</p>
+        <div class="bs-wizard-chips">
+          <button class="bs-wchip" data-q="length" data-v="short">⚡ Short &amp; punchy (under 90s)</button>
+          <button class="bs-wchip" data-q="length" data-v="medium">🎬 Medium (1–5 min)</button>
+          <button class="bs-wchip" data-q="length" data-v="long">📖 In-depth (5+ min)</button>
+        </div>
+      </div>
+
+      <!-- Recommendation — hidden until Q2 answered -->
+      <div class="bs-wizard-step hidden" id="bs-wizard-rec">
+        <div class="bs-rec-card">
+          <div class="bs-rec-icon" id="bs-rec-icon"></div>
+          <div class="bs-rec-body">
+            <div class="bs-rec-pipeline" id="bs-rec-pipeline"></div>
+            <div class="bs-rec-reason"   id="bs-rec-reason"></div>
+          </div>
+        </div>
+        <div class="bs-rec-actions">
+          <button id="bs-wizard-confirm" class="bs-btn-primary">Confirm →</button>
+          <button id="bs-wizard-switch"  class="bs-btn-ghost"></button>
+        </div>
+        <p class="bs-pricing-note">
+          Pick your AI on the next screen: <b>Quick</b> ($0.10) · <b>Pro</b> ($0.30) · <b>Premium</b> ($0.50)
+        </p>
+      </div>
+    </section><!-- /#bs-selector -->
+
+    <!-- Screen 2: Chat workspace (hidden initially) -->
+    <section id="bs-chat" class="bs-screen hidden">
+      <header class="bs-chat-hdr">
+        <button id="bs-back-btn" class="bs-icon-btn" title="Back to start">←</button>
+        <div class="bs-chat-hdr-text">
+          <div class="bs-chat-title">✨ Storypilot <span id="bs-mode-tag" class="bs-mode-tag" style="display:none">⚡ Autopilot</span></div>
+          <div class="bs-chat-meta">
+            <span id="bs-msg-count">0/15 messages</span>
+            <span class="bs-meta-dot">·</span>
+            <span id="bs-cost-tag">~$0.000 used</span>
+          </div>
+        </div>
+
+        <!-- Model picker: editable until first message; locked thereafter -->
+        <div id="bs-model-picker" class="bs-model-picker" data-locked="false"
+             title="Model is locked for this session. Click ↻ to start a new session.">
+          <button class="bs-model-opt active" data-provider="gemini" title="Gemini 2.5 Flash — fastest">
+            <span class="bs-model-tag">Quick</span>
+            <span class="bs-model-price">$0.10</span>
+          </button>
+          <button class="bs-model-opt" data-provider="openai" title="GPT-4o — polished">
+            <span class="bs-model-tag">Pro</span>
+            <span class="bs-model-price">$0.30</span>
+          </button>
+          <button class="bs-model-opt" data-provider="anthropic" title="Claude Sonnet 4 — best creative">
+            <span class="bs-model-tag">Premium</span>
+            <span class="bs-model-price">$0.50</span>
+          </button>
+          <span class="bs-model-lock-icon" aria-hidden="true">🔒</span>
+        </div>
+
+        <button id="bs-new-btn" class="bs-icon-btn" title="New session">↻</button>
+      </header>
+
+      <!-- API key missing banner -->
+      <div id="bs-key-banner" class="bs-alert-banner" style="display:none"></div>
+      <!-- Message limit banner -->
+      <div id="bs-limit-banner" class="bs-alert-banner" style="display:none">
+        Session limit reached (15 messages). <b>Finalise your script</b> or start a new session.
+      </div>
+
+      <div id="bs-chat-log" class="bs-chat-log" role="log" aria-live="polite">
+        <!-- Messages injected by JS -->
+      </div>
+
+      <div class="bs-chat-footer">
+        <div class="bs-chat-input-bar">
+          <textarea id="bs-input" rows="1" maxlength="2000"
+                    placeholder="Type your reply…"></textarea>
+          <button id="bs-send-btn" class="bs-send-btn" disabled>Send ↗</button>
+        </div>
+        <div class="bs-chat-actions">
+          <button id="bs-finalise-btn" class="bs-finalise-btn" disabled>✨ Finalise Script</button>
+          <span class="bs-hint" id="bs-finalise-hint">Finalise enabled after 3+ exchanges</span>
+        </div>
+      </div>
+    </section><!-- /#bs-chat -->
+
+    <!-- Screen 3: Final script (hidden initially) -->
+    <section id="bs-final" class="bs-screen hidden">
+      <header class="bs-final-hdr">
+        <button id="bs-final-back-btn" class="bs-icon-btn">←</button>
+        <h2>✨ Your script is ready</h2>
+      </header>
+
+      <div id="bs-final-card" class="bs-final-card">
+        <!-- Structured script rendered by JS -->
+      </div>
+
+      <div class="bs-final-tools">
+        <button id="bs-edit-btn"     class="bs-tool-btn">✏ Edit</button>
+        <button id="bs-regen-btn"    class="bs-tool-btn">↻ Regenerate</button>
+        <button id="bs-copy-btn"     class="bs-tool-btn">📋 Copy</button>
+        <button id="bs-download-btn" class="bs-tool-btn" title="Save script to your device">⬇ Download</button>
+      </div>
+
+      <h3 class="bs-handoff-h">Send to:</h3>
+      <div class="bs-handoff-grid">
+        <button id="bs-send-pipeline-btn" class="bs-handoff-card primary">
+          <span class="bs-handoff-icon">⚡</span>
+          <span class="bs-handoff-text">Send to <span id="bs-handoff-pipeline-name">Autopilot</span></span>
+          <span class="bs-handoff-sub">Pre-fill the script and open the pipeline</span>
+        </button>
+        <button id="bs-copy-clipboard-btn" class="bs-handoff-card">
+          <span class="bs-handoff-icon">📋</span>
+          <span class="bs-handoff-text">Copy to clipboard</span>
+          <span class="bs-handoff-sub">Paste it anywhere</span>
+        </button>
+      </div>
+    </section><!-- /#bs-final -->
+
+  </div><!-- /#brainstorm-page -->
+
   <div id="editor">
     <!-- Reel tabs (shown when editing multiple reels) -->
     <div id="editor-reel-tabs" class="editor-reel-tabs hidden"></div>
@@ -9404,7 +9972,8 @@ html[data-theme="light"] .rp-ctrl-col select {
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
       'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js',
-      'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js'
+      'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js',
+      'js/26b-llm-router.js','js/26-brainstorm.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -9427,7 +9996,7 @@ html[data-theme="light"] .rp-ctrl-col select {
   }
 
   // Intercept landing page buttons — load scripts, then re-click
-  ['btn-create-content','btn-create-reel','btn-create-photopilot','btn-new-project','btn-load-project-home'].forEach(function(id) {
+  ['btn-create-storypilot','btn-create-content','btn-create-reel','btn-create-photopilot','btn-new-project','btn-load-project-home'].forEach(function(id) {
     var btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', function handler(e) {
@@ -10503,6 +11072,22 @@ function estimateCost(type, count) {
   return (unitCost * (count || 1)).toFixed(3);
 }
 
+// ── Storypilot token-based cost tracking ──
+const TOKEN_PRICING = {
+  gemini:    { in: 0.000000075, out: 0.000000300 },   // $0.075 / $0.30 per M tokens
+  openai:    { in: 0.000002500, out: 0.000010000 },   // $2.50  / $10   per M tokens
+  anthropic: { in: 0.000003000, out: 0.000015000 },   // $3     / $15   per M tokens
+};
+
+function trackTokenCost(promptTokens, outputTokens, provider) {
+  const p = TOKEN_PRICING[provider] || TOKEN_PRICING['gemini'];
+  const cost = (promptTokens * p.in) + (outputTokens * p.out);
+  sessionCost += cost;
+  sessionCalls += 1;
+  updateCostDisplay();
+  return cost;
+}
+
 // Load library slots when editor opens
 function loadEditorLibrary() {
   if (typeof renderLibrarySlots === 'function') renderLibrarySlots();
@@ -10559,16 +11144,16 @@ function aDur() { return currentBuffer ? currentBuffer.duration : 60; }
 // getSelectedImageSize() is defined in 17-create-content.js (needs createImageSize ref)
 
 // ── Navigation with browser history ──
-let currentView = 'home'; // home | editor | create | reel | photopilot
+let currentView = 'home'; // home | editor | create | reel | storypilot
 
 function navigateTo(view, pushHistory) {
   // metaphor-plan.md Exception 3 — set data-section on <html> per route.
   // Consumed by css/themes.css and future css/filmstrip.css / css/reel.css.
   document.documentElement.setAttribute('data-section',
-    view === 'home'        ? 'landing'    :
-    view === 'create'      ? 'copilot'    :
-    view === 'reel'        ? 'autopilot'  :
-    view === 'photopilot'  ? 'photopilot' : 'editor');
+    view === 'home'       ? 'landing'     :
+    view === 'create'     ? 'copilot'     :
+    view === 'reel'       ? 'autopilot'   :
+    view === 'storypilot' ? 'storypilot'  : 'editor');
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
   }
@@ -10583,11 +11168,6 @@ function navigateTo(view, pushHistory) {
     // Bug 28 — stop in-flight segment preview (video + audio + state reset).
     try { if (typeof stopSegPreview === 'function') stopSegPreview(); } catch(_) {}
   }
-  // Cleanup when leaving photopilot
-  if (currentView === 'photopilot' && view !== 'photopilot') {
-    try { if (typeof stopPhotopilotPreview === 'function') stopPhotopilotPreview(); } catch(_) {}
-    try { if (typeof photopilotAbort !== 'undefined' && photopilotAbort) photopilotAbort.abort(); } catch(_) {}
-  }
   currentView = view;
   // Show/hide nav back buttons (editor only; nav is hidden on create/reel by CSS)
   var navBackBtns = document.getElementById('nav-back-buttons');
@@ -10597,16 +11177,14 @@ function navigateTo(view, pushHistory) {
   editorEl.classList.remove('visible');
   const createPage = $('create-page');
   const reelPage = $('reel-page');
+  const brainstormPage = document.getElementById('brainstorm-page');
   const reelHeaderWrapper = $('reel-header-wrapper');
   const createHeaderWrapper = $('create-header-wrapper');
   if (createPage) createPage.classList.remove('visible');
   if (reelPage) reelPage.classList.remove('visible');
+  if (brainstormPage) brainstormPage.classList.remove('visible');
   if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'none';
   if (createHeaderWrapper) createHeaderWrapper.style.display = 'none';
-  const ppPage = $('photopilot-page');
-  const ppHeaderWrapper = $('photopilot-header-wrapper');
-  if (ppPage) ppPage.classList.remove('visible');
-  if (ppHeaderWrapper) ppHeaderWrapper.style.display = 'none';
   // Show target view
   if (view === 'home') {
     dropZone.classList.remove('hidden');
@@ -10631,6 +11209,22 @@ function navigateTo(view, pushHistory) {
       var cm = localStorage.getItem('stori_copilot_metaphor') || 'filmstrip';
       if (createPage) createPage.setAttribute('data-metaphor', cm);
     } catch(e){}
+    // Storypilot handoff — pre-fill Copilot text mode
+    try {
+      var ho = window.__storiHandoff;
+      if (ho && ho.target === 'copilot') {
+        // Defer so Copilot JS has time to initialise
+        setTimeout(function() {
+          var textBtn = document.getElementById('create-mode-text');
+          if (textBtn) textBtn.click();
+          var ta = document.getElementById('create-tts-text');
+          if (ta) ta.value = ho.plainText;
+          window.__storiHandoff = null;
+          var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
+          if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Generate.' + tail);
+        }, 300);
+      }
+    } catch(e){}
   } else if (view === 'reel') {
     if (reelPage) reelPage.classList.add('visible');
     if (reelHeaderWrapper) reelHeaderWrapper.style.display = 'block';
@@ -10645,16 +11239,37 @@ function navigateTo(view, pushHistory) {
     try {
       document.dispatchEvent(new CustomEvent('reel:phase', { detail: { phase: 'idle' }}));
     } catch(e){}
-  } else if (view === 'photopilot') {
-    if (ppPage) ppPage.classList.add('visible');
-    if (ppHeaderWrapper) ppHeaderWrapper.style.display = 'block';
+    // Storypilot handoff — pre-fill Autopilot text mode
+    try {
+      var ho = window.__storiHandoff;
+      if (ho && ho.target === 'autopilot') {
+        setTimeout(function() {
+          if (typeof switchReelInputMode === 'function') switchReelInputMode('text');
+          var ta = document.getElementById('reel-text-input');
+          if (ta) {
+            ta.value = ho.plainText;
+            // Reveal Step 3 immediately — no need to click anything
+            if (typeof showReelPresets === 'function') showReelPresets();
+          }
+          // Brainstorm handoff — store structured script for direct storyboard path
+          if (ho.source === 'brainstorm' && ho.finalScript) {
+            window.__reelHandoffScript = ho.finalScript;
+          }
+          window.__storiHandoff = null;
+          var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
+          if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Launch.' + tail);
+        }, 300);
+      }
+    } catch(e){}
+  } else if (view === 'storypilot') {
+    if (brainstormPage) brainstormPage.classList.add('visible');
   }
 }
 
 // Handle browser back/forward
 window.addEventListener('popstate', (e) => {
   // Bug 27 — whitelist view before dispatch; fall back to 'home' on anything else.
-  const VALID_VIEWS = ['home', 'editor', 'create', 'reel', 'photopilot'];
+  const VALID_VIEWS = ['home', 'editor', 'create', 'reel', 'storypilot'];
   const raw = e.state && e.state.view;
   const view = VALID_VIEWS.includes(raw) ? raw : 'home';
   if (view !== 'home' && typeof loadEditorScripts === 'function' && !window._editorScriptsLoaded) {
@@ -10671,9 +11286,10 @@ history.replaceState({ view: 'home' }, '', location.hash || '#home');
 (function(){
   var initial = (location.hash || '#home').replace('#','');
   document.documentElement.setAttribute('data-section',
-    initial === 'home'   ? 'landing'   :
-    initial === 'create' ? 'copilot'   :
-    initial === 'reel'   ? 'autopilot' : 'editor');
+    initial === 'home'       ? 'landing'    :
+    initial === 'create'     ? 'copilot'    :
+    initial === 'reel'       ? 'autopilot'  :
+    initial === 'storypilot' ? 'storypilot' : 'editor');
 })();
 
 // ── Theme toggle (dark ↔ light) ──────────────────────────────────────
@@ -23361,8 +23977,10 @@ function showReelEditorStep() {
 // Input mode
 const reelModeAudio = $('reel-mode-audio');
 const reelModeVideo = $('reel-mode-video');
+const reelModeText  = $('reel-mode-text');
 const reelAudioSection = $('reel-audio-section');
 const reelVideoSection = $('reel-video-section');
+const reelTextSection  = $('reel-text-section');
 const reelAudioInput = $('reel-audio-input');
 const reelAudioName = $('reel-audio-name');
 const reelVideoInput = $('reel-video-input');
@@ -23404,6 +24022,7 @@ const btnReelBgm = $('btn-reel-bgm');
 // State
 let reelAudioBuffer = null;
 let reelScenes = null;
+let reelSourceLang = null; // ISO 639-1 code of source audio language, detected at transcription time
 let reelInputMode = 'audio'; // audio | video
 let reelVideoEl = null;
 let reelVideoSrc = null;
@@ -23672,16 +24291,21 @@ window.addEventListener('beforeunload', (e) => {
 // ── Input Mode Toggle ──
 function setReelInputMode(mode) {
   reelInputMode = mode;
-  reelModeAudio.classList.toggle('active', mode === 'audio');
-  reelModeVideo.classList.toggle('active', mode === 'video');
-  reelAudioSection.classList.toggle('hidden', mode !== 'audio');
-  reelVideoSection.classList.toggle('hidden', mode !== 'video');
+  if (reelModeAudio) reelModeAudio.classList.toggle('active', mode === 'audio');
+  if (reelModeVideo) reelModeVideo.classList.toggle('active', mode === 'video');
+  if (reelModeText)  reelModeText.classList.toggle('active',  mode === 'text');
+  if (reelAudioSection) reelAudioSection.classList.toggle('hidden', mode !== 'audio');
+  if (reelVideoSection) reelVideoSection.classList.toggle('hidden', mode !== 'video');
+  if (reelTextSection)  reelTextSection.classList.toggle('hidden',  mode !== 'text');
   const editModeRow = $('reel-edit-mode-row');
   if (editModeRow) editModeRow.classList.toggle('hidden', mode !== 'video');
   if (reelStyleEl) reelStyleEl.closest('label').style.display = mode === 'video' ? 'none' : '';
   if (reelTransitionEl) reelTransitionEl.closest('label').style.display = (mode === 'video' && reelEditMode === 'subtitles') ? 'none' : '';
   updateReelCostEstimate();
 }
+// Public alias used by Storypilot handoff (navigateTo calls this)
+window.switchReelInputMode = setReelInputMode;
+
 // Edit mode radio
 document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
@@ -23692,8 +24316,17 @@ document.querySelectorAll('input[name="reel-edit-mode"]').forEach(radio => {
 });
 
 if (reelModeAudio) reelModeAudio.addEventListener('click', () => setReelInputMode('audio'));
+if (reelModeText)  reelModeText.addEventListener('click',  () => setReelInputMode('text'));
 // Apply initial mode visibility
 setReelInputMode(reelInputMode);
+
+// Show Step 3 as soon as text is present in the textarea
+const _reelTextInput = $('reel-text-input');
+if (_reelTextInput) {
+  _reelTextInput.addEventListener('input', function() {
+    if (this.value.trim().length > 10) showReelPresets();
+  });
+}
 
 function showReelPresets() {
   if (reelStepPresets) reelStepPresets.classList.remove('hidden');
@@ -24284,6 +24917,39 @@ function distributeWordsToScene(sceneStartTime, sceneEndTime, allWords) {
   return allWords.filter(w => w.start != null && w.end != null && w.start < sceneEndTime && w.end > sceneStartTime);
 }
 
+// Map brainstorm finalScript scenes to time ranges using proportional word-count timing.
+// hook/cta word counts are absorbed into first/last scene boundaries.
+function matchBrainstormSceneTiming(handoffScript, reelWords, totalDuration) {
+  const s = handoffScript;
+  const parts = [];
+  if (s.hook) parts.push({ text: s.hook, type: 'hook' });
+  (s.scenes || []).forEach((sc, i) => parts.push({ text: sc.voice || '', visual: sc.visual || '', mood: sc.mood || '', type: 'scene', sceneIndex: i }));
+  if (s.cta)  parts.push({ text: s.cta,  type: 'cta'  });
+
+  const wordCounts = parts.map(p => p.text.trim().split(/\s+/).filter(Boolean).length);
+  const totalWords = wordCounts.reduce((a, b) => a + b, 0) || 1;
+  const wLen = reelWords.length;
+
+  let cumWords = 0;
+  const timed = parts.map((part, i) => {
+    const wStart = cumWords;
+    const wEnd   = cumWords + wordCounts[i];
+    cumWords = wEnd;
+    const iStart = Math.min(Math.round((wStart / totalWords) * wLen), wLen - 1);
+    const iEnd   = Math.min(Math.round((wEnd   / totalWords) * wLen) - 1, wLen - 1);
+    const startT = wLen > 0 ? reelWords[Math.max(0, iStart)].start : (wStart / totalWords) * totalDuration;
+    const endT   = wLen > 0 ? reelWords[Math.max(0, iEnd)].end   : (wEnd   / totalWords) * totalDuration;
+    return { ...part, startTime: startT, endTime: Math.max(startT + 0.5, endT) };
+  });
+
+  const scenes = timed.filter(p => p.type === 'scene');
+  const hook   = timed.find(p => p.type === 'hook');
+  const cta    = timed.find(p => p.type === 'cta');
+  if (hook && scenes.length > 0) scenes[0].startTime = hook.startTime;
+  if (cta  && scenes.length > 0) scenes[scenes.length - 1].endTime = cta.endTime;
+  return scenes;
+}
+
 function buildWordsFromText(text, startTime, endTime) {
   const wds = (text || '').trim().split(/\s+/).filter(w => w.length > 0);
   if (wds.length === 0) return [];
@@ -24344,7 +25010,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
       const transcribeBody = {
         contents: [{ parts: [
           { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+          { text: `Audio duration: ${segAudio.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "lang": "en", "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. The "lang" field is the ISO 639-1 two-letter language code of the spoken audio (e.g. "en", "ta", "hi", "es").` }
         ]}],
         generationConfig: { response_mime_type: 'application/json' },
       };
@@ -24511,7 +25177,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const baseSubLang5 = reelVariationRows[0]?.subtitle || 'original';
     const segTransMap5 = new Map();
     console.log('[ReelSub] baseSubLang5:', baseSubLang5, 'variationRows[0].subtitle:', reelVariationRows[0]?.subtitle);
-    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none') {
+    if (baseSubLang5 !== 'original' && baseSubLang5 !== 'none' && baseSubLang5 !== reelSourceLang) {
       for (const job of doneJobs) {
         if (job.type !== 'segment') continue;
         const origText = job.words.map(w => w.word).join(' ');
@@ -24586,6 +25252,29 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
   }
 
 
+  // ── Text mode: run TTS to get an audio buffer, then fall through to normal audio pipeline ──
+  if (reelInputMode === 'text') {
+    const scriptText = ($('reel-text-input')?.value || '').trim();
+    if (!scriptText) { reelGenerateStatus.textContent = 'Paste a script in the Text tab first.'; btnReelGenerate.disabled = false; return; }
+    try {
+      reelGenerateStatus.textContent = 'Generating audio from script…';
+      reelProgressEl.classList.remove('hidden');
+      reelProgressLabel.textContent = 'Narrating script with TTS…';
+      // generateTTSGemini and decodeBase64Audio are defined in 17c-create-pipeline.js (global scope)
+      const ttsResult = await generateTTSGemini(scriptText, 'Kore', key);
+      const { audioBuffer: ttsBuf } = await decodeBase64Audio(ttsResult.base64, ttsResult.mimeType);
+      reelAudioBuffer = ttsBuf;
+      trackCost('tts', 1);
+      reelProgressLabel.textContent = 'Audio ready — building reel…';
+    } catch(ttsErr) {
+      reelProgressEl.classList.add('hidden');
+      reelGenerateStatus.textContent = 'TTS failed: ' + (ttsErr.message || 'Unknown error');
+      btnReelGenerate.disabled = false;
+      reelGenerating = false;
+      return;
+    }
+  }
+
   if (!reelAudioBuffer) { reelGenerateStatus.textContent = 'Import audio first.'; return; }
 
   // Trim audio to selected duration if longer
@@ -24617,7 +25306,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeBody = {
       contents: [{ parts: [
         { inlineData: { mimeType: 'audio/wav', data: b64Audio.split(',')[1] } },
-        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}].` }
+        { text: `Audio duration: ${reelAudioBuffer.duration.toFixed(1)} seconds. Transcribe into 6-9 segments at natural sentence boundaries, each 6-10 seconds. The "text" field must be the original language transcription. The "sceneDescription" field must always be in English — ${reelVideoMode === 'animated' ? 'a description of cinematic MOTION for AI video animation: start with camera direction (pan/zoom/tracking/dolly), describe subject action (walking/flowing/emerging/transforming), include environmental motion (wind/water/clouds/light). One continuous motion, no cuts.' : 'a vivid visual description of what could be shown as an image for that segment.'} Also include an "emojis" array with 3-5 vivid, specific emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Return JSON array: [{"startTime": 0.0, "endTime": 8.0, "lang": "en", "text": "...", "sceneDescription": "vivid English visual description", "emojis": ["🌊","🌙","⭐"], "words": [{"word": "...", "start": 0.0, "end": 0.4}]}]. The "lang" field is the ISO 639-1 two-letter language code of the spoken audio (e.g. "en", "ta", "hi", "es").` }
       ]}],
       generationConfig: { response_mime_type: 'application/json' },
     };
@@ -24626,6 +25315,7 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     const transcribeText = transcribeData.candidates?.[0]?.content?.parts?.[0]?.text;
     let segments = parseGeminiJson(transcribeText);
     segments = clampSegments(segments, 6, 9);
+    reelSourceLang = segments[0]?.lang || null;
 
     // Collect all words for subtitle rendering.
     // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
@@ -24684,22 +25374,41 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     } else {
       // Audio/Text mode: need image generation
       const totalDur = reelAudioBuffer.duration;
-      reelScenes = segments.map((s, si) => {
-        const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
-        const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
-        return {
-          prompt: s.sceneDescription || s.text,
-          startTime: st, endTime: en,
-          duration: en - st,
-          text: s.text,
-          emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
-          words: distributeWordsToScene(st, en, reelWords),
+
+      if (window.__reelHandoffScript) {
+        // Brainstorm handoff: use pre-baked visuals, skip Gemini scene-description generation
+        const bsScenes = matchBrainstormSceneTiming(window.__reelHandoffScript, reelWords, totalDur);
+        window.__reelHandoffScript = null;
+        reelScenes = bsScenes.map(sc => ({
+          prompt: [sc.visual, sc.mood].filter(Boolean).join(', '),
+          startTime: sc.startTime, endTime: sc.endTime,
+          duration: sc.endTime - sc.startTime,
+          text: sc.text || '',
+          emojis: [],
+          words: distributeWordsToScene(sc.startTime, sc.endTime, reelWords),
           imgDataUrl: null, status: 'pending',
           transition: transPreset.transition,
           transDur: transPreset.transDur,
           motion: transPreset.motion,
-        };
-      });
+        }));
+      } else {
+        reelScenes = segments.map((s, si) => {
+          const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
+          const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
+          return {
+            prompt: s.sceneDescription || s.text,
+            startTime: st, endTime: en,
+            duration: en - st,
+            text: s.text,
+            emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
+            words: distributeWordsToScene(st, en, reelWords),
+            imgDataUrl: null, status: 'pending',
+            transition: transPreset.transition,
+            transDur: transPreset.transDur,
+            motion: transPreset.motion,
+          };
+        });
+      }
 
       // Show scene cards and auto-generate images, then preview
       reelPendingScenes = reelScenes;
@@ -25926,7 +26635,7 @@ function renderAllReelPreviews() {
       try {
         // Subtitle
         let subWords = origReel.words;
-        if (subtitleLang !== 'original' && origText) {
+        if (subtitleLang !== 'original' && subtitleLang !== reelSourceLang && origText) {
           const transBody = { contents: [{ parts: [{ text: `Translate to ${REEL_LANG_OPTIONS[subtitleLang]}. Return ONLY the translated text:\n\n${origText}` }] }] };
           const transData = await callGeminiAPI(getTranscriptionModels(), transBody, key);
           trackCost('textGeneration', 1);
@@ -26736,7 +27445,7 @@ async function reelBuildVariationsAndPreview() {
     // Apply base variation subtitle language to segment jobs (variation jobs already have their own subtitleLang)
     const baseSubLang = reelVariationRows[0]?.subtitle || 'original';
     const segTranslationMap = new Map(); // job.id → translatedWords
-    if (baseSubLang !== 'original' && baseSubLang !== 'none') {
+    if (baseSubLang !== 'original' && baseSubLang !== 'none' && baseSubLang !== reelSourceLang) {
       const tKey = getReelApiKey();
       for (const job of activeJobs) {
         if (job.type !== 'segment') continue;
@@ -33211,6 +33920,1419 @@ function initZone3() {
 
   // Build agent panel immediately (always visible, dots start at 'waiting')
   initPPAgentPanel();
+})();
+
+
+    // ── 26b-llm-router.js ──
+/* ════════════════════════════════════════════════════════════════
+   26b-llm-router.js — Multi-provider LLM router for Storypilot
+   -----------------------------------------------------------------
+   Public API:  callChatLLM({ provider, messages, systemPrompt, jsonMode, maxTokens })
+   Returns:     { text, inputTokens, outputTokens, costUsd, model }
+   ════════════════════════════════════════════════════════════════ */
+
+// ── SECTION 1: Public API ─────────────────────────────────────────────────────
+
+async function callChatLLM({ provider, messages, systemPrompt, jsonMode = false, maxTokens = 300 }) {
+  if (provider === 'gemini')    return _callGemini(messages, systemPrompt, jsonMode, maxTokens);
+  if (provider === 'openai')    return _callOpenAI(messages, systemPrompt, jsonMode, maxTokens);
+  if (provider === 'anthropic') return _callAnthropic(messages, systemPrompt, jsonMode, maxTokens);
+  throw new Error('Unknown provider: ' + provider);
+}
+
+// ── SECTION 2: Provider implementations ──────────────────────────────────────
+
+async function _callGemini(messages, systemPrompt, jsonMode, maxTokens) {
+  // Reuse callGeminiAPI() + getTextModels() from 17a-create-api.js — same model list, same key, same error handling.
+  const contents = [
+    { role: 'user',  parts: [{ text: systemPrompt }] },
+    { role: 'model', parts: [{ text: 'Understood. Ready to help.' }] },
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }))
+  ];
+
+  const body = {
+    contents,
+    generationConfig: {
+      temperature: 0.85,
+      maxOutputTokens: maxTokens,
+      ...(jsonMode ? { response_mime_type: 'application/json' } : {}),
+      thinkingConfig: { thinkingBudget: jsonMode ? 2048 : 1024 }
+    }
+  };
+
+  // callGeminiAPI handles key lookup, model fallback, and rate-limit retries
+  const data = await callGeminiAPI(getTextModels(), body);
+  return _normaliseGemini(data);
+}
+
+async function _callOpenAI(messages, systemPrompt, jsonMode, maxTokens) {
+  const apiKey = localStorage.getItem('stori_openai_key');
+  if (!apiKey) throw new Error('NO_OPENAI_KEY');
+
+  const body = {
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...messages  // already in { role: 'user'|'assistant', content } shape
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.85,
+    ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+  };
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 429) throw new Error('RATE_LIMIT');
+    if (resp.status === 401) throw new Error('NO_OPENAI_KEY');
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `OpenAI ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return _normaliseOpenAI(data);
+}
+
+async function _callAnthropic(messages, systemPrompt, jsonMode, maxTokens) {
+  const apiKey = localStorage.getItem('stori_anthropic_key');
+  if (!apiKey) throw new Error('NO_ANTHROPIC_KEY');
+
+  // Anthropic doesn't have native JSON mode — append instruction to system prompt
+  const sys = jsonMode
+    ? systemPrompt + '\n\nIMPORTANT: Respond with valid JSON only. No markdown, no preamble, no explanation.'
+    : systemPrompt;
+
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    system: sys,
+    messages,  // user/assistant shape — already correct
+    max_tokens: maxTokens,
+    temperature: 0.85
+  };
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    if (resp.status === 429) throw new Error('RATE_LIMIT');
+    if (resp.status === 401) throw new Error('NO_ANTHROPIC_KEY');
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Anthropic ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return _normaliseAnthropic(data);
+}
+
+// ── SECTION 3: Response normalisers ──────────────────────────────────────────
+
+function _normaliseGemini(data) {
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const inputTokens  = data.usageMetadata?.promptTokenCount    || 0;
+  const outputTokens = data.usageMetadata?.candidatesTokenCount || 0;
+  const costUsd = _trackCost(inputTokens, outputTokens, 'gemini');
+  return { text, inputTokens, outputTokens, costUsd, model: 'gemini-2.5-flash' };
+}
+
+function _normaliseOpenAI(data) {
+  const text = data.choices?.[0]?.message?.content || '';
+  const inputTokens  = data.usage?.prompt_tokens     || 0;
+  const outputTokens = data.usage?.completion_tokens || 0;
+  const costUsd = _trackCost(inputTokens, outputTokens, 'openai');
+  return { text, inputTokens, outputTokens, costUsd, model: data.model || 'gpt-4o' };
+}
+
+function _normaliseAnthropic(data) {
+  const text = data.content?.[0]?.text || '';
+  const inputTokens  = data.usage?.input_tokens  || 0;
+  const outputTokens = data.usage?.output_tokens || 0;
+  const costUsd = _trackCost(inputTokens, outputTokens, 'anthropic');
+  return { text, inputTokens, outputTokens, costUsd, model: data.model || 'claude-sonnet-4-20250514' };
+}
+
+// ── SECTION 4: Cost integration ───────────────────────────────────────────────
+
+function _trackCost(inTok, outTok, provider) {
+  // trackTokenCost is defined in 01-core.js and available globally
+  if (typeof trackTokenCost === 'function') {
+    return trackTokenCost(inTok, outTok, provider);
+  }
+  return 0;
+}
+
+// ── SECTION 5: Error classification helpers ───────────────────────────────────
+
+// Returns a user-friendly message for known error codes
+function friendlyRouterError(err, provider) {
+  const msg = err.message || '';
+  if (msg.includes('No API key'))  return 'Set your Gemini API key in Copilot or Autopilot — it\'s shared across all of Stori.';
+  if (msg === 'NO_OPENAI_KEY')    return 'Set your OpenAI key in Settings to use the Pro tier.';
+  if (msg === 'NO_ANTHROPIC_KEY') return 'Set your Anthropic key in Settings to use the Premium tier.';
+  if (msg === 'RATE_LIMIT')       return 'Rate limit hit — please wait a moment and try again.';
+  return `${provider} error: ${msg}`;
+}
+
+
+    // ── 26-brainstorm.js ──
+/* ════════════════════════════════════════════════════════════════
+   26-brainstorm.js — Storypilot UI / state / lifecycle
+   -----------------------------------------------------------------
+   Loaded as part of the lazy editor bundle.
+   Depends on: 01-core.js (navigateTo, $, setStatus, trackTokenCost)
+               26b-llm-router.js (callChatLLM, friendlyRouterError)
+   ════════════════════════════════════════════════════════════════ */
+
+(function() {
+'use strict';
+
+// ── SECTION 1: Constants ──────────────────────────────────────────────────────
+
+const MAX_MESSAGES = 15;
+const FINALISE_MIN_EXCHANGES = 3;
+const AUTO_FINALISE_AT = 12;      // auto-generate script after this exchange; present inline as next AI message
+const CHAT_MAX_TOKENS = 8192;     // must cover thinking tokens + reply — gemini-2.5-flash thinking counts against this
+const FINALISE_MAX_TOKENS = 8192; // same for finalise JSON output
+
+const SYSTEM_PROMPTS = {
+  autopilot: `You are an expert short-form video script coach for Stori, specialising in TikTok, Instagram Reels and YouTube Shorts. Your role is to help the user brainstorm and refine a 30–90 second video script through conversation.
+
+BEHAVIOUR RULES:
+1. NEVER output a full script in your first reply. Begin by asking 2–3 targeted questions: topic, target audience, tone (educational, funny, emotional, aesthetic), and platform (TikTok / IG Reel / YT Shorts).
+2. Always offer 2–3 hook options for the user to pick from. Hooks are the first 3 seconds — they decide whether the viewer keeps watching.
+3. Build the script iteratively, scene by scene. Get user approval before moving to the next scene.
+4. BREVITY IS NON-NEGOTIABLE. Every reply must stay under 150 words. Use bullet points, not paragraphs. Never re-explain prior context. Bold the key choice or question. Get to the point fast.
+5. Suggest scene visuals and voiceover/caption text together — both matter for short-form video.
+6. End with a clear CTA suggestion: save, share, follow, comment, or visit link.
+7. If the user goes off-track, gently steer the conversation back to script development.
+8. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
+9. Around message 12 of 15, gently nudge: "We've covered a lot — ready to finalise the script, or want to keep refining a specific part?"
+
+SCOPE LIMITS:
+- Don't write full scripts on demand. Always converse first.
+- Don't suggest more than 9 scenes total (Autopilot's grid layout).
+- Don't include advanced production directions (camera moves, lighting setups, transitions). Focus on visual concept + spoken/displayed words.`,
+
+  copilot: `You are an expert long-form video storytelling coach for Stori, specialising in explainers, documentaries, brand films, educational videos, and narrative content. Your role is to help the user brainstorm and develop a video script through conversation.
+
+BEHAVIOUR RULES:
+1. NEVER output a full script in your first reply. Begin by understanding: topic, target audience, intended length (1–10 minutes), purpose (inform / sell / inspire / entertain), and the single key message they want viewers to walk away with.
+2. Help the user choose a narrative structure — 3-act, problem-solution, listicle, before-after, journey/transformation. Suggest 1–2 options that fit their topic.
+3. Develop the script in sections (intro / body / outro), getting user approval before each section is fully written.
+4. Each scene should include: visual description, narration/dialogue, and tone/mood notes. Be more detailed than for short-form.
+5. Suggest pacing — how long each section should be, where to slow down for impact, where to keep momentum.
+6. Recommend music tone and any voice-acting direction (warm, urgent, measured, conversational).
+7. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
+8. BREVITY IS NON-NEGOTIABLE. Every reply must stay under 150 words. Use bullet points, not paragraphs. Never re-explain prior context. Bold the key choice or question. Develop ONE section at a time.
+9. Around message 12 of 15, gently nudge: "We've outlined a strong shape — ready to finalise, or is there a section you want to refine first?"
+
+SCOPE LIMITS:
+- Don't write full scripts on demand. Always converse first.
+- Don't include advanced production directions beyond visual + narration + tone. Stori's pipeline handles the rest.`
+};
+
+const FINALISE_PROMPTS = {
+  autopilot: `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
+
+{
+  "title": "...",
+  "tone": "...",
+  "platform": "...",
+  "estDuration": "30s|45s|60s|...",
+  "hook": "Opening line said in first 3 seconds",
+  "scenes": [
+    { "n": 1, "timeRange": "0-3s",  "visual": "...", "voice": "..." },
+    { "n": 2, "timeRange": "3-8s",  "visual": "...", "voice": "..." }
+  ],
+  "cta": "Final call to action"
+}
+
+RULES:
+- Maximum 9 scenes.
+- Total duration must match estDuration.
+- Each scene: 3–8 seconds.
+- voice = exactly what should be spoken or shown as text on screen.
+- visual = a single concrete image that illustrates the scene.`,
+
+  copilot: `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
+
+{
+  "title": "...",
+  "concept": "One-paragraph description of the video",
+  "audience": "...",
+  "tone": "...",
+  "musicTone": "...",
+  "estDuration": "2:30",
+  "scenes": [
+    { "n": 1, "section": "intro|body|outro", "timeRange": "0:00-0:15",
+      "visual": "...", "narration": "...", "mood": "..." }
+  ]
+}
+
+RULES:
+- Length must match estDuration.
+- Cover intro → body → outro structure.
+- visual = scene description; narration = spoken voiceover; mood = emotional tone.`
+};
+
+// ── SECTION 2: State ──────────────────────────────────────────────────────────
+
+const BS_STORAGE_KEY = 'stori_bs_session';
+const BS_TTL_MS      = 24 * 60 * 60 * 1000;  // 24 hours
+
+const brainstormState = {
+  mode:           null,       // 'autopilot' | 'copilot' | null
+  provider:       'gemini',   // 'gemini' | 'openai' | 'anthropic'
+  providerLocked: false,
+  startedAt:      null,
+  messages:       [],         // [{ role: 'user'|'assistant', content }]
+  messageCount:   0,          // user-AI exchange pairs
+  totalInputTokens:  0,
+  totalOutputTokens: 0,
+  finalScript:    null,
+  finalised:      false,
+  wizardAnswers:   {},         // { type, length }
+  sessionSummary:  null,       // set when continuing from a previous session
+  willExtend:      false,      // user opted in to continue; triggers auto-extend after message 15
+  savedAt:         null,
+};
+
+// ── SECTION 3: Init ───────────────────────────────────────────────────────────
+
+function _init() {
+  // Wire homepage button
+  const homeBtn = document.getElementById('btn-create-storypilot');
+  if (homeBtn) {
+    homeBtn.addEventListener('click', function() {
+      navigateTo('storypilot');
+    });
+  }
+
+  // Wire wizard chip clicks
+  document.querySelectorAll('.bs-wchip').forEach(function(chip) {
+    chip.addEventListener('click', function() { _handleWizardChip(chip); });
+  });
+
+  // Wire confirm/switch (handlers set dynamically in showRecommendation)
+  // Wire model picker
+  document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+    btn.addEventListener('click', function() { _selectProvider(btn.dataset.provider); });
+  });
+  // Add tooltip on locked picker
+  var picker = document.getElementById('bs-model-picker');
+  if (picker) picker.setAttribute('title', 'Model is locked for this session. Click ↻ to start a new session.');
+
+  // Wire chat input
+  var input = document.getElementById('bs-input');
+  if (input) {
+    input.addEventListener('input', function() {
+      var sendBtn = document.getElementById('bs-send-btn');
+      if (sendBtn) sendBtn.disabled = !input.value.trim();
+      _autoResizeTextarea(input);
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (input.value.trim()) _sendMessage();
+      }
+    });
+  }
+
+  // Wire send button
+  var sendBtn = document.getElementById('bs-send-btn');
+  if (sendBtn) sendBtn.addEventListener('click', _sendMessage);
+
+  // Wire finalise
+  var finaliseBtn = document.getElementById('bs-finalise-btn');
+  if (finaliseBtn) finaliseBtn.addEventListener('click', _finaliseScript);
+
+  // Wire back button (chat → wizard)
+  var backBtn = document.getElementById('bs-back-btn');
+  if (backBtn) backBtn.addEventListener('click', function() {
+    if (brainstormState.messages.length > 0) {
+      if (!confirm('Discard this conversation and go back to the start?')) return;
+    }
+    _clearSession();
+    _showScreen('bs-selector');
+  });
+
+  // Wire final-screen back button
+  var finalBackBtn = document.getElementById('bs-final-back-btn');
+  if (finalBackBtn) finalBackBtn.addEventListener('click', function() {
+    _showScreen('bs-chat');
+  });
+
+  // Wire new session button
+  var newBtn = document.getElementById('bs-new-btn');
+  if (newBtn) newBtn.addEventListener('click', function() {
+    if (!confirm('Start a new brainstorm session? Current session will be lost.')) return;
+    _clearSession();
+    _resetWizard();
+    _showScreen('bs-selector');
+  });
+
+  // Wire final screen buttons
+  var copyBtn = document.getElementById('bs-copy-btn');
+  if (copyBtn) copyBtn.addEventListener('click', function() {
+    _copyToClipboard(_formatScriptToPlainText(brainstormState.finalScript));
+    copyBtn.textContent = '✓ Copied!';
+    setTimeout(function() { copyBtn.textContent = '📋 Copy'; }, 2000);
+  });
+
+  var downloadBtn = document.getElementById('bs-download-btn');
+  if (downloadBtn) downloadBtn.addEventListener('click', function() {
+    _downloadScript(brainstormState.finalScript, brainstormState.mode);
+  });
+
+  var editBtn = document.getElementById('bs-edit-btn');
+  if (editBtn) editBtn.addEventListener('click', function() {
+    // Switch back to chat for further refinement
+    _showScreen('bs-chat');
+  });
+
+  var regenBtn = document.getElementById('bs-regen-btn');
+  if (regenBtn) regenBtn.addEventListener('click', function() {
+    _finaliseScript();
+  });
+
+  var copyClipBtn = document.getElementById('bs-copy-clipboard-btn');
+  if (copyClipBtn) copyClipBtn.addEventListener('click', function() {
+    _copyToClipboard(_formatScriptToPlainText(brainstormState.finalScript));
+    copyClipBtn.querySelector('.bs-handoff-text').textContent = '✓ Copied to clipboard!';
+    setTimeout(function() { copyClipBtn.querySelector('.bs-handoff-text').textContent = 'Copy to clipboard'; }, 2000);
+  });
+
+  // Wire Send-to pipeline button (set by confirmWizard)
+  var pipelineBtn = document.getElementById('bs-send-pipeline-btn');
+  if (pipelineBtn) pipelineBtn.addEventListener('click', function() {
+    _sendToPipeline(brainstormState.mode);
+  });
+
+  // Wire suggestion chips
+  document.querySelectorAll('.bs-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      var input = document.getElementById('bs-input');
+      if (input) {
+        input.value = chip.dataset.text || chip.textContent;
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+      }
+    });
+  });
+
+  // Restore session if available
+  if (_loadSession()) {
+    _restoreFromSession();
+  }
+}
+
+// ── SECTION 4: Wizard ─────────────────────────────────────────────────────────
+
+function _handleWizardChip(chip) {
+  var q = chip.dataset.q;
+  var v = chip.dataset.v;
+
+  // Mark selected chip within the same group
+  chip.closest('.bs-wizard-chips').querySelectorAll('.bs-wchip').forEach(function(c) {
+    c.classList.remove('selected');
+  });
+  chip.classList.add('selected');
+
+  brainstormState.wizardAnswers[q] = v;
+
+  if (q === 'type') {
+    // Reveal Q2 with fade-in
+    var q2 = document.getElementById('bs-wizard-q2');
+    if (q2) { q2.classList.remove('hidden'); q2.style.animation = 'none'; q2.offsetHeight; q2.style.animation = ''; }
+  } else if (q === 'length') {
+    // Both answered → show recommendation
+    _showRecommendation();
+  }
+}
+
+function _showRecommendation() {
+  var type   = brainstormState.wizardAnswers.type;
+  var length = brainstormState.wizardAnswers.length;
+  var rec    = _recommendPipeline(type, length);
+
+  var icon     = rec.mode === 'autopilot' ? '⚡' : '🎬';
+  var label    = rec.mode === 'autopilot' ? '⚡ Short Reel — Autopilot' : '🎬 Long Video — Copilot';
+  var switchLbl  = rec.mode === 'autopilot' ? 'Switch to Copilot instead' : 'Switch to Autopilot instead';
+  var switchMode = rec.mode === 'autopilot' ? 'copilot' : 'autopilot';
+
+  var recIcon     = document.getElementById('bs-rec-icon');
+  var recPipeline = document.getElementById('bs-rec-pipeline');
+  var recReason   = document.getElementById('bs-rec-reason');
+  var switchBtn   = document.getElementById('bs-wizard-switch');
+  var confirmBtn  = document.getElementById('bs-wizard-confirm');
+
+  if (recIcon)     recIcon.textContent     = icon;
+  if (recPipeline) recPipeline.textContent = label;
+  if (recReason)   recReason.textContent   = rec.reason;
+  if (switchBtn)   switchBtn.textContent   = switchLbl;
+  if (switchBtn)   switchBtn.onclick       = function() { _confirmWizard(switchMode); };
+  if (confirmBtn)  confirmBtn.onclick      = function() { _confirmWizard(rec.mode); };
+
+  var recStep = document.getElementById('bs-wizard-rec');
+  if (recStep) { recStep.classList.remove('hidden'); recStep.style.animation = 'none'; recStep.offsetHeight; recStep.style.animation = ''; }
+}
+
+function _recommendPipeline(type, length) {
+  if (length === 'short') return { mode: 'autopilot', reason: 'Short & punchy — perfect for a quick reel.' };
+  if (length === 'long')  return { mode: 'copilot',   reason: 'In-depth content works best in long-form.' };
+  if (type === 'social' || type === 'personal')
+                          return { mode: 'autopilot', reason: 'Social clips land best under 90 seconds.' };
+  return                         { mode: 'copilot',   reason: 'Tutorials and brand stories need room to breathe.' };
+}
+
+function _confirmWizard(mode) {
+  brainstormState.mode = mode;
+  _updateModeTag(mode);
+  _updateSendToButton(mode);
+  _showScreen('bs-chat');
+  _renderGreeting();
+}
+
+function _resetWizard() {
+  // Clear chip selections
+  document.querySelectorAll('.bs-wchip').forEach(function(c) { c.classList.remove('selected'); });
+  // Hide Q2 and rec
+  var q2  = document.getElementById('bs-wizard-q2');
+  var rec = document.getElementById('bs-wizard-rec');
+  if (q2)  q2.classList.add('hidden');
+  if (rec) rec.classList.add('hidden');
+}
+
+// ── SECTION 5: Model picker ───────────────────────────────────────────────────
+
+function _selectProvider(provider) {
+  if (brainstormState.providerLocked) return;  // hard lock
+
+  // Validate API key for non-Gemini tiers
+  if (provider === 'openai' && !localStorage.getItem('stori_openai_key')) {
+    _showKeyBanner('openai');
+    return;
+  }
+  if (provider === 'anthropic' && !localStorage.getItem('stori_anthropic_key')) {
+    _showKeyBanner('anthropic');
+    return;
+  }
+  _hideKeyBanner();
+
+  brainstormState.provider = provider;
+
+  document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.provider === provider);
+  });
+}
+
+function _lockProvider() {
+  brainstormState.providerLocked = true;
+  var picker = document.getElementById('bs-model-picker');
+  if (picker) picker.setAttribute('data-locked', 'true');
+}
+
+function _unlockProvider() {
+  brainstormState.providerLocked = false;
+  brainstormState.provider = 'gemini';
+  var picker = document.getElementById('bs-model-picker');
+  if (picker) picker.setAttribute('data-locked', 'false');
+  // Reset to Gemini as active
+  document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.provider === 'gemini');
+  });
+}
+
+function _showKeyBanner(provider) {
+  var banner = document.getElementById('bs-key-banner');
+  if (!banner) return;
+  var providerName = provider === 'openai' ? 'OpenAI' : 'Anthropic';
+  var tierName     = provider === 'openai' ? 'Pro' : 'Premium';
+  var lsKey        = provider === 'openai' ? 'stori_openai_key' : 'stori_anthropic_key';
+  var placeholder  = provider === 'openai' ? 'sk-...' : 'sk-ant-...';
+
+  banner.innerHTML =
+    '<span>⚠ ' + tierName + ' tier requires an ' + providerName + ' API key.</span> ' +
+    '<input type="password" id="bs-inline-key" placeholder="' + placeholder + '" autocomplete="off" data-form-type="other" ' +
+    'style="margin:0 6px;padding:4px 8px;border-radius:6px;border:1px solid var(--lp-card-bdr);background:var(--lp-bg);color:var(--lp-text);font-size:12px;width:200px"> ' +
+    '<button id="bs-inline-key-save" style="padding:4px 10px;border-radius:6px;background:var(--lp-accent);color:var(--lp-on-accent);border:none;font-size:12px;cursor:pointer">Save</button>';
+  banner.style.display = 'flex';
+
+  var saveBtn = document.getElementById('bs-inline-key-save');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+      var keyInput = document.getElementById('bs-inline-key');
+      var val = keyInput ? keyInput.value.trim() : '';
+      if (!val) return;
+      localStorage.setItem(lsKey, val);
+      brainstormState.provider = provider;
+      document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.provider === provider);
+      });
+      _hideKeyBanner();
+    });
+  }
+}
+
+function _hideKeyBanner() {
+  var banner = document.getElementById('bs-key-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+// ── SECTION 6: Chat rendering ─────────────────────────────────────────────────
+
+function _renderMessages() {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+  log.innerHTML = '';
+  brainstormState.messages.forEach(function(msg) {
+    if (msg.role === '_greeting') {
+      _appendMessage('ai', msg.content, false);
+    } else {
+      _appendMessage(msg.role === 'assistant' ? 'ai' : 'user', msg.content, false);
+    }
+  });
+  _scrollChatToBottom();
+}
+
+function _appendMessage(role, content, scroll) {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+
+  var div = document.createElement('div');
+  div.className = 'bs-msg bs-msg-' + role;
+  // Render markdown-ish: **bold**, bullet lines, line breaks
+  div.innerHTML = _renderMd(content);
+  log.appendChild(div);
+  if (scroll !== false) _scrollChatToBottom();
+}
+
+function _renderMd(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function _showTyping() {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+  var div = document.createElement('div');
+  div.id = 'bs-typing';
+  div.className = 'bs-msg bs-msg-ai bs-msg-typing';
+  div.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  log.appendChild(div);
+  _scrollChatToBottom();
+}
+
+function _hideTyping() {
+  var el = document.getElementById('bs-typing');
+  if (el) el.remove();
+}
+
+function _scrollChatToBottom() {
+  var log = document.getElementById('bs-chat-log');
+  if (log) log.scrollTop = log.scrollHeight;
+}
+
+function _renderGreeting() {
+  var log = document.getElementById('bs-chat-log');
+  if (log) log.innerHTML = '';
+
+  var mode = brainstormState.mode;
+  var wizCtx = brainstormState.wizardAnswers;
+  var typeLabel = { social: 'social media clip', brand: 'brand/product video', tutorial: 'tutorial/explainer', personal: 'personal/creative' }[wizCtx.type] || 'video';
+  var lenLabel  = { short: 'short & punchy (under 90s)', medium: 'medium length (1–5 min)', long: 'in-depth (5+ min)' }[wizCtx.length] || '';
+
+  var greeting;
+  if (mode === 'autopilot') {
+    greeting = `Hi! I'm your Storypilot — here to help you shape a compelling **${typeLabel}** reel${lenLabel ? ' (' + lenLabel + ')' : ''}.\n\n**What's the core idea or topic for this video?** One sentence is enough to get us started.`;
+  } else {
+    greeting = `Hi! I'm your Storypilot — ready to help you build a **${typeLabel}**${lenLabel ? ' (' + lenLabel + ')' : ''} script.\n\n**What's the central story or message you want to tell?** Give me the big idea and we'll shape it together.`;
+  }
+
+  // Store as a pseudo-message so it re-renders correctly on session restore
+  brainstormState.messages.unshift({ role: '_greeting', content: greeting });
+  _appendMessage('ai', greeting);
+
+  // Show suggestion chips
+  _renderSuggestionChips(mode);
+}
+
+function _renderSuggestionChips(mode) {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+  var chips = mode === 'autopilot'
+    ? ['Skincare routine', 'Travel vlog', 'Productivity tips', 'Recipe quick-take']
+    : ['Brand story', 'Product explainer', 'Tutorial video', 'Documentary short'];
+
+  var div = document.createElement('div');
+  div.className = 'bs-chips';
+  chips.forEach(function(label) {
+    var btn = document.createElement('button');
+    btn.className = 'bs-chip';
+    btn.textContent = label;
+    btn.dataset.text = label;
+    btn.addEventListener('click', function() {
+      var input = document.getElementById('bs-input');
+      if (input) { input.value = label; input.dispatchEvent(new Event('input')); input.focus(); }
+    });
+    div.appendChild(btn);
+  });
+  log.appendChild(div);
+}
+
+// ── SECTION 7: Send ───────────────────────────────────────────────────────────
+
+async function _sendMessage() {
+  var input   = document.getElementById('bs-input');
+  var sendBtn = document.getElementById('bs-send-btn');
+  if (!input) return;
+
+  var text = input.value.trim();
+  if (!text) return;
+
+  // Check limit
+  if (brainstormState.messageCount >= MAX_MESSAGES) {
+    _showLimitBanner();
+    return;
+  }
+
+  // First send → lock provider
+  if (!brainstormState.providerLocked) {
+    _lockProvider();
+  }
+
+  // Optimistic UI
+  input.value = '';
+  if (sendBtn) sendBtn.disabled = true;
+  _appendMessage('user', text);
+
+  // Remove suggestion chips if present (they only show on greeting)
+  var chips = document.querySelector('#bs-chat-log .bs-chips');
+  if (chips) chips.remove();
+
+  // Push to messages (exclude the internal _greeting marker from API)
+  brainstormState.messages.push({ role: 'user', content: text });
+
+  _showTyping();
+
+  var systemPrompt = _buildSystemPrompt();
+  // Messages for API = exclude the internal _greeting marker
+  var apiMessages = brainstormState.messages.filter(function(m) { return m.role !== '_greeting'; });
+
+  try {
+    var result = await callChatLLM({
+      provider:     brainstormState.provider,
+      messages:     apiMessages,
+      systemPrompt: systemPrompt,
+      jsonMode:     false,
+      maxTokens:    CHAT_MAX_TOKENS
+    });
+
+    _hideTyping();
+
+    brainstormState.messages.push({ role: 'assistant', content: result.text });
+    brainstormState.totalInputTokens  += result.inputTokens;
+    brainstormState.totalOutputTokens += result.outputTokens;
+    brainstormState.messageCount++;
+
+    _appendMessage('ai', result.text);
+    _updateMeta();
+    _checkFinalisable();
+    _saveSession();
+
+    // Auto-finalise at message 12 — generate script inline without switching screens
+    if (brainstormState.messageCount === AUTO_FINALISE_AT) {
+      _autoFinaliseInline();
+    }
+
+  } catch (err) {
+    _hideTyping();
+    var errMsg = (typeof friendlyRouterError === 'function')
+      ? friendlyRouterError(err, brainstormState.provider)
+      : (err.message || 'Something went wrong.');
+    _appendMessage('ai', '⚠ ' + errMsg + '\n\n*Your message was not lost — you can try sending again.*');
+
+    // Remove last user message from state since it didn't go through
+    brainstormState.messages.pop();
+  }
+
+  if (sendBtn) sendBtn.disabled = !document.getElementById('bs-input')?.value.trim();
+}
+
+function _buildSystemPrompt() {
+  var base = SYSTEM_PROMPTS[brainstormState.mode || 'autopilot'];
+  var ctx  = brainstormState.wizardAnswers;
+  if (ctx.type || ctx.length) {
+    base += '\n\n[User context from wizard: type=' + (ctx.type || 'unknown') + ', length=' + (ctx.length || 'unknown') + ' — skip re-asking these; treat as already known.]';
+  }
+  if (brainstormState.sessionSummary) {
+    base += '\n\n[CONTINUATION SESSION — previous session summary:\n' + brainstormState.sessionSummary + '\nDo NOT re-ask anything already decided above. Pick up exactly where the user left off.]';
+  }
+  return base;
+}
+
+// ── SECTION 8: Lifecycle / localStorage ──────────────────────────────────────
+
+function _saveSession() {
+  brainstormState.savedAt = Date.now();
+  try { localStorage.setItem(BS_STORAGE_KEY, JSON.stringify(brainstormState)); } catch(_) {}
+}
+
+function _loadSession() {
+  try {
+    var raw = localStorage.getItem(BS_STORAGE_KEY);
+    if (!raw) return false;
+    var saved = JSON.parse(raw);
+    if (!saved.savedAt || (Date.now() - saved.savedAt) > BS_TTL_MS) {
+      localStorage.removeItem(BS_STORAGE_KEY);
+      return false;
+    }
+    Object.assign(brainstormState, saved);
+    return true;
+  } catch(_) { return false; }
+}
+
+function _clearSession() {
+  localStorage.removeItem(BS_STORAGE_KEY);
+  // Reset to defaults
+  brainstormState.mode           = null;
+  brainstormState.provider       = 'gemini';
+  brainstormState.providerLocked = false;
+  brainstormState.startedAt      = null;
+  brainstormState.messages       = [];
+  brainstormState.messageCount   = 0;
+  brainstormState.totalInputTokens  = 0;
+  brainstormState.totalOutputTokens = 0;
+  brainstormState.finalScript    = null;
+  brainstormState.finalised       = false;
+  brainstormState.wizardAnswers   = {};
+  brainstormState.sessionSummary  = null;
+  brainstormState.willExtend      = false;
+  brainstormState.savedAt         = null;
+  _unlockProvider();
+  _updateMeta();
+  _updateModeTag(null);
+  _hideLimitBanner();
+  _hideKeyBanner();
+  var log = document.getElementById('bs-chat-log');
+  if (log) log.innerHTML = '';
+  var input = document.getElementById('bs-input');
+  if (input) input.value = '';
+  var sendBtn = document.getElementById('bs-send-btn');
+  if (sendBtn) sendBtn.disabled = true;
+  var finaliseBtn = document.getElementById('bs-finalise-btn');
+  if (finaliseBtn) finaliseBtn.disabled = true;
+  var hint = document.getElementById('bs-finalise-hint');
+  if (hint) hint.textContent = 'Finalise enabled after 3+ exchanges';
+}
+
+function _restoreFromSession() {
+  // Re-apply provider selection UI
+  document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.provider === brainstormState.provider);
+  });
+  if (brainstormState.providerLocked) _lockProvider();
+
+  _updateModeTag(brainstormState.mode);
+  _updateSendToButton(brainstormState.mode);
+
+  if (brainstormState.finalised && brainstormState.finalScript) {
+    _renderFinalScript(brainstormState.finalScript);
+    _showScreen('bs-final');
+  } else if (brainstormState.mode) {
+    _renderMessages();
+    _showScreen('bs-chat');
+    _updateMeta();
+    _checkFinalisable();
+  }
+  // Otherwise stay on wizard (shouldn't happen with valid saved session)
+}
+
+// ── SECTION 9: Meta display ───────────────────────────────────────────────────
+
+function _updateMeta() {
+  var msgCount = document.getElementById('bs-msg-count');
+  if (msgCount) msgCount.textContent = brainstormState.messageCount + '/' + MAX_MESSAGES + ' messages';
+
+  // Cost: rough estimate based on token usage
+  var costEl = document.getElementById('bs-cost-tag');
+  if (costEl) {
+    var p = _getProviderPricing(brainstormState.provider);
+    var cost = (brainstormState.totalInputTokens * p.in) + (brainstormState.totalOutputTokens * p.out);
+    costEl.textContent = '~
+</html>
+ + cost.toFixed(3) + ' used';
+  }
+}
+
+function _getProviderPricing(provider) {
+  var TABLE = {
+    gemini:    { in: 0.000000075, out: 0.000000300 },
+    openai:    { in: 0.000002500, out: 0.000010000 },
+    anthropic: { in: 0.000003000, out: 0.000015000 },
+  };
+  return TABLE[provider] || TABLE.gemini;
+}
+
+function _updateModeTag(mode) {
+  var tag = document.getElementById('bs-mode-tag');
+  if (!tag) return;
+  if (mode === 'autopilot') { tag.textContent = '⚡ Autopilot'; tag.style.display = ''; }
+  else if (mode === 'copilot') { tag.textContent = '🎬 Copilot'; tag.style.display = ''; }
+  else { tag.style.display = 'none'; }
+}
+
+function _updateSendToButton(mode) {
+  var btn      = document.getElementById('bs-send-pipeline-btn');
+  var nameSpan = document.getElementById('bs-handoff-pipeline-name');
+  var iconSpan = btn ? btn.querySelector('.bs-handoff-icon') : null;
+  if (!btn || !nameSpan) return;
+  if (mode === 'autopilot') {
+    if (nameSpan) nameSpan.textContent = 'Autopilot';
+    if (iconSpan) iconSpan.textContent = '⚡';
+  } else {
+    if (nameSpan) nameSpan.textContent = 'Copilot';
+    if (iconSpan) iconSpan.textContent = '🎬';
+  }
+}
+
+// ── SECTION 10: Limits ────────────────────────────────────────────────────────
+
+function _checkFinalisable() {
+  var finaliseBtn = document.getElementById('bs-finalise-btn');
+  var hint        = document.getElementById('bs-finalise-hint');
+  var count       = brainstormState.messageCount;
+  var remaining   = MAX_MESSAGES - count;
+
+  if (count >= FINALISE_MIN_EXCHANGES) {
+    if (finaliseBtn) finaliseBtn.disabled = false;
+    if (hint) hint.textContent = '';
+  }
+
+  if (remaining <= 2 && remaining > 0) {
+    // Soft warning — input still enabled, user can continue or extend
+    _showApproachingBanner(remaining);
+  }
+
+  if (count >= MAX_MESSAGES) {
+    _hideApproachingBanner();
+    var input   = document.getElementById('bs-input');
+    var sendBtn = document.getElementById('bs-send-btn');
+    if (input)   input.disabled   = true;
+    if (sendBtn) sendBtn.disabled = true;
+    if (brainstormState.willExtend) {
+      // User pre-registered intent — summarise now and carry forward
+      _extendSession();
+    } else {
+      _showLimitBanner();
+    }
+  }
+}
+
+function _showApproachingBanner(remaining) {
+  var banner = document.getElementById('bs-limit-banner');
+  if (!banner) return;
+  var msgWord = remaining === 1 ? 'message' : 'messages';
+  // If already queued, show confirmation state
+  if (brainstormState.willExtend) {
+    banner.innerHTML = '<span>✓ Session extended — keep going.</span>';
+    banner.style.display = 'flex';
+    return;
+  }
+  banner.innerHTML =
+    '<span>⚠ ' + remaining + ' ' + msgWord + ' left in this session.</span>' +
+    '<button id="bs-extend-btn" class="bs-extend-btn">↻ Continue in new session →</button>';
+  banner.style.display = 'flex';
+  var extendBtn = document.getElementById('bs-extend-btn');
+  if (extendBtn) extendBtn.addEventListener('click', function() {
+    brainstormState.willExtend = true;
+    banner.innerHTML = '<span>✓ Session extended — keep going.</span>';
+  });
+}
+
+function _hideApproachingBanner() {
+  // Only clear if it's showing the approaching (not hard limit) state
+  var banner = document.getElementById('bs-limit-banner');
+  if (banner && banner.querySelector('#bs-extend-btn') && document.getElementById('bs-input') && !document.getElementById('bs-input').disabled) {
+    banner.style.display = 'none';
+  }
+}
+
+function _showLimitBanner() {
+  var banner = document.getElementById('bs-limit-banner');
+  if (!banner) return;
+  banner.innerHTML =
+    '<span>Session limit reached (15 messages).</span>' +
+    '<button id="bs-extend-btn" class="bs-extend-btn">↻ Continue in new session →</button>';
+  banner.style.display = 'flex';
+  var extendBtn = document.getElementById('bs-extend-btn');
+  if (extendBtn) extendBtn.addEventListener('click', _extendSession);
+}
+
+function _hideLimitBanner() {
+  var banner = document.getElementById('bs-limit-banner');
+  if (banner) { banner.style.display = 'none'; }
+  var input   = document.getElementById('bs-input');
+  var sendBtn = document.getElementById('bs-send-btn');
+  if (input)   input.disabled   = false;
+  if (sendBtn) sendBtn.disabled = false;
+}
+
+// ── SECTION 11: Finalise ──────────────────────────────────────────────────────
+
+async function _finaliseScript() {
+  var finaliseBtn = document.getElementById('bs-finalise-btn');
+  if (finaliseBtn) finaliseBtn.disabled = true;
+
+  _showTyping();
+
+  var mode         = brainstormState.mode || 'autopilot';
+  var finalPrompt  = FINALISE_PROMPTS[mode];
+  var systemPrompt = _buildSystemPrompt();
+  var apiMessages  = brainstormState.messages
+    .filter(function(m) { return m.role !== '_greeting'; })
+    .concat([{ role: 'user', content: finalPrompt }]);
+
+  async function attempt() {
+    return await callChatLLM({
+      provider:     brainstormState.provider,
+      messages:     apiMessages,
+      systemPrompt: systemPrompt,
+      jsonMode:     true,
+      maxTokens:    FINALISE_MAX_TOKENS
+    });
+  }
+
+  try {
+    var result = await attempt();
+    _hideTyping();
+
+    var scriptObj;
+    try {
+      scriptObj = JSON.parse(result.text);
+    } catch(_) {
+      // Cleanup retry
+      var retryMessages = apiMessages.concat([
+        { role: 'assistant', content: result.text },
+        { role: 'user', content: 'Your previous reply was not valid JSON. Output the script as JSON only, no markdown, no preamble, no explanation.' }
+      ]);
+      _showTyping();
+      var result2 = await callChatLLM({
+        provider: brainstormState.provider,
+        messages: retryMessages,
+        systemPrompt: systemPrompt,
+        jsonMode: true,
+        maxTokens: 1200
+      });
+      _hideTyping();
+      scriptObj = JSON.parse(result2.text);
+    }
+
+    brainstormState.finalScript = scriptObj;
+    brainstormState.finalised   = true;
+    brainstormState.totalInputTokens  += result.inputTokens;
+    brainstormState.totalOutputTokens += result.outputTokens;
+    _saveSession();
+
+    _renderFinalScript(scriptObj);
+    _showScreen('bs-final');
+    _summariseSession(); // background — stores summary for next session
+
+  } catch(err) {
+    _hideTyping();
+    if (finaliseBtn) finaliseBtn.disabled = false;
+    _appendMessage('ai', '⚠ Finalise failed: ' + (err.message || 'Unknown error') + '\n\nClick **✨ Finalise Script** to try again.');
+  }
+}
+
+// ── Auto-finalise inline (triggered at message 12) ───────────────────────────
+
+async function _autoFinaliseInline() {
+  // Show a typing indicator — this runs silently after the AI's reply at message 12
+  _showTyping();
+
+  var mode        = brainstormState.mode || 'autopilot';
+  var systemPrompt = _buildSystemPrompt();
+  var apiMessages = brainstormState.messages
+    .filter(function(m) { return m.role !== '_greeting'; })
+    .concat([{ role: 'user', content: FINALISE_PROMPTS[mode] }]);
+
+  try {
+    var result = await callChatLLM({
+      provider:     brainstormState.provider,
+      messages:     apiMessages,
+      systemPrompt: systemPrompt,
+      jsonMode:     true,
+      maxTokens:    FINALISE_MAX_TOKENS
+    });
+    _hideTyping();
+
+    var scriptObj;
+    try { scriptObj = JSON.parse(result.text); } catch(_) { scriptObj = null; }
+    if (!scriptObj) return; // silently skip — user can still click Finalise manually
+
+    brainstormState.finalScript = scriptObj;
+    brainstormState.finalised   = true;
+    brainstormState.totalInputTokens  += result.inputTokens;
+    brainstormState.totalOutputTokens += result.outputTokens;
+    _saveSession();
+
+    // Render script inline as a chat bubble — no screen switch
+    _appendInlineScript(scriptObj);
+    _updateMeta();
+
+  } catch(_) {
+    _hideTyping();
+    // Silent — user can still manually click Finalise
+  }
+}
+
+function _appendInlineScript(s) {
+  var log = document.getElementById('bs-chat-log');
+  if (!log || !s) return;
+
+  var div = document.createElement('div');
+  div.className = 'bs-msg bs-msg-ai bs-inline-script';
+
+  // Header
+  var html = '<div class="bs-inline-script-hdr">✨ Here\'s your script draft</div>';
+
+  // Title + pills
+  html += '<div class="bs-final-card" style="margin:12px 0 8px;padding:16px 18px">';
+  html += '<h3 style="font-size:15px;margin:0 0 6px">' + _esc(s.title || 'Untitled') + '</h3>';
+
+  var pills = [];
+  if (s.tone)        pills.push(_esc(s.tone));
+  if (s.platform)    pills.push(_esc(s.platform));
+  if (s.estDuration) pills.push(_esc(s.estDuration));
+  if (pills.length) html += '<div class="bs-meta-pills">' + pills.map(function(p) { return '<span class="bs-meta-pill">' + p + '</span>'; }).join('') + '</div>';
+
+  if (s.hook !== undefined) {
+    html += '<div class="bs-scene"><div class="bs-scene-num">Hook</div><div class="bs-scene-voice">' + _esc(s.hook) + '</div></div>';
+    (s.scenes || []).forEach(function(sc, i) {
+      html += '<div class="bs-scene"><div class="bs-scene-num">Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' · ' + sc.timeRange : '') + '</div>';
+      if (sc.visual) html += '<div class="bs-scene-vis">🎬 ' + _esc(sc.visual) + '</div>';
+      if (sc.voice)  html += '<div class="bs-scene-voice">🎤 ' + _esc(sc.voice) + '</div>';
+      html += '</div>';
+    });
+    if (s.cta) html += '<div class="bs-scene"><div class="bs-scene-num">CTA</div><div class="bs-scene-voice">' + _esc(s.cta) + '</div></div>';
+  } else {
+    (s.scenes || []).forEach(function(sc, i) {
+      var sect = sc.section ? ' — ' + sc.section : '';
+      html += '<div class="bs-scene"><div class="bs-scene-num">Scene ' + (sc.n || i + 1) + sect + '</div>';
+      if (sc.narration) html += '<div class="bs-scene-voice">🎤 ' + _esc(sc.narration) + '</div>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+
+  // Action row
+  var target = brainstormState.mode === 'autopilot' ? 'Autopilot ⚡' : 'Copilot 🎬';
+  html += '<div class="bs-inline-script-actions">' +
+    '<button class="bs-btn-primary bs-inline-send">Send to ' + target + '</button>' +
+    '<button class="bs-tool-btn bs-inline-download">⬇ Download .md</button>' +
+    '<button class="bs-tool-btn bs-inline-copy">📋 Copy VO</button>' +
+    '</div>';
+  html += '<p class="bs-inline-script-note">Still want to tweak? Keep chatting — you have ' + (MAX_MESSAGES - brainstormState.messageCount) + ' messages left.</p>';
+
+  div.innerHTML = html;
+  log.appendChild(div);
+
+  // Wire buttons
+  div.querySelector('.bs-inline-send').addEventListener('click', function() {
+    _sendToPipeline(brainstormState.mode);
+  });
+  div.querySelector('.bs-inline-download').addEventListener('click', function() {
+    _downloadScript(brainstormState.finalScript, brainstormState.mode);
+  });
+  div.querySelector('.bs-inline-copy').addEventListener('click', function() {
+    _copyToClipboard(_formatScriptToPlainText(brainstormState.finalScript));
+    this.textContent = '✓ Copied!';
+  });
+
+  _scrollChatToBottom();
+}
+
+// ── Session summarisation (background, no session clear) ─────────────────────
+
+async function _summariseSession() {
+  var historyText = brainstormState.messages
+    .filter(function(m) { return m.role !== '_greeting'; })
+    .map(function(m) { return (m.role === 'user' ? 'User' : 'AI') + ': ' + m.content; })
+    .join('\n\n');
+
+  var summaryPrompt =
+    'Summarise this video script brainstorm session in under 200 words. Structure it as:\n' +
+    '- Topic & goal\n- Hook decided (if any)\n- Scenes approved (list them briefly)\n- Tone & platform\n- What still needs work\n\n' +
+    'Be specific and terse — this summary will be injected as context into a new brainstorm session so the AI can continue without re-asking anything already decided.\n\n' +
+    '---\n' + historyText;
+
+  try {
+    var data = await callGeminiAPI(getTextModels(), {
+      contents: [{ parts: [{ text: summaryPrompt }] }],
+      generationConfig: { maxOutputTokens: 512, temperature: 0.1, thinkingConfig: { thinkingBudget: 1024 } }
+    });
+    var summary = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    if (summary) {
+      brainstormState.sessionSummary = summary;
+      _saveSession();
+    }
+  } catch(_) {
+    // Silent — summary is best-effort
+  }
+}
+
+// ── Session extension (continue in new session with summary) ──────────────────
+
+async function _extendSession() {
+  var extendBtn = document.getElementById('bs-extend-btn');
+  if (extendBtn) { extendBtn.disabled = true; extendBtn.textContent = 'Summarising…'; }
+
+  var mode        = brainstormState.mode;
+  var wizAnswers  = Object.assign({}, brainstormState.wizardAnswers);
+  var provider    = brainstormState.provider;
+
+  // Summarise first (stores into brainstormState.sessionSummary)
+  await _summariseSession();
+  var summary = brainstormState.sessionSummary ||
+    'Continuation of previous session (summary unavailable). Mode: ' + mode + '.';
+
+  // Reset session but carry forward mode, wizard answers, provider, and summary
+  _clearSession();
+  brainstormState.mode           = mode;
+  brainstormState.provider       = provider;
+  brainstormState.wizardAnswers  = wizAnswers;
+  brainstormState.sessionSummary = summary;
+
+  // Re-apply provider pill
+  document.querySelectorAll('.bs-model-opt').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.provider === provider);
+  });
+  _updateModeTag(mode);
+  _updateSendToButton(mode);
+
+  // Start fresh chat with summary context
+  _showScreen('bs-chat');
+  _renderGreeting();
+  _saveSession();
+}
+
+// ── SECTION 12: Final screen ──────────────────────────────────────────────────
+
+function _renderFinalScript(s) {
+  var card = document.getElementById('bs-final-card');
+  if (!card || !s) return;
+
+  var parts = [];
+  parts.push('<h3>' + _esc(s.title || 'Untitled script') + '</h3>');
+
+  // Meta pills
+  var pills = [];
+  if (s.tone)        pills.push(_esc(s.tone));
+  if (s.platform)    pills.push(_esc(s.platform));
+  if (s.estDuration) pills.push(_esc(s.estDuration));
+  if (s.audience)    pills.push(_esc(s.audience));
+  if (pills.length) {
+    parts.push('<div class="bs-meta-pills">' + pills.map(function(p) { return '<span class="bs-meta-pill">' + p + '</span>'; }).join('') + '</div>');
+  }
+
+  // Autopilot shape
+  if (s.hook !== undefined) {
+    parts.push('<div class="bs-scene"><div class="bs-scene-num">Hook</div>');
+    parts.push('<div class="bs-scene-voice">' + _esc(s.hook) + '</div></div>');
+    (s.scenes || []).forEach(function(sc, i) {
+      parts.push('<div class="bs-scene">');
+      parts.push('<div class="bs-scene-num">Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' · ' + sc.timeRange : '') + '</div>');
+      if (sc.visual) parts.push('<div class="bs-scene-vis">🎬 ' + _esc(sc.visual) + '</div>');
+      if (sc.voice)  parts.push('<div class="bs-scene-voice">🎤 ' + _esc(sc.voice) + '</div>');
+      parts.push('</div>');
+    });
+    if (s.cta) {
+      parts.push('<div class="bs-scene"><div class="bs-scene-num">CTA</div>');
+      parts.push('<div class="bs-scene-voice">' + _esc(s.cta) + '</div></div>');
+    }
+  } else {
+    // Copilot shape
+    if (s.concept) parts.push('<p style="margin:0 0 14px;color:var(--lp-dim)">' + _esc(s.concept) + '</p>');
+    (s.scenes || []).forEach(function(sc, i) {
+      var sect = sc.section ? ' — ' + sc.section : '';
+      parts.push('<div class="bs-scene">');
+      parts.push('<div class="bs-scene-num">Scene ' + (sc.n || i + 1) + sect + (sc.timeRange ? ' · ' + sc.timeRange : '') + '</div>');
+      if (sc.visual)    parts.push('<div class="bs-scene-vis">🎬 ' + _esc(sc.visual) + '</div>');
+      if (sc.narration) parts.push('<div class="bs-scene-voice">🎤 ' + _esc(sc.narration) + '</div>');
+      if (sc.mood)      parts.push('<div class="bs-scene-vis" style="color:var(--lp-mute)">🎵 ' + _esc(sc.mood) + '</div>');
+      parts.push('</div>');
+    });
+  }
+
+  card.innerHTML = parts.join('');
+}
+
+function _esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── SECTION 13: Handoff ───────────────────────────────────────────────────────
+
+function _sendToPipeline(target) {
+  if (!brainstormState.finalScript) return;
+
+  var fileName = _downloadScript(brainstormState.finalScript, target);
+
+  window.__storiHandoff = {
+    target:       target,
+    plainText:    _formatScriptToPlainText(brainstormState.finalScript),
+    fileName:     fileName,
+    source:       'brainstorm',
+    finalScript:  brainstormState.finalScript
+  };
+
+  if (target === 'autopilot') {
+    navigateTo('reel');
+  } else {
+    navigateTo('create');
+  }
+}
+
+// ── SECTION 14: Helpers ───────────────────────────────────────────────────────
+
+function _formatScriptToPlainText(s) {
+  if (!s) return '';
+  // Autopilot-shaped
+  if (s.hook !== undefined) {
+    var lines = [];
+    if (s.hook) lines.push(s.hook);
+    (s.scenes || []).forEach(function(sc) { if (sc.voice) lines.push(sc.voice); });
+    if (s.cta) lines.push(s.cta);
+    return lines.join(' ');
+  }
+  // Copilot-shaped
+  var lines = [];
+  (s.scenes || []).forEach(function(sc) { if (sc.narration) lines.push(sc.narration); });
+  return lines.join('\n\n');
+}
+
+function _downloadScript(scriptObj, target) {
+  var ts   = new Date().toISOString().slice(0, 10);
+  var slug = ((scriptObj && scriptObj.title) || 'script')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'script';
+  var fileName = 'storypilot-' + target + '-' + slug + '-' + ts + '.md';
+  var md   = _renderScriptMarkdown(scriptObj, target);
+  var blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var a    = Object.assign(document.createElement('a'), { href: url, download: fileName });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  return fileName;
+}
+
+function _renderScriptMarkdown(s, target) {
+  var PROVIDER_LABEL = { gemini: 'Quick', openai: 'Pro', anthropic: 'Premium' };
+  var tier = PROVIDER_LABEL[brainstormState.provider] || 'Quick';
+  var date = new Date().toISOString().slice(0, 10);
+  var out  = [];
+
+  out.push('# ' + (s.title || 'Untitled script'), '');
+
+  var meta = [];
+  if (s.tone)        meta.push('**Tone:** ' + s.tone);
+  if (s.platform)    meta.push('**Platform:** ' + s.platform);
+  if (s.estDuration) meta.push('**Duration:** ' + s.estDuration);
+  if (meta.length)   out.push(meta.join(' · '), '');
+
+  out.push('---', '');
+
+  if (s.hook !== undefined) {
+    // Autopilot
+    out.push('## Hook (0–3s)', '**Voice:** ' + (s.hook || ''), '');
+    (s.scenes || []).forEach(function(sc, i) {
+      out.push('## Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' (' + sc.timeRange + ')' : ''));
+      if (sc.visual) out.push('**Visual:** ' + sc.visual);
+      if (sc.voice)  out.push('**Voice:** ' + sc.voice);
+      out.push('');
+    });
+    if (s.cta) out.push('## Call to Action', '**Voice:** ' + s.cta, '');
+  } else {
+    // Copilot
+    if (s.concept)   out.push('## Concept', s.concept, '');
+    if (s.audience)  out.push('**Audience:** ' + s.audience, '');
+    if (s.musicTone) out.push('**Music tone:** ' + s.musicTone, '');
+    (s.scenes || []).forEach(function(sc, i) {
+      var sect = sc.section ? ' — ' + sc.section : '';
+      out.push('## Scene ' + (sc.n || i + 1) + sect + (sc.timeRange ? ' (' + sc.timeRange + ')' : ''));
+      if (sc.visual)    out.push('**Visual:** ' + sc.visual);
+      if (sc.narration) out.push('**Narration:** ' + sc.narration);
+      if (sc.mood)      out.push('**Mood:** ' + sc.mood);
+      out.push('');
+    });
+  }
+
+  out.push('---', '');
+  out.push('## 📋 Voiceover script (copy this to use in Stori)', '');
+  out.push(_formatScriptToPlainText(s), '');
+  out.push('---', '');
+  out.push('*Created with Storypilot · ' + tier + ' · ' + date + '*');
+
+  return out.join('\n');
+}
+
+function _copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(function() { _fallbackCopy(text); });
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function _fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+}
+
+function _autoResizeTextarea(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+}
+
+function _showScreen(id) {
+  ['bs-selector', 'bs-chat', 'bs-final'].forEach(function(sid) {
+    var el = document.getElementById(sid);
+    if (el) el.classList.toggle('hidden', sid !== id);
+  });
+  // Scroll to top of page when switching screens
+  var bsPage = document.getElementById('brainstorm-page');
+  if (bsPage) bsPage.scrollTop = 0;
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
+// Called when the page navigates to 'storypilot' (from navigateTo in 01-core.js)
+window._brainstormInit = _init;
+
+// Auto-init now (scripts are loaded lazily after first nav click)
+_init();
+
 })();
 
   });

@@ -1457,7 +1457,8 @@ body:has(#drop-zone:not(.hidden)) {
         <h1 class="lp-h1"><span class="lp-h1-inner" data-typewriter="Turn your voice into|illustrated videos.">Turn your voice into<br><em>illustrated videos.</em></span><span class="lp-h1-cursor"></span></h1>
         <p class="lp-hero-sub">Kaatchi reads your script, storyboards every beat, and renders scenes in your chosen look — so you ship a finished short, not a to-do list.</p>
         <div class="lp-hero-ctas">
-          <button id="btn-create-content" class="lp-btn-primary">🎬 Copilot — Long Video</button>
+          <button id="btn-create-storypilot" class="lp-btn-primary">✨ Brainstorm — AI Script</button>
+          <button id="btn-create-content" class="lp-btn-solid">🎬 Copilot — Long Video</button>
           <button id="btn-create-reel" class="lp-btn-solid">⚡ Autopilot — Short Reel</button>
           <button id="btn-create-photopilot" class="lp-btn-solid">📸 Photopilot — Photo Reel</button>
         </div>
@@ -2570,6 +2571,17 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="input-mode-toggle mb-md">
         <button id="reel-mode-audio" class="mode-btn active">🎵 Audio</button>
         <button id="reel-mode-video" class="mode-btn">🎬 Video</button>
+        <button id="reel-mode-text"  class="mode-btn">📝 Text</button>
+      </div>
+      <!-- Text Input (Storypilot handoff / manual paste) -->
+      <div id="reel-text-section" class="hidden">
+        <label class="reel-label">Paste your script</label>
+        <textarea id="reel-text-input" class="reel-text-input"
+          placeholder="Paste or type your script here. Stori will narrate and turn it into a reel."
+          rows="8"></textarea>
+        <p class="text-sm text-muted" style="margin-top:6px;">
+          Tip: Click <b>✨ Brainstorm</b> on the home page if you'd like AI help building a script first.
+        </p>
       </div>
       <div id="reel-audio-section">
         <div class="form-row">
@@ -3409,6 +3421,149 @@ body:has(#drop-zone:not(.hidden)) {
   </div><!-- /#pp-body -->
   </div><!-- /#photopilot-page -->
 
+  <!-- ═══ Storypilot — AI Script Brainstorm ═══ -->
+  <div id="brainstorm-page">
+
+    <!-- Screen 1: Wizard (default visible) -->
+    <section id="bs-selector" class="bs-screen">
+      <div class="bs-hero">
+        <h1 class="bs-title">✨ Storypilot</h1>
+        <p class="bs-subtitle">Answer two quick questions — we'll find the right format for you.</p>
+      </div>
+
+      <!-- Step 1: Video type -->
+      <div class="bs-wizard-step" id="bs-wizard-q1">
+        <p class="bs-wizard-q">What kind of video are you making?</p>
+        <div class="bs-wizard-chips">
+          <button class="bs-wchip" data-q="type" data-v="social">📱 Social media clip</button>
+          <button class="bs-wchip" data-q="type" data-v="brand">🏷 Brand / product video</button>
+          <button class="bs-wchip" data-q="type" data-v="tutorial">📚 Tutorial / explainer</button>
+          <button class="bs-wchip" data-q="type" data-v="personal">🎨 Personal / creative</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Length — hidden until Q1 answered -->
+      <div class="bs-wizard-step hidden" id="bs-wizard-q2">
+        <p class="bs-wizard-q">How long should it be?</p>
+        <div class="bs-wizard-chips">
+          <button class="bs-wchip" data-q="length" data-v="short">⚡ Short &amp; punchy (under 90s)</button>
+          <button class="bs-wchip" data-q="length" data-v="medium">🎬 Medium (1–5 min)</button>
+          <button class="bs-wchip" data-q="length" data-v="long">📖 In-depth (5+ min)</button>
+        </div>
+      </div>
+
+      <!-- Recommendation — hidden until Q2 answered -->
+      <div class="bs-wizard-step hidden" id="bs-wizard-rec">
+        <div class="bs-rec-card">
+          <div class="bs-rec-icon" id="bs-rec-icon"></div>
+          <div class="bs-rec-body">
+            <div class="bs-rec-pipeline" id="bs-rec-pipeline"></div>
+            <div class="bs-rec-reason"   id="bs-rec-reason"></div>
+          </div>
+        </div>
+        <div class="bs-rec-actions">
+          <button id="bs-wizard-confirm" class="bs-btn-primary">Confirm →</button>
+          <button id="bs-wizard-switch"  class="bs-btn-ghost"></button>
+        </div>
+        <p class="bs-pricing-note">
+          Pick your AI on the next screen: <b>Quick</b> ($0.10) · <b>Pro</b> ($0.30) · <b>Premium</b> ($0.50)
+        </p>
+      </div>
+    </section><!-- /#bs-selector -->
+
+    <!-- Screen 2: Chat workspace (hidden initially) -->
+    <section id="bs-chat" class="bs-screen hidden">
+      <header class="bs-chat-hdr">
+        <button id="bs-back-btn" class="bs-icon-btn" title="Back to start">←</button>
+        <div class="bs-chat-hdr-text">
+          <div class="bs-chat-title">✨ Storypilot <span id="bs-mode-tag" class="bs-mode-tag" style="display:none">⚡ Autopilot</span></div>
+          <div class="bs-chat-meta">
+            <span id="bs-msg-count">0/15 messages</span>
+            <span class="bs-meta-dot">·</span>
+            <span id="bs-cost-tag">~$0.000 used</span>
+          </div>
+        </div>
+
+        <!-- Model picker: editable until first message; locked thereafter -->
+        <div id="bs-model-picker" class="bs-model-picker" data-locked="false"
+             title="Model is locked for this session. Click ↻ to start a new session.">
+          <button class="bs-model-opt active" data-provider="gemini" title="Gemini 2.5 Flash — fastest">
+            <span class="bs-model-tag">Quick</span>
+            <span class="bs-model-price">$0.10</span>
+          </button>
+          <button class="bs-model-opt" data-provider="openai" title="GPT-4o — polished">
+            <span class="bs-model-tag">Pro</span>
+            <span class="bs-model-price">$0.30</span>
+          </button>
+          <button class="bs-model-opt" data-provider="anthropic" title="Claude Sonnet 4 — best creative">
+            <span class="bs-model-tag">Premium</span>
+            <span class="bs-model-price">$0.50</span>
+          </button>
+          <span class="bs-model-lock-icon" aria-hidden="true">🔒</span>
+        </div>
+
+        <button id="bs-new-btn" class="bs-icon-btn" title="New session">↻</button>
+      </header>
+
+      <!-- API key missing banner -->
+      <div id="bs-key-banner" class="bs-alert-banner" style="display:none"></div>
+      <!-- Message limit banner -->
+      <div id="bs-limit-banner" class="bs-alert-banner" style="display:none">
+        Session limit reached (15 messages). <b>Finalise your script</b> or start a new session.
+      </div>
+
+      <div id="bs-chat-log" class="bs-chat-log" role="log" aria-live="polite">
+        <!-- Messages injected by JS -->
+      </div>
+
+      <div class="bs-chat-footer">
+        <div class="bs-chat-input-bar">
+          <textarea id="bs-input" rows="1" maxlength="2000"
+                    placeholder="Type your reply…"></textarea>
+          <button id="bs-send-btn" class="bs-send-btn" disabled>Send ↗</button>
+        </div>
+        <div class="bs-chat-actions">
+          <button id="bs-finalise-btn" class="bs-finalise-btn" disabled>✨ Finalise Script</button>
+          <span class="bs-hint" id="bs-finalise-hint">Finalise enabled after 3+ exchanges</span>
+        </div>
+      </div>
+    </section><!-- /#bs-chat -->
+
+    <!-- Screen 3: Final script (hidden initially) -->
+    <section id="bs-final" class="bs-screen hidden">
+      <header class="bs-final-hdr">
+        <button id="bs-final-back-btn" class="bs-icon-btn">←</button>
+        <h2>✨ Your script is ready</h2>
+      </header>
+
+      <div id="bs-final-card" class="bs-final-card">
+        <!-- Structured script rendered by JS -->
+      </div>
+
+      <div class="bs-final-tools">
+        <button id="bs-edit-btn"     class="bs-tool-btn">✏ Edit</button>
+        <button id="bs-regen-btn"    class="bs-tool-btn">↻ Regenerate</button>
+        <button id="bs-copy-btn"     class="bs-tool-btn">📋 Copy</button>
+        <button id="bs-download-btn" class="bs-tool-btn" title="Save script to your device">⬇ Download</button>
+      </div>
+
+      <h3 class="bs-handoff-h">Send to:</h3>
+      <div class="bs-handoff-grid">
+        <button id="bs-send-pipeline-btn" class="bs-handoff-card primary">
+          <span class="bs-handoff-icon">⚡</span>
+          <span class="bs-handoff-text">Send to <span id="bs-handoff-pipeline-name">Autopilot</span></span>
+          <span class="bs-handoff-sub">Pre-fill the script and open the pipeline</span>
+        </button>
+        <button id="bs-copy-clipboard-btn" class="bs-handoff-card">
+          <span class="bs-handoff-icon">📋</span>
+          <span class="bs-handoff-text">Copy to clipboard</span>
+          <span class="bs-handoff-sub">Paste it anywhere</span>
+        </button>
+      </div>
+    </section><!-- /#bs-final -->
+
+  </div><!-- /#brainstorm-page -->
+
   <div id="editor">
     <!-- Reel tabs (shown when editing multiple reels) -->
     <div id="editor-reel-tabs" class="editor-reel-tabs hidden"></div>
@@ -4135,7 +4290,8 @@ body:has(#drop-zone:not(.hidden)) {
       'js/12-buffer-ops.js','js/13-wavesurfer.js','js/14-silence.js','js/16-audio-controls.js',
       'js/17a-create-api.js','js/17b-create-references.js','js/17c-create-pipeline.js',
       'js/17d-create-languages.js','js/20-reels-creator.js','js/21-kling.js','js/18-navigation.js',
-      'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js'
+      'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js',
+      'js/26b-llm-router.js','js/26-brainstorm.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -4158,7 +4314,7 @@ body:has(#drop-zone:not(.hidden)) {
   }
 
   // Intercept landing page buttons — load scripts, then re-click
-  ['btn-create-content','btn-create-reel','btn-create-photopilot','btn-new-project','btn-load-project-home'].forEach(function(id) {
+  ['btn-create-storypilot','btn-create-content','btn-create-reel','btn-create-photopilot','btn-new-project','btn-load-project-home'].forEach(function(id) {
     var btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', function handler(e) {
