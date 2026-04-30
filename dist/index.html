@@ -7720,6 +7720,17 @@ html[data-theme="light"] .rp-ctrl-col select {
       </div>
     </div>
 
+    <!-- ElevenLabs key (Copilot) — for subtitle word alignment via Scribe -->
+    <div style="margin-top:10px;">
+      <div class="form-row">
+        <label class="text-xs text-muted" style="min-width:110px;">ElevenLabs (subs):</label>
+        <input type="password" id="create-elevenlabs-key" placeholder="ElevenLabs API key (optional)" style="width:220px;" autocomplete="off" data-form-type="other">
+        <button onclick="saveElevenLabsKey('create-elevenlabs-key',this)" class="btn-xs">Save</button>
+        <span id="create-elevenlabs-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin:2px 0 0 114px;">Optional — enables sample-accurate subtitle word timing via Scribe. Falls back to Gemini.</p>
+    </div>
+
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
       <h3><span class="step-num">1</span> Input &amp; Template</h3>
@@ -8248,6 +8259,17 @@ html[data-theme="light"] .rp-ctrl-col select {
           <button onclick="saveKlingKey('stori_kling_secret_key','reel-kling-sk',this)" class="btn-xs">Save</button>
         </div>
       </div>
+    </div>
+
+    <!-- ElevenLabs key (Autopilot) — for subtitle word alignment via Scribe -->
+    <div style="margin-top:10px;">
+      <div class="form-row">
+        <label class="text-xs text-muted" style="min-width:110px;">ElevenLabs (subs):</label>
+        <input type="password" id="reel-elevenlabs-key" placeholder="ElevenLabs API key (optional)" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+        <button onclick="saveElevenLabsKey('reel-elevenlabs-key',this)" class="btn-xs">Save</button>
+        <span id="reel-elevenlabs-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin:2px 0 0 114px;">Optional — enables sample-accurate subtitle word timing via Scribe. Falls back to Gemini.</p>
     </div>
 
     <!-- Reel Step 2: Input -->
@@ -9208,6 +9230,7 @@ html[data-theme="light"] .rp-ctrl-col select {
           <button id="bs-send-btn" class="bs-send-btn" disabled>Send ↗</button>
         </div>
         <div class="bs-chat-actions">
+          <button id="bs-new-session-btn" class="bs-tool-btn" style="font-size:0.75rem; opacity:0.7;">↺ New Session</button>
           <button id="bs-finalise-btn" class="bs-finalise-btn" disabled>✨ Finalise Script</button>
           <span class="bs-hint" id="bs-finalise-hint">Finalise enabled after 3+ exchanges</span>
         </div>
@@ -18351,6 +18374,89 @@ function getFreeKey() { return getApiKey(); }
 function getPaidKey() { return getApiKey(); }
 function isPaidTier() { return true; }
 
+function getElevenLabsKey() {
+  return localStorage.getItem('stori_elevenlabs_key') || '';
+}
+
+// Send an AudioBuffer to ElevenLabs Scribe for sample-accurate per-word timestamps.
+// Returns [{word, start, end}] or null on failure / missing key.
+async function alignWordsWithScribe(audioBuffer, langCode) {
+  const key = getElevenLabsKey();
+  if (!key) return null;
+  try {
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const formData = new FormData();
+    formData.append('file', wavBlob, 'audio.wav');
+    formData.append('model_id', 'scribe_v1');
+    formData.append('timestamps_granularity', 'word');
+    formData.append('tag_audio_events', 'false');
+    formData.append('diarize', 'false');
+    if (langCode && langCode !== 'original') formData.append('language_code', langCode);
+    const resp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': key },
+      body: formData,
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.warn('[Scribe] ElevenLabs error', resp.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = await resp.json();
+    const words = (data.words || [])
+      .filter(w => w && w.type === 'word' && typeof w.start === 'number' && typeof w.end === 'number')
+      .map(w => ({ word: w.text, start: w.start, end: w.end }));
+    return words.length ? words : null;
+  } catch (e) {
+    console.warn('[Scribe] alignment failed:', e.message);
+    return null;
+  }
+}
+
+// Gemini fallback: transcribe audio into segments then distribute words uniformly.
+// Returns [{word, start, end}] or null.
+async function alignWordsWithGemini(audioBuffer, key) {
+  try {
+    const dur = audioBuffer.duration;
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const b64 = await blobToBase64(wavBlob);
+    const body = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: 'audio/wav', data: b64.split(',')[1] } },
+        { text: `Audio duration: ${dur.toFixed(2)}s. Transcribe and break into 6-9 segments at natural sentence/pause boundaries. Segments must be contiguous (first startTime=0, last endTime=${dur.toFixed(2)}, no gaps). Return ONLY a JSON array:\n[{"startTime":0.0,"endTime":8.0,"text":"words here"}]` },
+      ]}],
+      generationConfig: { response_mime_type: 'application/json' },
+    };
+    const data = await callGeminiAPI(['gemini-2.5-flash'], body, key);
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let segs = typeof parseGeminiJson === 'function' ? parseGeminiJson(raw) : JSON.parse(raw);
+    if (!Array.isArray(segs) || !segs.length) return null;
+    segs = segs
+      .filter(s => typeof s.startTime === 'number' && typeof s.endTime === 'number' && s.endTime > s.startTime && s.text)
+      .sort((a, b) => a.startTime - b.startTime)
+      .map(s => ({ startTime: Math.max(0, s.startTime), endTime: Math.min(dur, s.endTime), text: s.text.trim() }));
+    const words = [];
+    for (const s of segs) {
+      const wds = s.text.split(/\s+/).filter(Boolean);
+      if (!wds.length) continue;
+      const dpw = Math.max(0.05, (s.endTime - s.startTime) / wds.length);
+      wds.forEach((w, i) => words.push({ word: w, start: s.startTime + i * dpw, end: s.startTime + (i + 1) * dpw }));
+    }
+    return words.length ? words : null;
+  } catch (e) {
+    console.warn('[Scribe] Gemini fallback failed:', e.message);
+    return null;
+  }
+}
+
+// Full alignment pipeline: Scribe → Gemini → null.
+// null means caller should use its own local fallback (even distribution).
+async function alignWords(audioBuffer, langCode, geminiKey) {
+  let words = await alignWordsWithScribe(audioBuffer, langCode);
+  if (!words) words = await alignWordsWithGemini(audioBuffer, geminiKey);
+  return words;
+}
+
 function flashSave(btn, statusEl) {
   statusEl.textContent = '✓ Saved';
   statusEl.style.color = '#10b981';
@@ -18541,6 +18647,33 @@ function saveKlingKey(lsKey, inputId, btn) {
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = orig; }, 1500);
 }
+
+function saveElevenLabsKey(inputId, btn) {
+  const input = $(inputId);
+  if (!input || !input.value.trim() || input.value.startsWith('●')) return;
+  localStorage.setItem('stori_elevenlabs_key', input.value.trim());
+  input.value = '●'.repeat(20);
+  const statusId = inputId.replace('-key', '-status');
+  const statusEl = $(statusId);
+  if (statusEl) statusEl.textContent = '✓ Saved';
+  const orig = btn.textContent;
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+// Pre-fill ElevenLabs key inputs from localStorage on load
+(function initElevenLabsKeyInputs() {
+  const el = getElevenLabsKey();
+  if (!el) return;
+  ['create-elevenlabs-key', 'reel-elevenlabs-key'].forEach(id => {
+    const inp = $(id);
+    if (inp) inp.value = '●'.repeat(20);
+  });
+  ['create-elevenlabs-status', 'reel-elevenlabs-status'].forEach(id => {
+    const el2 = $(id);
+    if (el2) el2.textContent = '✓ Saved';
+  });
+})();
 
 // Pre-fill Kling key inputs from localStorage on load
 (function initKlingKeyInputs() {
@@ -20542,6 +20675,35 @@ btnCreateTranscribe.addEventListener('click', async () => {
       // Step 3: Segment English text using real TTS duration
       updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
       segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
+
+      // Refine segment boundaries with sample-accurate word timestamps.
+      // Scribe → Gemini fallback → keep character-proportion boundaries unchanged.
+      try {
+        updateCreateAgentTask('storyboard', 'segment', 'running', 'Aligning word timing…');
+        const alignedWords = await alignWordsWithScribe(createAudioBuffer, createOutputLanguage || null);
+        if (alignedWords && alignedWords.length) {
+          // Map each segment's sentence text back to its first/last word timestamps
+          for (const seg of segments) {
+            const segWords = seg.text.trim().split(/\s+/).filter(Boolean);
+            if (!segWords.length) continue;
+            const firstWord = segWords[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+            const lastWord  = segWords[segWords.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+            const iFirst = alignedWords.findIndex(w => w.word.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(firstWord.slice(0, 4)));
+            const iLast  = alignedWords.slice(iFirst > 0 ? iFirst : 0).reduce((best, w, i) => {
+              return w.word.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(lastWord.slice(0, 4)) ? iFirst + i : best;
+            }, -1);
+            if (iFirst >= 0) seg.startTime = alignedWords[iFirst].start;
+            if (iLast  >= 0) seg.endTime   = alignedWords[iLast].end;
+          }
+          // Store flat word array for subtitle rendering
+          if (typeof createAlignedWords !== 'undefined') createAlignedWords = alignedWords;
+          else window._createAlignedWords = alignedWords;
+          console.log('[Copilot] Scribe: segment boundaries refined');
+        }
+      } catch (e) {
+        console.warn('[Copilot] word alignment failed, using character-proportion timing:', e.message);
+      }
+
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
       // #5 Ghost timeline — show skeleton cards with timecodes while prompts generate
       if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
@@ -25317,28 +25479,35 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     segments = clampSegments(segments, 6, 9);
     reelSourceLang = segments[0]?.lang || null;
 
-    // Collect all words for subtitle rendering.
-    // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
-    // Distribute each segment's words evenly across the segment's confirmed time window.
-    reelWords = [];
-    for (const seg of segments) {
-      const text = seg.text || '';
-      const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
-      if (wds.length === 0) continue;
-      const sStart = seg.startTime || 0;
-      const sEnd = seg.endTime || reelAudioBuffer.duration;
-      const sDur = Math.max(0.1, sEnd - sStart);
-      const wDur = sDur / wds.length;
-      wds.forEach((w, i) => {
-        reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
-      });
-    }
-    // Final fallback: if still no words, create from all segment texts
-    if (reelWords.length === 0 && segments.length > 0) {
-      const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
-      const totalDur = reelAudioBuffer.duration;
-      const wDur = totalDur / Math.max(1, allText.length);
-      allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+    // Word timing: Scribe → Gemini → even distribution within Gemini segments.
+    reelProgressLabel.textContent = 'Aligning subtitle words…';
+    updateReelAgentTask('script', 'subtitles', 'running', 'Aligning words…');
+    const scribeWords = await alignWordsWithScribe(reelAudioBuffer, reelSourceLang);
+    if (scribeWords) {
+      reelWords = scribeWords;
+      console.log(`[ReelGen] Scribe: ${reelWords.length} words`);
+    } else {
+      // Gemini segments already give us boundaries — distribute words evenly within each
+      reelWords = [];
+      for (const seg of segments) {
+        const text = seg.text || '';
+        const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+        if (wds.length === 0) continue;
+        const sStart = seg.startTime || 0;
+        const sEnd = seg.endTime || reelAudioBuffer.duration;
+        const sDur = Math.max(0.1, sEnd - sStart);
+        const wDur = sDur / wds.length;
+        wds.forEach((w, i) => {
+          reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
+        });
+      }
+      if (reelWords.length === 0 && segments.length > 0) {
+        const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
+        const totalDur = reelAudioBuffer.duration;
+        const wDur = totalDur / Math.max(1, allText.length);
+        allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+      }
+      console.log(`[ReelGen] Gemini fallback: ${reelWords.length} words`);
     }
     console.log(`[ReelGen] Single: ${segments.length} segments, ${reelWords.length} words`);
     updateReelAgentTask('script', 'transcribe', 'done', 'Audio transcribed');
@@ -34045,8 +34214,11 @@ function _normaliseGemini(data) {
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const inputTokens  = data.usageMetadata?.promptTokenCount    || 0;
   const outputTokens = data.usageMetadata?.candidatesTokenCount || 0;
+  const cachedTokens = data.usageMetadata?.cachedContentTokenCount || 0;
+  const hitPct = inputTokens > 0 ? Math.round((cachedTokens / inputTokens) * 100) : 0;
+  console.log(`[Gemini cache] in=${inputTokens} cached=${cachedTokens} (${hitPct}% hit) out=${outputTokens}`);
   const costUsd = _trackCost(inputTokens, outputTokens, 'gemini');
-  return { text, inputTokens, outputTokens, costUsd, model: 'gemini-2.5-flash' };
+  return { text, inputTokens, outputTokens, cachedTokens, costUsd, model: 'gemini-2.5-flash' };
 }
 
 function _normaliseOpenAI(data) {
@@ -34121,9 +34293,10 @@ BEHAVIOUR RULES:
 7. If the user goes off-track, gently steer the conversation back to script development.
 8. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
 9. Around message 12 of 15, gently nudge: "We've covered a lot — ready to finalise the script, or want to keep refining a specific part?"
+10. If the user EXPLICITLY asks for a full/final script at any point ("give me the script", "write the full script", "finalise", etc.), deliver it immediately in the finalised JSON format — do not continue the wizard flow.
 
 SCOPE LIMITS:
-- Don't write full scripts on demand. Always converse first.
+- Don't write full scripts on demand UNLESS the user explicitly asks for one.
 - Don't suggest more than 9 scenes total (Autopilot's grid layout).
 - Don't include advanced production directions (camera moves, lighting setups, transitions). Focus on visual concept + spoken/displayed words.`,
 
@@ -34139,9 +34312,10 @@ BEHAVIOUR RULES:
 7. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
 8. BREVITY IS NON-NEGOTIABLE. Every reply must stay under 150 words. Use bullet points, not paragraphs. Never re-explain prior context. Bold the key choice or question. Develop ONE section at a time.
 9. Around message 12 of 15, gently nudge: "We've outlined a strong shape — ready to finalise, or is there a section you want to refine first?"
+10. If the user EXPLICITLY asks for a full/final script at any point, deliver it immediately — do not continue the wizard flow.
 
 SCOPE LIMITS:
-- Don't write full scripts on demand. Always converse first.
+- Don't write full scripts on demand UNLESS the user explicitly asks for one.
 - Don't include advanced production directions beyond visual + narration + tone. Stori's pipeline handles the rest.`
 };
 
@@ -34166,7 +34340,8 @@ RULES:
 - Total duration must match estDuration.
 - Each scene: 3–8 seconds.
 - voice = exactly what should be spoken or shown as text on screen.
-- visual = a single concrete image that illustrates the scene.`,
+- visual = a single concrete image that illustrates the scene.
+- CRITICAL: hook and Scene 1 voice MUST be different. hook is the attention-grabbing opener (a question, bold statement, or teaser). Scene 1 voice is the first full sentence that follows it. Never repeat the hook word-for-word in Scene 1.`,
 
   copilot: `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
 
@@ -34300,8 +34475,19 @@ function _init() {
 
   var editBtn = document.getElementById('bs-edit-btn');
   if (editBtn) editBtn.addEventListener('click', function() {
-    // Switch back to chat for further refinement
+    // Switch back to chat for further refinement — re-enable input regardless of message count
+    var bsInput   = document.getElementById('bs-input');
+    var bsSendBtn = document.getElementById('bs-send-btn');
+    if (bsInput)   bsInput.disabled   = false;
+    if (bsSendBtn) bsSendBtn.disabled = !bsInput?.value.trim();
     _showScreen('bs-chat');
+  });
+
+  var newSessionBtn = document.getElementById('bs-new-session-btn');
+  if (newSessionBtn) newSessionBtn.addEventListener('click', function() {
+    if (!confirm('Start a new session? This will clear the current conversation.')) return;
+    _clearSession();
+    _showScreen('bs-selector');
   });
 
   var regenBtn = document.getElementById('bs-regen-btn');
@@ -34607,8 +34793,18 @@ async function _sendMessage() {
   var text = input.value.trim();
   if (!text) return;
 
-  // Check limit
-  if (brainstormState.messageCount >= MAX_MESSAGES) {
+  // If user explicitly asks for the final script, trigger finalise directly
+  var _finaliseIntent = /\b(final(ise|ize|[- ]?script)|give.*script|write.*script|full script|complete script|make.*script|generate.*script|create.*script|done.*chat|skip.*chat|just.*script)\b/i.test(text);
+  if (_finaliseIntent && brainstormState.messages.filter(function(m) { return m.role === 'user'; }).length >= 1) {
+    input.value = '';
+    _appendMessage('user', text);
+    brainstormState.messages.push({ role: 'user', content: text });
+    _finaliseScript();
+    return;
+  }
+
+  // Check limit — skip if already finalised (user is in edit/refine mode)
+  if (!brainstormState.finalised && brainstormState.messageCount >= MAX_MESSAGES) {
     _showLimitBanner();
     return;
   }
@@ -34831,7 +35027,7 @@ function _checkFinalisable() {
     _showApproachingBanner(remaining);
   }
 
-  if (count >= MAX_MESSAGES) {
+  if (count >= MAX_MESSAGES && !brainstormState.finalised) {
     _hideApproachingBanner();
     var input   = document.getElementById('bs-input');
     var sendBtn = document.getElementById('bs-send-btn');

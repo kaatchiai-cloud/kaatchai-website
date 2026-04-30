@@ -1373,28 +1373,35 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
     segments = clampSegments(segments, 6, 9);
     reelSourceLang = segments[0]?.lang || null;
 
-    // Collect all words for subtitle rendering.
-    // Always use segment-level timing — Gemini's per-word timestamps are unreliable.
-    // Distribute each segment's words evenly across the segment's confirmed time window.
-    reelWords = [];
-    for (const seg of segments) {
-      const text = seg.text || '';
-      const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
-      if (wds.length === 0) continue;
-      const sStart = seg.startTime || 0;
-      const sEnd = seg.endTime || reelAudioBuffer.duration;
-      const sDur = Math.max(0.1, sEnd - sStart);
-      const wDur = sDur / wds.length;
-      wds.forEach((w, i) => {
-        reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
-      });
-    }
-    // Final fallback: if still no words, create from all segment texts
-    if (reelWords.length === 0 && segments.length > 0) {
-      const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
-      const totalDur = reelAudioBuffer.duration;
-      const wDur = totalDur / Math.max(1, allText.length);
-      allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+    // Word timing: Scribe → Gemini → even distribution within Gemini segments.
+    reelProgressLabel.textContent = 'Aligning subtitle words…';
+    updateReelAgentTask('script', 'subtitles', 'running', 'Aligning words…');
+    const scribeWords = await alignWordsWithScribe(reelAudioBuffer, reelSourceLang);
+    if (scribeWords) {
+      reelWords = scribeWords;
+      console.log(`[ReelGen] Scribe: ${reelWords.length} words`);
+    } else {
+      // Gemini segments already give us boundaries — distribute words evenly within each
+      reelWords = [];
+      for (const seg of segments) {
+        const text = seg.text || '';
+        const wds = text.trim().split(/\s+/).filter(w => w.length > 0);
+        if (wds.length === 0) continue;
+        const sStart = seg.startTime || 0;
+        const sEnd = seg.endTime || reelAudioBuffer.duration;
+        const sDur = Math.max(0.1, sEnd - sStart);
+        const wDur = sDur / wds.length;
+        wds.forEach((w, i) => {
+          reelWords.push({ word: w, start: sStart + i * wDur, end: sStart + (i + 1) * wDur });
+        });
+      }
+      if (reelWords.length === 0 && segments.length > 0) {
+        const allText = segments.map(s => s.text || '').join(' ').trim().split(/\s+/);
+        const totalDur = reelAudioBuffer.duration;
+        const wDur = totalDur / Math.max(1, allText.length);
+        allText.forEach((w, i) => { reelWords.push({ word: w, start: i * wDur, end: (i + 1) * wDur }); });
+      }
+      console.log(`[ReelGen] Gemini fallback: ${reelWords.length} words`);
     }
     console.log(`[ReelGen] Single: ${segments.length} segments, ${reelWords.length} words`);
     updateReelAgentTask('script', 'transcribe', 'done', 'Audio transcribed');

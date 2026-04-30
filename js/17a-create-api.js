@@ -232,6 +232,89 @@ function getFreeKey() { return getApiKey(); }
 function getPaidKey() { return getApiKey(); }
 function isPaidTier() { return true; }
 
+function getElevenLabsKey() {
+  return localStorage.getItem('stori_elevenlabs_key') || '';
+}
+
+// Send an AudioBuffer to ElevenLabs Scribe for sample-accurate per-word timestamps.
+// Returns [{word, start, end}] or null on failure / missing key.
+async function alignWordsWithScribe(audioBuffer, langCode) {
+  const key = getElevenLabsKey();
+  if (!key) return null;
+  try {
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const formData = new FormData();
+    formData.append('file', wavBlob, 'audio.wav');
+    formData.append('model_id', 'scribe_v1');
+    formData.append('timestamps_granularity', 'word');
+    formData.append('tag_audio_events', 'false');
+    formData.append('diarize', 'false');
+    if (langCode && langCode !== 'original') formData.append('language_code', langCode);
+    const resp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': key },
+      body: formData,
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.warn('[Scribe] ElevenLabs error', resp.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = await resp.json();
+    const words = (data.words || [])
+      .filter(w => w && w.type === 'word' && typeof w.start === 'number' && typeof w.end === 'number')
+      .map(w => ({ word: w.text, start: w.start, end: w.end }));
+    return words.length ? words : null;
+  } catch (e) {
+    console.warn('[Scribe] alignment failed:', e.message);
+    return null;
+  }
+}
+
+// Gemini fallback: transcribe audio into segments then distribute words uniformly.
+// Returns [{word, start, end}] or null.
+async function alignWordsWithGemini(audioBuffer, key) {
+  try {
+    const dur = audioBuffer.duration;
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const b64 = await blobToBase64(wavBlob);
+    const body = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: 'audio/wav', data: b64.split(',')[1] } },
+        { text: `Audio duration: ${dur.toFixed(2)}s. Transcribe and break into 6-9 segments at natural sentence/pause boundaries. Segments must be contiguous (first startTime=0, last endTime=${dur.toFixed(2)}, no gaps). Return ONLY a JSON array:\n[{"startTime":0.0,"endTime":8.0,"text":"words here"}]` },
+      ]}],
+      generationConfig: { response_mime_type: 'application/json' },
+    };
+    const data = await callGeminiAPI(['gemini-2.5-flash'], body, key);
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let segs = typeof parseGeminiJson === 'function' ? parseGeminiJson(raw) : JSON.parse(raw);
+    if (!Array.isArray(segs) || !segs.length) return null;
+    segs = segs
+      .filter(s => typeof s.startTime === 'number' && typeof s.endTime === 'number' && s.endTime > s.startTime && s.text)
+      .sort((a, b) => a.startTime - b.startTime)
+      .map(s => ({ startTime: Math.max(0, s.startTime), endTime: Math.min(dur, s.endTime), text: s.text.trim() }));
+    const words = [];
+    for (const s of segs) {
+      const wds = s.text.split(/\s+/).filter(Boolean);
+      if (!wds.length) continue;
+      const dpw = Math.max(0.05, (s.endTime - s.startTime) / wds.length);
+      wds.forEach((w, i) => words.push({ word: w, start: s.startTime + i * dpw, end: s.startTime + (i + 1) * dpw }));
+    }
+    return words.length ? words : null;
+  } catch (e) {
+    console.warn('[Scribe] Gemini fallback failed:', e.message);
+    return null;
+  }
+}
+
+// Full alignment pipeline: Scribe → Gemini → null.
+// null means caller should use its own local fallback (even distribution).
+async function alignWords(audioBuffer, langCode, geminiKey) {
+  let words = await alignWordsWithScribe(audioBuffer, langCode);
+  if (!words) words = await alignWordsWithGemini(audioBuffer, geminiKey);
+  return words;
+}
+
 function flashSave(btn, statusEl) {
   statusEl.textContent = '✓ Saved';
   statusEl.style.color = '#10b981';
@@ -422,6 +505,33 @@ function saveKlingKey(lsKey, inputId, btn) {
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = orig; }, 1500);
 }
+
+function saveElevenLabsKey(inputId, btn) {
+  const input = $(inputId);
+  if (!input || !input.value.trim() || input.value.startsWith('●')) return;
+  localStorage.setItem('stori_elevenlabs_key', input.value.trim());
+  input.value = '●'.repeat(20);
+  const statusId = inputId.replace('-key', '-status');
+  const statusEl = $(statusId);
+  if (statusEl) statusEl.textContent = '✓ Saved';
+  const orig = btn.textContent;
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+// Pre-fill ElevenLabs key inputs from localStorage on load
+(function initElevenLabsKeyInputs() {
+  const el = getElevenLabsKey();
+  if (!el) return;
+  ['create-elevenlabs-key', 'reel-elevenlabs-key'].forEach(id => {
+    const inp = $(id);
+    if (inp) inp.value = '●'.repeat(20);
+  });
+  ['create-elevenlabs-status', 'reel-elevenlabs-status'].forEach(id => {
+    const el2 = $(id);
+    if (el2) el2.textContent = '✓ Saved';
+  });
+})();
 
 // Pre-fill Kling key inputs from localStorage on load
 (function initKlingKeyInputs() {

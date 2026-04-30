@@ -2035,6 +2035,17 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </div>
 
+    <!-- ElevenLabs key (Copilot) — for subtitle word alignment via Scribe -->
+    <div style="margin-top:10px;">
+      <div class="form-row">
+        <label class="text-xs text-muted" style="min-width:110px;">ElevenLabs (subs):</label>
+        <input type="password" id="create-elevenlabs-key" placeholder="ElevenLabs API key (optional)" style="width:220px;" autocomplete="off" data-form-type="other">
+        <button onclick="saveElevenLabsKey('create-elevenlabs-key',this)" class="btn-xs">Save</button>
+        <span id="create-elevenlabs-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin:2px 0 0 114px;">Optional — enables sample-accurate subtitle word timing via Scribe. Falls back to Gemini.</p>
+    </div>
+
     <!-- Step 1: Input & Template -->
     <div class="create-step" id="create-input-step">
       <h3><span class="step-num">1</span> Input &amp; Template</h3>
@@ -2563,6 +2574,17 @@ body:has(#drop-zone:not(.hidden)) {
           <button onclick="saveKlingKey('stori_kling_secret_key','reel-kling-sk',this)" class="btn-xs">Save</button>
         </div>
       </div>
+    </div>
+
+    <!-- ElevenLabs key (Autopilot) — for subtitle word alignment via Scribe -->
+    <div style="margin-top:10px;">
+      <div class="form-row">
+        <label class="text-xs text-muted" style="min-width:110px;">ElevenLabs (subs):</label>
+        <input type="password" id="reel-elevenlabs-key" placeholder="ElevenLabs API key (optional)" style="width:220px; font-size:0.75rem;" autocomplete="off" data-form-type="other">
+        <button onclick="saveElevenLabsKey('reel-elevenlabs-key',this)" class="btn-xs">Save</button>
+        <span id="reel-elevenlabs-status" class="text-xs text-muted"></span>
+      </div>
+      <p class="text-xs text-muted" style="margin:2px 0 0 114px;">Optional — enables sample-accurate subtitle word timing via Scribe. Falls back to Gemini.</p>
     </div>
 
     <!-- Reel Step 2: Input -->
@@ -3523,6 +3545,7 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="bs-send-btn" class="bs-send-btn" disabled>Send ↗</button>
         </div>
         <div class="bs-chat-actions">
+          <button id="bs-new-session-btn" class="bs-tool-btn" style="font-size:0.75rem; opacity:0.7;">↺ New Session</button>
           <button id="bs-finalise-btn" class="bs-finalise-btn" disabled>✨ Finalise Script</button>
           <span class="bs-hint" id="bs-finalise-hint">Finalise enabled after 3+ exchanges</span>
         </div>

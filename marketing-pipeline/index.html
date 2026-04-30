@@ -225,12 +225,18 @@
     .planner-topic-card {
       background:var(--bg-card); border:1px solid var(--border); border-radius:6px;
       padding:8px 10px; cursor:pointer; transition:border-color .15s, background .15s;
+      display:flex; align-items:flex-start; gap:8px;
     }
     .planner-topic-card:hover { border-color:var(--accent-2); background:#1e1e2e; }
     .planner-topic-card.selected { border-color:var(--accent); background:rgba(124,58,237,.12); }
+    .planner-topic-checkbox { margin-top:3px; cursor:pointer; flex-shrink:0; }
+    .planner-topic-body { flex:1; min-width:0; }
     .planner-topic-title { font-size:12px; font-weight:600; margin-bottom:3px; line-height:1.35; }
     .planner-topic-sub { font-size:10px; color:var(--text-muted); margin-bottom:4px; }
     .planner-topic-why { font-size:10px; color:var(--cyan); }
+    .planner-pick-col-toolbar { display:flex; gap:6px; align-items:center; margin-bottom:4px; font-size:10px; }
+    .planner-pick-col-toolbar a { color:var(--cyan); cursor:pointer; user-select:none; }
+    .planner-pick-col-toolbar a:hover { text-decoration:underline; }
 
     .planner-pick-col { display:flex; flex-direction:column; gap:6px; }
     .planner-pick-col-header { font-size:11px; font-weight:700; margin-bottom:2px; }
@@ -305,6 +311,8 @@
               <option value="laozhang">laozhang.ai</option>
               <option value="wisdom">wisdom (wisgate.ai)</option>
               <option value="gpt-image-mini">GPT Image 1 Mini (OpenAI)</option>
+              <option value="fal-schnell">FLUX Schnell (fal.ai)</option>
+              <option value="fal-flux-2-flash">FLUX 2 Flash (fal.ai)</option>
             </select>
           </div>
 
@@ -345,6 +353,13 @@
             <input type="password" id="openai-key-input" placeholder="OpenAI API key (sk-...)" style="width:200px;">
             <button class="btn-pri" id="btn-save-openai-key">Save</button>
             <span id="openai-key-status" class="text-xs text-muted"></span>
+          </div>
+
+          <div class="form-row hidden" id="fal-key-row">
+            <label style="min-width:100px;">fal.ai key</label>
+            <input type="password" id="fal-key-input" placeholder="fal.ai API key" style="width:200px;">
+            <button class="btn-pri" id="btn-save-fal-key">Save</button>
+            <span id="fal-key-status" class="text-xs text-muted"></span>
           </div>
         </div>
 
@@ -420,6 +435,8 @@
             <label class="planner-lang-label"><input type="checkbox" class="magic-ch-check" value="stori-india" checked> India (9)</label>
             <label class="planner-lang-label"><input type="checkbox" class="magic-ch-check" value="stori-global" checked> Global (8)</label>
           </div>
+          <label class="field">Voice</label>
+          <select class="tile-voice-select" data-channel="magic" style="width:100%;font-size:12px;"></select>
           <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
             <button class="btn-pri magic-go-btn" style="font-size:12px;padding:7px 14px;font-weight:700;">🪄 Generate All</button>
             <span class="text-xs text-muted" id="magic-count-label">18 videos</span>
@@ -436,6 +453,8 @@
           <div class="planner-tile-header">🇺🇸 Stori <span class="badge">English</span></div>
           <label class="field">Category</label>
           <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Voice</label>
+          <select class="tile-voice-select" style="width:100%;font-size:12px;"></select>
           <label class="field">Mode</label>
           <div class="pill-group tile-mode-pills">
             <button class="pill active" data-mode="auto">⚡ Auto</button>
@@ -477,6 +496,8 @@
           </div>
           <label class="field">Category</label>
           <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Voice</label>
+          <select class="tile-voice-select" style="width:100%;font-size:12px;"></select>
           <label class="field">Mode</label>
           <div class="pill-group tile-mode-pills">
             <button class="pill active" data-mode="auto">⚡ Auto</button>
@@ -517,6 +538,8 @@
           </div>
           <label class="field">Category</label>
           <select class="tile-cat-select" style="width:100%;font-size:12px;"></select>
+          <label class="field">Voice</label>
+          <select class="tile-voice-select" style="width:100%;font-size:12px;"></select>
           <label class="field">Mode</label>
           <div class="pill-group tile-mode-pills">
             <button class="pill active" data-mode="auto">⚡ Auto</button>
@@ -588,6 +611,27 @@
         <label class="text-xs"><input type="checkbox" id="chk-watermark" checked> Watermark</label>
         <label class="text-xs"><input type="checkbox" id="chk-intro" checked> Intro</label>
         <label class="text-xs"><input type="checkbox" id="chk-endcard" checked> End card</label>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label>Voice</label>
+        <select id="global-voice-select" style="width:240px;" title="Default Gemini TTS voice for new jobs"></select>
+        <span class="text-xs text-muted">Per-tile override below; per-job override on each card</span>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label>TTS mode</label>
+        <select id="tts-mode-select" style="width:240px;" title="How TTS audio is generated for each job">
+          <option value="single-video" selected>Single video (1 call, smoother prosody)</option>
+          <option value="per-scene">Per-scene (6 calls, predictable timings)</option>
+        </select>
+        <span class="text-xs text-muted">Single video uses ElevenLabs Scribe to derive scene boundaries from the audio</span>
+      </div>
+
+      <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+        <label>Motion</label>
+        <select id="motion-select" style="width:240px;" title="Camera motion applied to still images. Only applies to illustrated videos — animated (Kling) videos already have motion."></select>
+        <span class="text-xs text-muted">Illustrated videos only · per-job override on each card</span>
       </div>
 
       <div class="form-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
@@ -697,6 +741,7 @@
         <button class="btn-sm"  id="btn-run-selected" disabled>▶ Selected</button>
         <button class="btn-sm"  id="btn-pause"   style="display:none;" disabled>⏸ Pause</button>
         <button class="btn-sm"  id="btn-resume"  style="display:none;" disabled>▶ Resume</button>
+        <button class="btn-sm"  id="btn-recover-kling" title="Find Kling videos that finished server-side but weren't received (kling-official only)">🔧 Recover Kling</button>
         <button class="btn-danger" id="btn-clear" disabled>Clear</button>
         <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
           <span class="text-xs text-muted">Workers:</span>
@@ -804,7 +849,7 @@
 
   const PLANNER_MODE_DESC = {
     'auto':  'AI picks the best trending topic, researches it, and generates a video — fully automatic',
-    'pick':  'AI suggests 9 topics — you pick one — then research + generation runs automatically',
+    'pick':  'AI suggests topics per language — tick one or more (multi-select) — then research + generation runs automatically',
     'batch': 'AI picks multiple topics, researches all, and generates a batch of videos automatically',
   };
 
@@ -816,9 +861,10 @@
   let laozhangKey = '';
   let wisdomKey = '';
   let openaiKey = '';
+  let falKey = '';
   let elevenLabsKey = '';
   let gptImageQuality = 'medium';
-  let selectedImageProvider = 'laozhang'; // 'gemini' | 'laozhang' | 'wisdom' | 'gpt-image-mini'
+  let selectedImageProvider = 'laozhang'; // 'gemini' | 'laozhang' | 'wisdom' | 'gpt-image-mini' | 'fal-schnell' | 'fal-flux-2-flash'
   let selectedImgGenMode = 'auto'; // 'auto' | 'grid' | 'individual'
   let selectedVideoMode = 'illustrated'; // 'illustrated' | 'animated'
   let klingKey = '';            // reseller single key (kie / piapi)
@@ -829,6 +875,27 @@
   let nextJobId = 1;
   let selectedChannel = 'stori';
   let selectedPlatform = 'youtube';
+  let selectedVoice    = 'Kore';   // global default voice — used when a job has no explicit voice
+  // Per-tile voice override map — channel id → voice id. Falls back to selectedVoice when unset.
+  const tileVoices = { 'magic': null, 'stori': null, 'stori-india': null, 'stori-global': null };
+  // TTS mode — 'single-video' (default, 1 API call, ElevenLabs Scribe derives scene boundaries)
+  // or 'per-scene' (6 API calls per job, predictable per-scene durations from buffers)
+  let selectedTtsMode = 'single-video';
+  // Motion preset for illustrated (still-image) videos. 'auto' cycles through MOTION_CYCLE,
+  // any other value applies that single motion to every scene. Has no effect on animated
+  // (Kling) videos since those scenes already contain motion.
+  let selectedMotion = 'ken-burns';
+  const MOTION_OPTIONS = [
+    ['ken-burns',    'Ken Burns (default)'],
+    ['auto',         'Auto cycle (varies per scene)'],
+    ['slow-zoom-in', 'Slow zoom in'],
+    ['slow-zoom-out','Slow zoom out'],
+    ['pan-left',     'Pan left'],
+    ['pan-right',    'Pan right'],
+    ['pan-up',       'Pan up'],
+    ['pan-down',     'Pan down'],
+    ['none',         'None (static)'],
+  ];
   let csvRows = [];
   let runningCount = 0;
 
@@ -906,9 +973,61 @@
       document.getElementById('btn-toggle-planner').textContent = hidden ? 'Show' : 'Hide';
     });
 
+    // Global voice selector
+    const globalVoiceSel = document.getElementById('global-voice-select');
+    if (globalVoiceSel) {
+      globalVoiceSel.innerHTML = buildVoiceSelectHtml(selectedVoice);
+      globalVoiceSel.addEventListener('change', () => {
+        selectedVoice = globalVoiceSel.value;
+        // Sync any tile voice selectors that haven't been overridden — they follow the global default
+        document.querySelectorAll('.tile-voice-select').forEach(el => {
+          const ch = el.dataset.channel || el.closest('.planner-tile')?.dataset.channel;
+          if (ch && !tileVoices[ch]) el.value = selectedVoice;
+        });
+      });
+    }
+
+    // TTS mode selector — restore from localStorage and persist on change
+    const ttsModeSel = document.getElementById('tts-mode-select');
+    if (ttsModeSel) {
+      const savedTts = localStorage.getItem('stori_tts_mode');
+      if (savedTts === 'single-video' || savedTts === 'per-scene') selectedTtsMode = savedTts;
+      ttsModeSel.value = selectedTtsMode;
+      ttsModeSel.addEventListener('change', () => {
+        selectedTtsMode = ttsModeSel.value;
+        localStorage.setItem('stori_tts_mode', selectedTtsMode);
+        if (selectedTtsMode === 'single-video' && !getElevenLabsKey()) {
+          toast('Single-video TTS works best with an ElevenLabs key (Scribe). Without one, scene boundaries will be estimated from text proportions.', 'info');
+        }
+      });
+    }
+
+    // Motion preset selector — populate from MOTION_OPTIONS, restore from localStorage
+    // (loadSubSettings has already restored selectedMotion by now), persist on change.
+    const motionSel = document.getElementById('motion-select');
+    if (motionSel) {
+      motionSel.innerHTML = MOTION_OPTIONS
+        .map(([v, l]) => `<option value="${v}" ${v === selectedMotion ? 'selected' : ''}>${l}</option>`)
+        .join('');
+      motionSel.addEventListener('change', () => {
+        selectedMotion = motionSel.value;
+        saveSubSettings();
+      });
+    }
+
     // Init each channel tile
     document.querySelectorAll('.planner-tile[data-channel]').forEach(tile => {
       const ch = tile.dataset.channel;
+
+      // Populate per-tile voice dropdown (every tile, including magic)
+      const tileVoiceSel = tile.querySelector('.tile-voice-select');
+      if (tileVoiceSel) {
+        tileVoiceSel.innerHTML = buildVoiceSelectHtml(tileVoices[ch] || selectedVoice);
+        tileVoiceSel.addEventListener('change', () => {
+          tileVoices[ch] = tileVoiceSel.value || null;
+        });
+      }
+
       if (ch === 'magic') { initMagicTile(tile); return; }
 
       // Populate category dropdown
@@ -1104,8 +1223,8 @@
     );
     if (ts.cancelled) return;
 
-    // Render pick columns
-    tileSetStatus(channel, '👆 Pick one topic per language, then click Generate Selected', null);
+    // Render pick columns — multi-select via checkboxes (one or many topics per language)
+    tileSetStatus(channel, '☑ Tick one or more topics, then click Generate Selected', null);
     const pickArea = tile.querySelector('.tile-pick-area');
     const colCount = langs.length <= 2 ? langs.length : langs.length <= 4 ? langs.length : 2;
     pickArea.innerHTML = `
@@ -1113,27 +1232,59 @@
         ${langTopics.map(lt => `
           <div class="planner-pick-col" data-lang='${JSON.stringify(lt.lang)}'>
             <div class="planner-pick-col-header">${lt.lang[2]} ${lt.lang[1]}</div>
+            <div class="planner-pick-col-toolbar">
+              <a class="js-pick-all">Select all</a> · <a class="js-pick-none">Clear</a>
+            </div>
             ${lt.topics.map((t, i) => `
-              <div class="planner-topic-card" data-idx="${i}" data-topic='${JSON.stringify(t).replace(/'/g, '&#39;')}'>
-                <div class="planner-topic-title">${t.title}</div>
-                <div class="planner-topic-sub">${t.topic}</div>
-              </div>`).join('')}
+              <label class="planner-topic-card" data-idx="${i}" data-topic='${JSON.stringify(t).replace(/'/g, '&#39;')}'>
+                <input type="checkbox" class="planner-topic-checkbox">
+                <div class="planner-topic-body">
+                  <div class="planner-topic-title">${t.title}</div>
+                  <div class="planner-topic-sub">${t.topic}</div>
+                </div>
+              </label>`).join('')}
           </div>`).join('')}
       </div>
-      <button class="btn-pri" style="margin-top:10px;font-size:12px;padding:7px 16px;" disabled>▶ Generate Selected</button>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+        <button class="btn-pri js-pick-generate" style="font-size:12px;padding:7px 16px;" disabled>▶ Generate Selected</button>
+        <span class="js-pick-count text-xs text-muted">0 selected</span>
+      </div>
     `;
     pickArea.classList.remove('hidden');
 
-    // Click handler: select one per column
-    const genBtn = pickArea.querySelector('.btn-pri');
+    const genBtn = pickArea.querySelector('.js-pick-generate');
+    const countEl = pickArea.querySelector('.js-pick-count');
+
+    function syncSelectionState() {
+      pickArea.querySelectorAll('.planner-topic-card').forEach(card => {
+        const cb = card.querySelector('.planner-topic-checkbox');
+        card.classList.toggle('selected', cb.checked);
+      });
+      const total = pickArea.querySelectorAll('.planner-topic-checkbox:checked').length;
+      countEl.textContent = `${total} selected`;
+      genBtn.disabled = total === 0;
+    }
+
+    // Click on a card toggles its checkbox; clicking the checkbox itself works natively too
+    pickArea.querySelectorAll('.planner-topic-card').forEach(card => {
+      card.addEventListener('click', e => {
+        if (e.target.tagName !== 'INPUT') {
+          const cb = card.querySelector('.planner-topic-checkbox');
+          cb.checked = !cb.checked;
+        }
+        syncSelectionState();
+      });
+    });
+
+    // Per-column "Select all" / "Clear" links
     pickArea.querySelectorAll('.planner-pick-col').forEach(col => {
-      col.addEventListener('click', e => {
-        const card = e.target.closest('.planner-topic-card');
-        if (!card) return;
-        col.querySelectorAll('.planner-topic-card').forEach(c => c.classList.toggle('selected', c === card));
-        // Enable generate if at least 1 topic picked across all columns
-        const anyPicked = pickArea.querySelector('.planner-topic-card.selected');
-        genBtn.disabled = !anyPicked;
+      col.querySelector('.js-pick-all')?.addEventListener('click', () => {
+        col.querySelectorAll('.planner-topic-checkbox').forEach(cb => cb.checked = true);
+        syncSelectionState();
+      });
+      col.querySelector('.js-pick-none')?.addEventListener('click', () => {
+        col.querySelectorAll('.planner-topic-checkbox').forEach(cb => cb.checked = false);
+        syncSelectionState();
       });
     });
 
@@ -1141,11 +1292,14 @@
     const picks = await new Promise((resolve, reject) => {
       genBtn.addEventListener('click', function handler() {
         genBtn.removeEventListener('click', handler);
-        const results = [...pickArea.querySelectorAll('.planner-pick-col')].map(col => {
-          const sel = col.querySelector('.planner-topic-card.selected');
-          if (!sel) return null;
-          return { lang: JSON.parse(col.dataset.lang), topic: JSON.parse(sel.dataset.topic) };
-        }).filter(Boolean);
+        // Collect ALL checked topics across all language columns
+        const results = [...pickArea.querySelectorAll('.planner-pick-col')].flatMap(col => {
+          const lang = JSON.parse(col.dataset.lang);
+          return [...col.querySelectorAll('.planner-topic-card.selected')].map(card => ({
+            lang,
+            topic: JSON.parse(card.dataset.topic),
+          }));
+        });
         resolve(results);
       });
       tile.querySelector('.tile-cancel-btn').addEventListener('click', () => reject(new Error('cancelled')), { once: true });
@@ -1413,6 +1567,10 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       subLang: 'en',  // Always English subtitles for planner jobs
       subStyle, subBackdrop, subSize, subPosition, subPosPct, subColor, subOutline,
       subFont, subAllCaps, subAccent,
+      // Voice — prefer per-tile override, fall back to global default
+      voice: tileVoices[channel] || selectedVoice,
+      // TTS mode snapshot — global default at job creation time (reads job.ttsMode at runtime if set)
+      ttsMode: selectedTtsMode,
     };
   }
 
@@ -1427,6 +1585,7 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     populateStyleSelect();
     bindChannels();
     bindPlatforms();
+    loadSubSettings();           // restore subtitle prefs from localStorage BEFORE binding UI
     bindSubtitleControls();
     bindTabs();
     bindAddButtons();
@@ -1434,6 +1593,11 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     bindQueueControls();
     bindProjectSaveLoad();
     document.getElementById('btn-close-preview').addEventListener('click', closeJobPreview);
+    // Restore queue from localStorage (continuous autosave) + scan for orphan Kling tasks
+    if (loadAutosavedJobs()) {
+      // Defer the scan so the API key fields are settled first
+      setTimeout(() => { autoRecoverOrphanKlingTasks().catch(() => {}); }, 500);
+    }
     document.getElementById('job-preview-overlay').addEventListener('click', e => {
       if (e.target === e.currentTarget) closeJobPreview();
     });
@@ -1463,6 +1627,11 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     if (openaiKey) {
       document.getElementById('openai-key-input').value = '●'.repeat(20);
       document.getElementById('openai-key-status').textContent = '✓ Saved';
+    }
+    falKey = localStorage.getItem('stori_fal_key') || '';
+    if (falKey) {
+      document.getElementById('fal-key-input').value = '●'.repeat(20);
+      document.getElementById('fal-key-status').textContent = '✓ Saved';
     }
     elevenLabsKey = localStorage.getItem('stori_elevenlabs_key') || '';
     if (elevenLabsKey) {
@@ -1526,6 +1695,8 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     document.getElementById('wisdom-key-row').classList.toggle('hidden', provider !== 'wisdom');
     document.getElementById('openai-key-row').classList.toggle('hidden', provider !== 'gpt-image-mini');
     document.getElementById('gpt-quality-row').classList.toggle('hidden', provider !== 'gpt-image-mini');
+    // Both fal.ai providers share the same key field
+    document.getElementById('fal-key-row').classList.toggle('hidden', !(provider === 'fal-schnell' || provider === 'fal-flux-2-flash'));
   }
 
   function bindApiKey() {
@@ -1570,6 +1741,17 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       document.getElementById('openai-key-input').value = '●'.repeat(20);
       document.getElementById('openai-key-status').textContent = '✓ Saved';
       toast('OpenAI key saved', 'success');
+    });
+
+    // fal.ai key save
+    document.getElementById('btn-save-fal-key').addEventListener('click', () => {
+      const val = document.getElementById('fal-key-input').value.trim();
+      if (!val || val.startsWith('●')) { toast('Enter a valid fal.ai key', 'error'); return; }
+      localStorage.setItem('stori_fal_key', val);
+      falKey = val;
+      document.getElementById('fal-key-input').value = '●'.repeat(20);
+      document.getElementById('fal-key-status').textContent = '✓ Saved';
+      toast('fal.ai key saved', 'success');
     });
 
     // ElevenLabs key save
@@ -1721,6 +1903,43 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
   // SUBTITLE CONTROLS
   // ═══════════════════════════════════════════════
 
+  // Persist subtitle global settings to localStorage so they survive page reload.
+  // Every job created after the user changes settings inherits the latest values
+  // (snapshotted at creation time in addJob / plannerCreateJob).
+  function saveSubSettings() {
+    try {
+      localStorage.setItem('stori_sub_settings', JSON.stringify({
+        subLang, subStyle, subBackdrop, subSize, subPosition, subPosPct,
+        subColor, subOutline, subFont, subAllCaps, subAccent,
+        // Snapshot of which preset (if any) was last selected
+        subPreset: document.getElementById('sub-preset-select')?.value || '',
+        selectedMotion,
+      }));
+    } catch (_) { /* quota or disabled — ignore */ }
+  }
+
+  // Restore subtitle globals from localStorage on page load. Call BEFORE bindSubtitleControls
+  // so the UI dropdowns reflect the restored values.
+  function loadSubSettings() {
+    try {
+      const raw = localStorage.getItem('stori_sub_settings');
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.subLang)      subLang      = s.subLang;
+      if (s.subStyle)     subStyle     = s.subStyle;
+      if (s.subBackdrop)  subBackdrop  = s.subBackdrop;
+      if (typeof s.subSize === 'number')   subSize     = s.subSize;
+      if (s.subPosition)  subPosition  = s.subPosition;
+      if (typeof s.subPosPct === 'number') subPosPct   = s.subPosPct;
+      if (s.subColor)     subColor     = s.subColor;
+      if (s.subOutline)   subOutline   = s.subOutline;
+      if (s.subFont)      subFont      = s.subFont;
+      if (typeof s.subAllCaps === 'boolean') subAllCaps = s.subAllCaps;
+      if (s.subAccent)    subAccent    = s.subAccent;
+      if (s.selectedMotion) selectedMotion = s.selectedMotion;
+    } catch (_) { /* corrupt — ignore */ }
+  }
+
   function bindSubtitleControls() {
     // Populate language dropdown
     const langSel = document.getElementById('sub-lang-select');
@@ -1729,7 +1948,7 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     ).join('');
     langSel.value = subLang;
 
-    langSel.onchange = () => { subLang = langSel.value; };
+    langSel.onchange = () => { subLang = langSel.value; saveSubSettings(); };
 
     const $sub = id => document.getElementById(id);
     const sizeRange = $sub('sub-size-range');
@@ -1738,6 +1957,23 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
     const posLabel  = $sub('sub-pos-label');
     const posSelect = $sub('sub-position-select');
     const presetSel = $sub('sub-preset-select');
+
+    // Reflect restored-from-localStorage values in the UI on first paint
+    $sub('sub-style-select').value    = subStyle;
+    $sub('sub-font-select').value     = subFont;
+    $sub('sub-allcaps-input').checked = subAllCaps;
+    $sub('sub-backdrop-select').value = subBackdrop;
+    $sub('sub-color-input').value     = subColor;
+    $sub('sub-outline-input').value   = subOutline;
+    $sub('sub-accent-input').value    = subAccent;
+    sizeRange.value = subSize; sizeLabel.textContent = subSize;
+    posRange.value  = subPosPct; posLabel.textContent = subPosPct + '%';
+    posSelect.value = subPosition;
+    // If user had a non-Custom preset selected last time, mark it
+    try {
+      const savedPreset = JSON.parse(localStorage.getItem('stori_sub_settings') || '{}').subPreset;
+      if (savedPreset && SUB_PRESETS[savedPreset]) presetSel.value = savedPreset;
+    } catch (_) {}
 
     presetSel.onchange = () => {
       const p = SUB_PRESETS[presetSel.value];
@@ -1762,9 +1998,10 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       sizeRange.value = p.size; sizeLabel.textContent = p.size;
       posRange.value = p.posPct; posLabel.textContent = p.posPct + '%';
       posSelect.value = subPosition;
+      saveSubSettings();
     };
 
-    const markCustom = () => { presetSel.value = ''; };
+    const markCustom = () => { presetSel.value = ''; saveSubSettings(); };
 
     $sub('sub-style-select').onchange    = e => { subStyle    = e.target.value; markCustom(); };
     $sub('sub-font-select').onchange     = e => { subFont     = e.target.value; markCustom(); };
@@ -1850,6 +2087,13 @@ Search the web for accurate, culturally relevant details and return ONLY valid J
       subFont,
       subAllCaps,
       subAccent,
+      // Voice (Gemini TTS voice id) — global default at job-creation time
+      voice: selectedVoice,
+      // TTS mode — 'per-scene' or 'single-video' (snapshot from globals at creation time)
+      ttsMode: selectedTtsMode,
+      // Motion preset for still-image scenes (snapshot at creation time). Ignored for
+      // animated/Kling videos. 'auto' = MOTION_CYCLE, anything else = single motion.
+      motion: selectedMotion,
       // Filled by Phase 3
       autoStyle: null,     // { name, reason }
       scenes: [],          // [{ sceneText, sceneDescription }]
@@ -1974,12 +2218,14 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   function addJob(job, render = true) {
     jobs.push(job);
     if (render) { renderJobs(); updateQueueControls(); }
+    autoSaveJobs?.();
   }
 
   function removeJob(id) {
     jobs = jobs.filter(j => j.id !== id);
     renderJobs();
     updateQueueControls();
+    autoSaveJobs?.();
   }
 
   function updateJobStatus(job, status, extra = {}) {
@@ -1987,6 +2233,7 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     Object.assign(job, extra);
     const card = document.querySelector(`.job-card[data-id="${job.id}"]`);
     if (card) updateJobCard(card, job);
+    autoSaveJobs?.();
   }
 
   // ═══════════════════════════════════════════════
@@ -2079,7 +2326,69 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
           </div>
         </div>
       </details>
+      ${buildPerJobBgmControls(job)}
     `;
+  }
+
+  // Per-job BGM panel — collapsible, with track preset and intensity slider.
+  // Live changes update the active preview audio gain immediately; track switches
+  // reload the preview audio element. Re-export uses the new values automatically.
+  function buildPerJobBgmControls(job) {
+    const j = job.id;
+    const bgmVal = job.bgm || pickAutoBgm(job.scenes);
+    const volVal = typeof job.bgmVolume === 'number' ? job.bgmVolume : 0.3;
+    const volPct = Math.round(volVal * 100);
+    const sel = (cur, opts) => opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('');
+    return `
+      <details class="job-bgm-panel" style="margin-top:6px;font-size:11px;">
+        <summary style="cursor:pointer;color:var(--text-muted);padding:4px 0;user-select:none;">🎵 Music & intensity (live preview, re-export to bake in)</summary>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:8px 4px 4px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Track</label>
+            <select class="js-job-bgm-preset" data-j="${j}" style="font-size:11px;">
+              ${sel(bgmVal, Object.entries(BGM_PRESETS).map(([k, v]) => [k, v.label]))}
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Intensity</label>
+            <input type="range" class="js-job-bgm-vol" data-j="${j}" min="0" max="100" step="1" value="${volPct}" style="width:90px;">
+            <span class="js-job-bgm-vol-lbl">${volPct}%</span>
+            <button class="btn-xs js-job-bgm-test" data-j="${j}" title="Preview the music alone for 3s" style="font-size:10px;">▶ Test</button>
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
+  // Per-job motion override panel — only rendered for illustrated (still-image) jobs.
+  // Animated (Kling) jobs ignore this since each clip already contains motion.
+  function buildPerJobMotionControls(job) {
+    const j = job.id;
+    const cur = job.motion || 'ken-burns';
+    const opts = MOTION_OPTIONS.map(([v, l]) =>
+      `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`
+    ).join('');
+    return `
+      <details class="job-motion-panel" style="margin-top:6px;font-size:11px;">
+        <summary style="cursor:pointer;color:var(--text-muted);padding:4px 0;user-select:none;">🎥 Motion (re-export to apply)</summary>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:8px 4px 4px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <label>Preset</label>
+            <select class="js-job-motion" data-j="${j}" style="font-size:11px;">${opts}</select>
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
+  function wirePerJobMotionControls(card, job) {
+    const sel = card.querySelector('.js-job-motion');
+    if (!sel) return;
+    const stop = e => e.stopPropagation();
+    sel.addEventListener('click', stop);
+    sel.addEventListener('change', e => { stop(e); job.motion = sel.value; });
+    const summary = card.querySelector('.job-motion-panel summary');
+    if (summary) summary.addEventListener('click', stop);
   }
 
   function pctBucket(pct) { return pct <= 20 ? 'top' : pct <= 65 ? 'center' : 'bottom'; }
@@ -2178,6 +2487,48 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     if (summary) summary.addEventListener('click', stop);
   }
 
+  function wirePerJobBgmControls(card, job) {
+    const presetEl = card.querySelector('.js-job-bgm-preset');
+    const volEl    = card.querySelector('.js-job-bgm-vol');
+    const volLbl   = card.querySelector('.js-job-bgm-vol-lbl');
+    const testBtn  = card.querySelector('.js-job-bgm-test');
+    if (!presetEl) return;
+    const stop = e => e.stopPropagation();
+
+    presetEl.addEventListener('click', stop);
+    presetEl.addEventListener('change', e => {
+      stop(e);
+      job.bgm = presetEl.value;
+      // Live update preview if it's open and showing this job
+      if (typeof refreshPreviewBgm === 'function') refreshPreviewBgm(job);
+    });
+
+    volEl.addEventListener('click', stop);
+    volEl.addEventListener('input', e => {
+      stop(e);
+      job.bgmVolume = parseInt(volEl.value, 10) / 100;
+      volLbl.textContent = volEl.value + '%';
+      // Live update preview gain (no source reload — just adjust gain)
+      if (typeof refreshPreviewBgmVolume === 'function') refreshPreviewBgmVolume(job);
+    });
+
+    if (testBtn) {
+      testBtn.addEventListener('click', e => {
+        stop(e);
+        const preset = BGM_PRESETS[job.bgm];
+        if (!preset || !preset.src) { toast('No track selected', ''); return; }
+        const a = new Audio(preset.src);
+        a.volume = (typeof job.bgmVolume === 'number' ? job.bgmVolume : 0.3);
+        a.play().catch(() => toast('Could not play track', 'error'));
+        // Stop after 3 seconds
+        setTimeout(() => { try { a.pause(); a.currentTime = 0; } catch {} }, 3000);
+      });
+    }
+
+    const summary = card.querySelector('.job-bgm-panel summary');
+    if (summary) summary.addEventListener('click', stop);
+  }
+
   function updateJobCard(card, job) {
     card.dataset.status = job.status;
     card.classList.toggle('selected', selectedJobIds.has(job.id));
@@ -2223,6 +2574,7 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
         </div>` : ''}
       ${isError ? `<div class="job-error">${escHtml(job.error || 'Unknown error')}</div>` : ''}
       ${isFullDone ? buildPerJobSubControls(job) : ''}
+      ${isFullDone && (job.videoMode || 'illustrated') === 'illustrated' ? buildPerJobMotionControls(job) : ''}
       ${job.title ? `
         <div style="margin-top:8px;padding:7px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:11px;">
           <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;">
@@ -2270,6 +2622,8 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
 
     // Per-job subtitle override panel — only present on done cards
     wirePerJobSubControls(card, job);
+    wirePerJobBgmControls(card, job);
+    wirePerJobMotionControls(card, job);
 
     const copyTitleBtn = card.querySelector('.btn-copy-title');
     if (copyTitleBtn) copyTitleBtn.addEventListener('click', e => {
@@ -2293,6 +2647,7 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   function bindQueueControls() {
     document.getElementById('btn-run-all').addEventListener('click', () => runAll(false));
     document.getElementById('btn-run-seq').addEventListener('click', () => runAll(true));
+    document.getElementById('btn-recover-kling')?.addEventListener('click', openKlingRecovery);
     document.getElementById('btn-run-selected').addEventListener('click', runSelected);
     document.getElementById('btn-pause').addEventListener('click', pauseQueue);
     document.getElementById('btn-resume').addEventListener('click', resumeQueue);
@@ -2352,6 +2707,10 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     'img-gpt-low':  0.005,
     'img-gpt-med':  0.015,
     'img-gpt-high': 0.052,
+    // fal.ai FLUX.1 [schnell] — $0.003 per image (verified fal.ai pricing)
+    'img-fal-schnell': 0.003,
+    // fal.ai FLUX 2 Flash — placeholder cost, verify on https://fal.ai/models/fal-ai/flux-2/flash
+    'img-fal-flux-2-flash': 0.005,
     // Kling v2.5 Turbo i2v — 10s 1080p per clip
     'kling-clip':   0.42,   // kie.ai ($0.42) — piapi is $0.33
     // gemini-2.5-flash audio transcription for word alignment: ~30s audio + ~1500 output tokens
@@ -2395,6 +2754,8 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
     if (selectedImageProvider === 'laozhang')       return laozhangKey || localStorage.getItem('stori_laozhang_key') || '';
     if (selectedImageProvider === 'wisdom')         return wisdomKey   || localStorage.getItem('stori_wisdom_key')   || '';
     if (selectedImageProvider === 'gpt-image-mini') return openaiKey   || localStorage.getItem('stori_openai_key')   || '';
+    if (selectedImageProvider === 'fal-schnell' || selectedImageProvider === 'fal-flux-2-flash')
+      return falKey || localStorage.getItem('stori_fal_key') || '';
     return getGeminiKey(); // gemini
   }
 
@@ -2435,45 +2796,84 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
   }
 
   // Robust JSON parser — handles markdown fences, trailing commas, extra text
+  // Robust Gemini JSON parser — multi-stage recovery, mirrors the main app's parseGeminiJson
+  // in js/17c-create-pipeline.js. Stages:
+  //   1. normalize (strip code fences, smart quotes, JS comments)
+  //   2. direct parse
+  //   3. extract array `[...]` + trailing-comma fix
+  //   4. extract array + missing-quote fix on known string keys
+  //   5. truncated-object recovery (extract every complete `{...}` and keep scene-shaped ones)
+  //   6. extract single `{...}` + trailing-comma fix
+  //   7. throw with raw preview
   function parseGeminiJson(text) {
-    let s = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    // Direct parse
+    if (!text) throw new Error('Empty response from Gemini');
+
+    // Stage 1: normalize
+    let s = text.trim()
+      .replace(/```json\s*/gi, '')          // fenced markdown
+      .replace(/```\s*/g, '')                // bare fences
+      .replace(/[“”]/g, '"')       // smart double quotes "" → "
+      .replace(/[‘’]/g, "'")       // smart single quotes '' → '
+      .replace(/\/\*[\s\S]*?\*\//g, '')      // /* block comments */
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1')  // // line comments (avoiding URL ://)
+      .trim();
+
+    // Stage 2: direct parse
     try { return JSON.parse(s); } catch (_) {}
-    // Trailing-comma fix on full object
-    const objMatch = s.match(/\{[\s\S]*\}/);
-    if (objMatch) {
-      let j = objMatch[0].replace(/,\s*([\]}])/g, '$1');
-      try { return JSON.parse(j); } catch (_) {}
-    }
-    // Array match
+
+    // Stage 3 + 4: extract array `[...]`, then progressively fix
     const arrMatch = s.match(/\[[\s\S]*\]/);
     if (arrMatch) {
-      let j = arrMatch[0].replace(/,\s*([\]}])/g, '$1');
+      let j = arrMatch[0].replace(/,\s*([\]}])/g, '$1'); // trailing-comma fix
+      try { return JSON.parse(j); } catch (_) {}
+      // Quote-fix for missing quotes around known string values (common with non-English text)
+      j = j.replace(/"(sceneText|sceneDescription|text|title|caption|reason|name|mood)":\s*([^"\[\]{},][^,}\]]*)/g, (m, key, val) => {
+        val = val.trim().replace(/"/g, '\\"');
+        return `"${key}": "${val}"`;
+      });
+      j = j.replace(/,\s*([\]}])/g, '$1');
       try { return JSON.parse(j); } catch (_) {}
     }
-    // Truncated JSON recovery — extract all complete scene objects
+
+    // Stage 5: truncated-JSON recovery — extract every complete scene-shaped object.
+    // Useful when the response was cut off mid-output (token limit) but earlier scenes parsed.
     const sceneObjects = [];
     const objRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
     let m;
     while ((m = objRegex.exec(s)) !== null) {
       let objStr = m[0];
+      const isSceneShape = obj => obj && (obj.sceneText !== undefined || obj.sceneDescription !== undefined || obj.mood !== undefined);
       try {
         const obj = JSON.parse(objStr);
-        if (obj.sceneText !== undefined || obj.sceneDescription !== undefined) sceneObjects.push(obj);
-      } catch (_) {
-        // Fix missing quotes around non-English string values
-        objStr = objStr.replace(/"(sceneText|sceneDescription)":\s*([^"\[\]{},][^,}]*)/g, (match, key, val) => {
-          val = val.trim().replace(/"/g, '\\"');
-          return `"${key}": "${val}"`;
-        });
-        try {
-          const obj = JSON.parse(objStr);
-          if (obj.sceneText !== undefined || obj.sceneDescription !== undefined) sceneObjects.push(obj);
-        } catch (_) {}
-      }
+        if (isSceneShape(obj)) sceneObjects.push(obj);
+        continue;
+      } catch (_) { /* fall through to quote-fix */ }
+      objStr = objStr.replace(/"(sceneText|sceneDescription|text|reason|mood)":\s*([^"\[\]{},][^,}]*)/g, (match, key, val) => {
+        val = val.trim().replace(/"/g, '\\"');
+        return `"${key}": "${val}"`;
+      });
+      try {
+        const obj = JSON.parse(objStr);
+        if (isSceneShape(obj)) sceneObjects.push(obj);
+      } catch (_) {}
     }
-    if (sceneObjects.length > 0) return { scenes: sceneObjects, style: { name: 'cinematic', reason: 'auto' } };
-    throw new Error('Could not parse Gemini response as JSON: ' + s.slice(0, 200));
+    if (sceneObjects.length > 0) {
+      console.warn(`[parseGeminiJson] Recovered ${sceneObjects.length} scene(s) from truncated/malformed JSON`);
+      return { scenes: sceneObjects, style: { name: 'cinematic', reason: 'auto (recovered)' } };
+    }
+
+    // Stage 6: last resort — extract single `{...}` with trailing-comma fix
+    const objMatch = s.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      let j = objMatch[0].replace(/,\s*([\]}])/g, '$1');
+      try { return JSON.parse(j); } catch (_) {}
+    }
+
+    console.error('[parseGeminiJson] FAILED. Full normalized text follows so we can see the actual format issue:');
+    console.error(s);
+    console.error('[parseGeminiJson] Original (pre-normalize) text follows:');
+    console.error(text);
+    throw new Error('Could not parse Gemini response as JSON. Raw preview (first 800 chars):\n' + s.slice(0, 800));
   }
 
   // ═══════════════════════════════════════════════
@@ -2506,28 +2906,191 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
       'Scene 1 — HOOK: pick from hook bank. State the counterintuitive claim or contrarian fact.',
       'Scene 2 — THE RECEIVED WISDOM: what people commonly believe (that\'s wrong/incomplete).',
       'Scene 3 — THE MECHANISM: the surprising "how" or "why" — the gear that turns.',
-      'Scene 4 — THE IMPLICATION: what this means for the viewer\'s life, work, or worldview.',
-      'Scene 5 — ENGAGEMENT BAIT: a question that invites a reply or a save-worthy summary.',
+      'Scene 4 — THE EVIDENCE: a concrete example, number, or moment that proves it.',
+      'Scene 5 — THE IMPLICATION: what this means for the viewer\'s life, work, or worldview.',
+      'Scene 6 — THE LANDING: a memorable single-line summary or surprising final detail. Close cleanly — no question, no "subscribe", no "tell us in the comments". Let the end card take it.',
     ],
     'mythology': [
       'Scene 1 — HOOK: pick from hook bank. The bold claim or unexpected detail about the figure.',
       'Scene 2 — STAKES: the relationship, vow, or duty that creates the tension. Name names.',
-      'Scene 3 — THE MOMENT: betrayal, sacrifice, transformation, curse — the turn that breaks something.',
-      'Scene 4 — THE CONSEQUENCE: what changed forever. Why we still tell this story.',
-      'Scene 5 — ENGAGEMENT BAIT: a moral question to debate, or a call to share with someone.',
+      'Scene 3 — RISING ACTION: the pressure builds — what was promised, threatened, or feared.',
+      'Scene 4 — THE MOMENT: betrayal, sacrifice, transformation, curse — the turn that breaks something.',
+      'Scene 5 — THE CONSEQUENCE: what changed forever. The cost, the legacy.',
+      'Scene 6 — THE LANDING: why we still tell this story. A single resonant image or line. Close cleanly — no audience question, no CTA. Let the end card take it.',
     ],
     'folk-tale': [
       'Scene 1 — HOOK: pick from hook bank. Lead with the protagonist\'s flaw or the test they face.',
       'Scene 2 — THE WORLD: the village, the kingdom, the rule — one concrete sensory detail.',
-      'Scene 3 — THE CHOICE: the moment the character decides who they are.',
-      'Scene 4 — THE OUTCOME: what they got, what they lost, the moral baked into the result.',
-      'Scene 5 — ENGAGEMENT BAIT: a question about the moral, or a tag-someone prompt.',
+      'Scene 3 — THE TEST: the conflict, dilemma, or trial the character faces.',
+      'Scene 4 — THE CHOICE: the moment the character decides who they are.',
+      'Scene 5 — THE OUTCOME: what they got, what they lost.',
+      'Scene 6 — THE LANDING: the moral as a single image or line — shown, not preached. Close cleanly — no question, no CTA. Let the end card take it.',
     ],
   };
+
+  // Call Gemini for JSON-mode script generation with auto-recovery from two failure modes:
+  //   1. MAX_TOKENS truncation — output cut off mid-JSON
+  //   2. Thinking-leak — model writes valid JSON for a few fields, then abandons JSON mode
+  //      mid-string and emits unrelated markdown/free text. response_mime_type does NOT
+  //      prevent this when thinkingBudget > 0. Detected via parse failure or scenes < 3.
+  // Recovery in both cases: retry with thinkingBudget: 0 — no thinking trace = nothing to leak.
+  async function callGeminiScriptJSON(prompt) {
+    const baseConfig = {
+      temperature: 0.5,
+      response_mime_type: 'application/json',
+      maxOutputTokens: 16384,
+    };
+
+    async function runOnce(thinkingBudget, label) {
+      const data = await callGemini('gemini-2.5-flash', {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { ...baseConfig, thinkingConfig: { thinkingBudget } },
+      });
+      const candidate = data.candidates?.[0];
+      const finish = candidate?.finishReason;
+      const raw = candidate?.content?.parts?.[0]?.text || '';
+      const u = data.usageMetadata || {};
+      console.log(`[script-gen] ${label}: finishReason=${finish}, rawLen=${raw.length}, ` +
+                  `promptTokens=${u.promptTokenCount}, candidateTokens=${u.candidatesTokenCount}, ` +
+                  `thoughtsTokens=${u.thoughtsTokenCount ?? 'n/a'}, totalTokens=${u.totalTokenCount}`);
+      let parseOk = false, parseErr = null;
+      if (raw) {
+        try {
+          const probe = parseGeminiJson(raw);
+          parseOk = !!(probe && Array.isArray(probe.scenes) && probe.scenes.length >= 3);
+          if (!parseOk) parseErr = new Error(`scenes shape invalid (got ${probe?.scenes?.length ?? 0})`);
+        } catch (e) { parseErr = e; }
+      }
+      const truncated = finish === 'MAX_TOKENS' || (raw && raw.length < 400);
+      return { raw, finish, parseOk, parseErr, truncated };
+    }
+
+    console.log('[script-gen] Attempt 1: thinking=4096 tokens, maxOutput=16384');
+    let r = await runOnce(4096, 'Attempt 1');
+    if (r.parseOk && !r.truncated) return { raw: r.raw, finish: r.finish };
+
+    const reason = r.truncated ? `truncated (finish=${r.finish}, len=${r.raw.length})`
+                  : r.parseErr ? `parse/shape failed (${(r.parseErr.message || '').slice(0, 140)})`
+                  : 'unknown';
+    console.warn(`[script-gen] Attempt 1 failed — ${reason}. Retrying with thinking=0 (no thinking-leak risk).`);
+
+    r = await runOnce(0, 'Attempt 2 (no thinking)');
+    if (!r.parseOk) {
+      console.error('[script-gen] Attempt 2 also failed. Returning raw — caller will surface parse error.');
+    }
+    return { raw: r.raw, finish: r.finish };
+  }
 
   function pickNarratorPersona(contentType) {
     const list = NARRATOR_PERSONAS[contentType] || NARRATOR_PERSONAS['explainer'];
     return list[Math.floor(Math.random() * list.length)];
+  }
+
+  // Per-scene voice direction — Gemini TTS reads the prefix as natural-language style
+  // direction (not as spoken text) and adjusts delivery accordingly.
+  // The LLM picks one mood per scene during script generation; we prepend the matching
+  // prefix to that scene's sceneText before calling Gemini TTS.
+  const MOOD_PREFIXES = {
+    'dramatic':   'Read this with dramatic intensity, letting each beat land:',
+    'awe':        'Read this with genuine wonder and surprise in your voice:',
+    'intimate':   'Read this in a hushed, intimate tone — like sharing a secret with one person:',
+    'urgent':     'Read this with quickening pace and urgency:',
+    'solemn':     'Read this with solemn weight, slow and serious:',
+    'playful':    'Read this with a smile in your voice, light and warm:',
+    'reflective': 'Read this slowly and thoughtfully, letting the meaning settle:',
+    'neutral':    '', // no prefix
+  };
+  // Set of valid mood keys for prompt instruction + validation.
+  const VALID_MOODS = Object.keys(MOOD_PREFIXES);
+
+  // ─── BGM presets ───────────────────────────────────────────────
+  // Royalty-free background tracks copied from the main app.
+  // Loaded as <audio> elements so file:// works (no fetch/decodeAudioData required).
+  const BGM_PRESETS = {
+    'none':      { label: 'None',      src: null },
+    'upbeat':    { label: 'Upbeat',    src: 'audio/bgm/upbeat.mp3' },
+    'calm':      { label: 'Calm',      src: 'audio/bgm/calm.mp3' },
+    'cinematic': { label: 'Cinematic', src: 'audio/bgm/cinematic.mp3' },
+    'corporate': { label: 'Corporate', src: 'audio/bgm/corporate.mp3' },
+    'playful':   { label: 'Playful',   src: 'audio/bgm/playful.mp3' },
+  };
+
+  // Map dominant scene mood → best-fit BGM preset (used by 'auto' option).
+  const MOOD_TO_BGM = {
+    'dramatic':   'cinematic',
+    'awe':        'cinematic',
+    'intimate':   'calm',
+    'urgent':     'upbeat',
+    'solemn':     'calm',
+    'playful':    'playful',
+    'reflective': 'calm',
+    'neutral':    'corporate',
+  };
+
+  // Pick the best BGM preset for a job by tallying scene moods and mapping the dominant one.
+  function pickAutoBgm(scenes) {
+    if (!scenes || !scenes.length) return 'corporate';
+    const counts = {};
+    for (const s of scenes) {
+      const m = s.mood || 'neutral';
+      counts[m] = (counts[m] || 0) + 1;
+    }
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    return MOOD_TO_BGM[dominant] || 'corporate';
+  }
+
+  // Full Gemini 2.5 TTS voice catalog — grouped by character.
+  // Each entry: [id, label, group] — id is what we send to the API, label is for UI.
+  const VOICE_OPTIONS = [
+    // Bright / Upbeat
+    ['Zephyr',         'Zephyr — Bright',          'Bright / Upbeat'],
+    ['Autonoe',        'Autonoe — Bright',         'Bright / Upbeat'],
+    ['Puck',           'Puck — Upbeat',            'Bright / Upbeat'],
+    ['Laomedeia',      'Laomedeia — Upbeat',       'Bright / Upbeat'],
+    ['Sadachbia',      'Sadachbia — Lively',       'Bright / Upbeat'],
+    // Firm / Informative
+    ['Kore',           'Kore — Firm',              'Firm / Informative'],
+    ['Orus',           'Orus — Firm',              'Firm / Informative'],
+    ['Charon',         'Charon — Informative',     'Firm / Informative'],
+    ['Rasalgethi',     'Rasalgethi — Informative', 'Firm / Informative'],
+    ['Sadaltager',     'Sadaltager — Knowledgeable', 'Firm / Informative'],
+    // Storytelling / Mature
+    ['Fenrir',         'Fenrir — Storytelling',    'Storytelling / Mature'],
+    ['Gacrux',         'Gacrux — Mature',          'Storytelling / Mature'],
+    ['Algenib',        'Algenib — Gravelly',       'Storytelling / Mature'],
+    ['Sulafat',        'Sulafat — Warm',           'Storytelling / Mature'],
+    // Calm / Soft
+    ['Callirrhoe',     'Callirrhoe — Calm',        'Calm / Soft'],
+    ['Achernar',       'Achernar — Soft',          'Calm / Soft'],
+    ['Vindemiatrix',   'Vindemiatrix — Gentle',    'Calm / Soft'],
+    ['Enceladus',      'Enceladus — Breathy',      'Calm / Soft'],
+    ['Aoede',          'Aoede — Breezy',           'Calm / Soft'],
+    // Smooth / Even
+    ['Algieba',        'Algieba — Smooth',         'Smooth / Even'],
+    ['Despina',        'Despina — Smooth',         'Smooth / Even'],
+    ['Schedar',        'Schedar — Even',           'Smooth / Even'],
+    ['Umbriel',        'Umbriel — Easy-going',     'Smooth / Even'],
+    // Clear / Friendly
+    ['Iapetus',        'Iapetus — Clear',          'Clear / Friendly'],
+    ['Erinome',        'Erinome — Clear',          'Clear / Friendly'],
+    ['Achird',         'Achird — Friendly',        'Clear / Friendly'],
+    ['Zubenelgenubi',  'Zubenelgenubi — Casual',   'Clear / Friendly'],
+    // Other
+    ['Leda',           'Leda — Youthful',          'Other'],
+    ['Pulcherrima',    'Pulcherrima — Forward',    'Other'],
+  ];
+
+  // Build <optgroup>-grouped HTML once and reuse for every voice <select>.
+  function buildVoiceSelectHtml(currentValue) {
+    const groups = {};
+    for (const [id, label, group] of VOICE_OPTIONS) {
+      (groups[group] = groups[group] || []).push([id, label]);
+    }
+    return Object.entries(groups).map(([gname, vs]) =>
+      `<optgroup label="${gname}">${vs.map(([id, label]) =>
+        `<option value="${id}" ${id === currentValue ? 'selected' : ''}>${label}</option>`
+      ).join('')}</optgroup>`
+    ).join('');
   }
 
   function genreStructure(contentType) {
@@ -2546,8 +3109,8 @@ stori,en,How black holes form — explained in 60 seconds,auto,youtube,crossfade
 ═══════════════════════════════════════════════
 HARD DURATION CAP — READ THIS FIRST
 ═══════════════════════════════════════════════
-TOTAL SCRIPT WORD COUNT: MAX 120 words. HARD LIMIT. DO NOT EXCEED. The narration MUST read aloud in 45-55 seconds at natural English pace. Going over is a failure.
-Before returning JSON, count every word across all sceneText fields. If the total exceeds 120, REWRITE shorter scenes until under the cap.
+TOTAL SCRIPT WORD COUNT: MAX 140 words. HARD LIMIT. DO NOT EXCEED. The narration MUST read aloud in 50-58 seconds at natural English pace (so the total — narration + 5-second end card — lands around 60 seconds). Going over is a failure.
+Before returning JSON, count every word across all sceneText fields. If the total exceeds 140, REWRITE shorter scenes until under the cap.
 ═══════════════════════════════════════════════
 
 INPUT:
@@ -2566,9 +3129,9 @@ ${isLongText
 TASK 1 — SCRIPT:
 Write the narration script entirely in ${job.langLabel}. NOT in English (unless the language IS English).
 
-EXACTLY 5 scenes. Not 4, not 6, not 7. Five.
-Per-scene word cap: each scene's sceneText is 18-24 words MAX for English (adjust syllable count for ${job.langLabel} to match same spoken duration). Total script: 100-120 words for English. HARD CEILING 120.
-${job.videoMode === 'animated' ? 'Each scene = one 10-second Kling animated video clip.' : 'Each scene = one illustration, ~9-11 seconds of narration.'}
+EXACTLY 6 scenes. Not 5, not 7. Six.
+Per-scene word cap: each scene's sceneText is 18-24 words MAX for English (adjust syllable count for ${job.langLabel} to match same spoken duration). Total script: 110-140 words for English. HARD CEILING 140.
+${job.videoMode === 'animated' ? 'Each scene = one ~9-second clip (Kling generates clean motion). 6 scenes ≈ 54 seconds + 5s end card ≈ 60 seconds total.' : 'Each scene = one illustration, ~9 seconds of narration. 6 scenes ≈ 54 seconds + 5s end card ≈ 60 seconds total.'}
 
 ═══════════════════════════════════════════════
 HOOK BANK — pick ONE pattern for Scene 1, write it sharp
@@ -2624,14 +3187,15 @@ FORBIDDEN AI PHRASES — never use any of these
 Any sentence that sounds like a YouTube travel vlogger intro or a chatbot is BANNED.
 
 ═══════════════════════════════════════════════
-FINAL SCENE — engagement bait, NOT subscribe bait
+FINAL SCENE — clean landing, NO viewer call-out
 ═══════════════════════════════════════════════
-Scene 5 ends with viewer action that drives COMMENTS or SHARES, not subscribes:
-- A question that demands a reply: "Tell us — was he a hero or a coward?"
-- A save-prompt: "Save this if you didn't know it before."
-- A tag-prompt: "Tag someone who needs to hear this."
-- A debate-prompt: "What would you have done?"
-NEVER say: "Subscribe for more", "Follow for more", "Hit the bell icon", "Like and subscribe". The algorithm rewards comments and shares — not passive views.${job.videoMode === 'animated' ? `
+Scene 6 ends the story. It MUST NOT ask the viewer a question, MUST NOT request comments / saves / shares / follows / tags / subscribes, and MUST NOT speak to the viewer directly with phrases like "what would you have done", "tell us", "save this", "tag someone".
+Instead — close with a single resonant beat:
+- A memorable summary line that crystallises the story
+- A surprising final detail that re-frames what came before
+- A short reflective image that lingers
+The end card (which appears AFTER the narration finishes) handles branding and call-to-action visually. Your job is to land the story cleanly and stop.
+NEVER use: "Subscribe for more", "Follow for more", "Hit the bell icon", "Like and subscribe", "Tell us in the comments", "What do you think?", "Save this", "Tag someone".${job.videoMode === 'animated' ? `
 
 ANIMATED VIDEO INSTRUCTIONS:
 Each scene's visual description MUST describe cinematic MOTION — this will be animated, not static.
@@ -2656,12 +3220,33 @@ Write a title and caption for posting this video on YouTube Shorts / Instagram R
 - Title: catchy, under 60 chars, in ${job.langLabel}
 - Caption: 2-3 sentences in ${job.langLabel} that tease the story, then 5-8 relevant hashtags in English
 
+TASK 4 — VOICE MOOD PER SCENE:
+For each scene, pick ONE mood from this list that best fits how the narrator should READ that scene aloud:
+[${VALID_MOODS.join(', ')}]
+- "dramatic":   high intensity, big stakes, climactic beats
+- "awe":        wonder, scale, surprise — "did this really happen?"
+- "intimate":   hushed, conspiratorial, a secret shared with the viewer
+- "urgent":     quickening pace, tension, danger, a turn happening NOW
+- "solemn":     heavy, slow, reverent — death, sacrifice, lasting impact
+- "playful":    light, warm, mischief — humour or joy in the story
+- "reflective": slow and thoughtful — meaning, lesson, retrospection
+- "neutral":    plain narration — no styling
+
+Typical fit by beat (6-scene arc):
+- Hook (Scene 1): "dramatic" or "intimate" or "awe" depending on the hook pattern picked
+- Stakes / setup (Scene 2): "neutral" or "intimate"
+- Rising action / evidence (Scene 3): "urgent" or "neutral"
+- Turn / climax (Scene 4): "urgent" or "dramatic"
+- Consequence / outcome (Scene 5): "awe", "solemn", or "reflective"
+- Landing (Scene 6): "reflective" or "solemn" — close cleanly without addressing the viewer
+
 OUTPUT — Return ONLY valid JSON, no markdown, no extra text:
 {
   "scenes": [
     {
       "sceneText": "Narration text for this scene in ${job.langLabel}",
-      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting, camera angle"
+      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting, camera angle",
+      "mood": "one-of: ${VALID_MOODS.join('|')}"
     }
   ],
   "style": {
@@ -2672,13 +3257,9 @@ OUTPUT — Return ONLY valid JSON, no markdown, no extra text:
   "caption": "2-3 sentence post description in ${job.langLabel} + 5-8 relevant hashtags in English"
 }`;
 
-    const data = await callGemini('gemini-2.5-flash', {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.5 },
-    });
+    const { raw } = await callGeminiScriptJSON(prompt);
     trackApiCost('script');
 
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!raw) throw new Error('Empty response from Gemini');
     const parsed = parseGeminiJson(raw);
 
@@ -2703,15 +3284,16 @@ ${job.input}
 """
 
 TASK 1 — SCENE BREAKDOWN:
-${job.videoMode === 'animated' ? `Split this script into exactly 5 scenes. Each scene becomes a 10-second Kling animated video clip.
+${job.videoMode === 'animated' ? `Split this script into EXACTLY 6 scenes. Each scene becomes a ~9-second Kling animated video clip.
 STRICT RULES for animated mode:
-- Each scene's sceneText must be ~10 seconds when read aloud (~20-25 words for English; adjust for ${job.langLabel} speech rate).
-- If a segment of the script is too long for 10 seconds, CONDENSE it — preserve meaning but trim to fit.
-- If a segment is too short, EXPAND slightly to fill ~10 seconds.
-- Every scene must be roughly equal in length. No scene should exceed 30 words or be fewer than 15 words.
-- Total across all 5 scenes: ~50 seconds of narration.` : `Split this script into 6-9 scenes at natural visual break points.
+- Each scene's sceneText must be ~9 seconds when read aloud (~18-24 words for English; adjust for ${job.langLabel} speech rate).
+- If a segment of the script is too long, CONDENSE it — preserve meaning but trim to fit.
+- If a segment is too short, EXPAND slightly to fill ~9 seconds.
+- Every scene must be roughly equal in length. No scene should exceed 26 words or be fewer than 14 words.
+- Total across all 6 scenes: ~54 seconds of narration. With 5s end card, total ≈ 60s.` : `Split this script into EXACTLY 6 scenes at natural visual break points.
 Each scene must be a distinct visual moment worth illustrating.
-Keep original script text intact — do not paraphrase.`}
+Keep original script text intact — do not paraphrase. If the script is too long for 6 scenes at ~9s each (140 words max total), CONDENSE — drop weakest sentences, keep the arc.`}
+The final scene (Scene 6) lands the story cleanly — NO viewer call-out, NO "tell us in the comments", NO "save this", NO "subscribe". The end card handles all branding/CTA visually after the narration ends.
 ${job.videoMode === 'animated' ? `
 ANIMATED VIDEO: Each sceneDescription MUST describe cinematic MOTION.
 - Start with camera direction: pan, zoom, tracking shot, aerial view, dolly, tilt.
@@ -2727,12 +3309,24 @@ Write a title and caption for posting this video on YouTube Shorts / Instagram R
 - Title: catchy, under 60 chars, in ${job.langLabel}
 - Caption: 2-3 sentences in ${job.langLabel} that tease the story, then 5-8 relevant hashtags in English
 
+TASK 4 — VOICE MOOD PER SCENE:
+For each scene, pick ONE mood from: [${VALID_MOODS.join(', ')}]
+- "dramatic":   high intensity, climactic beats
+- "awe":        wonder, scale, surprise
+- "intimate":   hushed, conspiratorial
+- "urgent":     quickening pace, tension
+- "solemn":     heavy, slow, reverent
+- "playful":    light, warm, mischief
+- "reflective": slow and thoughtful
+- "neutral":    plain narration
+
 OUTPUT — Return ONLY valid JSON, no markdown:
 {
   "scenes": [
     {
       "sceneText": "The exact text from the script for this scene",
-      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting"
+      "sceneDescription": "Visual description in ENGLISH for image generation: subject, composition, mood, colors, lighting",
+      "mood": "one-of: ${VALID_MOODS.join('|')}"
     }
   ],
   "style": {
@@ -2743,13 +3337,9 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   "caption": "2-3 sentence post description in ${job.langLabel} + 5-8 relevant hashtags in English"
 }`;
 
-    const data = await callGemini('gemini-2.5-flash', {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.5 },
-    });
+    const { raw } = await callGeminiScriptJSON(prompt);
     trackApiCost('script');
 
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!raw) throw new Error('Empty response from Gemini');
     const parsed = parseGeminiJson(raw);
 
@@ -2816,7 +3406,27 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     return { audioBuffer };
   }
 
+  // ─── TTS serializer ─────────────────────────────────────────────────
+  // Promise-chain mutex used by per-scene TTS mode to avoid concurrency limits.
+  // Single-video TTS (default) doesn't use this — 1 call per job is fine in parallel.
+  // Per-scene mode still needs it: N parallel jobs × 6 TTS calls = 6N concurrent
+  // requests, which trips Gemini's per-key TTS rate limit.
+  let _ttsQueue = Promise.resolve();
+  async function _serializeTTS(fn) {
+    const prev = _ttsQueue;
+    let release;
+    _ttsQueue = new Promise(r => { release = r; });
+    try {
+      await prev.catch(() => {}); // wait for previous; never block on its error
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
   // Call Gemini TTS — returns { base64, mimeType }
+  // NOT serialized — caller (generateTTSPerScene) wraps in _serializeTTS when needed.
+  // generateTTSSingleVideo calls this directly, allowing parallel TTS across jobs.
   async function callGeminiTTS(text, voiceName) {
     const key = getGeminiKey();
     if (!key) throw new Error('No API key.');
@@ -2891,20 +3501,35 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     return btoa(bin);
   }
 
+  // Top-level TTS dispatcher — chooses per-scene or single-video path based on job.ttsMode.
   async function generateTTS(job) {
-    const voiceName = 'Kore';
+    const ttsMode = job.ttsMode || selectedTtsMode || 'per-scene';
+    if (ttsMode === 'single-video') {
+      return generateTTSSingleVideo(job);
+    }
+    return generateTTSPerScene(job);
+  }
+
+  // Per-scene TTS — 6 separate Gemini TTS calls, one per scene.
+  // Pros: predictable per-scene durations from buffer.duration; partial recovery on failures.
+  // Cons: slightly choppier prosody at scene seams; 6× the API calls.
+  async function generateTTSPerScene(job) {
+    const voiceName = job.voice || selectedVoice || 'Kore';
     const sceneBuffers = [];
 
-    // Per-scene TTS — real duration per scene, no estimation
     for (let i = 0; i < job.scenes.length; i++) {
-      const text = (job.scenes[i].sceneText || '').trim();
+      const scene = job.scenes[i];
+      const text = (scene.sceneText || '').trim();
       if (!text) { sceneBuffers.push(null); continue; }
-      const { base64, mimeType } = await callGeminiTTS(text, voiceName);
+      // Serialize across jobs — N parallel jobs × 6 calls each can otherwise overrun
+      // Gemini's per-key TTS concurrency limit. Within a single job we're already
+      // sequential due to the await, but cross-job needs the mutex.
+      const { base64, mimeType } = await _serializeTTS(() => callGeminiTTS(text, voiceName));
       const { audioBuffer } = await decodeBase64Audio(base64, mimeType);
       sceneBuffers.push(audioBuffer);
     }
 
-    // Timings from actual TTS durations — no character-count approximation
+    // Timings from actual TTS durations
     let cursor = 0;
     for (let i = 0; i < job.scenes.length; i++) {
       const dur = sceneBuffers[i]?.duration || 3;
@@ -2914,7 +3539,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       cursor += dur;
     }
 
-    // Per-scene fallback word timings (used if transcription alignment fails)
+    // Per-scene fallback word timings (used if alignment fails)
     for (const scene of job.scenes) {
       scene.words = wordTimings(scene.sceneText, scene.startTime, scene.duration);
     }
@@ -2928,20 +3553,101 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     job.duration    = finalBuffer.duration;
     job.ttsChunks   = job.scenes.length;
 
-    // Audio-derived word timings — prefer ElevenLabs Scribe (acoustic alignment, ~50ms drift).
-    // Fall back to Gemini transcription (segment boundaries + uniform within segment).
-    // On any failure, the per-scene uniform fallback above stays in place.
+    // Word-level alignment (ElevenLabs Scribe preferred, Gemini transcription fallback)
     try {
       let aligned = null;
-      if (getElevenLabsKey()) {
-        aligned = await alignWordsWithElevenLabs(finalBuffer, job.langCode);
-      }
-      if (!aligned || !aligned.length) {
-        aligned = await alignWordsFromAudio(finalBuffer, job.scenes);
-      }
+      if (getElevenLabsKey()) aligned = await alignWordsWithElevenLabs(finalBuffer, job.langCode);
+      if (!aligned || !aligned.length) aligned = await alignWordsFromAudio(finalBuffer, job.scenes);
       if (aligned && aligned.length) job.words = aligned;
     } catch (e) {
       console.warn('[align] word alignment failed, using per-scene uniform timings:', e.message);
+    }
+  }
+
+  // Single-video TTS — 1 Gemini TTS call for the whole script, then ElevenLabs Scribe
+  // (or Gemini transcription fallback) determines scene boundaries from the resulting audio.
+  // Pros: smoother prosody (continuous narration), 1× API call instead of 6.
+  // Cons: relies on alignment to find scene boundaries; if alignment fails entirely,
+  // falls back to character-proportion split which is less accurate.
+  async function generateTTSSingleVideo(job) {
+    const voiceName = job.voice || selectedVoice || 'Kore';
+
+    // Concatenate scene texts with sentence-boundary separators
+    const fullScript = job.scenes
+      .map(s => (s.sceneText || '').trim())
+      .filter(Boolean)
+      .join(' ');
+
+    if (!fullScript) throw new Error('No script text to synthesize');
+
+    const { base64, mimeType } = await callGeminiTTS(fullScript, voiceName);
+    const { audioBuffer } = await decodeBase64Audio(base64, mimeType);
+
+    job.audioBuffer = audioBuffer;
+    job.audioBase64 = audioBufferToBase64(audioBuffer);
+    job.duration    = audioBuffer.duration;
+    job.ttsChunks   = 1;
+
+    // First-pass scene boundaries: proportional split by sceneText character count.
+    // Will be refined below if word-level alignment succeeds.
+    deriveSceneBoundariesByCharacterRatio(job, audioBuffer.duration);
+
+    // Word-level alignment (ElevenLabs Scribe preferred — primary subtitle model)
+    let aligned = null;
+    try {
+      if (getElevenLabsKey()) aligned = await alignWordsWithElevenLabs(audioBuffer, job.langCode);
+      if (!aligned || !aligned.length) aligned = await alignWordsFromAudio(audioBuffer, job.scenes);
+    } catch (e) {
+      console.warn('[align] word alignment failed for single-video TTS:', e.message);
+    }
+
+    if (aligned && aligned.length) {
+      job.words = aligned;
+      // Refine scene boundaries by walking through aligned words using each scene's word count
+      refineSceneBoundariesFromWords(job, aligned);
+    }
+  }
+
+  // Initial scene boundary estimate — proportional split by sceneText character count.
+  // Used as the safety net for single-video TTS when alignment isn't available.
+  function deriveSceneBoundariesByCharacterRatio(job, totalDur) {
+    const totalChars = job.scenes.reduce((n, s) => n + (s.sceneText || '').length, 0);
+    if (totalChars === 0) return;
+    let cursor = 0;
+    for (let i = 0; i < job.scenes.length; i++) {
+      const isLast = (i === job.scenes.length - 1);
+      const ratio = (job.scenes[i].sceneText || '').length / totalChars;
+      const dur = isLast ? Math.max(0, totalDur - cursor) : ratio * totalDur;
+      job.scenes[i].startTime = cursor;
+      job.scenes[i].endTime   = cursor + dur;
+      job.scenes[i].duration  = dur;
+      job.scenes[i].words = wordTimings(job.scenes[i].sceneText, cursor, dur);
+      cursor += dur;
+    }
+    job.words = job.scenes.flatMap(s => s.words);
+  }
+
+  // Refine scene boundaries from aligned words by walking the word list using each scene's
+  // word count. Imperfect when TTS contractions/expansions ("don't" → 1 spoken word for 2
+  // sceneText words, "1947" → 4 spoken units for 1 sceneText word) — drift is bounded by
+  // a few hundred ms, way better than uniform character-ratio splitting.
+  function refineSceneBoundariesFromWords(job, alignedWords) {
+    const sceneWordCounts = job.scenes.map(s =>
+      (s.sceneText || '').trim().split(/\s+/).filter(Boolean).length
+    );
+    let wordIdx = 0;
+    for (let i = 0; i < job.scenes.length; i++) {
+      const targetCount = sceneWordCounts[i];
+      const isLast = (i === job.scenes.length - 1);
+      const startW = alignedWords[wordIdx];
+      const endIdx = Math.min(wordIdx + targetCount - 1, alignedWords.length - 1);
+      const endW = alignedWords[endIdx];
+      const start = startW?.start ?? (i === 0 ? 0 : job.scenes[i - 1].endTime);
+      const end = isLast ? job.duration : (alignedWords[wordIdx + targetCount]?.start ?? endW?.end ?? job.duration);
+      job.scenes[i].startTime = start;
+      job.scenes[i].endTime   = end;
+      job.scenes[i].duration  = Math.max(0.1, end - start);
+      wordIdx += targetCount;
     }
   }
 
@@ -3103,8 +3809,103 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   const IMG_MODELS = ['gemini-2.5-flash-image', 'gemini-2.5-flash-preview-04-17'];
   let _cachedImgModel = null;
 
+  // Call fal.ai FLUX 2 Flash — same auth + sync_mode pattern as Schnell, different endpoint.
+  // Endpoint: https://fal.run/fal-ai/flux-2/flash (per fal.ai model URL convention).
+  // Param schema assumed identical to Schnell (prompt, image_size, num_images, output_format,
+  // sync_mode, seed). If fal's actual schema differs, error message from the API will tell us.
+  async function generateFalFlux2Image(prompt, opts = {}) {
+    const key = getImageKey();
+    if (!key) throw new Error('No fal.ai API key. Enter one in Step 1.');
+    const body = {
+      prompt: prompt.slice(0, 2000),
+      image_size: opts.image_size || 'portrait_16_9',
+      num_images: 1,
+      enable_safety_checker: false,
+      output_format: 'jpeg',
+      sync_mode: true,
+    };
+    if (opts.seed != null) body.seed = opts.seed;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      const resp = await fetch('https://fal.run/fal-ai/flux-2/flash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Key ${key}` },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) continue;
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || err.message || `fal.ai error ${resp.status}`);
+      }
+      const data = await resp.json();
+      const img = data.images?.[0];
+      if (!img?.url) throw new Error('No image returned from fal.ai');
+      trackApiCost('img-fal-flux-2-flash');
+      if (img.url.startsWith('data:')) return img.url;
+      const blob = await (await fetch(img.url)).blob();
+      return await new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.readAsDataURL(blob);
+      });
+    }
+    throw new Error('fal.ai FLUX 2 Flash image generation failed after 3 attempts');
+  }
+
+  // Call fal.ai FLUX.1 [schnell] — synchronous endpoint, returns dataURL.
+  // sync_mode:true makes fal embed the image as a data URI in the response (single round trip).
+  async function generateFalSchnellImage(prompt, opts = {}) {
+    const key = getImageKey();
+    if (!key) throw new Error('No fal.ai API key. Enter one in Step 1.');
+    const body = {
+      prompt: prompt.slice(0, 2000),
+      image_size: opts.image_size || 'portrait_16_9',
+      num_inference_steps: 4,
+      num_images: 1,
+      enable_safety_checker: false,
+      output_format: 'jpeg',
+      sync_mode: true,
+    };
+    if (opts.seed != null) body.seed = opts.seed;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+      const resp = await fetch('https://fal.run/fal-ai/flux/schnell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Key ${key}` },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        if (attempt < 2 && (resp.status === 429 || resp.status === 503 || resp.status === 500)) continue;
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || err.message || `fal.ai error ${resp.status}`);
+      }
+      const data = await resp.json();
+      const img = data.images?.[0];
+      if (!img?.url) throw new Error('No image returned from fal.ai');
+      trackApiCost('img-fal-schnell');
+      // sync_mode=true → url is already a data: URI
+      if (img.url.startsWith('data:')) return img.url;
+      // Defensive: fetch hosted URL and inline as dataURL
+      const blob = await (await fetch(img.url)).blob();
+      return await new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.readAsDataURL(blob);
+      });
+    }
+    throw new Error('fal.ai image generation failed after 3 attempts');
+  }
+
   // Generate a single image via Gemini Flash
-  async function generateSingleImage(prompt, w, h) {
+  async function generateSingleImage(prompt, w, h, opts = {}) {
+    if (selectedImageProvider === 'fal-schnell') {
+      return generateFalSchnellImage(prompt, { image_size: 'portrait_16_9', seed: opts.seed });
+    }
+    if (selectedImageProvider === 'fal-flux-2-flash') {
+      return generateFalFlux2Image(prompt, { image_size: 'portrait_16_9', seed: opts.seed });
+    }
     const key = getImageKey();
     const sizeHint = ` Portrait orientation, ${w}x${h} pixels.`;
     const fullPrompt = `Generate an image: ${prompt.slice(0, 1200)}${sizeHint}`;
@@ -3147,6 +3948,19 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     // 9:16 at 2K: 1536×2752px, each cell 512×917px
     const cw = 1536, ch = 2752;
     const cellW = Math.round(cw / 3), cellH = Math.round(ch / 3);
+
+    // fal.ai FLUX Schnell / FLUX 2 Flash — route grid prompt at custom 1536×2752 dimensions.
+    // Note: neither is trained on grid layouts; results may merge cells. Useful for A/B testing.
+    if (selectedImageProvider === 'fal-schnell' || selectedImageProvider === 'fal-flux-2-flash') {
+      const stylePrefix = stylePrompt ? `Style: ${stylePrompt}\n\n` : '';
+      const cellDescriptions = padded.map((p, i) => {
+        const POS = ['top-left','top-center','top-right','middle-left','middle-center','middle-right','bottom-left','bottom-center','bottom-right'];
+        return `Cell ${i + 1} (${POS[i]}): ${p}`;
+      }).join('\n');
+      const gridPrompt = `A 3×3 grid of 9 distinct illustrated panels, 3 columns × 3 rows, no borders or separators between panels. Portrait 9:16. ${stylePrefix}${cellDescriptions}\n\nRULES: exactly 9 panels in a 3×3 layout, each panel a separate scene, no text or letters anywhere, consistent style across all panels, main subjects centered in each panel.`;
+      const fn = selectedImageProvider === 'fal-flux-2-flash' ? generateFalFlux2Image : generateFalSchnellImage;
+      return await fn(gridPrompt, { image_size: { width: cw, height: ch } });
+    }
 
     const CELL_PIXELS = [
       { pos: 'top-left',      x1: 0,        x2: cellW,      y1: 0,        y2: cellH      },
@@ -3374,6 +4188,63 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   }
 
   // Submit Kling i2v task — kie.ai
+  // ─── Kling global concurrency limiter ───────────────────────────────
+  // Kling plan limit: 5 concurrent in-flight tasks across the whole app.
+  // Without this, parallel jobs (3 jobs × 6 scenes = 18 concurrent submissions)
+  // overrun the limit and get 429 rate-limit errors.
+  // Polling stays parallel (lightweight status checks); only SUBMISSION is gated.
+  const KLING_MAX_CONCURRENT = 5;
+  let _klingInFlight = 0;
+  const _klingQueue = [];
+  function _klingAcquire() {
+    return new Promise(resolve => {
+      const tryAcquire = () => {
+        if (_klingInFlight < KLING_MAX_CONCURRENT) {
+          _klingInFlight++;
+          resolve();
+        } else {
+          _klingQueue.push(tryAcquire);
+        }
+      };
+      tryAcquire();
+    });
+  }
+  function _klingRelease() {
+    _klingInFlight--;
+    const next = _klingQueue.shift();
+    if (next) next();
+  }
+  // Wrap a Kling submission with the semaphore + retry on rate-limit / pool-exhausted errors.
+  // Catches: 429 status, "rate limit", "quota exceeded", "throttled",
+  //          and Kling-specific: "parallel task over resource pack limit", "concurrent limit",
+  //          "pool exhausted", "too many".
+  // Wait 60s on each retry; up to 2 retries before giving up (3 attempts total).
+  // Slot is released BETWEEN retries so other submissions in the queue can proceed during the wait.
+  async function _withKlingSemaphore(submitFn) {
+    const isRateLimit = msg => /\b429\b|rate.?limit|quota|exceed|throttl|parallel.?task|resource.?pack|concurrent.?limit|pool.?exhaust|too.?many/i.test(msg || '');
+    const maxAttempts = 3;
+    let lastError = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await _klingAcquire();
+      let retriable = false;
+      try {
+        return await submitFn(); // success — finally releases slot, function returns
+      } catch (e) {
+        lastError = e;
+        const lastTry = attempt === maxAttempts - 1;
+        if (lastTry || !isRateLimit(e.message)) throw e; // finally still releases slot before propagating
+        retriable = true; // mark for retry — fall through to wait
+      } finally {
+        _klingRelease();
+      }
+      // Outside try/finally: slot is released. Wait before next iteration acquires again.
+      if (retriable) {
+        console.warn(`[Kling] resource-limited (${lastError?.message}). Waiting 60s before retry ${attempt + 1}/${maxAttempts - 1}…`);
+        await new Promise(r => setTimeout(r, 60000));
+      }
+    }
+  }
+
   async function submitKlingI2V_kie(imageUrl, prompt) {
     const key = getKlingKey();
     if (!key) throw new Error('No Kling API key. Enter one in the Animated Video tile.');
@@ -3428,27 +4299,30 @@ OUTPUT — Return ONLY valid JSON, no markdown:
 
   // Submit Kling i2v task — official api-singapore.klingai.com
   // Accepts a base64 data URL (data:image/png;base64,...) — strips prefix per API requirement
-  async function submitKlingI2V_official(base64DataUrl, prompt) {
+  async function submitKlingI2V_official(base64DataUrl, prompt, externalTaskId) {
     const jwt = await generateKlingJWT();
     // Strip data: prefix — Kling requires raw base64 only
     const rawB64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+    const body = {
+      model_name: 'kling-v2-5-turbo',
+      image: rawB64,
+      prompt: prompt.slice(0, 2500),
+      duration: '10',
+      mode: 'pro',
+    };
+    // External task ID — survives submission-response loss. Lets us match orphan tasks
+    // back to scenes even if the API response is dropped/errored.
+    if (externalTaskId) body.external_task_id = externalTaskId;
     const resp = await fetch('http://localhost:3004/kling/videos/image2video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
-      body: JSON.stringify({
-        model_name: 'kling-v2-5-turbo',
-        image: rawB64,
-        prompt: prompt.slice(0, 2500),
-        duration: '10',
-        mode: 'pro'
-      })
+      body: JSON.stringify(body),
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.message || err.error?.message || `Kling API error ${resp.status}`);
     }
     const data = await resp.json();
-    // Official API: { code: 0, data: { task_id: "...", task_status: "submitted", ... } }
     if (data.code !== 0) throw new Error(data.message || `Kling error code ${data.code}`);
     return data.data?.task_id;
   }
@@ -3511,7 +4385,304 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     throw new Error('Kling generation timed out (5 min)');
   }
 
-  // Generate Kling video clips for all scenes — parallel submission
+  // List recent Kling Official i2v tasks — used by recovery flow.
+  // Routes through the local kling-proxy (localhost:3004) — direct calls to
+  // api.klingai.com are blocked by CORS in the browser.
+  async function listKlingOfficialTasks(pageSize = 30) {
+    const jwt = await generateKlingJWT();
+    const resp = await fetch(`http://localhost:3004/kling/videos/image2video?pageNum=1&pageSize=${pageSize}`, {
+      headers: { 'Authorization': `Bearer ${jwt}` },
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.message || `Kling list error ${resp.status}`);
+    }
+    const data = await resp.json();
+    if (data.code !== 0) throw new Error(data.message || `Kling list error code ${data.code}`);
+    return (data.data || []).map(t => ({
+      taskId:           t.task_id,
+      externalTaskId:   t.task_info?.external_task_id || null,
+      task_info:        t.task_info, // keep raw for recovery matching
+      status:           t.task_status,
+      prompt:           t.task_info?.parent_video_prompt || t.task_input?.prompt || '',
+      createdAt:        t.created_at,
+      updatedAt:        t.updated_at,
+      videoUrl:         t.task_result?.videos?.[0]?.url || null,
+    }));
+  }
+
+  // Open a recovery modal: list recent Kling tasks, let user assign succeeded videos
+  // to scenes of jobs whose animation phase failed. Saves the task IDs/URLs to the job.
+  async function openKlingRecovery() {
+    if (klingProvider !== 'kling-official') {
+      toast('Recovery only works on Kling Official provider', 'error');
+      return;
+    }
+    if (!klingAccessKey || !klingSecretKey) {
+      toast('Enter Kling Official access + secret keys first', 'error');
+      return;
+    }
+    toast('Fetching recent Kling tasks…', 'info');
+    let tasks;
+    try {
+      tasks = await listKlingOfficialTasks(30);
+    } catch (e) {
+      toast('Could not list Kling tasks: ' + e.message, 'error');
+      return;
+    }
+    const succeeded = tasks.filter(t => t.status === 'succeed' && t.videoUrl);
+    if (!succeeded.length) {
+      toast('No succeeded Kling tasks found in your account', 'info');
+      return;
+    }
+
+    // Build a list of scenes that could receive a recovered video.
+    // Pass 1: animated jobs with scenes missing video (the strict case)
+    // Pass 2: animated jobs with ALL scenes (in case user wants to reassign an existing one)
+    // Pass 3: ALL jobs with scenes (fallback if videoMode wasn't set on the job)
+    let recoverable = [];
+    for (const job of jobs) {
+      if (job.videoMode !== 'animated') continue;
+      (job.scenes || []).forEach((scene, sceneIdx) => {
+        if (!scene.videoBlobUrl) recoverable.push({ job, scene, sceneIdx, hasVideo: false });
+      });
+    }
+    if (!recoverable.length) {
+      console.log('[recovery] No animated scenes missing video — falling back to all animated scenes');
+      for (const job of jobs) {
+        if (job.videoMode !== 'animated') continue;
+        (job.scenes || []).forEach((scene, sceneIdx) => {
+          recoverable.push({ job, scene, sceneIdx, hasVideo: !!scene.videoBlobUrl });
+        });
+      }
+    }
+    if (!recoverable.length) {
+      console.log('[recovery] No animated jobs found at all — falling back to all jobs with scenes');
+      for (const job of jobs) {
+        (job.scenes || []).forEach((scene, sceneIdx) => {
+          recoverable.push({ job, scene, sceneIdx, hasVideo: !!scene.videoBlobUrl });
+        });
+      }
+    }
+    // Note: empty `recoverable` is now allowed — user can still download videos directly as MP4.
+    console.log(`[recovery] ${recoverable.length} scene slot${recoverable.length !== 1 ? 's' : ''} available, ${succeeded.length} succeeded Kling task${succeeded.length !== 1 ? 's' : ''} found`);
+
+    // Build modal HTML — supports both direct-download (always) and assign-to-scene (when scenes exist)
+    const fmt = ts => ts ? new Date(ts).toLocaleString() : '—';
+    const hasScenes = recoverable.length > 0;
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto;';
+    modal.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;max-width:900px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h3 style="margin:0;">🔧 Recover Kling videos</h3>
+          <button class="btn-sm js-recovery-close" style="font-size:14px;">×</button>
+        </div>
+        <p class="text-xs text-muted" style="margin-bottom:12px;">
+          Found ${succeeded.length} succeeded Kling task${succeeded.length !== 1 ? 's' : ''}.
+          ${hasScenes
+            ? 'Click a task to download as MP4, OR select a task + a scene to assign it.'
+            : 'No scenes in queue — click any task to download its MP4 directly.'}
+          Most recent tasks at the top.
+        </p>
+        <div style="display:grid;grid-template-columns:${hasScenes ? '1.2fr 1.4fr' : '1fr'};gap:12px;font-size:12px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-weight:600;">Available tasks (${succeeded.length})</span>
+              <button class="btn-pri js-recovery-download-all" style="font-size:11px;padding:5px 10px;">⬇ Download All</button>
+            </div>
+            <div class="js-recovery-tasks" style="display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto;"></div>
+          </div>
+          ${hasScenes ? `
+          <div>
+            <div style="font-weight:600;margin-bottom:6px;">Scenes (${recoverable.length})</div>
+            <div class="js-recovery-scenes" style="display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto;"></div>
+          </div>` : ''}
+        </div>
+        ${hasScenes ? `
+        <div style="margin-top:14px;text-align:right;">
+          <button class="btn-pri js-recovery-apply" style="font-size:13px;padding:8px 18px;" disabled>Apply Selected (assign to scene)</button>
+        </div>` : ''}
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const tasksList = modal.querySelector('.js-recovery-tasks');
+    const scenesList = modal.querySelector('.js-recovery-scenes');
+    const applyBtn = modal.querySelector('.js-recovery-apply');
+    let selectedTaskId = null;
+
+    succeeded.forEach((t, taskIdx) => {
+      const card = document.createElement('div');
+      card.className = 'js-rec-task';
+      card.dataset.taskId = t.taskId;
+      card.dataset.videoUrl = t.videoUrl;
+      card.style.cssText = 'padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="flex:1;cursor:${hasScenes ? 'pointer' : 'default'};" class="js-task-body">
+            <div style="font-size:11px;color:var(--text-muted);">${fmt(t.createdAt)}</div>
+            <div style="font-size:11px;line-height:1.3;margin-top:2px;">${(t.prompt || '(no prompt)').slice(0, 140)}</div>
+            <div style="font-size:10px;color:var(--cyan);margin-top:3px;">task: ${t.taskId.slice(0, 12)}…</div>
+          </div>
+          <button class="btn-xs js-task-download" style="flex-shrink:0;font-size:10px;padding:5px 10px;" title="Download this video as MP4">⬇ Download</button>
+        </div>
+      `;
+      // Click on body = select for assign (only if scenes exist)
+      if (hasScenes) {
+        card.querySelector('.js-task-body').addEventListener('click', () => {
+          modal.querySelectorAll('.js-rec-task').forEach(c => c.style.borderColor = 'var(--border)');
+          card.style.borderColor = 'var(--accent)';
+          selectedTaskId = t.taskId;
+          if (applyBtn) applyBtn.disabled = !modal.querySelector('.js-rec-scene.selected');
+        });
+      }
+      // Download button — fetch the CDN url and trigger browser download as MP4
+      card.querySelector('.js-task-download').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const dlBtn = e.currentTarget;
+        const orig = dlBtn.textContent;
+        dlBtn.disabled = true; dlBtn.textContent = '⏳ …';
+        try {
+          // Try fetch + blob; fall back to opening direct CDN url in new tab if CORS blocks
+          let blob;
+          try {
+            const r = await fetch(t.videoUrl);
+            if (!r.ok) throw new Error(`CDN ${r.status}`);
+            blob = await r.blob();
+          } catch (_) {
+            // CORS — open in new tab so user can right-click → save
+            window.open(t.videoUrl, '_blank');
+            dlBtn.textContent = '↗ Opened';
+            setTimeout(() => { dlBtn.textContent = orig; dlBtn.disabled = false; }, 2000);
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kling-${t.taskId.slice(0, 8)}-${(t.prompt || 'clip').slice(0, 30).replace(/[^\w]/g, '-')}.mp4`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          dlBtn.textContent = '✓ Saved';
+          toast(`Downloaded ${a.download}`, 'success');
+        } catch (err) {
+          dlBtn.textContent = '✗ Failed';
+          toast('Download failed: ' + err.message, 'error');
+        }
+        setTimeout(() => { dlBtn.textContent = orig; dlBtn.disabled = false; }, 2000);
+      });
+      tasksList.appendChild(card);
+    });
+
+    let selectedSceneRef = null;
+    if (hasScenes) recoverable.forEach((item, idx) => {
+      const { job, scene, sceneIdx, hasVideo } = item;
+      const card = document.createElement('div');
+      card.className = 'js-rec-scene';
+      card.dataset.idx = idx;
+      card.style.cssText = `padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);${hasVideo ? 'opacity:0.7;' : ''}`;
+      const statusIcon = hasVideo ? '✓ has video' : '✗ missing video';
+      const statusColor = hasVideo ? 'var(--green)' : 'var(--red)';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);">
+          <span>Job #${job.id} · scene ${sceneIdx + 1} · ${job.status}</span>
+          <span style="color:${statusColor};font-size:10px;">${statusIcon}</span>
+        </div>
+        <div class="js-scene-body" style="cursor:pointer;font-size:11px;line-height:1.3;margin-top:2px;">${(scene.prompt || scene.sceneText || '').slice(0, 140)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;gap:6px;">
+          <span style="font-size:10px;color:${scene.klingTaskId ? 'var(--amber)' : 'var(--text-muted)'};">${scene.klingTaskId ? `taskId: ${scene.klingTaskId.slice(0, 12)}…` : 'no taskId'}</span>
+          <button class="btn-xs js-scene-import" style="font-size:10px;padding:3px 8px;" title="Import a local MP4 file as this scene's video">📁 Import file</button>
+        </div>
+        <input type="file" class="js-scene-file" accept="video/mp4,video/*" style="display:none;">
+      `;
+      // Click on body = select for assign
+      card.querySelector('.js-scene-body').addEventListener('click', () => {
+        modal.querySelectorAll('.js-rec-scene').forEach(c => { c.classList.remove('selected'); c.style.borderColor = 'var(--border)'; });
+        card.classList.add('selected');
+        card.style.borderColor = 'var(--accent)';
+        selectedSceneRef = item;
+        if (applyBtn) applyBtn.disabled = !selectedTaskId;
+      });
+      // Local file import
+      const fileInput = card.querySelector('.js-scene-file');
+      card.querySelector('.js-scene-import').addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        scene.videoBlobUrl = URL.createObjectURL(file);
+        scene.videoFileName = file.name; // remember which file was used
+        toast(`✓ Imported ${file.name} → Job #${job.id} scene ${sceneIdx + 1}`, 'success');
+        autoSaveJobs?.();
+        renderJobs();
+        // Mark the card as resolved
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+        const status = card.querySelector('span[style*="font-size:10px"]');
+        if (status) { status.textContent = '✓ has video'; status.style.color = 'var(--green)'; }
+      });
+      scenesList.appendChild(card);
+    });
+
+    if (applyBtn) applyBtn.addEventListener('click', async () => {
+      if (!selectedTaskId || !selectedSceneRef) return;
+      const task = succeeded.find(t => t.taskId === selectedTaskId);
+      if (!task) return;
+      selectedSceneRef.scene.klingTaskId = task.taskId;
+      selectedSceneRef.scene.videoCdnUrl = task.videoUrl;
+      try {
+        const r = await fetch(task.videoUrl);
+        if (r.ok) {
+          const blob = await r.blob();
+          selectedSceneRef.scene.videoBlobUrl = URL.createObjectURL(blob);
+        } else {
+          selectedSceneRef.scene.videoBlobUrl = task.videoUrl;
+        }
+      } catch {
+        selectedSceneRef.scene.videoBlobUrl = task.videoUrl;
+      }
+      toast(`✓ Recovered video for scene ${selectedSceneRef.sceneIdx + 1} of job #${selectedSceneRef.job.id}`, 'success');
+      // Remove the assigned items from the lists
+      modal.querySelector(`.js-rec-task[data-task-id="${task.taskId}"]`)?.remove();
+      modal.querySelector(`.js-rec-scene.selected`)?.remove();
+      selectedTaskId = null;
+      selectedSceneRef = null;
+      applyBtn.disabled = true;
+      // Refresh job UI
+      renderJobs();
+    });
+
+    // Download All — fires every task's download button sequentially with a small stagger so
+    // browsers don't queue/block multiple file dialogs. Each individual button handles its own
+    // success/error state and toast.
+    const dlAllBtn = modal.querySelector('.js-recovery-download-all');
+    if (dlAllBtn) {
+      dlAllBtn.addEventListener('click', async () => {
+        const buttons = [...modal.querySelectorAll('.js-task-download')];
+        if (!buttons.length) return;
+        dlAllBtn.disabled = true;
+        const orig = dlAllBtn.textContent;
+        for (let i = 0; i < buttons.length; i++) {
+          dlAllBtn.textContent = `⬇ Downloading ${i + 1}/${buttons.length}…`;
+          buttons[i].click();
+          // Stagger so the browser doesn't drop simultaneous "save as" prompts.
+          // Also gives each per-task download its toast/state cycle.
+          await new Promise(r => setTimeout(r, 600));
+        }
+        dlAllBtn.textContent = `✓ Triggered ${buttons.length} downloads`;
+        setTimeout(() => { dlAllBtn.textContent = orig; dlAllBtn.disabled = false; }, 3000);
+      });
+    }
+
+    modal.querySelector('.js-recovery-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  }
+
+  // Generate Kling video clips for all scenes — parallel submission with auto-recovery.
+  // Each scene's klingTaskId is persisted IMMEDIATELY after submission so failures don't
+  // lose the task. On re-run, scenes that already have a klingTaskId skip resubmission and
+  // just poll the existing task — saves credits and recovers from prior polling failures.
   async function generateKlingClips(job, onProgress) {
     const pending = job.scenes.filter(s => s.imgDataUrl && !s.videoBlobUrl);
     if (!pending.length) return;
@@ -3520,41 +4691,68 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     // Step 1: For official provider, pass base64 directly; resellers need a public URL via imgbb
     let imageInputs;
     if (provider === 'kling-official') {
-      imageInputs = pending.map(scene => scene.imgDataUrl); // raw base64 data URLs, stripped in submitFn
+      imageInputs = pending.map(scene => scene.imgDataUrl);
     } else {
       onProgress?.(0, pending.length, 'Uploading images for animation…');
       imageInputs = await Promise.all(pending.map(async (scene, i) => {
+        // Skip upload if already submitted — its task already has the image
+        if (scene.klingTaskId) return null;
         const url = await uploadImageForKling(scene.imgDataUrl);
         onProgress?.(0, pending.length, `Uploaded ${i + 1}/${pending.length} images…`);
         return url;
       }));
     }
 
-    // Step 2: Submit all Kling tasks in parallel
+    // Step 2: Submit only scenes that don't already have a task ID. Save task ID immediately.
     onProgress?.(0, pending.length, 'Submitting animation tasks…');
     const submitFn = provider === 'kling-official' ? submitKlingI2V_official
                    : provider === 'kie'            ? submitKlingI2V_kie
                    :                                 submitKlingI2V_piapi;
-    const taskIds = await Promise.all(pending.map(async (scene, i) => {
+    await Promise.all(pending.map(async (scene, i) => {
+      if (scene.klingTaskId) {
+        console.log(`[Kling] Scene already has taskId=${scene.klingTaskId} — skipping submit, will poll directly`);
+        return;
+      }
+      const sceneIdx = job.scenes.indexOf(scene);
       const motionPrompt = scene.prompt + ' Smooth cinematic motion, high quality, consistent style.';
-      return submitFn(imageInputs[i], motionPrompt);
+
+      // Save submission intent BEFORE submitting. If the response is lost or errored,
+      // we can still recover via list-tasks → match by external_task_id.
+      const externalTaskId = `mp-${job.id}-s${sceneIdx}-${Date.now()}`;
+      scene.klingExternalTaskId = externalTaskId;
+      scene.klingPendingAt = Date.now();
+      scene.klingProvider = provider;
+      autoSaveJobs?.();
+
+      try {
+        const taskId = await _withKlingSemaphore(() => submitFn(imageInputs[i], motionPrompt, externalTaskId));
+        scene.klingTaskId = taskId;
+        scene.klingPendingAt = null; // submission confirmed by response
+        autoSaveJobs?.();
+      } catch (e) {
+        // Submission threw — but task may have been created server-side. Auto-recovery on next
+        // page load (or next click of Recover Kling) will find it via external_task_id.
+        console.warn(`[Kling] Submit threw for scene ${sceneIdx} (extId=${externalTaskId}): ${e.message}. Task may have been created server-side; auto-recovery will scan on next load.`);
+        throw e;
+      }
     }));
 
     // Step 3: Poll all tasks in parallel
     let completed = 0;
-    await Promise.all(taskIds.map(async (taskId, i) => {
+    await Promise.all(pending.map(async (scene, i) => {
       onProgress?.(completed, pending.length, `Animating ${pending.length} clips… (2-3 min)`);
+      const taskId = scene.klingTaskId;
+      if (!taskId) { completed++; return; } // submission must have failed permanently
       const videoUrl = await pollKlingTask(taskId, provider);
-      // Try to download as blob for local playback; fall back to direct CDN URL if CORS blocks fetch
       try {
         const videoResp = await fetch(videoUrl);
         if (!videoResp.ok) throw new Error(`CDN ${videoResp.status}`);
         const videoBlob = await videoResp.blob();
-        pending[i].videoBlobUrl = URL.createObjectURL(videoBlob);
+        scene.videoBlobUrl = URL.createObjectURL(videoBlob);
       } catch (_) {
-        // CORS or CDN error — use the URL directly; video element can play cross-origin without fetch
-        pending[i].videoBlobUrl = videoUrl;
+        scene.videoBlobUrl = videoUrl;
       }
+      scene.videoCdnUrl = videoUrl; // Always remember the original CDN URL too
       completed++;
       trackApiCost('kling-clip');
       onProgress?.(completed, pending.length, `${completed}/${pending.length} clips done`);
@@ -3580,19 +4778,56 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       return;
     }
 
-    // Determine generation mode — respects user selection for both illustrated and animated jobs
-    // Skip grid for line-art/limited-palette styles — Pro 2K grid bleeds across cells for these
+    // Determine generation mode — read from CURRENT global so manual re-runs pick up
+    // whatever mode the user has selected at retry time (e.g. switch from grid → individual
+    // after a grid failure, then click Re-run).
+    // Skip grid for line-art/limited-palette styles — Pro 2K grid bleeds across cells for these.
     const SPECIAL_STYLES = ['sketch', 'minimalist', 'flat-design', 'comic'];
     const isSkipStyle = SPECIAL_STYLES.includes(styleName);
-    const imgGenMode = job.imgGenMode || selectedImgGenMode || 'auto';
+    const imgGenMode = selectedImgGenMode || job.imgGenMode || 'auto';
     const useGrid = !isSkipStyle && (imgGenMode === 'grid' || (imgGenMode === 'auto' && pending.length >= 4));
 
     if (useGrid) {
       // Grid mode: one API call → upscale whole grid 2× → crop cells.
-      onProgress && onProgress(0, pending.length, 'Generating 2K grid…');
+      // When user explicitly chose 'grid', try up to 3 times with backoff on rate-limit.
+      // For 'auto' mode, try once.
+      // If grid fails after all retries AND the user explicitly chose grid, THROW an error
+      //   so the job goes to error state. The user can then either:
+      //   (a) keep grid mode + click Re-run to try grid again
+      //   (b) switch dropdown to 'individual' + click Re-run to bypass grid
+      // This avoids silently spending time/money on a fallback path the user didn't ask for.
+      // For 'auto' mode failures we still fall through to individual (auto = "I don't care, just produce something").
+      const explicitGrid = imgGenMode === 'grid';
+      const maxAttempts = explicitGrid ? 3 : 1;
+      const isRateLimit = msg => /\b(429|503)\b|rate|concurren|quota|exceed/i.test(msg || '');
+
       let gridUrl = null;
-      try { gridUrl = await generateGridImage(pending.map(s => s.prompt), stylePrompt); }
-      catch (_) { /* fall through to individual */ }
+      let lastError = null;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const label = attempt === 0
+          ? 'Generating 2K grid…'
+          : `Grid retry ${attempt}/${maxAttempts - 1}…`;
+        onProgress && onProgress(0, pending.length, label);
+        try {
+          gridUrl = await generateGridImage(pending.map(s => s.prompt), stylePrompt);
+          if (gridUrl) { lastError = null; break; }
+          // null result — internal retries exhausted; treat as a generic failure
+          lastError = new Error('Grid generation returned no image (internal retries exhausted)');
+          if (attempt === maxAttempts - 1) break;
+        } catch (e) {
+          lastError = e;
+          const lastTry = attempt === maxAttempts - 1;
+          if (lastTry || !explicitGrid || !isRateLimit(e.message)) break;
+          // Rate-limit + retries available: wait for in-flight image calls to settle, then retry
+          const waitSec = 30 * (attempt + 1); // 30s then 60s
+          console.warn(`[Grid] rate-limited (${e.message}). Waiting ${waitSec}s for other calls to clear…`);
+          onProgress && onProgress(0, pending.length, `Grid rate-limited — waiting ${waitSec}s for other calls…`);
+          for (let s = waitSec; s > 0; s--) {
+            await new Promise(r => setTimeout(r, 1000));
+            if (s % 5 === 0) onProgress && onProgress(0, pending.length, `Grid retry in ${s}s…`);
+          }
+        }
+      }
 
       if (gridUrl) {
         onProgress && onProgress(0, pending.length, 'Upscaling grid 2× (2K→4K)…');
@@ -3606,14 +4841,27 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         }
         return;
       }
-      // Grid failed — fall through to individual
+      // Grid failed.
+      // If user explicitly chose grid: throw — surface as job error, user retries manually.
+      // If user chose 'auto': silently fall through to individual.
+      if (explicitGrid) {
+        const reason = lastError?.message || 'unknown error';
+        throw new Error(`Grid mode failed after ${maxAttempts} attempt${maxAttempts > 1 ? 's' : ''}: ${reason}. Click Re-run to try again — switch generation mode to 'Individual' first if you want to bypass grid.`);
+      }
+      // Auto mode → fall through to individual
     }
 
-    // Individual mode (or grid fallback) — Gemini/laozhang/wisdom.
+    // Individual mode (or grid fallback) — Gemini/laozhang/wisdom/fal-schnell/fal-flux-2-flash.
+    // For fal providers: lock one seed per job so all scenes share the same visual base
+    // (palette, character look, aesthetic) — closest cheap approximation to grid consistency.
+    const isFal = selectedImageProvider === 'fal-schnell' || selectedImageProvider === 'fal-flux-2-flash';
+    const jobSeed = isFal
+      ? (job.falSeed = job.falSeed || Math.floor(Math.random() * 2147483647))
+      : undefined;
     for (let i = 0; i < pending.length; i++) {
       onProgress && onProgress(i, pending.length, `Image ${i + 1}/${pending.length}…`);
       const prompt = `Style: ${stylePrompt}. Scene: ${pending[i].prompt} STRICT: Do NOT include any text, words, letters in the image.`;
-      pending[i].imgDataUrl = await generateSingleImage(prompt, 1080, 1920);
+      pending[i].imgDataUrl = await generateSingleImage(prompt, 1080, 1920, { seed: jobSeed });
       pending[i].imgStatus  = 'done';
       onProgress && onProgress(i + 1, pending.length);
     }
@@ -3698,6 +4946,10 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         updateQueueControls(); return;
       }
     }
+
+    // Auto-pick a BGM preset based on the scene moods (user can change this on the done card)
+    if (!job.bgm) job.bgm = pickAutoBgm(job.scenes);
+    if (typeof job.bgmVolume !== 'number') job.bgmVolume = 0.3;
 
     updateJobStatus(job, 'done');
     toast(`✓ Job complete — ${job.scenes.length} scenes ready`, 'success');
@@ -4176,7 +5428,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         if (media.el.readyState >= 2 && media.el._ready !== false) ctx.drawImage(media.el, 0, 0, W, H);
         // else hold last canvas frame — prevents black/pixelated flash
       } else if (media?.type === 'image') {
-        drawSceneImage(ctx, media.el, si, lifeP, W, H);
+        drawSceneImage(ctx, media.el, si, lifeP, W, H, job.motion || 'ken-burns');
       } else {
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, W, H);
@@ -4234,6 +5486,26 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       rafId = requestAnimationFrame(renderLoop);
     }
 
+    // BGM playback — uses an HTMLAudioElement for file:// compatibility (no fetch/decodeAudioData).
+    // Loops; volume controlled by job.bgmVolume; reload track when job.bgm changes.
+    let bgmAudio = null;
+    function ensureBgmAudio() {
+      const presetKey = job.bgm || 'none';
+      const preset = BGM_PRESETS[presetKey];
+      if (!preset || !preset.src) {
+        if (bgmAudio) { try { bgmAudio.pause(); bgmAudio = null; } catch {} }
+        return null;
+      }
+      if (!bgmAudio || bgmAudio._presetKey !== presetKey) {
+        if (bgmAudio) { try { bgmAudio.pause(); } catch {} }
+        bgmAudio = new Audio(preset.src);
+        bgmAudio.loop = true;
+        bgmAudio._presetKey = presetKey;
+      }
+      bgmAudio.volume = typeof job.bgmVolume === 'number' ? job.bgmVolume : 0.3;
+      return bgmAudio;
+    }
+
     function play() {
       if (!audioBuffer) return;
       if (actx.state === 'suspended') actx.resume();
@@ -4242,6 +5514,14 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       audioSrc.connect(actx.destination);
       startedAt = actx.currentTime;
       audioSrc.start(0, pausedAt);
+      // Start BGM in sync with main audio offset
+      const bgm = ensureBgmAudio();
+      if (bgm) {
+        try {
+          bgm.currentTime = pausedAt % (bgm.duration || 60);
+          bgm.play().catch(() => {});
+        } catch {}
+      }
       playing = true;
       playBtn.textContent = '⏸';
       renderLoop();
@@ -4252,6 +5532,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       playing = false;
       playBtn.textContent = '▶';
       if (audioSrc) { try { audioSrc.stop(); } catch {} audioSrc = null; }
+      if (bgmAudio) { try { bgmAudio.pause(); } catch {} }
       previewMedia.forEach(m => { if (m?.type === 'video') try { m.el.pause(); } catch {} });
       cancelAnimationFrame(rafId);
     }
@@ -4270,11 +5551,41 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       };
     }
 
-    _previewPlayer = { pause };
+    // Expose live-update hooks so the per-job BGM panel can change track / volume mid-playback
+    window._previewBgmRefresh = (j) => {
+      if (j !== job) return;
+      const bgm = ensureBgmAudio();
+      if (bgm && playing) {
+        try {
+          bgm.currentTime = (pausedAt + (actx.currentTime - startedAt)) % (bgm.duration || 60);
+          bgm.play().catch(() => {});
+        } catch {}
+      }
+    };
+    window._previewBgmVolumeRefresh = (j) => {
+      if (j !== job || !bgmAudio) return;
+      bgmAudio.volume = typeof job.bgmVolume === 'number' ? job.bgmVolume : 0.3;
+    };
+
+    _previewPlayer = { pause, job };
+  }
+
+  // Called from per-job BGM panel handlers — only acts if preview is showing this job
+  function refreshPreviewBgm(job) {
+    if (_previewPlayer && _previewPlayer.job === job && typeof window._previewBgmRefresh === 'function') {
+      window._previewBgmRefresh(job);
+    }
+  }
+  function refreshPreviewBgmVolume(job) {
+    if (_previewPlayer && _previewPlayer.job === job && typeof window._previewBgmVolumeRefresh === 'function') {
+      window._previewBgmVolumeRefresh(job);
+    }
   }
 
   function closeJobPreview() {
     if (_previewPlayer) { try { _previewPlayer.pause(); } catch {} _previewPlayer = null; }
+    window._previewBgmRefresh = null;
+    window._previewBgmVolumeRefresh = null;
     document.getElementById('job-preview-overlay').classList.add('hidden');
   }
 
@@ -4458,12 +5769,19 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     ctx.drawImage(img, dx, dy, dw, dh);
   }
 
-  // Motion presets — cycles through scenes, matches main app js/09-transitions.js applyMotionTransform.
+  // Motion presets — when caller passes 'auto' (or no motion), cycle through these by sceneIdx.
   // Applied as a canvas coordinate transform BEFORE drawCoverFit.
   const MOTION_CYCLE = ['slow-zoom-in', 'ken-burns', 'pan-right', 'slow-zoom-out', 'pan-left', 'ken-burns'];
 
-  function applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch) {
-    const motion = MOTION_CYCLE[sceneIdx % MOTION_CYCLE.length];
+  // Resolve a motion choice: 'auto' → cycle by sceneIdx, anything else → that motion.
+  function resolveMotion(motion, sceneIdx) {
+    if (!motion || motion === 'auto') return MOTION_CYCLE[sceneIdx % MOTION_CYCLE.length];
+    return motion;
+  }
+
+  function applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch, motionChoice) {
+    const motion = resolveMotion(motionChoice, sceneIdx);
+    if (motion === 'none') return;
     if (motion === 'ken-burns') {
       const seed  = sceneIdx % 4;
       const scale = 1.0 + 0.15 * lifeProgress;
@@ -4484,15 +5802,21 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     } else if (motion === 'pan-right') {
       ctx.translate(cw / 2 + lifeProgress * cw * 0.08, ch / 2);
       ctx.scale(1.10, 1.10); ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'pan-up') {
+      ctx.translate(cw / 2, ch / 2 - lifeProgress * ch * 0.08);
+      ctx.scale(1.10, 1.10); ctx.translate(-cw / 2, -ch / 2);
+    } else if (motion === 'pan-down') {
+      ctx.translate(cw / 2, ch / 2 + lifeProgress * ch * 0.08);
+      ctx.scale(1.10, 1.10); ctx.translate(-cw / 2, -ch / 2);
     }
   }
 
   // Draw a scene image with motion onto ctx. Matches main app pattern:
   //   applyMotionTransform → drawCoverFit
-  function drawSceneImage(ctx, img, sceneIdx, lifeProgress, cw, ch) {
+  function drawSceneImage(ctx, img, sceneIdx, lifeProgress, cw, ch, motionChoice) {
     if (!img || !img.naturalWidth) return;
     ctx.save();
-    applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch);
+    applyMotionTransform(ctx, sceneIdx, lifeProgress, cw, ch, motionChoice);
     drawCoverFit(ctx, img, cw, ch);
     ctx.restore();
   }
@@ -4756,11 +6080,35 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     source.buffer = job.audioBuffer;
     source.connect(dest);
 
+    // Mix in BGM if selected — uses MediaElementAudioSourceNode so file:// origin works
+    // (no fetch / decodeAudioData required). Volume controlled by job.bgmVolume.
+    let bgmEl = null, bgmGain = null;
+    const bgmPreset = BGM_PRESETS[job.bgm];
+    if (bgmPreset && bgmPreset.src) {
+      bgmEl = new Audio(bgmPreset.src);
+      bgmEl.loop = true;
+      bgmEl.volume = 1; // gain node controls level
+      bgmGain = actx.createGain();
+      bgmGain.gain.value = typeof job.bgmVolume === 'number' ? job.bgmVolume : 0.3;
+      try {
+        const bgmSrc = actx.createMediaElementSource(bgmEl);
+        bgmSrc.connect(bgmGain);
+        bgmGain.connect(dest);
+      } catch (e) {
+        console.warn('[BGM] could not wire to export stream:', e.message);
+        bgmEl = null;
+      }
+    }
+
     const endCardDur = job.endCard ? 5 : 0;
     const introDur   = job.intro ? 2.5 : 0;
     const totalDuration = job.duration + endCardDur;
 
-    const videoStream = canvas.captureStream(30);
+    // 24 fps (cinema standard) instead of 30 — same visual quality for narrative video,
+    // 20% fewer frames per second eases CPU/encoder pressure, more forgiving when other
+    // jobs are running in parallel or the system is busy.
+    const TARGET_FPS = 24;
+    const videoStream = canvas.captureStream(TARGET_FPS);
     const combined = new MediaStream([
       ...videoStream.getVideoTracks(),
       ...dest.stream.getAudioTracks(),
@@ -4777,10 +6125,10 @@ OUTPUT — Return ONLY valid JSON, no markdown:
     const { mime: mimeType, ext: fileExt } = resolveMime();
 
     const chunks = [];
-    // 8 Mbps for 1080×1920 @ 30fps. The previous 4 Mbps caused VBR encoder to produce
-    // blocky artifacts at the intro→scene transition (low-entropy intro followed by
-    // high-detail AI image overran the bitrate budget for a few frames).
-    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 128_000 });
+    // 5 Mbps for 1080×1920 @ 24 fps — still very high quality for short-form social video
+    // (YouTube Shorts/Reels typically transcode incoming video down anyway). Lower bitrate
+    // = lighter encoder load = fewer dropped frames under CPU pressure. ~30 MB per 50s clip.
+    const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 128_000 });
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
     showExportOverlay(job);
@@ -4793,6 +6141,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         if (recStopped) return; recStopped = true;
         try { source.stop(); } catch {}
         try { recorder.stop(); } catch {}
+        if (bgmEl) { try { bgmEl.pause(); bgmEl.currentTime = 0; } catch {} }
       }
 
       document.getElementById('btn-cancel-export').onclick = () => {
@@ -4806,6 +6155,24 @@ OUTPUT — Return ONLY valid JSON, no markdown:
         const slug = job.input.slice(0, 30).replace(/[^\w]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'video';
         const filename = `${job.channel}-${job.langCode}-${slug}.${fileExt}`;
         const blob = new Blob(chunks, { type: mimeType });
+
+        // Frame-drop detection: compare actual renderFrame calls to expected.
+        // If effective fps fell below 80% of target, the tab was likely backgrounded
+        // → the file has fewer real frames than its duration claims → looks jittery on playback.
+        const actualWallTime = (performance.now() - t0) / 1000;
+        const expectedFrames = Math.round(actualWallTime * TARGET_FPS);
+        const effectiveFps = _renderFrameCount / Math.max(0.1, actualWallTime);
+        const fileSizeMB = blob.size / (1024 * 1024);
+        const expectedSizeMB = (5_000_000 / 8 * actualWallTime) / (1024 * 1024); // ~5 Mbps × duration / 8 / 1024^2
+        console.log(`[export] frames: rendered=${_renderFrameCount}, expected=${expectedFrames}, effFps=${effectiveFps.toFixed(1)}, ` +
+                    `wallTime=${actualWallTime.toFixed(1)}s, fileSize=${fileSizeMB.toFixed(1)}MB (expected≈${expectedSizeMB.toFixed(0)}MB)`);
+        const isLowFps = effectiveFps < TARGET_FPS * 0.8;
+        const isTinyFile = fileSizeMB < expectedSizeMB * 0.4;
+        if (isLowFps || isTinyFile) {
+          console.warn('[export] Recording quality degraded — tab was likely backgrounded during export.');
+          toast(`⚠ Export looks degraded (${effectiveFps.toFixed(0)}fps avg, ${fileSizeMB.toFixed(1)}MB). Tab may have lost focus — re-export with this tab visible.`, 'error');
+        }
+
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = filename;
@@ -4819,13 +6186,19 @@ OUTPUT — Return ONLY valid JSON, no markdown:
 
       recorder.start(200);
       source.start(actx.currentTime);
+      if (bgmEl) { try { bgmEl.play().catch(() => {}); } catch {} }
       const t0 = performance.now();
       let frameTimer = null;
       let _lastExportSceneIdx = -1; // track scene changes for video playback
       let _endCardParticles = null;
+      // Frame-drop detection: count actual renderFrame invocations. After export, compare to
+      // expected (TARGET_FPS × duration). If effective fps drops below 80% of target, warn —
+      // strong indicator the tab was backgrounded and the recording is jittery / undersized.
+      let _renderFrameCount = 0;
 
       function renderFrame() {
         if (cancelled) { clearInterval(frameTimer); return; }
+        _renderFrameCount++;
         const elapsed = (performance.now() - t0) / 1000;
 
         // Update progress overlay
@@ -4881,7 +6254,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
             if (media.el.readyState >= 2 && media.el._ready !== false) ctx.drawImage(media.el, 0, 0, w, h);
             // else: hold last canvas frame — no draw, no clear
           } else {
-            drawSceneImage(ctx, media.el, si, lifeProg, w, h);
+            drawSceneImage(ctx, media.el, si, lifeProg, w, h, job.motion || 'ken-burns');
           }
           if (alpha < 1) ctx.globalAlpha = 1;
         }
@@ -4945,7 +6318,7 @@ OUTPUT — Return ONLY valid JSON, no markdown:
       }
 
       // Use setInterval so it keeps running even if tab is unfocused
-      frameTimer = setInterval(renderFrame, Math.round(1000 / 30));
+      frameTimer = setInterval(renderFrame, Math.round(1000 / TARGET_FPS));
     });
   }
 
@@ -4964,6 +6337,116 @@ OUTPUT — Return ONLY valid JSON, no markdown:
   // ═══════════════════════════════════════════════
   // SAVE / LOAD PROJECT
   // ═══════════════════════════════════════════════
+
+  // Continuous autosave to localStorage — every 5s if jobs changed.
+  // Drops large blobs (audioBase64, imgDataUrl, videoBlobUrl, words) to stay under quota.
+  // Stores the metadata needed to recover state: ids, scene texts, klingTaskId, klingExternalTaskId,
+  // settings snapshots. On reload, this restores the queue + lets auto-recovery match orphan tasks.
+  const AUTOSAVE_KEY = 'stori_autosave_v1';
+  let _autosaveTimer = null;
+  let _autosaveDirty = false;
+
+  function autoSaveJobs() {
+    _autosaveDirty = true;
+    if (_autosaveTimer) return;
+    _autosaveTimer = setTimeout(() => {
+      _autosaveTimer = null;
+      if (!_autosaveDirty) return;
+      _autosaveDirty = false;
+      try {
+        // Strip large fields. Keep what's needed for recovery + identification.
+        const slim = jobs.map(j => ({
+          id: j.id, status: j.status, type: j.type, input: j.input,
+          channel: j.channel, langCode: j.langCode, langLabel: j.langLabel, langFlag: j.langFlag,
+          platform: j.platform, contentType: j.contentType, videoMode: j.videoMode,
+          klingProvider: j.klingProvider, transition: j.transition, style: j.style,
+          watermark: j.watermark, intro: j.intro, endCard: j.endCard,
+          imgProvider: j.imgProvider, imgGenMode: j.imgGenMode, gptQuality: j.gptQuality,
+          subLang: j.subLang, subStyle: j.subStyle, subBackdrop: j.subBackdrop,
+          subSize: j.subSize, subPosition: j.subPosition, subPosPct: j.subPosPct,
+          subColor: j.subColor, subOutline: j.subOutline, subFont: j.subFont,
+          subAllCaps: j.subAllCaps, subAccent: j.subAccent,
+          voice: j.voice, ttsMode: j.ttsMode, bgm: j.bgm, bgmVolume: j.bgmVolume,
+          autoStyle: j.autoStyle, title: j.title, caption: j.caption,
+          duration: j.duration, ttsChunks: j.ttsChunks,
+          error: j.error, createdAt: j.createdAt, plannerTitle: j.plannerTitle,
+          falSeed: j.falSeed,
+          // Per-scene: keep text + Kling identifiers only (no big blobs)
+          scenes: (j.scenes || []).map(s => ({
+            sceneText: s.sceneText, sceneDescription: s.sceneDescription, mood: s.mood,
+            prompt: s.prompt, subText: s.subText,
+            startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+            klingTaskId: s.klingTaskId, klingExternalTaskId: s.klingExternalTaskId,
+            klingPendingAt: s.klingPendingAt, klingProvider: s.klingProvider,
+            videoCdnUrl: s.videoCdnUrl, // CDN url survives reload; videoBlobUrl/imgDataUrl don't (memory blobs)
+            imgStatus: s.imgStatus,
+          })),
+        }));
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ jobs: slim, nextJobId, savedAt: Date.now() }));
+      } catch (e) {
+        // Quota exceeded or disabled — ignore (manual Save Project still works)
+        console.warn('[autosave] failed:', e.message);
+      }
+    }, 5000);
+  }
+
+  function loadAutosavedJobs() {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!data.jobs || !data.jobs.length) return false;
+      jobs = data.jobs;
+      nextJobId = data.nextJobId || jobs.length + 1;
+      const ageMin = Math.round((Date.now() - (data.savedAt || 0)) / 60000);
+      console.log(`[autosave] Restored ${jobs.length} jobs from autosave (saved ${ageMin}min ago)`);
+      renderJobs(); updateQueueControls();
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // Auto-recovery scan on page load — for any scene with klingPendingAt or klingExternalTaskId
+  // but no klingTaskId, list Kling tasks and match by external_task_id, attach video URLs.
+  async function autoRecoverOrphanKlingTasks() {
+    if (klingProvider !== 'kling-official' || !klingAccessKey || !klingSecretKey) return;
+    const orphans = [];
+    for (const job of jobs) {
+      if (job.videoMode !== 'animated') continue;
+      (job.scenes || []).forEach((scene) => {
+        if (scene.klingExternalTaskId && !scene.videoBlobUrl) orphans.push({ job, scene });
+      });
+    }
+    if (!orphans.length) return;
+    console.log(`[auto-recovery] Scanning Kling for ${orphans.length} orphan task${orphans.length !== 1 ? 's' : ''}…`);
+    let tasks;
+    try {
+      tasks = await listKlingOfficialTasks(50);
+    } catch (e) {
+      console.warn('[auto-recovery] list-tasks failed, skipping:', e.message);
+      return;
+    }
+    let attached = 0;
+    for (const { scene } of orphans) {
+      const match = tasks.find(t => t.taskId && (
+        // Match by Kling task_id (if we already have it) OR by external_task_id we set
+        t.taskId === scene.klingTaskId ||
+        (t.task_info?.external_task_id === scene.klingExternalTaskId)
+      ));
+      if (!match) continue;
+      scene.klingTaskId = match.taskId;
+      scene.klingPendingAt = null;
+      if (match.status === 'succeed' && match.videoUrl) {
+        scene.videoCdnUrl = match.videoUrl;
+        scene.videoBlobUrl = match.videoUrl; // CDN URL works directly in <video> elements
+        attached++;
+      }
+    }
+    if (attached > 0) {
+      autoSaveJobs();
+      renderJobs();
+      toast(`✓ Recovered ${attached} orphan Kling video${attached !== 1 ? 's' : ''} from your previous session`, 'success');
+    }
+  }
 
   function bindProjectSaveLoad() {
     document.getElementById('btn-save-project').addEventListener('click', () => {

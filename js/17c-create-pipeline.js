@@ -998,6 +998,35 @@ btnCreateTranscribe.addEventListener('click', async () => {
       // Step 3: Segment English text using real TTS duration
       updateCreateAgentTask('storyboard', 'segment', 'running', 'Segmenting text…');
       segments = segmentTextForStoryboard(englishText, createAudioBuffer.duration);
+
+      // Refine segment boundaries with sample-accurate word timestamps.
+      // Scribe → Gemini fallback → keep character-proportion boundaries unchanged.
+      try {
+        updateCreateAgentTask('storyboard', 'segment', 'running', 'Aligning word timing…');
+        const alignedWords = await alignWordsWithScribe(createAudioBuffer, createOutputLanguage || null);
+        if (alignedWords && alignedWords.length) {
+          // Map each segment's sentence text back to its first/last word timestamps
+          for (const seg of segments) {
+            const segWords = seg.text.trim().split(/\s+/).filter(Boolean);
+            if (!segWords.length) continue;
+            const firstWord = segWords[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+            const lastWord  = segWords[segWords.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+            const iFirst = alignedWords.findIndex(w => w.word.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(firstWord.slice(0, 4)));
+            const iLast  = alignedWords.slice(iFirst > 0 ? iFirst : 0).reduce((best, w, i) => {
+              return w.word.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(lastWord.slice(0, 4)) ? iFirst + i : best;
+            }, -1);
+            if (iFirst >= 0) seg.startTime = alignedWords[iFirst].start;
+            if (iLast  >= 0) seg.endTime   = alignedWords[iLast].end;
+          }
+          // Store flat word array for subtitle rendering
+          if (typeof createAlignedWords !== 'undefined') createAlignedWords = alignedWords;
+          else window._createAlignedWords = alignedWords;
+          console.log('[Copilot] Scribe: segment boundaries refined');
+        }
+      } catch (e) {
+        console.warn('[Copilot] word alignment failed, using character-proportion timing:', e.message);
+      }
+
       updateCreateAgentTask('storyboard', 'segment', 'done', `${segments.length} segments`);
       // #5 Ghost timeline — show skeleton cards with timecodes while prompts generate
       if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
