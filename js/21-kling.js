@@ -172,7 +172,11 @@ function buildClipPlan(duration) {
 // Returns after scene.videoClips and scene.videoUrl are set (or scene.videoError on failure)
 async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, geminiKey) {
   const clipPlan = buildClipPlan(scene.duration || 5);
-  const motionPrompt = (scene.prompt || 'A cinematic scene') + ' Smooth cinematic motion, high quality, consistent style.';
+  // Prefer the per-instance motionPrompt when supplied (canvas variant tune);
+  // fall back to scene.prompt + cinematic suffix for the legacy code path.
+  const motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
+    ? scene.motionPrompt.trim()
+    : ((scene.prompt || 'A cinematic scene') + ' Smooth cinematic motion, high quality, consistent style.');
 
   onProgress?.(null, totalScenes, `Submitting scene ${sceneIdx + 1}…`);
 

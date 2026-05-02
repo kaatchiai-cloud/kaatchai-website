@@ -588,18 +588,24 @@ const CREATE_AGENT_ICONS = {
   animation: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg>',
 };
 
+// `sock` maps each agent step to a P01 socket-color token (--sock-*) so the
+// status dot tints to the data type produced by that step (per ADR-1).
+//   storyboard → script (yellow)   image → image (orange)
+//   bgm        → audio (teal/mint) animation → video (purple)
+//   voiceover  → audio (teal/mint, same family as bgm)
+// `col` is the canvas column key consumed by jumpToCanvasColumn() in 17c.
 const CREATE_AGENTS_ILLUSTRATED = [
-  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Storyboard Agent' },
-  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent' },
-  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent' },
-  { id: 'voiceover',  stepId: 'create-language-step',   iconKey: 'voiceover',  label: 'Voiceover Agent' },
+  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Storyboard Agent', sock: 'script', col: 'sb' },
+  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent',      sock: 'image',  col: 'img' },
+  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent',        sock: 'audio',  col: 'bgm' },
+  { id: 'voiceover',  stepId: 'create-language-step',   iconKey: 'voiceover',  label: 'Voiceover Agent',  sock: 'audio',  col: 'sub' },
 ];
 
 const CREATE_AGENTS_ANIMATED = [
-  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Cinematography Agent' },
-  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent' },
-  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent' },
-  { id: 'animation',  stepId: 'create-video-step',      iconKey: 'animation',  label: 'Animation Agent' },
+  { id: 'storyboard', stepId: 'create-transcribe-step', iconKey: 'storyboard', label: 'Cinematography Agent', sock: 'script', col: 'sb' },
+  { id: 'image',      stepId: 'create-generate-step',   iconKey: 'image',      label: 'Image Agent',          sock: 'image',  col: 'img' },
+  { id: 'bgm',        stepId: 'create-bgm-step',        iconKey: 'bgm',        label: 'BGM Agent',            sock: 'audio',  col: 'bgm' },
+  { id: 'animation',  stepId: 'create-video-step',      iconKey: 'animation',  label: 'Animation Agent',      sock: 'video',  col: 'vid' },
 ];
 
 // status: 'waiting' | 'running' | 'done' | 'error'
@@ -644,11 +650,12 @@ function _renderCreateAgentPanel() {
     }
 
     return `<div class="agent-row${s.status === 'running' ? ' active' : ''}${isError ? ' error-clickable' : ''}"
-      onclick="scrollToAgentStep('${a.stepId}', ${isError})"
+      data-agent-id="${a.id}" data-sock="${a.sock || ''}" data-col="${a.col || ''}"
+      onclick="onCreateAgentRowClick(event, '${a.id}', '${a.stepId}', ${isError}, '${a.col || ''}')"
       title="${isError ? 'Click to jump to error and retry' : ''}">
       <span class="agent-row-icon">${iconHtml}</span>
       <span class="agent-row-label">${a.label}</span>
-      <span class="agent-status-dot ${s.status}"></span>
+      <span class="agent-status-dot ${s.status}" data-sock="${a.sock || ''}"></span>
       ${bodyHtml ? `<div class="agent-row-body">${bodyHtml}</div>` : ''}
     </div>`;
   }).join('');

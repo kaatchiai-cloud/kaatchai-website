@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stori Canvas Graph — Phase 1 Mock</title>
+<style>
+  :root{
+    --bg:#0a0e14; --bg-2:#0e131a; --bg-3:#141a23;
+    --panel:#0f151d; --panel-b:#1a2230;
+    --text:#e6edf3; --text-2:#9aa8b8; --text-3:#5d6b7d;
+    --border:#1e2733;
+    --sb:#a78bfa; --img:#22d3ee; --vid:#f59e0b; --cont:#2dd4bf;
+    --launch:#ef4444; --final:#10b981;
+    --dim:0.32;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Roboto,sans-serif;font-size:14px;overflow:hidden}
+
+  /* === LAYOUT === */
+  .app{position:fixed;inset:0;display:grid;
+    grid-template-columns:1fr 300px;
+    grid-template-rows:1fr 60px;
+    grid-template-areas:"graph right" "bottom right";
+  }
+  .graph-area{grid-area:graph;position:relative;overflow:hidden;background:radial-gradient(circle at 30% 30%,#10171f 0,#0a0e14 70%);}
+  .right-pane{grid-area:right;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column}
+  .bottom-pane{grid-area:bottom;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:14px;font-size:12px;color:var(--text-2)}
+
+  /* === TOOLBAR (chrome) === */
+  .toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px;background:rgba(10,14,20,0.85);
+    backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:1000}
+  .toolbar button{background:transparent;border:0;color:var(--text);padding:6px 10px;border-radius:5px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px}
+  .toolbar button:hover{background:var(--bg-3)}
+  .toolbar .zoom-display{padding:6px 8px;font-variant-numeric:tabular-nums;color:var(--text-2);min-width:48px;text-align:center}
+  .toolbar .sep{width:1px;background:var(--border);margin:4px 2px}
+
+  /* === GRAPH LAYER (zoomable) === */
+  .graph-viewport{position:absolute;inset:0;cursor:grab}
+  .graph-viewport.panning{cursor:grabbing}
+  .graph-layer{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+
+  /* SVG for curves */
+  .curves{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+  .curve{fill:none;stroke-width:2;opacity:0.7}
+  .curve.dashed{stroke-dasharray:6 6;animation:dash 1s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-12}}
+
+  /* Section bands */
+  .band{position:absolute;left:0;border-radius:0;display:flex;align-items:flex-start;padding-top:8px;padding-left:12px;color:var(--text-3);font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;pointer-events:none}
+  .band.alt{background:rgba(255,255,255,0.018)}
+  .band.warning{background:rgba(239,68,68,0.05)}
+  .band-label{background:rgba(10,14,20,0.7);padding:3px 8px;border-radius:4px;border:1px solid var(--border)}
+  .band-warn{margin-left:8px;color:#ef4444;text-transform:none;letter-spacing:0;font-weight:500}
+
+  /* === NODES === */
+  .node{position:absolute;background:var(--panel);border:1.5px solid var(--border);border-radius:10px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.5);cursor:default;user-select:none;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
+    will-change:transform}
+  .node:hover{box-shadow:0 6px 22px rgba(0,0,0,0.7);transform:translateY(-1px)}
+  .node.selected{box-shadow:0 0 0 2px #fff, 0 6px 22px rgba(0,0,0,0.7)}
+  .node.dim{opacity:var(--dim)}
+
+  .node-header{padding:8px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);cursor:grab;font-size:12px}
+  .node-header:active{cursor:grabbing}
+  .node-title{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .node-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .node-body{padding:10px}
+
+  .star-btn{background:transparent;border:1px solid var(--border);color:var(--text-3);
+    width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:12px;
+    display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+  .star-btn:hover{border-color:var(--text-2);color:var(--text)}
+  .star-btn.on{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1a1208;border-color:transparent}
+  .star-btn.render-on{background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent}
+
+  /* Node-type colors */
+  .node.sb{border-color:var(--sb)} .node.sb .node-header{color:#cdb8ff}
+  .node.img{border-color:var(--img)} .node.img .node-header{color:#67e8f9}
+  .node.vid{border-color:var(--vid)} .node.vid .node-header{color:#fcd34d}
+  .node.cont{border-color:var(--cont)} .node.cont .node-header{color:#5eead4}
+  .node.launch{border-color:var(--launch);background:linear-gradient(135deg,#1a0e0e,#180a0a)}
+  .node.launch .node-header{color:#fca5a5}
+  .node.final{border-color:var(--final);background:linear-gradient(135deg,#0a1a14,#0a1812)}
+  .node.final .node-header{color:#6ee7b7}
+
+  /* SB node */
+  .sb-prompt{width:100%;background:var(--bg-2);color:var(--text);border:1px solid var(--border);
+    border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;min-height:60px;font-family:inherit}
+  .sb-actions{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+  .btn-sm{background:var(--bg-3);border:1px solid var(--border);color:var(--text-2);font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+  .btn-sm:hover{color:var(--text);border-color:var(--text-3)}
+  .btn-sm.danger:hover{color:#ef4444;border-color:#ef4444}
+
+  /* IMG node */
+  .img-thumb{width:200px;height:280px;background:var(--bg-2);border-radius:6px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;cursor:zoom-in}
+  .img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .img-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--text-2)}
+  .img-style-chip{background:var(--bg-3);border:1px solid var(--border);padding:2px 8px;border-radius:10px;font-size:10px}
+  .ref-badge{background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);color:#67e8f9;padding:2px 6px;border-radius:4px;font-size:10px;display:inline-flex;align-items:center;gap:3px;margin-top:6px;cursor:help}
+
+  /* VID node */
+  .vid-player{width:200px;height:280px;background:#000;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;text-align:center;padding:10px;position:relative}
+  .vid-player.placeholder{background:linear-gradient(135deg,#1a1208,#0e0a04);color:#fcd34d}
+  .vid-player .play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);opacity:0;transition:opacity 0.15s;cursor:pointer;font-size:32px}
+  .vid-player:hover .play-overlay{opacity:1}
+  .vid-controls{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px}
+  .vid-controls .seek{flex:1;height:3px;background:var(--bg-3);border-radius:2px;position:relative}
+  .vid-controls .seek-fill{position:absolute;top:0;left:0;height:100%;background:var(--vid);border-radius:2px}
+  .vid-time{color:var(--text-3);font-variant-numeric:tabular-nums;min-width:30px}
+  .vid-prompt{width:100%;background:var(--bg-2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:11px;resize:vertical;min-height:36px;font-family:inherit;margin-top:6px}
+
+  /* CONT node */
+  .node.cont{width:130px}
+  .cont-thumb{width:110px;height:154px;background:var(--bg-2);border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:10px}
+
+  /* LAUNCH + FINAL nodes */
+  .node.launch{padding:0;border-width:2px}
+  .node.launch .node-body{padding:14px 18px;text-align:center}
+  .launch-btn{background:linear-gradient(135deg,#ef4444,#dc2626);border:0;color:#fff;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
+  .launch-btn:hover{background:linear-gradient(135deg,#f87171,#ef4444)}
+  .launch-btn:disabled{opacity:0.5;cursor:not-allowed}
+
+  .node.final{border-width:2px}
+  .final-btns{display:flex;gap:6px;margin-top:6px}
+  .final-btn{flex:1;background:linear-gradient(135deg,#10b981,#059669);border:0;color:#fff;font-size:12px;padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+  .final-btn:hover{background:linear-gradient(135deg,#34d399,#10b981)}
+  .final-btn.secondary{background:var(--bg-3);color:var(--text);border:1px solid var(--border)}
+  .final-btn.secondary:hover{border-color:var(--text-3)}
+
+  /* Status badges */
+  .status{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:500}
+  .status.done{background:rgba(16,185,129,0.15);color:#6ee7b7}
+  .status.gen{background:rgba(34,211,238,0.15);color:#67e8f9}
+  .status.poll{background:rgba(245,158,11,0.15);color:#fcd34d}
+  .status.err{background:rgba(239,68,68,0.15);color:#fca5a5}
+  .status.pending{background:rgba(255,255,255,0.05);color:var(--text-3)}
+
+  .status .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+  .status.gen .dot,.status.poll .dot{animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+  /* === RIGHT PANE (chrome) === */
+  .right-pane h3{margin:0;padding:14px 16px 8px;font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  .props{flex:1;overflow:auto;padding:14px 16px}
+  .props-empty{color:var(--text-3);font-size:12px;text-align:center;padding:30px 14px;line-height:1.5}
+  .prop-row{margin-bottom:12px}
+  .prop-label{font-size:10px;color:var(--text-3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;font-weight:600}
+  .prop-value{font-size:13px;color:var(--text);word-break:break-word}
+  .prop-textarea{width:100%;background:var(--bg-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;resize:vertical;min-height:60px;font-family:inherit}
+
+  .preview-pane{border-top:1px solid var(--border);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+  .preview-empty{aspect-ratio:9/16;background:var(--bg-2);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11px;text-align:center;padding:18px;line-height:1.5}
+  .preview-btn{background:linear-gradient(135deg,#22d3ee,#0891b2);border:0;color:#fff;font-size:12px;padding:9px;border-radius:6px;cursor:pointer;font-weight:600}
+  .preview-btn:hover{background:linear-gradient(135deg,#67e8f9,#22d3ee)}
+  .preview-btn:disabled{opacity:0.4;cursor:not-allowed;background:var(--bg-3);color:var(--text-3)}
+
+  /* === BOTTOM PANE === */
+  .chip{background:var(--bg-3);border:1px solid var(--border);padding:4px 10px;border-radius:14px;display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)}
+  .chip strong{color:var(--text);font-weight:600}
+  .chip .dot{width:6px;height:6px;border-radius:50%;background:#10b981}
+  .save-indicator{margin-left:auto;font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+  .save-indicator.dirty{color:#fcd34d}
+
+  /* Help banner */
+  .help{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);
+    background:rgba(10,14,20,0.92);backdrop-filter:blur(8px);border:1px solid var(--border);
+    border-radius:8px;padding:7px 14px;font-size:11px;color:var(--text-2);z-index:1000;display:flex;gap:14px}
+  .help kbd{background:var(--bg-3);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--text);font-family:inherit}
+
+  /* Tooltip */
+  .tt{position:relative}
+  .tt[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+    background:#000;color:#fff;font-size:11px;padding:5px 9px;border-radius:5px;white-space:nowrap;z-index:9999;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- GRAPH AREA (Layer A — zoomable) + chrome toolbar -->
+  <div class="graph-area">
+    <div class="toolbar">
+      <button id="btn-tidy" class="tt" data-tip="Reset auto-layout">🧹 Tidy</button>
+      <div class="sep"></div>
+      <button id="btn-zoom-out" class="tt" data-tip="Zoom out (scroll)">−</button>
+      <div class="zoom-display" id="zoom-display">100%</div>
+      <button id="btn-zoom-in" class="tt" data-tip="Zoom in (scroll)">+</button>
+      <button id="btn-fit" class="tt" data-tip="Fit to view (F)">Fit</button>
+      <div class="sep"></div>
+      <button id="btn-launch-trigger" class="tt" data-tip="Demo: hide Launch button & spawn videos">▶ Demo Launch</button>
+      <button id="btn-reset" class="tt" data-tip="Reset demo state">↺ Reset</button>
+    </div>
+
+    <div class="graph-viewport" id="viewport">
+      <div class="graph-layer" id="graph-layer">
+        <svg class="curves" id="curves"></svg>
+        <!-- bands and nodes injected by JS -->
+      </div>
+    </div>
+
+    <div class="help">
+      <span><kbd>Space</kbd>+drag: pan</span>
+      <span><kbd>Scroll</kbd>: zoom</span>
+      <span><kbd>F</kbd>: fit</span>
+      <span><kbd>Click</kbd>: select</span>
+    </div>
+  </div>
+
+  <!-- RIGHT PANE (chrome) -->
+  <div class="right-pane">
+    <h3>Properties</h3>
+    <div class="props" id="props">
+      <div class="props-empty">Click any node to edit its properties.<br><br>This is a static mockup with hardcoded scenes — interactions are visual only.</div>
+    </div>
+    <h3>Full-timeline preview</h3>
+    <div class="preview-pane">
+      <div class="preview-empty" id="preview-empty">Pick one 🎯 video per section to enable full preview</div>
+      <button class="preview-btn" id="preview-btn" disabled>▶ Preview full video</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM PANE (chrome) -->
+  <div class="bottom-pane">
+    <span class="chip"><strong>Mahabharata · Scene of Krishna</strong></span>
+    <span class="chip">3 sections</span>
+    <span class="chip">~24s</span>
+    <span class="chip">Style: cinematic</span>
+    <span class="chip"><span class="dot"></span>BGM ready</span>
+    <span class="chip">Cost: $0.42</span>
+    <div class="save-indicator" id="save-indicator">💾 Saved</div>
+  </div>
+
+</div>
+
+<script>
+// ─── HARDCODED FAKE DATA ──────────────────────────────────────────────────
+// Three sections with mixed instance counts to show every state.
+const initialState = () => ({
+  zoom: 1, panX: 40, panY: 40,
+  selectedId: null,
+  videoGenLaunched: false,           // toggles the Launch button visibility
+  job: {
+    launchPos: null,                 // null = auto-position
+    finalPos:  null,
+  },
+  sections: [
+    {
+      id: 's1', startTime: 0, endTime: 8, label: 'Section 1 · 0:00–0:08',
+      storyboards: [
+        {
+          id: 'sb1a', prompt: 'Krishna, a young prince in flowing robes, stands at the edge of a mountain at dawn looking over a vast battlefield.', isActive: true, refImageDataUrl: null,
+          images: [
+            { id: 'i1a1', style: 'cinematic', styleOverridden: false, status: 'done', imgGenStar: true, renderStar: true,  refRefs: 0,
+              thumbColor: 'linear-gradient(180deg,#5b3a1a 0%,#8c5a2a 30%,#c98a4a 60%,#f0c878 80%,#fff5d8 100%)' },
+          ],
+        },
+      ],
+      videos: [
+        { id: 'v1a1', sourceImageId: 'i1a1', prompt: 'Slow zoom-in on Krishna; wind moves his robes; sun rises in the background.', duration: 8,
+          status: 'done', renderStar: true,
+          clips: [
+            { duration: 5, thumbColor: 'linear-gradient(180deg,#5b3a1a 0%,#c98a4a 50%,#fff5d8 100%)' },
+            { duration: 3, thumbColor: 'linear-gradient(180deg,#8c5a2a 0%,#f0c878 60%,#fff5d8 100%)' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 's2', startTime: 8, endTime: 18, label: 'Section 2 · 0:08–0:18',
+      storyboards: [
+        {
+          id: 'sb2a', prompt: 'Arjuna kneels in his chariot, lowering his bow, anguish in his expression. Two armies face each other.', isActive: true, refImageDataUrl: null,
+          images: [
+            { id: 'i2a1', style: 'cinematic', styleOverridden: false, status: 'done', imgGenStar: true, renderStar: false, refRefs: 2,
+              thumbColor: 'linear-gradient(180deg,#1a2540 0%,#3b4970 40%,#7c4a2c 70%,#c98a4a 100%)' },
+            { id: 'i2a2', style: 'cinematic', styleOverridden: false, status: 'done', imgGenStar: true, renderStar: false, refRefs: 3,
+              thumbColor: 'linear-gradient(180deg,#142036 0%,#2f4068 40%,#6e3f24 70%,#b87a3a 100%)' },
+            { id: 'i2a3', style: 'cinematic', styleOverridden: true,  status: 'gen',  imgGenStar: false, renderStar: false, refRefs: 3,
+              thumbColor: 'linear-gradient(180deg,#222 0%,#444 100%)' },
+          ],
+        },
+      ],
+      videos: [
+        { id: 'v2a1', sourceImageId: 'i2a1', prompt: 'Camera pulls back to reveal armies; banner flutters; horse breathes.', duration: 10,
+          status: 'done', renderStar: true,
+          clips: [
+            { duration: 5,  thumbColor: 'linear-gradient(180deg,#1a2540 0%,#7c4a2c 100%)' },
+            { duration: 5,  thumbColor: 'linear-gradient(180deg,#3b4970 0%,#c98a4a 100%)' },
+          ],
+        },
+        { id: 'v2a2', sourceImageId: 'i2a2', prompt: 'Tracking shot, Arjuna lifts head as wind moves through grass.', duration: 10,
+          status: 'poll', renderStar: false,
+          clips: [
+            { duration: 5,  thumbColor: 'linear-gradient(180deg,#142036 0%,#6e3f24 100%)' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 's3', startTime: 18, endTime: 24, label: 'Section 3 · 0:18–0:24',
+      storyboards: [
+        {
+          id: 'sb3a', prompt: 'Krishna reveals his cosmic form, light radiating, multiple arms and faces.', isActive: true, refImageDataUrl: null,
+          images: [
+            { id: 'i3a1', style: 'cinematic', styleOverridden: false, status: 'done', imgGenStar: true, renderStar: false, refRefs: 2,
+              thumbColor: 'radial-gradient(circle,#fef3c7 0%,#f59e0b 25%,#7c2d12 60%,#0c0a09 100%)' },
+          ],
+        },
+        // Section 3 has 2 storyboards — the second is inactive (dim)
+        {
+          id: 'sb3b', prompt: 'Alternate take: gentle close-up of Krishna’s smile.', isActive: false, refImageDataUrl: null,
+          images: [],
+        },
+      ],
+      videos: [],  // no videos yet for section 3 → Launch button SHOULD show
+    },
+  ],
+});
+
+let state = initialState();
+const NODE_W = { sb: 240, img: 220, vid: 220, cont: 130, launch: 220, final: 220 };
+const NODE_H = { sb: 170, img: 380, vid: 460, cont: 200, launch: 110, final: 150 };
+
+// ─── DOM REFS ─────────────────────────────────────────────────────────────
+const viewport = document.getElementById('viewport');
+const graphLayer = document.getElementById('graph-layer');
+const curvesSvg = document.getElementById('curves');
+const propsEl = document.getElementById('props');
+const zoomDisplay = document.getElementById('zoom-display');
+const previewBtn = document.getElementById('preview-btn');
+const previewEmpty = document.getElementById('preview-empty');
+
+// ─── AUTO-LAYOUT ──────────────────────────────────────────────────────────
+// Pre-launch: SB → Img → Launch (centered Y).  Post-launch: SB → Img → Vid → Final (centered Y).
+function autoLayout() {
+  const COL_GAP = 60;
+  const ROW_GAP = 18;
+  const BAND_PAD = 24;
+  let y = 0;
+  const xCols = { sb: 0, img: 0, vid: 0, cont: 0 };
+  const colX = {
+    sb: 0,
+    img: NODE_W.sb + COL_GAP,
+    vid: NODE_W.sb + COL_GAP + NODE_W.img + COL_GAP,
+    cont(parentX, clipIdx) { return parentX + NODE_W.vid + COL_GAP + clipIdx * (NODE_W.cont + 16); },
+  };
+
+  for (const sec of state.sections) {
+    sec._bandTop = y;
+    let bandH = 0;
+
+    // Stack storyboards vertically inside the band
+    let sbY = y + BAND_PAD;
+    for (const sb of sec.storyboards) {
+      sb._x = colX.sb;
+      sb._y = sbY;
+      // Stack image instances vertically aligned to this SB
+      let imgY = sbY;
+      for (const img of sb.images) {
+        img._x = colX.img;
+        img._y = imgY;
+        imgY += NODE_H.img + ROW_GAP;
+      }
+      // SB row height = max(SB height, total images height)
+      const imgsH = sb.images.length === 0 ? 0 : (sb.images.length * (NODE_H.img + ROW_GAP) - ROW_GAP);
+      const rowH = Math.max(NODE_H.sb, imgsH);
+      sbY += rowH + ROW_GAP;
+      bandH = Math.max(bandH, sbY - y);
+    }
+
+    // Stack video instances vertically (one per source image, in image order)
+    let vidY = y + BAND_PAD;
+    for (const vid of sec.videos) {
+      vid._x = colX.vid;
+      vid._y = vidY;
+      // continuation clips chain rightward
+      vid._contStartX = vid._x + NODE_W.vid + COL_GAP;
+      vidY += NODE_H.vid + ROW_GAP;
+    }
+    bandH = Math.max(bandH, vidY - y);
+
+    sec._bandHeight = Math.max(bandH + BAND_PAD, 280);
+    y += sec._bandHeight;
+  }
+
+  // Total graph height
+  state._totalH = y;
+
+  // Launch Video Agent: vertically centered against full graph height, x to the right of all images
+  // Final Render: vertically centered, further right
+  const launchX = colX.vid;             // same column as videos (replaces them visually)
+  const finalX  = colX.vid + NODE_W.vid + 220;
+  const launchY = state._totalH / 2 - NODE_H.launch / 2;
+  const finalY  = state._totalH / 2 - NODE_H.final  / 2;
+
+  state.job.launchPos = state.job.launchPos || { x: launchX, y: launchY };
+  state.job.finalPos  = state.job.finalPos  || { x: finalX,  y: finalY };
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────
+function render() {
+  // Clear non-SVG children
+  [...graphLayer.children].forEach(c => { if (c.tagName !== 'svg' && c.tagName !== 'SVG') c.remove(); });
+
+  autoLayout();
+
+  // Section bands (full-width)
+  const totalW = 1600; // generous width so band spans the visible area at any reasonable zoom
+  state.sections.forEach((sec, i) => {
+    const band = document.createElement('div');
+    band.className = 'band' + (i % 2 === 1 ? ' alt' : '');
+    // Section-finalized gate: more than one active SB, or zero
+    const activeSbs = sec.storyboards.filter(s => s.isActive).length;
+    if (activeSbs !== 1) band.classList.add('warning');
+    band.style.left = '0px';
+    band.style.top = sec._bandTop + 'px';
+    band.style.width = totalW + 'px';
+    band.style.height = sec._bandHeight + 'px';
+    let warn = '';
+    if (sec.storyboards.length > 1 && activeSbs === 1) {
+      const inactive = sec.storyboards.length - 1;
+      warn = `<span class="band-warn">· ${inactive} alternate storyboard${inactive>1?'s':''}</span>`;
+    } else if (activeSbs !== 1) {
+      warn = `<span class="band-warn">· pick one storyboard for this section</span>`;
+    }
+    band.innerHTML = `<span class="band-label">${sec.label}</span>${warn}`;
+    graphLayer.insertBefore(band, curvesSvg.nextSibling);
+  });
+
+  // Storyboard nodes
+  for (const sec of state.sections) {
+    for (const sb of sec.storyboards) {
+      const sbNode = renderStoryboardNode(sec, sb);
+      graphLayer.appendChild(sbNode);
+      for (const img of sb.images) {
+        const imgNode = renderImageNode(sec, sb, img);
+        graphLayer.appendChild(imgNode);
+      }
+    }
+    // Videos (only if launched)
+    if (state.videoGenLaunched) {
+      for (const vid of sec.videos) {
+        graphLayer.appendChild(renderVideoNode(sec, vid));
+        // Continuation clips
+        vid.clips.slice(1).forEach((clip, idx) => {
+          graphLayer.appendChild(renderContinuationNode(sec, vid, clip, idx));
+        });
+      }
+    }
+  }
+
+  // Launch button (visible only if there are ⭐ images that don't yet have videos)
+  const showLaunch = !state.videoGenLaunched && state.sections.some(s =>
+    s.storyboards.some(sb => sb.isActive && sb.images.some(i => i.imgGenStar)));
+  if (showLaunch) {
+    graphLayer.appendChild(renderLaunchNode());
+  }
+
+  // Final Render (visible if ANY video instance exists in launched state)
+  const hasAnyVideo = state.videoGenLaunched && state.sections.some(s => s.videos.length);
+  if (hasAnyVideo) {
+    graphLayer.appendChild(renderFinalNode());
+  }
+
+  // Curves
+  drawCurves();
+
+  // Apply transform
+  applyTransform();
+
+  // Update preview gate
+  updatePreviewGate();
+}
+
+function renderStoryboardNode(sec, sb) {
+  const el = document.createElement('div');
+  el.className = 'node sb' + (sb.isActive ? '' : ' dim');
+  el.dataset.id = sb.id;
+  el.style.width = NODE_W.sb + 'px';
+  el.style.left = sb._x + 'px';
+  el.style.top = sb._y + 'px';
+  const star = sb.isActive ? '<button class="star-btn on" title="Active storyboard">★</button>' : '<button class="star-btn" title="Make active">☆</button>';
+  el.innerHTML = `
+    <div class="node-header">
+      <span class="node-icon" style="color:var(--sb)">●</span>
+      <span class="node-title">Storyboard${sb.isActive?'':' (alt)'}</span>
+      ${star}
+    </div>
+    <div class="node-body">
+      <textarea class="sb-prompt" rows="3">${escapeHtml(sb.prompt)}</textarea>
+      <div class="sb-actions">
+        <button class="btn-sm">📎 Ref</button>
+        <button class="btn-sm">➕ Image</button>
+        <button class="btn-sm danger">🗑</button>
+      </div>
+    </div>`;
+  wireNodeInteraction(el, sb);
+  return el;
+}
+
+function renderImageNode(sec, sb, img) {
+  const el = document.createElement('div');
+  el.className = 'node img' + (sb.isActive ? '' : ' dim');
+  el.dataset.id = img.id;
+  el.style.width = NODE_W.img + 'px';
+  el.style.left = img._x + 'px';
+  el.style.top = img._y + 'px';
+  const starGen = `<button class="star-btn ${img.imgGenStar?'on':''} tt" data-tip="Use for video gen">${img.imgGenStar?'⭐':'☆'}</button>`;
+  const starRender = img.status === 'done'
+    ? `<button class="star-btn ${img.renderStar?'render-on':''} tt" data-tip="Use for render">${img.renderStar?'🎯':'⊙'}</button>`
+    : '';
+  let statusBadge;
+  if (img.status === 'done')   statusBadge = '<span class="status done"><span class="dot"></span>Done</span>';
+  else if (img.status === 'gen')  statusBadge = '<span class="status gen"><span class="dot"></span>Generating</span>';
+  else if (img.status === 'err')  statusBadge = '<span class="status err"><span class="dot"></span>Error — retry</span>';
+  else                            statusBadge = '<span class="status pending">Pending</span>';
+  const refBadge = img.refRefs > 0
+    ? `<div class="ref-badge tt" data-tip="Style-matched to ${img.refRefs} sibling images">🔗 ${img.refRefs} refs</div>` : '';
+  const styleBadge = img.styleOverridden
+    ? `<span class="img-style-chip" style="border-color:#fcd34d;color:#fcd34d">⚠️ ${img.style} (override)</span>`
+    : `<span class="img-style-chip">${img.style}</span>`;
+  el.innerHTML = `
+    <div class="node-header">
+      <span class="node-icon" style="color:var(--img)">▢</span>
+      <span class="node-title">Image</span>
+      ${starGen}
+      ${starRender}
+    </div>
+    <div class="node-body">
+      <div class="img-thumb tt" data-tip="Click to preview" style="background:${img.thumbColor}">${img.status!=='done'?(img.status==='gen'?'⏳ generating…':''):''}</div>
+      <div class="img-meta">
+        ${styleBadge}
+        ${statusBadge}
+      </div>
+      ${refBadge}
+      <div class="sb-actions" style="margin-top:8px">
+        <button class="btn-sm">🔄 Regen</button>
+        <button class="btn-sm">📥</button>
+        <button class="btn-sm">⚙️ Style</button>
+        <button class="btn-sm">➕ Instance</button>
+      </div>
+    </div>`;
+  wireNodeInteraction(el, img);
+  return el;
+}
+
+function renderVideoNode(sec, vid) {
+  const el = document.createElement('div');
+  el.className = 'node vid';
+  el.dataset.id = vid.id;
+  el.style.width = NODE_W.vid + 'px';
+  el.style.left = vid._x + 'px';
+  el.style.top = vid._y + 'px';
+  let statusBadge;
+  if (vid.status === 'done')      statusBadge = '<span class="status done"><span class="dot"></span>Done</span>';
+  else if (vid.status === 'poll') statusBadge = '<span class="status poll"><span class="dot"></span>Polling Kling…</span>';
+  else if (vid.status === 'err')  statusBadge = '<span class="status err"><span class="dot"></span>Error — retry</span>';
+  else                            statusBadge = '<span class="status pending">Pending</span>';
+  const renderStar = vid.status === 'done'
+    ? `<button class="star-btn ${vid.renderStar?'render-on':''} tt" data-tip="Use for render">${vid.renderStar?'🎯':'⊙'}</button>`
+    : '';
+  const playerBody = vid.status === 'done'
+    ? `<div class="vid-player" style="background:${vid.clips[0].thumbColor}"><div class="play-overlay">▶</div></div>`
+    : `<div class="vid-player placeholder">${vid.status==='poll'?'⏳ Polling…':vid.status==='err'?'✗ Failed':'pending'}</div>`;
+  el.innerHTML = `
+    <div class="node-header">
+      <span class="node-icon" style="color:var(--vid)">▶</span>
+      <span class="node-title">Video</span>
+      ${renderStar}
+    </div>
+    <div class="node-body">
+      ${playerBody}
+      <div class="vid-controls">
+        <button class="btn-sm" style="padding:2px 6px">▶</button>
+        <button class="btn-sm" style="padding:2px 6px">⏸</button>
+        <div class="seek"><div class="seek-fill" style="width:0%"></div></div>
+        <span class="vid-time">0:00</span>
+      </div>
+      <textarea class="vid-prompt" rows="2">${escapeHtml(vid.prompt)}</textarea>
+      <div class="img-meta" style="margin-top:6px">
+        <span class="img-style-chip">${vid.duration}s</span>
+        ${statusBadge}
+      </div>
+      <div class="sb-actions" style="margin-top:6px">
+        <button class="btn-sm">🔄 Re-animate</button>
+        <button class="btn-sm danger">🗑</button>
+      </div>
+    </div>`;
+  wireNodeInteraction(el, vid);
+  return el;
+}
+
+function renderContinuationNode(sec, vid, clip, idx) {
+  const el = document.createElement('div');
+  el.className = 'node cont';
+  el.dataset.id = vid.id + '-c' + idx;
+  el.style.width = NODE_W.cont + 'px';
+  el.style.left = (vid._contStartX + idx * (NODE_W.cont + 16)) + 'px';
+  el.style.top = vid._y + 'px';
+  el.innerHTML = `
+    <div class="node-header">
+      <span class="node-icon" style="color:var(--cont)">↪</span>
+      <span class="node-title">Cont. ${idx+2}</span>
+    </div>
+    <div class="node-body">
+      <div class="cont-thumb" style="background:${clip.thumbColor}">▶</div>
+      <div class="img-meta" style="margin-top:6px"><span class="img-style-chip">${clip.duration}s</span></div>
+    </div>`;
+  return el;
+}
+
+function renderLaunchNode() {
+  const el = document.createElement('div');
+  el.className = 'node launch';
+  el.dataset.id = 'launch';
+  el.style.width = NODE_W.launch + 'px';
+  el.style.left = state.job.launchPos.x + 'px';
+  el.style.top  = state.job.launchPos.y + 'px';
+  // Count active ⭐ images
+  let n = 0;
+  for (const s of state.sections) for (const sb of s.storyboards) if (sb.isActive) for (const i of sb.images) if (i.imgGenStar && i.status === 'done') n++;
+  // Gate: any image still generating?
+  const gating = state.sections.some(s => s.storyboards.some(sb => sb.isActive && sb.images.some(i => i.imgGenStar && i.status !== 'done')));
+  el.innerHTML = `
+    <div class="node-header" style="border-bottom:0">
+      <span class="node-icon" style="color:var(--launch)">🎬</span>
+      <span class="node-title">Launch Video Agent</span>
+    </div>
+    <div class="node-body">
+      <button class="launch-btn" ${gating?'disabled':''} title="${gating?'Wait for all ⭐ images to finish':'Generate '+n+' videos'}">
+        ${gating?'⏳ Waiting for images':'🎬 Generate '+n+' videos'}
+      </button>
+    </div>`;
+  el.querySelector('.launch-btn').onclick = (e) => {
+    e.stopPropagation();
+    if (gating) return;
+    state.videoGenLaunched = true;
+    render();
+  };
+  wireNodeInteraction(el, { id: 'launch', _x: state.job.launchPos.x, _y: state.job.launchPos.y, _isLaunch: true });
+  return el;
+}
+
+function renderFinalNode() {
+  const el = document.createElement('div');
+  el.className = 'node final';
+  el.dataset.id = 'final';
+  el.style.width = NODE_W.final + 'px';
+  el.style.left = state.job.finalPos.x + 'px';
+  el.style.top  = state.job.finalPos.y + 'px';
+  // Gate: every section needs exactly one 🎯 video
+  const ungated = state.sections.filter(s => s.videos.length > 0 && s.videos.filter(v => v.renderStar).length !== 1);
+  const empty   = state.sections.filter(s => s.videos.length === 0);
+  const blocked = ungated.length > 0 || empty.length > 0;
+  let tip = '';
+  if (empty.length)   tip = `Section${empty.length>1?'s':''} ${empty.map(s=>s.id.slice(1)).join(', ')} have no video`;
+  else if (ungated.length) tip = `Pick one 🎯 video for section${ungated.length>1?'s':''} ${ungated.map(s=>s.id.slice(1)).join(', ')}`;
+  el.innerHTML = `
+    <div class="node-header">
+      <span class="node-icon" style="color:var(--final)">📤</span>
+      <span class="node-title">Final Render</span>
+    </div>
+    <div class="node-body">
+      <div class="final-btns">
+        <button class="final-btn" ${blocked?'disabled':''} title="${tip}">📤 Export</button>
+        <button class="final-btn secondary" ${blocked?'disabled':''} title="${tip}">✏️ Editor</button>
+      </div>
+      ${blocked?`<div style="font-size:10px;color:#fca5a5;margin-top:8px;text-align:center">${tip}</div>`:''}
+    </div>`;
+  wireNodeInteraction(el, { id: 'final', _x: state.job.finalPos.x, _y: state.job.finalPos.y, _isFinal: true });
+  return el;
+}
+
+// ─── CURVES ───────────────────────────────────────────────────────────────
+function drawCurves() {
+  curvesSvg.innerHTML = '';
+  const totalW = 2400;
+  curvesSvg.setAttribute('width', totalW);
+  curvesSvg.setAttribute('height', state._totalH || 1200);
+
+  for (const sec of state.sections) {
+    for (const sb of sec.storyboards) {
+      // SB → its images
+      for (const img of sb.images) {
+        addCurve(sb._x + NODE_W.sb, sb._y + 36,
+                 img._x, img._y + 36,
+                 colorFor(sb.isActive ? 'sb' : 'dim'),
+                 sb.isActive ? null : 'dim');
+      }
+      // Active ⭐ images → Launch (only when not yet launched)
+      if (!state.videoGenLaunched && sb.isActive) {
+        for (const img of sb.images) {
+          if (img.imgGenStar && img.status === 'done') {
+            addCurve(img._x + NODE_W.img, img._y + 36,
+                     state.job.launchPos.x, state.job.launchPos.y + NODE_H.launch / 2,
+                     colorFor('launch'));
+          }
+        }
+      }
+    }
+    // Source image → its video (after launch)
+    if (state.videoGenLaunched) {
+      for (const vid of sec.videos) {
+        const srcImg = findImageById(vid.sourceImageId);
+        if (srcImg) {
+          addCurve(srcImg._x + NODE_W.img, srcImg._y + 36,
+                   vid._x, vid._y + 36,
+                   colorFor('vid'),
+                   vid.status === 'poll' ? 'dashed' : null);
+        }
+        // continuation chain: video → cont1 → cont2 ...
+        let prevX = vid._x + NODE_W.vid, prevY = vid._y + 36;
+        for (let ci = 0; ci < vid.clips.length - 1; ci++) {
+          const cx = vid._contStartX + ci * (NODE_W.cont + 16);
+          const cy = vid._y + 36;
+          addCurve(prevX, prevY, cx, cy, colorFor('cont'));
+          prevX = cx + NODE_W.cont; prevY = cy;
+        }
+        // 🎯 video → Final
+        if (vid.renderStar && vid.status === 'done') {
+          addCurve(vid._x + NODE_W.vid, vid._y + 36,
+                   state.job.finalPos.x, state.job.finalPos.y + NODE_H.final / 2,
+                   colorFor('final'));
+        }
+      }
+    }
+  }
+}
+
+function addCurve(x1, y1, x2, y2, stroke, cls) {
+  const dx = Math.max(40, (x2 - x1) * 0.5);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('class', 'curve' + (cls === 'dashed' ? ' dashed' : ''));
+  path.setAttribute('d', `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`);
+  path.setAttribute('stroke', stroke);
+  if (cls === 'dim') path.style.opacity = '0.3';
+  curvesSvg.appendChild(path);
+}
+
+function colorFor(type) {
+  return ({ sb:'#a78bfa', img:'#22d3ee', vid:'#f59e0b', cont:'#2dd4bf', launch:'#ef4444', final:'#10b981', dim:'#3a4150' })[type] || '#5d6b7d';
+}
+
+function findImageById(id) {
+  for (const s of state.sections)
+    for (const sb of s.storyboards)
+      for (const i of sb.images)
+        if (i.id === id) return i;
+  return null;
+}
+
+// ─── INTERACTIONS: PAN, ZOOM, DRAG NODES, SELECT ──────────────────────────
+function applyTransform() {
+  graphLayer.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
+}
+
+let isPanning = false, spaceDown = false, panStart = null;
+window.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) { spaceDown = true; viewport.style.cursor='grab'; } if (e.code === 'KeyF') fitToView(); });
+window.addEventListener('keyup',   e => { if (e.code === 'Space') { spaceDown = false; viewport.style.cursor=''; } });
+
+viewport.addEventListener('mousedown', e => {
+  // Pan only when holding space, OR clicking on empty area (not a node)
+  const onNode = e.target.closest('.node');
+  if (spaceDown || !onNode) {
+    if (onNode && !spaceDown) return;  // clicks inside nodes handled separately
+    isPanning = true;
+    panStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
+    viewport.classList.add('panning');
+    e.preventDefault();
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (isPanning) {
+    state.panX = e.clientX - panStart.x;
+    state.panY = e.clientY - panStart.y;
+    applyTransform();
+  }
+});
+window.addEventListener('mouseup', () => { isPanning = false; viewport.classList.remove('panning'); });
+
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  // zoom toward cursor
+  const factor = e.deltaY > 0 ? 0.92 : 1.08;
+  const nz = Math.min(2, Math.max(0.25, state.zoom * factor));
+  // adjust pan so cursor's graph point stays under cursor
+  const gx = (cx - state.panX) / state.zoom;
+  const gy = (cy - state.panY) / state.zoom;
+  state.zoom = nz;
+  state.panX = cx - gx * state.zoom;
+  state.panY = cy - gy * state.zoom;
+  applyTransform();
+}, { passive: false });
+
+// Drag nodes
+function wireNodeInteraction(el, node) {
+  const header = el.querySelector('.node-header');
+  if (!header) return;
+  let dragging = false, ds = null;
+  header.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    dragging = true;
+    ds = { startX: e.clientX, startY: e.clientY, origX: node._x, origY: node._y };
+    document.body.style.cursor = 'grabbing';
+    select(el, node);
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = (e.clientX - ds.startX) / state.zoom;
+    const dy = (e.clientY - ds.startY) / state.zoom;
+    node._x = ds.origX + dx;
+    node._y = ds.origY + dy;
+    el.style.left = node._x + 'px';
+    el.style.top  = node._y + 'px';
+    if (node._isLaunch) state.job.launchPos = { x: node._x, y: node._y };
+    if (node._isFinal)  state.job.finalPos  = { x: node._x, y: node._y };
+    drawCurves();
+  });
+  window.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; document.body.style.cursor = ''; }
+  });
+  el.addEventListener('mousedown', e => {
+    if (e.target.closest('.star-btn') || e.target.closest('button') || e.target.tagName === 'TEXTAREA') return;
+    e.stopPropagation();
+    select(el, node);
+  });
+  // wire star buttons
+  el.querySelectorAll('.star-btn').forEach((btn, idx) => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      handleStarClick(node, btn, idx);
+    });
+  });
+}
+
+function handleStarClick(node, btn, idx) {
+  // node is image / video / sb depending on dataset id
+  if (node.imgGenStar !== undefined) {
+    // Image node — first star = ⭐ gen, second = 🎯 render (only when status done)
+    if (idx === 0) node.imgGenStar = !node.imgGenStar;
+    else if (idx === 1) {
+      // Radio within section
+      const sec = state.sections.find(s => s.storyboards.some(sb => sb.images.includes(node)));
+      for (const sb of sec.storyboards) for (const i of sb.images) i.renderStar = false;
+      node.renderStar = true;
+    }
+  } else if (node.clips !== undefined) {
+    // Video node — render star (radio per section)
+    const sec = state.sections.find(s => s.videos.includes(node));
+    for (const v of sec.videos) v.renderStar = false;
+    node.renderStar = true;
+  } else if (node.isActive !== undefined) {
+    // Storyboard — radio per section
+    const sec = state.sections.find(s => s.storyboards.includes(node));
+    for (const sb of sec.storyboards) sb.isActive = false;
+    node.isActive = true;
+  }
+  render();
+}
+
+function select(el, node) {
+  state.selectedId = el.dataset.id;
+  document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
+  el.classList.add('selected');
+  showProps(node);
+}
+
+function showProps(node) {
+  if (!node || node._isLaunch || node._isFinal) {
+    propsEl.innerHTML = '<div class="props-empty">Click any node to edit its properties.</div>';
+    return;
+  }
+  let html = '';
+  if (node.imgGenStar !== undefined) {
+    html = `
+      <div class="prop-row"><div class="prop-label">Type</div><div class="prop-value">Image instance</div></div>
+      <div class="prop-row"><div class="prop-label">ID</div><div class="prop-value" style="font-family:monospace;font-size:11px">${node.id}</div></div>
+      <div class="prop-row"><div class="prop-label">Style</div><div class="prop-value">${node.style}${node.styleOverridden?' (override)':''}</div></div>
+      <div class="prop-row"><div class="prop-label">Status</div><div class="prop-value">${node.status}</div></div>
+      <div class="prop-row"><div class="prop-label">Sibling refs used</div><div class="prop-value">${node.refRefs}</div></div>
+      <div class="prop-row"><div class="prop-label">⭐ Use for video gen</div><div class="prop-value">${node.imgGenStar?'Yes':'No'}</div></div>
+      <div class="prop-row"><div class="prop-label">🎯 Use for render</div><div class="prop-value">${node.renderStar?'Yes':'No'}</div></div>
+    `;
+  } else if (node.clips !== undefined) {
+    html = `
+      <div class="prop-row"><div class="prop-label">Type</div><div class="prop-value">Video instance</div></div>
+      <div class="prop-row"><div class="prop-label">ID</div><div class="prop-value" style="font-family:monospace;font-size:11px">${node.id}</div></div>
+      <div class="prop-row"><div class="prop-label">Source image</div><div class="prop-value" style="font-family:monospace;font-size:11px">${node.sourceImageId}</div></div>
+      <div class="prop-row"><div class="prop-label">Motion prompt</div><textarea class="prop-textarea">${escapeHtml(node.prompt)}</textarea></div>
+      <div class="prop-row"><div class="prop-label">Duration</div><div class="prop-value">${node.duration}s</div></div>
+      <div class="prop-row"><div class="prop-label">Clips</div><div class="prop-value">${node.clips.length} (1 base + ${node.clips.length-1} continuation)</div></div>
+      <div class="prop-row"><div class="prop-label">Status</div><div class="prop-value">${node.status}</div></div>
+    `;
+  } else if (node.isActive !== undefined) {
+    html = `
+      <div class="prop-row"><div class="prop-label">Type</div><div class="prop-value">Storyboard instance</div></div>
+      <div class="prop-row"><div class="prop-label">ID</div><div class="prop-value" style="font-family:monospace;font-size:11px">${node.id}</div></div>
+      <div class="prop-row"><div class="prop-label">Active</div><div class="prop-value">${node.isActive?'Yes (radio)':'No (alternate)'}</div></div>
+      <div class="prop-row"><div class="prop-label">Prompt</div><textarea class="prop-textarea">${escapeHtml(node.prompt)}</textarea></div>
+      <div class="prop-row"><div class="prop-label">Reference image</div><div class="prop-value">${node.refImageDataUrl?'Yes':'None'}</div></div>
+      <div class="prop-row"><div class="prop-label">Image instances</div><div class="prop-value">${node.images.length}</div></div>
+    `;
+  }
+  propsEl.innerHTML = html;
+}
+
+function updatePreviewGate() {
+  if (!state.videoGenLaunched) {
+    previewBtn.disabled = true;
+    previewEmpty.style.display = '';
+    previewEmpty.textContent = 'Generate videos first to enable preview';
+    return;
+  }
+  const empty   = state.sections.filter(s => s.videos.length === 0);
+  const ungated = state.sections.filter(s => s.videos.length > 0 && s.videos.filter(v => v.renderStar).length !== 1);
+  if (empty.length || ungated.length) {
+    previewBtn.disabled = true;
+    previewEmpty.style.display = '';
+    previewEmpty.textContent = empty.length
+      ? `Section${empty.length>1?'s':''} ${empty.map(s=>s.id.slice(1)).join(', ')} have no video`
+      : `Pick one 🎯 video per section to enable full preview`;
+  } else {
+    previewBtn.disabled = false;
+    previewEmpty.style.display = '';
+    previewEmpty.textContent = 'Click below to render concatenated timeline';
+  }
+}
+
+// ─── TOOLBAR HANDLERS ─────────────────────────────────────────────────────
+document.getElementById('btn-tidy').onclick = () => {
+  state.job.launchPos = null;
+  state.job.finalPos  = null;
+  render();
+};
+document.getElementById('btn-zoom-in').onclick  = () => zoomBy(1.15);
+document.getElementById('btn-zoom-out').onclick = () => zoomBy(1/1.15);
+document.getElementById('btn-fit').onclick      = () => fitToView();
+document.getElementById('btn-launch-trigger').onclick = () => {
+  // Demo: simulate launch — also set s3 video so demo works
+  if (!state.sections[2].videos.length) {
+    state.sections[2].videos = [{
+      id: 'v3a1', sourceImageId: 'i3a1', prompt: 'Slow zoom into Krishna’s cosmic form; light beams rotate.', duration: 6,
+      status: 'done', renderStar: true,
+      clips: [{ duration: 5, thumbColor: 'radial-gradient(circle,#fef3c7 0%,#f59e0b 50%,#7c2d12 100%)' }],
+    }];
+  }
+  state.videoGenLaunched = true;
+  render();
+};
+document.getElementById('btn-reset').onclick = () => {
+  state = initialState();
+  render();
+};
+
+function zoomBy(f) {
+  const rect = viewport.getBoundingClientRect();
+  const cx = rect.width/2, cy = rect.height/2;
+  const nz = Math.min(2, Math.max(0.25, state.zoom * f));
+  const gx = (cx - state.panX) / state.zoom;
+  const gy = (cy - state.panY) / state.zoom;
+  state.zoom = nz;
+  state.panX = cx - gx * state.zoom;
+  state.panY = cy - gy * state.zoom;
+  applyTransform();
+}
+function fitToView() {
+  const rect = viewport.getBoundingClientRect();
+  const totalW = 1500;
+  const totalH = state._totalH || 1200;
+  const z = Math.min(rect.width / (totalW + 80), rect.height / (totalH + 80), 1);
+  state.zoom = Math.max(0.25, z);
+  state.panX = (rect.width - totalW * state.zoom) / 2;
+  state.panY = 30;
+  applyTransform();
+}
+
+// ─── UTIL ─────────────────────────────────────────────────────────────────
+function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+// click empty graph area = deselect
+viewport.addEventListener('click', e => {
+  if (e.target === viewport || e.target === graphLayer || e.target.classList.contains('band')) {
+    state.selectedId = null;
+    document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
+    propsEl.innerHTML = '<div class="props-empty">Click any node to edit its properties.</div>';
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+render();
+setTimeout(fitToView, 50);
+</script>
+</body>
+</html>

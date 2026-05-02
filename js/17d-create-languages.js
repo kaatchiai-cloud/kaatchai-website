@@ -32,6 +32,109 @@ const SUPPORTED_LANGUAGES = [
 
 let languageTracks = []; // [{lang, langCode, audioBuffer, translatedText, status}]
 
+// ─── Pure helpers (callable from canvas pipeline) ───────────
+//
+// computePhotoTimings — for a given language track, compute the per-scene
+// timeline that scales each scene's duration in proportion to its translated
+// word count, then map per-photo and per-subtitle timings into that timeline.
+// Pure (no globals): pass scenes + track + photoItems-shape array + originalSubtitles.
+// Returns { subtitleTexts, photoTimings, subtitleTimings, sceneTimes }.
+function computePhotoTimings(scenes, track, photoItemsShape, origSubtitles) {
+  scenes = scenes || [];
+  photoItemsShape = photoItemsShape || [];
+  origSubtitles = origSubtitles || [];
+  if (!track || !track.translatedText || !track.audioBuffer) {
+    return { subtitleTexts: [], photoTimings: [], subtitleTimings: [], sceneTimes: [] };
+  }
+
+  const origWords  = scenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
+  const transWords = track.translatedText.split(/\s+/);
+  let wordIdx = 0;
+  const subtitleTexts = scenes.map(s => {
+    if (!s.text || s.text.trim() === '') return '';
+    const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
+    const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
+    wordIdx += sceneWordCount;
+    return portion;
+  });
+
+  const trackDur = track.audioBuffer.duration;
+  const sceneTransWords = subtitleTexts.map(t => (t || '').split(/\s+/).filter(w => w).length || 1);
+  const totalTransWords = sceneTransWords.reduce((a, b) => a + b, 0) || 1;
+  const rawDurations = sceneTransWords.map(tw => (tw / totalTransWords) * trackDur);
+  const sceneTimes = [];
+  let cumStart = 0;
+  for (let i = 0; i < rawDurations.length; i++) {
+    sceneTimes.push({ startTime: cumStart, duration: rawDurations[i] });
+    cumStart += rawDurations[i];
+  }
+
+  const sceneIdxOf = (t) => {
+    let idx = scenes.findIndex(s => t >= s.startTime && t < s.endTime);
+    if (idx < 0) idx = scenes.length - 1;
+    return idx;
+  };
+  const remapTiming = (orig) => {
+    const idx = sceneIdxOf(orig.startTime);
+    const origScene = scenes[idx];
+    const newScene  = sceneTimes[idx];
+    if (!origScene || !newScene) return { startTime: orig.startTime, duration: orig.duration };
+    const origSceneDur  = origScene.endTime - origScene.startTime;
+    const offsetInScene = origSceneDur > 0 ? (orig.startTime - origScene.startTime) / origSceneDur : 0;
+    const durRatio      = origSceneDur > 0 ? newScene.duration / origSceneDur : 1;
+    return {
+      startTime: newScene.startTime + offsetInScene * newScene.duration,
+      duration:  orig.duration * durRatio,
+    };
+  };
+
+  const photoTimings    = photoItemsShape.map(remapTiming);
+  const subtitleTimings = origSubtitles.map(remapTiming);
+
+  return { subtitleTexts, photoTimings, subtitleTimings, sceneTimes };
+}
+
+// generateSubtitleTrack — extract the per-language subtitle generation from
+// the inline upfront pipeline so the canvas Subtitle node can call it
+// post-export. Builds subtitle word timings against an existing audio buffer.
+// Returns { subtitles: [{ text, startTime, duration }] }.
+async function generateSubtitleTrack(langCode, scenes, audioBuffer, key) {
+  if (!langCode || !scenes || !audioBuffer) return { subtitles: [] };
+  if (langCode === 'none' || langCode === 'off') return { subtitles: [] };
+
+  // Reuse the existing translation + word-distribution pipeline if available
+  if (typeof translateText !== 'function') return { subtitles: [] };
+
+  const fullText = scenes.map(s => s.text || '').join(' ');
+  const langName = (typeof SUPPORTED_LANGUAGES !== 'undefined'
+    ? SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.name
+    : null) || langCode;
+
+  let translated = '';
+  try {
+    translated = await translateText(fullText, langName, key);
+  } catch (e) {
+    console.warn('generateSubtitleTrack: translate failed', e);
+    return { subtitles: [] };
+  }
+
+  // Distribute translated words evenly across audioBuffer duration, anchored to scene boundaries
+  const fakeTrack = { translatedText: translated, audioBuffer };
+  const { subtitleTexts, sceneTimes } = computePhotoTimings(scenes, fakeTrack, [], []);
+  const subtitles = scenes.map((s, i) => ({
+    text: subtitleTexts[i] || '',
+    startTime: sceneTimes[i]?.startTime ?? s.startTime,
+    duration:  sceneTimes[i]?.duration  ?? s.duration,
+  }));
+  return { subtitles, translatedText: translated };
+}
+
+// Expose for canvas
+if (typeof window !== 'undefined') {
+  window.computePhotoTimings   = computePhotoTimings;
+  window.generateSubtitleTrack = generateSubtitleTrack;
+}
+
 const createLanguageStep = $('create-language-step');
 const languageCheckboxes = $('language-checkboxes');
 const btnGenerateLanguages = $('btn-generate-languages');
@@ -570,6 +673,17 @@ btnGenerateLanguages.addEventListener('click', async () => {
 btnCreateSendEditor.addEventListener('click', async () => {
   if (!createAudioBuffer || !createScenes) return;
 
+  // Canvas gate enforcement: if scenes carry instance data, every section needs a 🎯 video (animated mode)
+  if (typeof CanvasState !== 'undefined' && createVideoMode === 'animated' &&
+      createScenes.some(s => Array.isArray(s.storyboardInstances))) {
+    CanvasState.syncAllMirrors(createScenes, 'animated');
+    const gates = CanvasState.validateGates(createScenes, 'animated');
+    if (!gates.renderEnabled) {
+      alert('Cannot send to editor:\n\n' + gates.renderBlockers.join('\n') + '\n\nUse the canvas Final Render node to fix.');
+      return;
+    }
+  }
+
   // Validate: count scenes with images (#5 + #14)
   const withImages = createScenes.filter(s => s.imgDataUrl).length;
   const totalScenes = createScenes.length;
@@ -589,22 +703,32 @@ btnCreateSendEditor.addEventListener('click', async () => {
     if (!await showConfirm(msg, 'Continue', true)) return;
   }
 
-  // Reset editor state
+  // Round-trip merge (option-b). Snapshot the existing photo/video timeline so
+  // we can preserve user edits (transition, motion / Ken Burns, in/out trims)
+  // when re-sending from canvas. Match by (sceneIdx, imageInstanceId|videoInstanceId);
+  // fall back to sceneIdx alone so edits survive a variant swap.
+  // textItems / subtitleItems / their DOM are NOT cleared here — text overlays are
+  // editor-only and free-form captions must survive a re-send.
+  const oldPhotos = photoItems.slice();
+  const oldVideos = videoTimelineItems.slice();
+
   currentBuffer = createAudioBuffer;
   photoItems = [];
-  textItems = [];
+  videoTimelineItems = [];
   blockElements.clear();
-  textBlockElements.clear();
+  if (typeof videoBlockElements !== 'undefined' && videoBlockElements.clear) videoBlockElements.clear();
   timelineContainer.querySelectorAll('.photo-block').forEach(el => el.remove());
-  textTimelineContainer.querySelectorAll('.text-block').forEach(el => el.remove());
+  if (typeof videoTimelineContainer !== 'undefined') {
+    videoTimelineContainer.querySelectorAll?.('.video-block').forEach(el => el.remove());
+  }
   undoStack = [];
-  nextPhotoId = 1;
-  nextTextId = 1;
+  nextPhotoId = Math.max(1, ...oldPhotos.map(p => Number(p.id) || 0)) + 1;
+  nextVideoTimelineId = Math.max(1, ...oldVideos.map(v => Number(v.id) || 0)) + 1;
   selectedPhotoIds.clear();
-  selectedTextIds.clear();
 
   // Add generated images/videos to timeline
-  for (const scene of createScenes) {
+  for (let sceneIdx = 0; sceneIdx < createScenes.length; sceneIdx++) {
+    const scene = createScenes[sceneIdx];
     if (!scene.imgDataUrl) continue;
     const img = new Image();
     await new Promise((resolve, reject) => {
@@ -612,6 +736,15 @@ btnCreateSendEditor.addEventListener('click', async () => {
       img.onerror = reject;
       img.src = scene.imgDataUrl;
     });
+
+    // Resolve canvas active path → asset ids (per ADR-2)
+    const activeSB  = scene.storyboardInstances?.find(s => s.isActive) || scene.storyboardInstances?.[0];
+    const activeImg = activeSB?.imageInstances?.find(i => i.isRenderActive) || activeSB?.imageInstances?.[0];
+    const activeVid = scene.videoInstances?.find(v => v.isRenderActive);
+    const imgId = activeImg?.id || null;
+    const vidId = activeVid?.id || null;
+    const sourceImgId = activeVid?.sourceImageInstanceId || imgId;
+
     if (createVideoMode === 'animated' && (scene.videoUrl || (scene.videoClips && scene.videoClips.length > 0))) {
       const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.duration }];
       let clipStart = scene.startTime;
@@ -623,27 +756,60 @@ btnCreateSendEditor.addEventListener('click', async () => {
         const videoEl = document.createElement('video');
         videoEl.src = clip.url;
         videoEl.muted = true;
-        videoTimelineItems.push({
-          id: nextVideoTimelineId++,
+        const matchVid = oldVideos.find(v =>
+          v.sceneIdx === sceneIdx && v.clipIdx === ci && vidId && v.videoInstanceId === vidId
+        );
+        const fallbackVid = !matchVid ? oldVideos.find(v =>
+          v.sceneIdx === sceneIdx && v.clipIdx === ci
+        ) : null;
+        const baseClip = {
+          sceneIdx, clipIdx: ci,
+          videoInstanceId: vidId,
+          sourceImageInstanceId: sourceImgId,
           videoEl, videoSrc: clip.url,
           videoDuration: clip.clipDuration || scene.duration,
-          inPoint: 0, outPoint: showDur,
           startTime: clipStart, duration: showDur,
           imgSrc: scene.imgDataUrl, imgEl: img,
-        });
+        };
+        if (matchVid || fallbackVid) {
+          const preserve = matchVid || fallbackVid;
+          videoTimelineItems.push({
+            ...preserve, ...baseClip,
+            inPoint:  Math.max(0, Math.min(preserve.inPoint  || 0,        baseClip.videoDuration)),
+            outPoint: Math.max(0, Math.min(preserve.outPoint || showDur,  baseClip.videoDuration)),
+          });
+        } else {
+          videoTimelineItems.push({
+            id: nextVideoTimelineId++,
+            ...baseClip,
+            inPoint: 0, outPoint: showDur,
+          });
+        }
         clipStart += clip.clipDuration || scene.duration;
       }
     } else {
-      photoItems.push({
-        id: nextPhotoId++,
-        imgSrc: scene.imgDataUrl,
-        imgEl: img,
-        startTime: scene.startTime,
-        duration: scene.duration,
-        transition: 'fade',
-        transDur: 0.5,
-        motion: 'ken-burns',
-      });
+      const matchPhoto = oldPhotos.find(p =>
+        p.sceneIdx === sceneIdx && imgId && p.imageInstanceId === imgId
+      );
+      const fallbackPhoto = !matchPhoto ? oldPhotos.find(p =>
+        p.sceneIdx === sceneIdx
+      ) : null;
+      const basePhoto = {
+        sceneIdx, imageInstanceId: imgId,
+        imgSrc: scene.imgDataUrl, imgEl: img,
+        startTime: scene.startTime, duration: scene.duration,
+      };
+      if (matchPhoto || fallbackPhoto) {
+        photoItems.push({ ...(matchPhoto || fallbackPhoto), ...basePhoto });
+      } else {
+        photoItems.push({
+          id: nextPhotoId++,
+          ...basePhoto,
+          transition: 'fade',
+          transDur: 0.5,
+          motion: 'ken-burns',
+        });
+      }
     }
   }
 
@@ -741,63 +907,11 @@ btnCreateSendEditor.addEventListener('click', async () => {
     subtitleLang: createSubtitleSelections[t.langCode] || t.subtitleLang || 'none',
   }));
   // Build per-language subtitle texts + scaled photo/subtitle timings
-  const origDur = currentBuffer.duration;
   for (const track of editorLanguageTracks) {
-    const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
-    const transWords = track.translatedText.split(/\s+/);
-    let wordIdx = 0;
-    track.subtitleTexts = createScenes.map(s => {
-      if (!s.text || s.text.trim() === '') return '';
-      const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
-      const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
-      wordIdx += sceneWordCount;
-      return portion;
-    });
-    // Per-scene proportional scaling based on translated word count
-    const trackDur = track.audioBuffer.duration;
-    const sceneOrigWords = createScenes.map(s => (s.text || '').split(/\s+/).filter(w => w).length || 1);
-    const sceneTransWords = track.subtitleTexts.map(t => (t || '').split(/\s+/).filter(w => w).length || 1);
-    // Compute raw per-scene duration proportional to translated word count
-    const totalTransWords = sceneTransWords.reduce((a, b) => a + b, 0);
-    const rawDurations = sceneTransWords.map(tw => (tw / totalTransWords) * trackDur);
-    // Build cumulative start times
-    const sceneTimes = [];
-    let cumStart = 0;
-    for (let i = 0; i < rawDurations.length; i++) {
-      sceneTimes.push({ startTime: cumStart, duration: rawDurations[i] });
-      cumStart += rawDurations[i];
-    }
-    // Map photo timings: each photo belongs to a scene, scale it within that scene's new time range
-    track.photoTimings = photoItems.map(p => {
-      // Find which scene this photo belongs to (by original startTime)
-      let sceneIdx = createScenes.findIndex(s => p.startTime >= s.startTime && p.startTime < s.endTime);
-      if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
-      const origScene = createScenes[sceneIdx];
-      const newScene = sceneTimes[sceneIdx];
-      if (!origScene || !newScene) return { startTime: p.startTime, duration: p.duration };
-      const origSceneDur = origScene.endTime - origScene.startTime;
-      const offsetInScene = origSceneDur > 0 ? (p.startTime - origScene.startTime) / origSceneDur : 0;
-      const durRatio = origSceneDur > 0 ? newScene.duration / origSceneDur : 1;
-      return {
-        startTime: newScene.startTime + offsetInScene * newScene.duration,
-        duration: p.duration * durRatio,
-      };
-    });
-    // Map subtitle timings the same way
-    track.subtitleTimings = editorOriginalSubtitles.map(s => {
-      let sceneIdx = createScenes.findIndex(sc => s.startTime >= sc.startTime && s.startTime < sc.endTime);
-      if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
-      const origScene = createScenes[sceneIdx];
-      const newScene = sceneTimes[sceneIdx];
-      if (!origScene || !newScene) return { startTime: s.startTime, duration: s.duration };
-      const origSceneDur = origScene.endTime - origScene.startTime;
-      const offsetInScene = origSceneDur > 0 ? (s.startTime - origScene.startTime) / origSceneDur : 0;
-      const durRatio = origSceneDur > 0 ? newScene.duration / origSceneDur : 1;
-      return {
-        startTime: newScene.startTime + offsetInScene * newScene.duration,
-        duration: s.duration * durRatio,
-      };
-    });
+    const result = computePhotoTimings(createScenes, track, photoItems, editorOriginalSubtitles);
+    track.subtitleTexts    = result.subtitleTexts;
+    track.photoTimings     = result.photoTimings;
+    track.subtitleTimings  = result.subtitleTimings;
   }
   setupEditorLanguageSelector();
 
@@ -1042,26 +1156,10 @@ btnCreateSaveProject.addEventListener('click', async () => {
   if (createScenes) {
     for (const track of editorLanguageTracks) {
       if (!track.translatedText || !track.audioBuffer) continue;
-      const origWords = createScenes.reduce((sum, s) => sum + (s.text || '').split(/\s+/).length, 0);
-      const transWords = track.translatedText.split(/\s+/);
-      let wordIdx = 0;
-      track.subtitleTexts = createScenes.map(s => {
-        const sceneWordCount = Math.max(1, Math.round(((s.text || '').split(/\s+/).length / Math.max(1, origWords)) * transWords.length));
-        const portion = transWords.slice(wordIdx, wordIdx + sceneWordCount).join(' ');
-        wordIdx += sceneWordCount;
-        return portion;
-      });
-      const trackDur = track.audioBuffer.duration;
-      const sceneTransWords = track.subtitleTexts.map(t => (t || '').split(/\s+/).filter(w => w).length || 1);
-      const totalTransWords = sceneTransWords.reduce((a, b) => a + b, 0);
-      const rawDurations = sceneTransWords.map(tw => (tw / totalTransWords) * trackDur);
-      let cumStart = 0;
-      const sceneTimes = rawDurations.map(d => { const t = { startTime: cumStart, duration: d }; cumStart += d; return t; });
-      track.photoTimings = photoItems.map(p => {
-        let sceneIdx = createScenes.findIndex(s => p.startTime >= s.startTime && p.startTime < s.endTime);
-        if (sceneIdx < 0) sceneIdx = createScenes.length - 1;
-        return sceneTimes[sceneIdx] || { startTime: p.startTime, duration: p.duration };
-      });
+      const result = computePhotoTimings(createScenes, track, photoItems, []);
+      track.subtitleTexts   = result.subtitleTexts;
+      track.photoTimings    = result.photoTimings;
+      // No subtitle remap on save (we don't have editorOriginalSubtitles here)
     }
   }
 

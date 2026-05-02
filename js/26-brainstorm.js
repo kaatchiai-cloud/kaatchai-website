@@ -18,42 +18,115 @@ const CHAT_MAX_TOKENS = 8192;     // must cover thinking tokens + reply — gemi
 const FINALISE_MAX_TOKENS = 8192; // same for finalise JSON output
 
 const SYSTEM_PROMPTS = {
-  autopilot: `You are an expert short-form video script coach for Stori, specialising in TikTok, Instagram Reels and YouTube Shorts. Your role is to help the user brainstorm and refine a 30–90 second video script through conversation.
+  autopilot: `You are a friend who happens to be great at short-form video scripts (TikTok, Instagram Reels, YouTube Shorts) — not a checklist robot. Help the user brainstorm a 30–90 second video through real conversation.
 
-BEHAVIOUR RULES:
-1. NEVER output a full script in your first reply. Begin by asking 2–3 targeted questions: topic, target audience, tone (educational, funny, emotional, aesthetic), and platform (TikTok / IG Reel / YT Shorts).
-2. Always offer 2–3 hook options for the user to pick from. Hooks are the first 3 seconds — they decide whether the viewer keeps watching.
-3. Build the script iteratively, scene by scene. Get user approval before moving to the next scene.
-4. BREVITY IS NON-NEGOTIABLE. Every reply must stay under 150 words. Use bullet points, not paragraphs. Never re-explain prior context. Bold the key choice or question. Get to the point fast.
-5. Suggest scene visuals and voiceover/caption text together — both matter for short-form video.
-6. End with a clear CTA suggestion: save, share, follow, comment, or visit link.
-7. If the user goes off-track, gently steer the conversation back to script development.
-8. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
-9. Around message 12 of 15, gently nudge: "We've covered a lot — ready to finalise the script, or want to keep refining a specific part?"
-10. If the user EXPLICITLY asks for a full/final script at any point ("give me the script", "write the full script", "finalise", etc.), deliver it immediately in the finalised JSON format — do not continue the wizard flow.
+VOICE:
+- Talk like a creative partner, not a corporate assistant. React to what the user says before moving on.
+- Sometimes ask, sometimes just propose, sometimes keep building — read the room.
+- DO NOT repeat the same reply skeleton twice in a row. Vary your structure: lead with reaction, lead with the next idea, ask, or just keep going. If your last reply ended with a question, your next one probably shouldn't.
+- Bullet points are fine but not mandatory. Bold for emphasis, not for ritual. Plain prose is often better. Match the user's energy — short replies for short messages, longer when they're exploring.
+- Stay under 150 words unless the user explicitly asks for more.
+
+GUIDANCE:
+- First reply: get a feel for topic, tone, and platform — but pick whichever 1–2 questions are most relevant, don't run a checklist.
+- Hooks matter (first 3 seconds). Offer options when it helps; don't force a hook menu every time.
+- Build the script naturally. The user steers pace — don't gate every scene with "approve this?" Move forward when momentum is good; check in only when it's a real fork.
+- Keep visuals + voiceover/captions together when describing a scene.
+- Around message 12 of 15, gently mention you've covered a lot and ask if they want to finalise.
+- If the user EXPLICITLY asks for the full/final script ("give me the script", "finalise"), deliver it immediately in the finalised JSON format.
 
 SCOPE LIMITS:
-- Don't write full scripts on demand UNLESS the user explicitly asks for one.
+- Don't write full scripts unprompted on the first turn.
 - Don't suggest more than 9 scenes total (Autopilot's grid layout).
-- Don't include advanced production directions (camera moves, lighting setups, transitions). Focus on visual concept + spoken/displayed words.`,
+- Skip advanced production directions (camera moves, lighting, transitions). Focus on visual concept + spoken/displayed words.`,
 
-  copilot: `You are an expert long-form video storytelling coach for Stori, specialising in explainers, documentaries, brand films, educational videos, and narrative content. Your role is to help the user brainstorm and develop a video script through conversation.
+  copilot: `You are a friend who happens to be great at long-form video storytelling (explainers, documentaries, brand films, educational, narrative) — not a checklist robot. Help the user develop a script through real conversation.
 
-BEHAVIOUR RULES:
-1. NEVER output a full script in your first reply. Begin by understanding: topic, target audience, intended length (1–10 minutes), purpose (inform / sell / inspire / entertain), and the single key message they want viewers to walk away with.
-2. Help the user choose a narrative structure — 3-act, problem-solution, listicle, before-after, journey/transformation. Suggest 1–2 options that fit their topic.
-3. Develop the script in sections (intro / body / outro), getting user approval before each section is fully written.
-4. Each scene should include: visual description, narration/dialogue, and tone/mood notes. Be more detailed than for short-form.
-5. Suggest pacing — how long each section should be, where to slow down for impact, where to keep momentum.
-6. Recommend music tone and any voice-acting direction (warm, urgent, measured, conversational).
-7. Match the user's energy and tone. Be a creative partner, not a corporate assistant.
-8. BREVITY IS NON-NEGOTIABLE. Every reply must stay under 150 words. Use bullet points, not paragraphs. Never re-explain prior context. Bold the key choice or question. Develop ONE section at a time.
-9. Around message 12 of 15, gently nudge: "We've outlined a strong shape — ready to finalise, or is there a section you want to refine first?"
-10. If the user EXPLICITLY asks for a full/final script at any point, deliver it immediately — do not continue the wizard flow.
+VOICE:
+- Talk like a creative partner, not a corporate assistant. React to what the user says before moving on.
+- Sometimes ask, sometimes just propose, sometimes keep building — read the room.
+- DO NOT repeat the same reply skeleton twice in a row. Vary your structure: lead with reaction, lead with the next idea, ask, or just keep going. If your last reply ended with a question, your next one probably shouldn't.
+- Bullet points are fine but not mandatory. Bold for emphasis, not for ritual. Plain prose is often better. Match the user's energy.
+- Stay under 150 words unless the user explicitly asks for more.
+
+GUIDANCE:
+- First reply: get a feel for topic, audience, length, and the single key takeaway — pick whichever 1–2 questions matter most, don't run a checklist.
+- Suggest a narrative structure (3-act, problem-solution, listicle, journey, etc.) when it would help — not always.
+- Develop the script naturally in sections (intro / body / outro). Don't gate every section with "approve this?" — move forward when momentum is good.
+- For each scene, weave together visual + narration/dialogue + tone. Suggest pacing and music tone when it adds value.
+- Around message 12 of 15, gently mention you've outlined a strong shape and ask if they want to finalise.
+- If the user EXPLICITLY asks for the full/final script, deliver it immediately.
 
 SCOPE LIMITS:
-- Don't write full scripts on demand UNLESS the user explicitly asks for one.
-- Don't include advanced production directions beyond visual + narration + tone. Stori's pipeline handles the rest.`
+- Don't write full scripts unprompted on the first turn.
+- Skip advanced production directions beyond visual + narration + tone. Stori's pipeline handles the rest.`,
+
+  'brand-product': `You are a friend who happens to be great at brand and product video scripts — equal parts creative writer and marketing strategist. Help the user develop a script for a product demo, brand story, launch video, or commercial through real conversation.
+
+VOICE:
+- Talk like a creative partner, not a brand consultant. React to what the user says before moving on.
+- Be direct about what's working and what isn't. If a claim is vague, say so once and ask for something concrete.
+- Vary your structure — lead with reaction, lead with a draft line, ask a question, or just build. Don't repeat the same reply skeleton twice.
+- Stay under 150 words unless the user asks for more. Bullet points are fine but not mandatory.
+
+WHAT YOU NEED EARLY (first 1–2 exchanges — ask whichever is most natural given context):
+- Brand/company name (or "no brand" for a generic product)
+- Product name and what it does in one sentence
+- The ONE thing you want the viewer to walk away knowing (the core claim — must be specific, not "best quality")
+- Who this video is FOR (the target viewer, not just "everyone")
+- Emotional tone: aspirational / practical / urgent / warm / playful
+
+NARRATIVE STRUCTURES — propose ONE that fits:
+- Feature-led: show what the product does, scene by scene
+- Problem-led: open with the pain, reveal the product as the solution
+- Transformation: before → after, viewer journey or customer story
+- Social proof: real person / customer story carries the narrative
+
+RULES:
+1. Never write a full script in your first reply. Establish brand + claim first.
+2. Once you have the core claim, propose a narrative structure. Get agreement before building scenes.
+3. Build by narrative role — Hook / Problem or Context / Reveal / Proof / CTA. Each role must appear at least once.
+4. The core claim must appear in at least two different moments — not just the CTA.
+5. If the user writes a vague superlative ("the best", "amazing quality"), push back once: "What specifically makes it [the best]? Is there a proof point we can use?" Then let it go.
+6. Mirror the brand voice if stated. Don't invent one.
+7. Around message 12 of 15, gently ask if the messaging feels solid and they're ready to finalise.
+8. If the user EXPLICITLY asks for the final script, finalise immediately.
+
+SCOPE LIMITS:
+- Don't suggest advanced production techniques. Focus on visual concept + spoken/on-screen words.
+- Keep proof_points grounded. Don't invent claims the user hasn't confirmed.`,
+
+  'film-narrative': `You are a friend who happens to be great at narrative storytelling for film — equal parts story editor and creative collaborator. Help the user develop a script for a short film, documentary, narrative video, or creative storytelling project through real conversation.
+
+VOICE:
+- Talk like a story development partner, not a screenwriting teacher. React to what the user says. Ask questions that unlock the story.
+- Be honestly interested in the premise. If something doesn't make sense in the story, say so.
+- Vary your structure — lead with reaction, lead with a scene idea, ask a question, or just build. Don't repeat the same reply skeleton twice.
+- Stay under 150 words unless the user asks for more.
+
+WHAT YOU NEED EARLY (ask naturally — don't list all three at once):
+- Story premise: what happens? (One concrete sentence — not "a story about loneliness" but "a man finds his father's old letters and decides to find him")
+- Protagonist: who is this story about, and what do they want?
+- What should the viewer feel at the end?
+
+DRAMATIC STRUCTURE — propose ONE, explain what each act does in this specific story:
+- 3-act (default): Setup / Confrontation / Resolution — works for most short films under 5 min
+- 5-act: Exposition / Rising Action / Climax / Falling Action / Denouement — better for longer or more complex arcs
+
+RULES:
+1. Never write a full script in your first reply. Establish premise + protagonist first.
+2. Once you have premise and protagonist, propose a dramatic structure with a brief per-act sketch for this story.
+3. Build act by act — don't jump to individual scenes until the act-level arc is clear.
+4. Within each act, develop scenes collaboratively: what happens (action), what the character feels (subtext), what the image shows (the visual that carries it).
+5. Offer dialogue as options: "I could draft a line for X — want me to?" rather than filling in full dialogue exchanges.
+6. Before finalising, do a quick arc check: does the ending pay off the premise? Does the protagonist change? Flag it once, then let the user decide.
+7. Around message 12 of 15, summarise the arc shape and ask if they're ready to finalise.
+8. If the user EXPLICITLY asks for the final script, finalise immediately.
+
+SCOPE LIMITS:
+- Don't write complete dialogue scenes unprompted. Offer individual lines as suggestions.
+- Don't over-direct. "Close-up of her hands" is fine; technical camera directions are too much.
+- Keep the arc human and grounded.`
 };
 
 const FINALISE_PROMPTS = {
@@ -98,7 +171,78 @@ RULES:
 RULES:
 - Length must match estDuration.
 - Cover intro → body → outro structure.
-- visual = scene description; narration = spoken voiceover; mood = emotional tone.`
+- visual = scene description; narration = spoken voiceover; mood = emotional tone.`,
+
+  'brand-product': `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
+
+{
+  "title": "...",
+  "brand": "...",
+  "product": "...",
+  "core_claim": "...",
+  "audience": "...",
+  "tone": "...",
+  "narrative_structure": "feature-led|problem-led|transformation|social-proof",
+  "estDuration": "45s|1:00|1:30|2:00|...",
+  "hook": "Opening line / first 3 seconds",
+  "proof_points": [
+    "Specific differentiator or supporting claim"
+  ],
+  "scenes": [
+    { "n": 1, "role": "hook|problem|reveal|proof|cta", "timeRange": "0-3s", "visual": "...", "voice": "..." }
+  ],
+  "cta": "Final call to action"
+}
+
+RULES:
+- brand, product, core_claim, audience must not be empty.
+- core_claim must be specific and concrete — not "best quality" or "amazing product".
+- proof_points: minimum 1, maximum 4 items.
+- At least one scene must have role "proof".
+- narrative_structure must be one of: feature-led, problem-led, transformation, social-proof.
+- No scene cap — estDuration can be "0:30" to "5:00".
+- voice = exactly what is spoken or shown as text on screen.
+- visual = a single concrete visual that illustrates the scene.
+- No preamble. No markdown. No explanation. Output ONLY the JSON object.`,
+
+  'film-narrative': `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
+
+{
+  "title": "...",
+  "premise": "One sentence describing what happens",
+  "genre": "drama|comedy|thriller|documentary|experimental",
+  "tone": "...",
+  "audience": "...",
+  "estDuration": "2:30",
+  "structure": "3-act|5-act",
+  "characters": [
+    { "name": "...", "role": "protagonist|antagonist|supporting|narrator", "want": "...", "obstacle": "..." }
+  ],
+  "acts": [
+    { "n": 1, "label": "setup", "summary": "One sentence of what this act accomplishes dramatically" },
+    { "n": 2, "label": "confrontation", "summary": "..." },
+    { "n": 3, "label": "resolution", "summary": "..." }
+  ],
+  "scenes": [
+    {
+      "n": 1, "act": 1, "timeRange": "0:00-0:30",
+      "visual": "What the camera sees — the image that carries this scene",
+      "narration": "VO narration text — empty string if dialogue-only",
+      "dialogue": [{ "character": "...", "line": "..." }],
+      "mood": "Emotional tone of this scene"
+    }
+  ]
+}
+
+RULES:
+- characters must include at least one protagonist.
+- acts count must match structure: 3-act → 3 acts, 5-act → 5 acts.
+- Valid act labels for 3-act: setup, confrontation, resolution. For 5-act: setup, rising-action, climax, falling-action, resolution.
+- Each scene.act must reference a valid act number (1-indexed).
+- narration and dialogue can coexist. dialogue may be an empty array [].
+- No scene cap.
+- Do not invent characters or plot points not established in the conversation. Use "..." placeholders if a field was not discussed.
+- No preamble. No markdown. No explanation. Output ONLY the JSON object.`
 };
 
 // ── SECTION 2: State ──────────────────────────────────────────────────────────
@@ -107,7 +251,8 @@ const BS_STORAGE_KEY = 'stori_bs_session';
 const BS_TTL_MS      = 24 * 60 * 60 * 1000;  // 24 hours
 
 const brainstormState = {
-  mode:           null,       // 'autopilot' | 'copilot' | null
+  mode:           null,       // script mode: 'social'|'tutorial'|'brand-product'|'film-narrative'
+  pipeline:       null,       // pipeline destination: 'autopilot'|'copilot'
   provider:       'gemini',   // 'gemini' | 'openai' | 'anthropic'
   providerLocked: false,
   startedAt:      null,
@@ -126,13 +271,27 @@ const brainstormState = {
 // ── SECTION 3: Init ───────────────────────────────────────────────────────────
 
 function _init() {
-  // Wire homepage button
-  const homeBtn = document.getElementById('btn-create-storypilot');
-  if (homeBtn) {
-    homeBtn.addEventListener('click', function() {
-      navigateTo('storypilot');
-    });
-  }
+  // Wire homepage mode cards (landing page → storypilot direct entry)
+  var spBrand = document.getElementById('btn-sp-brand');
+  if (spBrand) spBrand.addEventListener('click', function() { navigateTo('storypilot'); _confirmMode('brand-product', 'copilot'); });
+  var spFilm = document.getElementById('btn-sp-film');
+  if (spFilm) spFilm.addEventListener('click', function() { navigateTo('storypilot'); _confirmMode('film-narrative', 'copilot'); });
+  var spQuick = document.getElementById('btn-sp-quick');
+  if (spQuick) spQuick.addEventListener('click', function() { navigateTo('storypilot'); _confirmMode('social', 'autopilot'); });
+
+  // Wire hero mode cards
+  var brandCard = document.getElementById('bs-mode-brand');
+  if (brandCard) brandCard.addEventListener('click', function() { _confirmMode('brand-product', 'copilot'); });
+
+  var filmCard = document.getElementById('bs-mode-film');
+  if (filmCard) filmCard.addEventListener('click', function() { _confirmMode('film-narrative', 'copilot'); });
+
+  var quickCard = document.getElementById('bs-mode-quick');
+  if (quickCard) quickCard.addEventListener('click', function() {
+    var wizard = document.getElementById('bs-quick-wizard');
+    if (wizard) { wizard.classList.remove('hidden'); wizard.style.animation = 'none'; wizard.offsetHeight; wizard.style.animation = ''; }
+    quickCard.style.display = 'none';
+  });
 
   // Wire wizard chip clicks
   document.querySelectorAll('.bs-wchip').forEach(function(chip) {
@@ -172,14 +331,14 @@ function _init() {
   var finaliseBtn = document.getElementById('bs-finalise-btn');
   if (finaliseBtn) finaliseBtn.addEventListener('click', _finaliseScript);
 
-  // Wire back button (chat → wizard)
+  // Wire back button (chat → home)
   var backBtn = document.getElementById('bs-back-btn');
   if (backBtn) backBtn.addEventListener('click', function() {
     if (brainstormState.messages.length > 0) {
-      if (!confirm('Discard this conversation and go back to the start?')) return;
+      if (!confirm('Discard this conversation and go back to home?')) return;
     }
     _clearSession();
-    _showScreen('bs-selector');
+    navigateTo('home');
   });
 
   // Wire final-screen back button
@@ -188,13 +347,12 @@ function _init() {
     _showScreen('bs-chat');
   });
 
-  // Wire new session button
+  // Wire new session button (→ home so user can pick mode)
   var newBtn = document.getElementById('bs-new-btn');
   if (newBtn) newBtn.addEventListener('click', function() {
     if (!confirm('Start a new brainstorm session? Current session will be lost.')) return;
     _clearSession();
-    _resetWizard();
-    _showScreen('bs-selector');
+    navigateTo('home');
   });
 
   // Wire final screen buttons
@@ -224,7 +382,7 @@ function _init() {
   if (newSessionBtn) newSessionBtn.addEventListener('click', function() {
     if (!confirm('Start a new session? This will clear the current conversation.')) return;
     _clearSession();
-    _showScreen('bs-selector');
+    navigateTo('home');
   });
 
   var regenBtn = document.getElementById('bs-regen-btn');
@@ -239,10 +397,10 @@ function _init() {
     setTimeout(function() { copyClipBtn.querySelector('.bs-handoff-text').textContent = 'Copy to clipboard'; }, 2000);
   });
 
-  // Wire Send-to pipeline button (set by confirmWizard)
+  // Wire Send-to pipeline button
   var pipelineBtn = document.getElementById('bs-send-pipeline-btn');
   if (pipelineBtn) pipelineBtn.addEventListener('click', function() {
-    _sendToPipeline(brainstormState.mode);
+    _sendToPipeline(brainstormState.pipeline);
   });
 
   // Wire suggestion chips
@@ -315,17 +473,30 @@ function _showRecommendation() {
 }
 
 function _recommendPipeline(type, length) {
-  if (length === 'short') return { mode: 'autopilot', reason: 'Short & punchy — perfect for a quick reel.' };
-  if (length === 'long')  return { mode: 'copilot',   reason: 'In-depth content works best in long-form.' };
-  if (type === 'social' || type === 'personal')
-                          return { mode: 'autopilot', reason: 'Social clips land best under 90 seconds.' };
-  return                         { mode: 'copilot',   reason: 'Tutorials and brand stories need room to breathe.' };
+  // Quick mode only — brand-product and film-narrative never enter here
+  if (length === 'short') return { mode: 'autopilot', reason: type === 'tutorial' ? 'Short tutorials work well as a quick how-to reel.' : 'Short & punchy — perfect for a quick reel.' };
+  if (length === 'long')  return { mode: 'copilot',   reason: type === 'tutorial' ? 'In-depth tutorials work best in long-form.' : 'In-depth content works best in long-form.' };
+  if (type === 'social')  return { mode: 'autopilot', reason: 'Social clips land best under 90 seconds.' };
+  return                         { mode: 'copilot',   reason: 'Tutorials and explainers need room to breathe.' };
 }
 
-function _confirmWizard(mode) {
-  brainstormState.mode = mode;
+function _confirmWizard(pipelineTarget) {
+  // Quick mode only — splits script mode from pipeline destination
+  var scriptMode = brainstormState.wizardAnswers.type || 'social';
+  brainstormState.mode     = scriptMode;
+  brainstormState.pipeline = pipelineTarget;
+  _updateModeTag(scriptMode);
+  _updateSendToButton(pipelineTarget);
+  _showScreen('bs-chat');
+  _renderGreeting();
+}
+
+function _confirmMode(mode, pipeline) {
+  // Hero card entry point for brand-product and film-narrative
+  brainstormState.mode     = mode;
+  brainstormState.pipeline = pipeline;
   _updateModeTag(mode);
-  _updateSendToButton(mode);
+  _updateSendToButton(pipeline);
   _showScreen('bs-chat');
   _renderGreeting();
 }
@@ -477,32 +648,41 @@ function _renderGreeting() {
   var log = document.getElementById('bs-chat-log');
   if (log) log.innerHTML = '';
 
-  var mode = brainstormState.mode;
-  var wizCtx = brainstormState.wizardAnswers;
-  var typeLabel = { social: 'social media clip', brand: 'brand/product video', tutorial: 'tutorial/explainer', personal: 'personal/creative' }[wizCtx.type] || 'video';
-  var lenLabel  = { short: 'short & punchy (under 90s)', medium: 'medium length (1–5 min)', long: 'in-depth (5+ min)' }[wizCtx.length] || '';
+  var mode     = brainstormState.mode;
+  var pipeline = brainstormState.pipeline;
+  var wizCtx   = brainstormState.wizardAnswers;
+  var lenLabel = { short: 'short & punchy (under 90s)', medium: 'medium length (1–5 min)', long: 'in-depth (5+ min)' }[wizCtx.length] || '';
 
   var greeting;
-  if (mode === 'autopilot') {
-    greeting = `Hi! I'm your Storypilot — here to help you shape a compelling **${typeLabel}** reel${lenLabel ? ' (' + lenLabel + ')' : ''}.\n\n**What's the core idea or topic for this video?** One sentence is enough to get us started.`;
+  if (mode === 'brand-product') {
+    greeting = 'Hi! I\'m your Storypilot — ready to help you shape a **brand or product video** that\'s both compelling and commercially sharp.\n\n**What\'s the product or brand, and what\'s the one thing you want viewers to walk away knowing?**';
+  } else if (mode === 'film-narrative') {
+    greeting = 'Hi! I\'m your Storypilot — let\'s develop your story together, from premise to scene structure.\n\n**What\'s the story? Give me the premise in one sentence — what happens, and to whom.**';
+  } else if (pipeline === 'autopilot') {
+    var typeLabel = { social: 'social media clip', tutorial: 'tutorial' }[wizCtx.type] || 'video';
+    greeting = 'Hi! I\'m your Storypilot — here to help you shape a compelling **' + typeLabel + '** reel' + (lenLabel ? ' (' + lenLabel + ')' : '') + '.\n\n**What\'s the core idea or topic for this video?** One sentence is enough to get us started.';
   } else {
-    greeting = `Hi! I'm your Storypilot — ready to help you build a **${typeLabel}**${lenLabel ? ' (' + lenLabel + ')' : ''} script.\n\n**What's the central story or message you want to tell?** Give me the big idea and we'll shape it together.`;
+    var typeLabel2 = { social: 'social media clip', tutorial: 'tutorial/explainer' }[wizCtx.type] || 'video';
+    greeting = 'Hi! I\'m your Storypilot — ready to help you build a **' + typeLabel2 + '**' + (lenLabel ? ' (' + lenLabel + ')' : '') + ' script.\n\n**What\'s the central story or message you want to tell?** Give me the big idea and we\'ll shape it together.';
   }
 
-  // Store as a pseudo-message so it re-renders correctly on session restore
   brainstormState.messages.unshift({ role: '_greeting', content: greeting });
   _appendMessage('ai', greeting);
-
-  // Show suggestion chips
   _renderSuggestionChips(mode);
 }
 
 function _renderSuggestionChips(mode) {
   var log = document.getElementById('bs-chat-log');
   if (!log) return;
-  var chips = mode === 'autopilot'
-    ? ['Skincare routine', 'Travel vlog', 'Productivity tips', 'Recipe quick-take']
-    : ['Brand story', 'Product explainer', 'Tutorial video', 'Documentary short'];
+  var CHIPS = {
+    'autopilot':      ['Skincare routine', 'Travel vlog', 'Productivity tips'],
+    'copilot':        ['Brand story', 'Product explainer', 'Tutorial video'],
+    'social':         ['Skincare routine', 'Travel vlog', 'Productivity tips'],
+    'tutorial':       ['How to start a podcast', 'Beginner\'s guide to budgeting', 'Learn Figma in 5 min'],
+    'brand-product':  ['Launch video for a new skincare product', '30-second brand ad for a SaaS tool', 'Product demo — before/after style'],
+    'film-narrative': ['A short film about a musician playing their last gig', 'Documentary portrait of a local craftsperson', 'Two strangers on a night bus'],
+  };
+  var chips = CHIPS[mode] || CHIPS['copilot'];
 
   var div = document.createElement('div');
   div.className = 'bs-chips';
@@ -609,12 +789,28 @@ async function _sendMessage() {
   if (sendBtn) sendBtn.disabled = !document.getElementById('bs-input')?.value.trim();
 }
 
+function _resolvePromptKey() {
+  var mode     = brainstormState.mode;
+  var pipeline = brainstormState.pipeline;
+  // brand-product and film-narrative have their own dedicated prompts
+  if (mode === 'brand-product' || mode === 'film-narrative') return mode;
+  // social/tutorial resolve by pipeline (autopilot = short-form, copilot = long-form)
+  return pipeline === 'autopilot' ? 'autopilot' : 'copilot';
+}
+
 function _buildSystemPrompt() {
-  var base = SYSTEM_PROMPTS[brainstormState.mode || 'autopilot'];
+  var mode = brainstormState.mode;
+  var base = SYSTEM_PROMPTS[_resolvePromptKey()];
   var ctx  = brainstormState.wizardAnswers;
-  if (ctx.type || ctx.length) {
+
+  if (mode === 'brand-product') {
+    base += '\n\n[User context: video type = brand/product. Pipeline: Copilot. Skip re-asking these.]';
+  } else if (mode === 'film-narrative') {
+    base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]';
+  } else if (ctx.type || ctx.length) {
     base += '\n\n[User context from wizard: type=' + (ctx.type || 'unknown') + ', length=' + (ctx.length || 'unknown') + ' — skip re-asking these; treat as already known.]';
   }
+
   if (brainstormState.sessionSummary) {
     base += '\n\n[CONTINUATION SESSION — previous session summary:\n' + brainstormState.sessionSummary + '\nDo NOT re-ask anything already decided above. Pick up exactly where the user left off.]';
   }
@@ -638,6 +834,8 @@ function _loadSession() {
       return false;
     }
     Object.assign(brainstormState, saved);
+    // v1 backwards compat — pipeline field didn't exist
+    if (!brainstormState.pipeline) brainstormState.pipeline = brainstormState.mode;
     return true;
   } catch(_) { return false; }
 }
@@ -646,6 +844,7 @@ function _clearSession() {
   localStorage.removeItem(BS_STORAGE_KEY);
   // Reset to defaults
   brainstormState.mode           = null;
+  brainstormState.pipeline       = null;
   brainstormState.provider       = 'gemini';
   brainstormState.providerLocked = false;
   brainstormState.startedAt      = null;
@@ -684,7 +883,7 @@ function _restoreFromSession() {
   if (brainstormState.providerLocked) _lockProvider();
 
   _updateModeTag(brainstormState.mode);
-  _updateSendToButton(brainstormState.mode);
+  _updateSendToButton(brainstormState.pipeline);
 
   if (brainstormState.finalised && brainstormState.finalScript) {
     _renderFinalScript(brainstormState.finalScript);
@@ -723,19 +922,27 @@ function _getProviderPricing(provider) {
 }
 
 function _updateModeTag(mode) {
+  var TAG_LABELS = {
+    'autopilot':      '⚡ Autopilot',
+    'copilot':        '🎬 Copilot',
+    'social':         '📱 Social',
+    'tutorial':       '📚 Tutorial',
+    'brand-product':  '🏷 Brand / Product',
+    'film-narrative': '🎬 Film / Narrative',
+  };
   var tag = document.getElementById('bs-mode-tag');
   if (!tag) return;
-  if (mode === 'autopilot') { tag.textContent = '⚡ Autopilot'; tag.style.display = ''; }
-  else if (mode === 'copilot') { tag.textContent = '🎬 Copilot'; tag.style.display = ''; }
+  var label = TAG_LABELS[mode];
+  if (label) { tag.textContent = label; tag.style.display = ''; }
   else { tag.style.display = 'none'; }
 }
 
-function _updateSendToButton(mode) {
+function _updateSendToButton(pipeline) {
   var btn      = document.getElementById('bs-send-pipeline-btn');
   var nameSpan = document.getElementById('bs-handoff-pipeline-name');
   var iconSpan = btn ? btn.querySelector('.bs-handoff-icon') : null;
   if (!btn || !nameSpan) return;
-  if (mode === 'autopilot') {
+  if (pipeline === 'autopilot') {
     if (nameSpan) nameSpan.textContent = 'Autopilot';
     if (iconSpan) iconSpan.textContent = '⚡';
   } else {
@@ -835,7 +1042,7 @@ async function _finaliseScript() {
   _showTyping();
 
   var mode         = brainstormState.mode || 'autopilot';
-  var finalPrompt  = FINALISE_PROMPTS[mode];
+  var finalPrompt  = FINALISE_PROMPTS[_resolvePromptKey()];
   var systemPrompt = _buildSystemPrompt();
   var apiMessages  = brainstormState.messages
     .filter(function(m) { return m.role !== '_greeting'; })
@@ -903,7 +1110,7 @@ async function _autoFinaliseInline() {
   var systemPrompt = _buildSystemPrompt();
   var apiMessages = brainstormState.messages
     .filter(function(m) { return m.role !== '_greeting'; })
-    .concat([{ role: 'user', content: FINALISE_PROMPTS[mode] }]);
+    .concat([{ role: 'user', content: FINALISE_PROMPTS[_resolvePromptKey()] }]);
 
   try {
     var result = await callChatLLM({
@@ -975,7 +1182,7 @@ function _appendInlineScript(s) {
   html += '</div>';
 
   // Action row
-  var target = brainstormState.mode === 'autopilot' ? 'Autopilot ⚡' : 'Copilot 🎬';
+  var target = brainstormState.pipeline === 'autopilot' ? 'Autopilot ⚡' : 'Copilot 🎬';
   html += '<div class="bs-inline-script-actions">' +
     '<button class="bs-btn-primary bs-inline-send">Send to ' + target + '</button>' +
     '<button class="bs-tool-btn bs-inline-download">⬇ Download .md</button>' +
@@ -988,7 +1195,7 @@ function _appendInlineScript(s) {
 
   // Wire buttons
   div.querySelector('.bs-inline-send').addEventListener('click', function() {
-    _sendToPipeline(brainstormState.mode);
+    _sendToPipeline(brainstormState.pipeline);
   });
   div.querySelector('.bs-inline-download').addEventListener('click', function() {
     _downloadScript(brainstormState.finalScript, brainstormState.mode);
@@ -1071,6 +1278,7 @@ function _renderFinalScript(s) {
   var card = document.getElementById('bs-final-card');
   if (!card || !s) return;
 
+  var shape = _detectScriptShape(s);
   var parts = [];
   parts.push('<h3>' + _esc(s.title || 'Untitled script') + '</h3>');
 
@@ -1080,14 +1288,72 @@ function _renderFinalScript(s) {
   if (s.platform)    pills.push(_esc(s.platform));
   if (s.estDuration) pills.push(_esc(s.estDuration));
   if (s.audience)    pills.push(_esc(s.audience));
+  if (s.genre)       pills.push(_esc(s.genre));
   if (pills.length) {
     parts.push('<div class="bs-meta-pills">' + pills.map(function(p) { return '<span class="bs-meta-pill">' + p + '</span>'; }).join('') + '</div>');
   }
 
-  // Autopilot shape
-  if (s.hook !== undefined) {
-    parts.push('<div class="bs-scene"><div class="bs-scene-num">Hook</div>');
-    parts.push('<div class="bs-scene-voice">' + _esc(s.hook) + '</div></div>');
+  if (shape === 'brand-product') {
+    // Brand Brief block
+    parts.push('<div class="bs-brand-brief">');
+    if (s.brand)   parts.push('<div class="bs-brief-row"><span class="bs-brief-label">Brand</span><span>' + _esc(s.brand) + '</span></div>');
+    if (s.product) parts.push('<div class="bs-brief-row"><span class="bs-brief-label">Product</span><span>' + _esc(s.product) + '</span></div>');
+    if (s.core_claim) parts.push('<div class="bs-brief-row"><span class="bs-brief-label">Core claim</span><span>' + _esc(s.core_claim) + '</span></div>');
+    if (s.narrative_structure) parts.push('<div class="bs-brief-row"><span class="bs-brief-label">Structure</span><span>' + _esc(s.narrative_structure) + '</span></div>');
+    if (s.proof_points && s.proof_points.length) {
+      parts.push('<div class="bs-brief-row"><span class="bs-brief-label">Proof points</span><ul class="bs-proof-list">' +
+        s.proof_points.map(function(p) { return '<li>' + _esc(p) + '</li>'; }).join('') + '</ul></div>');
+    }
+    parts.push('</div>');
+    // Hook + scenes
+    if (s.hook) parts.push('<div class="bs-scene"><div class="bs-scene-num">Hook</div><div class="bs-scene-voice">' + _esc(s.hook) + '</div></div>');
+    (s.scenes || []).forEach(function(sc, i) {
+      var roleTag = sc.role ? ' <span class="bs-role-badge">' + _esc(sc.role) + '</span>' : '';
+      parts.push('<div class="bs-scene">');
+      parts.push('<div class="bs-scene-num">Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' · ' + sc.timeRange : '') + roleTag + '</div>');
+      if (sc.visual) parts.push('<div class="bs-scene-vis">🎬 ' + _esc(sc.visual) + '</div>');
+      if (sc.voice)  parts.push('<div class="bs-scene-voice">🎤 ' + _esc(sc.voice) + '</div>');
+      parts.push('</div>');
+    });
+    if (s.cta) parts.push('<div class="bs-scene"><div class="bs-scene-num">CTA</div><div class="bs-scene-voice">' + _esc(s.cta) + '</div></div>');
+
+  } else if (shape === 'film-narrative') {
+    // Premise
+    if (s.premise) parts.push('<p class="bs-film-premise">' + _esc(s.premise) + '</p>');
+    // Characters
+    if (s.characters && s.characters.length) {
+      parts.push('<div class="bs-section-label">Characters</div><div class="bs-character-grid">');
+      s.characters.forEach(function(ch) {
+        parts.push('<div class="bs-character-card">');
+        parts.push('<div class="bs-char-name">' + _esc(ch.name) + ' <span class="bs-char-role">(' + _esc(ch.role) + ')</span></div>');
+        if (ch.want)     parts.push('<div class="bs-char-detail">Wants: ' + _esc(ch.want) + '</div>');
+        if (ch.obstacle) parts.push('<div class="bs-char-detail">Obstacle: ' + _esc(ch.obstacle) + '</div>');
+        parts.push('</div>');
+      });
+      parts.push('</div>');
+    }
+    // Act structure
+    if (s.acts && s.acts.length) {
+      parts.push('<div class="bs-section-label">Act Structure</div>');
+      s.acts.forEach(function(act) {
+        parts.push('<div class="bs-act-row"><span class="bs-act-badge">Act ' + act.n + '</span><span class="bs-act-label">' + _esc(act.label) + '</span><span class="bs-act-summary">' + _esc(act.summary || '') + '</span></div>');
+      });
+    }
+    // Scenes
+    (s.scenes || []).forEach(function(sc, i) {
+      parts.push('<div class="bs-scene">');
+      parts.push('<div class="bs-scene-num">Scene ' + (sc.n || i + 1) + (sc.act ? ' · Act ' + sc.act : '') + (sc.timeRange ? ' · ' + sc.timeRange : '') + '</div>');
+      if (sc.visual)    parts.push('<div class="bs-scene-vis">🎬 ' + _esc(sc.visual) + '</div>');
+      if (sc.narration) parts.push('<div class="bs-scene-voice">🎤 ' + _esc(sc.narration) + '</div>');
+      (sc.dialogue || []).forEach(function(dl) {
+        parts.push('<div class="bs-dialogue-line">💬 <strong>' + _esc(dl.character) + ':</strong> "' + _esc(dl.line) + '"</div>');
+      });
+      if (sc.mood) parts.push('<div class="bs-scene-vis" style="color:var(--lp-mute)">🎵 ' + _esc(sc.mood) + '</div>');
+      parts.push('</div>');
+    });
+
+  } else if (shape === 'autopilot') {
+    if (s.hook) { parts.push('<div class="bs-scene"><div class="bs-scene-num">Hook</div><div class="bs-scene-voice">' + _esc(s.hook) + '</div></div>'); }
     (s.scenes || []).forEach(function(sc, i) {
       parts.push('<div class="bs-scene">');
       parts.push('<div class="bs-scene-num">Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' · ' + sc.timeRange : '') + '</div>');
@@ -1095,10 +1361,8 @@ function _renderFinalScript(s) {
       if (sc.voice)  parts.push('<div class="bs-scene-voice">🎤 ' + _esc(sc.voice) + '</div>');
       parts.push('</div>');
     });
-    if (s.cta) {
-      parts.push('<div class="bs-scene"><div class="bs-scene-num">CTA</div>');
-      parts.push('<div class="bs-scene-voice">' + _esc(s.cta) + '</div></div>');
-    }
+    if (s.cta) parts.push('<div class="bs-scene"><div class="bs-scene-num">CTA</div><div class="bs-scene-voice">' + _esc(s.cta) + '</div></div>');
+
   } else {
     // Copilot shape
     if (s.concept) parts.push('<p style="margin:0 0 14px;color:var(--lp-dim)">' + _esc(s.concept) + '</p>');
@@ -1144,17 +1408,44 @@ function _sendToPipeline(target) {
 
 // ── SECTION 14: Helpers ───────────────────────────────────────────────────────
 
+function _detectScriptShape(s) {
+  if (!s) return 'copilot';
+  if (s.characters !== undefined && s.acts !== undefined) return 'film-narrative';
+  if (s.core_claim !== undefined)                          return 'brand-product';
+  if (s.hook !== undefined && s.concept === undefined)     return 'autopilot';
+  return 'copilot';
+}
+
 function _formatScriptToPlainText(s) {
   if (!s) return '';
-  // Autopilot-shaped
-  if (s.hook !== undefined) {
+  var shape = _detectScriptShape(s);
+
+  if (shape === 'film-narrative') {
+    var lines = [];
+    (s.scenes || []).forEach(function(sc) {
+      if (sc.narration) lines.push(sc.narration);
+      (sc.dialogue || []).forEach(function(dl) { if (dl.line) lines.push(dl.character + ': ' + dl.line); });
+    });
+    return lines.join('\n\n');
+  }
+
+  if (shape === 'brand-product') {
     var lines = [];
     if (s.hook) lines.push(s.hook);
     (s.scenes || []).forEach(function(sc) { if (sc.voice) lines.push(sc.voice); });
     if (s.cta) lines.push(s.cta);
     return lines.join(' ');
   }
-  // Copilot-shaped
+
+  if (shape === 'autopilot') {
+    var lines = [];
+    if (s.hook) lines.push(s.hook);
+    (s.scenes || []).forEach(function(sc) { if (sc.voice) lines.push(sc.voice); });
+    if (s.cta) lines.push(s.cta);
+    return lines.join(' ');
+  }
+
+  // copilot
   var lines = [];
   (s.scenes || []).forEach(function(sc) { if (sc.narration) lines.push(sc.narration); });
   return lines.join('\n\n');
@@ -1176,22 +1467,81 @@ function _downloadScript(scriptObj, target) {
 
 function _renderScriptMarkdown(s, target) {
   var PROVIDER_LABEL = { gemini: 'Quick', openai: 'Pro', anthropic: 'Premium' };
-  var tier = PROVIDER_LABEL[brainstormState.provider] || 'Quick';
-  var date = new Date().toISOString().slice(0, 10);
-  var out  = [];
+  var MODE_LABEL = { 'autopilot': 'Autopilot', 'copilot': 'Copilot', 'brand-product': 'Brand/Product', 'film-narrative': 'Film/Narrative', 'social': 'Social', 'tutorial': 'Tutorial' };
+  var tier     = PROVIDER_LABEL[brainstormState.provider] || 'Quick';
+  var modeLabel = MODE_LABEL[brainstormState.mode] || 'Storypilot';
+  var date     = new Date().toISOString().slice(0, 10);
+  var shape    = _detectScriptShape(s);
+  var out      = [];
 
   out.push('# ' + (s.title || 'Untitled script'), '');
 
-  var meta = [];
-  if (s.tone)        meta.push('**Tone:** ' + s.tone);
-  if (s.platform)    meta.push('**Platform:** ' + s.platform);
-  if (s.estDuration) meta.push('**Duration:** ' + s.estDuration);
-  if (meta.length)   out.push(meta.join(' · '), '');
+  if (shape === 'brand-product') {
+    var meta = [];
+    if (s.brand)   meta.push('**Brand:** ' + s.brand);
+    if (s.product) meta.push('**Product:** ' + s.product);
+    if (s.audience) meta.push('**Audience:** ' + s.audience);
+    if (s.tone)    meta.push('**Tone:** ' + s.tone);
+    if (s.estDuration) meta.push('**Duration:** ' + s.estDuration);
+    if (meta.length) out.push(meta.join(' · '), '');
+    out.push('---', '', '## Brand Brief', '');
+    if (s.core_claim) out.push('**Core claim:** ' + s.core_claim, '');
+    if (s.narrative_structure) out.push('**Narrative structure:** ' + s.narrative_structure, '');
+    if (s.proof_points && s.proof_points.length) {
+      out.push('**Proof points:**');
+      s.proof_points.forEach(function(p) { out.push('- ' + p); });
+      out.push('');
+    }
+    out.push('---', '');
+    if (s.hook) out.push('## Hook (0–3s)', '**Voice:** ' + s.hook, '');
+    (s.scenes || []).forEach(function(sc, i) {
+      out.push('## Scene ' + (sc.n || i + 1) + (sc.role ? ' — ' + sc.role : '') + (sc.timeRange ? ' (' + sc.timeRange + ')' : ''));
+      if (sc.visual) out.push('**Visual:** ' + sc.visual);
+      if (sc.voice)  out.push('**Voice:** ' + sc.voice);
+      out.push('');
+    });
+    if (s.cta) out.push('## Call to Action', '**Voice:** ' + s.cta, '');
 
-  out.push('---', '');
+  } else if (shape === 'film-narrative') {
+    var fmeta = [];
+    if (s.genre)  fmeta.push('**Genre:** ' + s.genre);
+    if (s.tone)   fmeta.push('**Tone:** ' + s.tone);
+    if (s.estDuration) fmeta.push('**Duration:** ' + s.estDuration);
+    if (s.structure)   fmeta.push('**Structure:** ' + s.structure);
+    if (fmeta.length) out.push(fmeta.join(' · '), '');
+    out.push('---', '');
+    if (s.premise) out.push('## Premise', s.premise, '');
+    if (s.characters && s.characters.length) {
+      out.push('## Characters', '');
+      s.characters.forEach(function(ch) {
+        out.push('**' + ch.name + '** (' + ch.role + ')');
+        if (ch.want)     out.push('- Wants: ' + ch.want);
+        if (ch.obstacle) out.push('- Obstacle: ' + ch.obstacle);
+        out.push('');
+      });
+    }
+    if (s.acts && s.acts.length) {
+      out.push('## Act Structure', '');
+      s.acts.forEach(function(act) { out.push('**Act ' + act.n + ' — ' + act.label + ':** ' + (act.summary || '')); });
+      out.push('');
+    }
+    out.push('---', '');
+    (s.scenes || []).forEach(function(sc, i) {
+      out.push('## Scene ' + (sc.n || i + 1) + (sc.act ? ' — Act ' + sc.act : '') + (sc.timeRange ? ' (' + sc.timeRange + ')' : ''));
+      if (sc.visual)    out.push('**Visual:** ' + sc.visual);
+      if (sc.narration) out.push('**Narration:** ' + sc.narration);
+      (sc.dialogue || []).forEach(function(dl) { out.push('**' + dl.character + ':** "' + dl.line + '"'); });
+      if (sc.mood)      out.push('**Mood:** ' + sc.mood);
+      out.push('');
+    });
 
-  if (s.hook !== undefined) {
-    // Autopilot
+  } else if (shape === 'autopilot') {
+    var meta = [];
+    if (s.tone)        meta.push('**Tone:** ' + s.tone);
+    if (s.platform)    meta.push('**Platform:** ' + s.platform);
+    if (s.estDuration) meta.push('**Duration:** ' + s.estDuration);
+    if (meta.length)   out.push(meta.join(' · '), '');
+    out.push('---', '');
     out.push('## Hook (0–3s)', '**Voice:** ' + (s.hook || ''), '');
     (s.scenes || []).forEach(function(sc, i) {
       out.push('## Scene ' + (sc.n || i + 1) + (sc.timeRange ? ' (' + sc.timeRange + ')' : ''));
@@ -1200,8 +1550,14 @@ function _renderScriptMarkdown(s, target) {
       out.push('');
     });
     if (s.cta) out.push('## Call to Action', '**Voice:** ' + s.cta, '');
+
   } else {
     // Copilot
+    var meta = [];
+    if (s.tone)        meta.push('**Tone:** ' + s.tone);
+    if (s.estDuration) meta.push('**Duration:** ' + s.estDuration);
+    if (meta.length)   out.push(meta.join(' · '), '');
+    out.push('---', '');
     if (s.concept)   out.push('## Concept', s.concept, '');
     if (s.audience)  out.push('**Audience:** ' + s.audience, '');
     if (s.musicTone) out.push('**Music tone:** ' + s.musicTone, '');
@@ -1219,7 +1575,7 @@ function _renderScriptMarkdown(s, target) {
   out.push('## 📋 Voiceover script (copy this to use in Stori)', '');
   out.push(_formatScriptToPlainText(s), '');
   out.push('---', '');
-  out.push('*Created with Storypilot · ' + tier + ' · ' + date + '*');
+  out.push('*Created with Storypilot · ' + modeLabel + ' · ' + tier + ' · ' + date + '*');
 
   return out.join('\n');
 }

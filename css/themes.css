@@ -78,6 +78,15 @@ html[data-theme="light"] {
   --text-primary:   #0a1628;
   --text-secondary: rgba(10,22,40,0.72);
   --text-muted:     rgba(10,22,40,0.55);
+
+  /* Canvas-graph socket palette (P01 — Aurora-derived; both-theme parity per ADR-12).
+     Light values are darker for AA contrast against white card backgrounds.
+     Audio = teal/mint, brand cyan stays exclusive to --lp-accent (ADR-1). */
+  --sock-script: #d9a200;
+  --sock-image:  #d6671e;
+  --sock-video:  #8a4ddb;
+  --sock-audio:  #1ea895;
+  --sock-final:  #2a78d6;
 }
 
 
@@ -192,3 +201,18 @@ html[data-theme="light"] #reel-page .reel-optrow-select {
 html[data-theme="light"] .rp-ctrl-col select {
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
+
+/* ── Storypilot mode canvas — light theme ─────────────────────────────────
+   In light mode the canvas flips to a white card with dark text.
+   Inner dark cards remain dark — they float on the light canvas. */
+html[data-theme="light"] .lp-sp-modes {
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(10,30,60,0.10);
+  box-shadow: 0 4px 32px -8px rgba(10,30,60,0.12);
+}
+html[data-theme="light"] .lp-sp-title { color: #0a1628; }
+html[data-theme="light"] .lp-sp-subtitle { color: rgba(10,22,40,0.48); }
+html[data-theme="light"] .lp-sp-card { background: #0f1e3d; border-color: rgba(255,255,255,0.10); }
+html[data-theme="light"] .lp-sp-card:hover { background: #162848; }
+html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
+

@@ -1,0 +1,1722 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   CANVAS GRAPH — greenfield rebuild stylesheet (LAYOUT_VERSION 8)
+
+   Sections:
+     1  Canvas-only tokens (--cg-grid-dot, --cg-pill-blur, --cg-danger)
+     2  Mount + wrapper + dot-grid background
+     3  Graph layer + curves SVG
+     4  Node base, sockets, status dot, ACTIVE pill, selection ring
+     5  SB node specifics (tabs, prompt textarea)
+     6  IMG / VID node specifics (preview, play overlay)
+     7  Steppers
+     8  Variant tray + thumbnail strip + vid-badge + has-vids
+     9  Chrome nodes (Launch / BGM / Sub / Final)
+    10  Floating chrome (top pill, progress, telemetry, zoom dock)
+    11  Selection toolbar + context menu
+    12  Marquee
+    13  Right pane (Properties)
+    14  Toast
+    15  Light theme tuning + per-theme overrides
+
+   All chrome chrome / borders / text / accent come from Aurora --lp-*.
+   --sock-* (script/image/video/audio/final) are net-new.  No hex codes here.
+   Specificity guard (#create-canvas-step) per ADR-11 on every generic-element
+   selector that --create-page also styles.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ════ SECTION 1 — Canvas-only tokens ════════════════════════════════════ */
+
+#create-canvas-step {
+  --cg-grid-dot: rgba(255, 255, 255, 0.06);
+  --cg-pill-blur: 14px;
+  --cg-danger: var(--red);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+html[data-theme="light"] #create-canvas-step {
+  --cg-grid-dot: rgba(10, 22, 40, 0.08);
+}
+
+/* ════ SECTION 2 — Mount + wrapper + dot-grid background ════════════════ */
+
+#create-canvas-step.cg-mount {
+  background: var(--bg-primary, var(--lp-bg, #050814));
+  background-image: radial-gradient(circle at 1px 1px, var(--cg-grid-dot) 1px, transparent 0);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+#create-canvas-step .cg-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ════ SECTION 3 — Graph layer + curves SVG ═════════════════════════════ */
+
+#create-canvas-step .cg-graph-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  --cg-zoom: 1;
+}
+
+#create-canvas-step .cg-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+#create-canvas-step .cg-curve {
+  fill: none;
+  transition: opacity 0.12s ease, stroke-width 0.12s ease;
+}
+
+#create-canvas-step .cg-graph-layer[data-hover-active] .cg-curve {
+  opacity: 0.25;
+}
+
+#create-canvas-step .cg-graph-layer[data-hover-active] .cg-curve.connected {
+  opacity: 0.95;
+}
+
+/* ════ SECTION 4 — Node base ═══════════════════════════════════════════ */
+
+#create-canvas-step .cg-node {
+  position: absolute;
+  background: var(--bg-elevated, var(--lp-card, rgba(255,255,255,0.04)));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 10px;
+  color: var(--text-primary, var(--lp-text));
+  font-size: 16px;
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Body fills the card; textarea inside SB fills the body so the SB card
+   reaches its declared SB_H height even if prompt is short. */
+#create-canvas-step .cg-node-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#create-canvas-step textarea.cg-prompt {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html[data-theme="light"] #create-canvas-step .cg-node {
+  box-shadow: 0 4px 12px rgba(15, 30, 60, 0.10);
+}
+
+/* Selection: 1px aurora-cyan ring on the border itself, no glow / no scale */
+#create-canvas-step .cg-node.cg-node-selected {
+  border-color: var(--accent, var(--lp-accent));
+}
+
+#create-canvas-step .cg-node-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--border, var(--lp-card-bdr));
+  background: color-mix(in oklch, var(--bg-elevated, var(--lp-bg2)) 60%, var(--accent, var(--lp-accent)) 4%);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary, var(--lp-text));
+  cursor: grab;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+
+/* Time banner — full-width block as the first child of the card. Sits ABOVE
+   the head so flex layout inside the head can't squish or hide it. */
+#create-canvas-step .cg-time-banner {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, var(--lp-card-bdr));
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 10%, var(--bg-elevated, var(--lp-bg2)));
+  color: var(--accent, var(--lp-accent));
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  flex-shrink: 0;
+  flex-grow: 0;
+  flex-basis: auto;
+  box-sizing: border-box;
+}
+
+#create-canvas-step .cg-node-head:active {
+  cursor: grabbing;
+}
+
+#create-canvas-step .cg-head-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted, var(--lp-faint));
+  flex: 0 0 auto;
+}
+#create-canvas-step .cg-head-dot[data-sock="script"] { background: var(--sock-script); }
+#create-canvas-step .cg-head-dot[data-sock="image"]  { background: var(--sock-image); }
+#create-canvas-step .cg-head-dot[data-sock="video"]  { background: var(--sock-video); }
+#create-canvas-step .cg-head-dot[data-sock="audio"]  { background: var(--sock-audio); }
+#create-canvas-step .cg-head-dot[data-sock="final"]  { background: var(--sock-final); }
+
+#create-canvas-step .cg-node-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary, var(--lp-text));
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#create-canvas-step .cg-node-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Sockets */
+#create-canvas-step .cg-sock {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  top: 16px;
+  border: 2px solid var(--bg-elevated, var(--lp-card, rgba(255,255,255,0.04)));
+  background: var(--text-muted, var(--lp-faint));
+  z-index: 3;
+}
+#create-canvas-step .cg-sock--in  { left: -7px; }
+#create-canvas-step .cg-sock--out { right: -7px; cursor: crosshair; }
+#create-canvas-step .cg-sock--script { background: var(--sock-script); }
+#create-canvas-step .cg-sock--image  { background: var(--sock-image); }
+#create-canvas-step .cg-sock--video  { background: var(--sock-video); }
+#create-canvas-step .cg-sock--audio  { background: var(--sock-audio); }
+#create-canvas-step .cg-sock--final  { background: var(--sock-final); }
+
+/* Status dot — top right corner */
+#create-canvas-step .cg-status-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted, var(--lp-faint));
+  z-index: 3;
+}
+#create-canvas-step .cg-status-dot--done    { background: var(--sock-audio); }
+#create-canvas-step .cg-status-dot--running { background: var(--sock-script); animation: cg-status-pulse 1.2s ease-in-out infinite; }
+#create-canvas-step .cg-status-dot--pending { background: var(--text-muted, var(--lp-faint)); }
+#create-canvas-step .cg-status-dot--error   { background: var(--cg-danger); }
+
+@keyframes cg-status-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* ACTIVE pill chip — top right (offset slightly so it doesn't collide with status dot) */
+#create-canvas-step .cg-variant-pin {
+  position: absolute;
+  top: 8px;
+  right: 24px;
+  font-size: 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.05em;
+  color: var(--accent, var(--lp-accent));
+  border: 1px solid var(--accent, var(--lp-accent));
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 12%, transparent);
+  padding: 1px 6px;
+  border-radius: 999px;
+  z-index: 3;
+}
+
+/* ════ SECTION 5 — SB node specifics ═══════════════════════════════════ */
+
+/* Width is set by JS via node.style.width = NODE_W + 'px' (520px).
+   Do NOT add a CSS width here — it would override the inline style. */
+
+#create-canvas-step textarea.cg-prompt {
+  width: 100%;
+  min-height: 88px;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text-primary, var(--lp-text));
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 0;
+}
+
+#create-canvas-step input.cg-sb-ref-input {
+  display: none;
+}
+
+/* SB tabs A/B/+ inside head */
+#create-canvas-step .cg-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--bg-primary, var(--lp-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 2px;
+}
+
+#create-canvas-step button.cg-tab {
+  padding: 2px 8px;
+  font-size: 14px;
+  color: var(--text-secondary, var(--lp-dim));
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+#create-canvas-step button.cg-tab.active {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 18%, transparent);
+  color: var(--accent, var(--lp-accent));
+}
+
+#create-canvas-step button.cg-tab--add {
+  color: var(--text-muted, var(--lp-faint));
+}
+
+#create-canvas-step button.cg-tab:hover {
+  color: var(--text-primary, var(--lp-text));
+}
+
+/* ════ SECTION 6 — IMG / VID node specifics ════════════════════════════ */
+
+/* IMG and VID widths set by JS (NODE_W = 520). No CSS override here. */
+
+#create-canvas-step .cg-img-preview,
+#create-canvas-step .cg-vid-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  background: linear-gradient(135deg,
+              color-mix(in oklch, var(--bg-primary, var(--lp-bg)) 70%, var(--accent, var(--lp-accent))),
+              var(--bg-primary, var(--lp-bg)));
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+#create-canvas-step .cg-img-preview.has-image,
+#create-canvas-step .cg-vid-preview.has-video {
+  background-color: var(--bg-primary, var(--lp-bg));
+}
+
+#create-canvas-step .cg-img-empty {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* Play overlay for VID */
+#create-canvas-step .cg-vid-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--sock-video);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.4));
+}
+
+/* ════ SECTION 7 — Steppers ════════════════════════════════════════════ */
+
+#create-canvas-step .cg-stepper-row {
+  display: flex;
+  gap: 6px;
+}
+
+#create-canvas-step .cg-stepper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-primary, var(--lp-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: var(--text-secondary, var(--lp-dim));
+}
+
+#create-canvas-step .cg-stepper .cg-val {
+  flex: 1;
+  text-align: center;
+  color: var(--text-primary, var(--lp-text));
+  font-weight: 500;
+  font-size: 14px;
+}
+
+#create-canvas-step .cg-stepper button.cg-arr {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted, var(--lp-faint));
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  user-select: none;
+}
+
+#create-canvas-step .cg-stepper button.cg-arr:hover {
+  color: var(--accent, var(--lp-accent));
+}
+
+/* ════ SECTION 8 — Variant tray + thumb strip ══════════════════════════ */
+
+#create-canvas-step .cg-variant-tray {
+  position: absolute;
+  border: 1px dashed var(--border-hover, var(--lp-card-bdr-h));
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#create-canvas-step .cg-variant-tray .cg-tray-label {
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  background: var(--bg-primary, var(--lp-bg));
+  padding: 0 8px;
+  font-size: 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--text-muted, var(--lp-faint));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+#create-canvas-step .cg-thumb-strip {
+  position: absolute;
+  display: grid;
+  /* 3 columns × 140px (matches THUMBS_PER_ROW + THUMB_W) — earlier
+     `repeat(4, 56px)` was a leftover from the small-thumb layout and made
+     wide thumbs overflow their cells, hiding sibling thumbs and the `+` tile. */
+  grid-template-columns: repeat(3, 140px);
+  gap: 12px;
+  padding: 12px 0;
+  align-content: flex-start;
+  pointer-events: auto;
+}
+
+#create-canvas-step button.cg-thumb {
+  width: 140px;
+  height: 80px;
+  border-radius: 6px;
+  background: linear-gradient(135deg,
+              color-mix(in oklch, var(--bg-primary, var(--lp-bg)) 60%, var(--accent, var(--lp-accent))),
+              var(--bg-primary, var(--lp-bg)));
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+}
+
+#create-canvas-step button.cg-thumb:hover {
+  border-color: var(--border-hover, var(--lp-card-bdr-h));
+}
+
+#create-canvas-step button.cg-thumb.is-active {
+  border-color: var(--accent, var(--lp-accent));
+  box-shadow: 0 0 0 1px var(--accent, var(--lp-accent));
+}
+
+#create-canvas-step button.cg-thumb.has-vids {
+  border-color: color-mix(in oklch, var(--sock-video) 60%, var(--border, var(--lp-card-bdr)));
+}
+
+#create-canvas-step button.cg-thumb.has-vids.is-active {
+  border-color: var(--accent, var(--lp-accent));
+}
+
+#create-canvas-step button.cg-thumb--add {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 8%, transparent);
+  border-style: dashed;
+  border-width: 2px;
+  border-color: color-mix(in oklch, var(--accent, var(--lp-accent)) 55%, var(--border));
+  color: var(--accent, var(--lp-accent));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1;
+}
+#create-canvas-step button.cg-thumb--add .cg-thumb-add-icon {
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1;
+}
+#create-canvas-step button.cg-thumb--add .cg-thumb-add-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+  text-transform: none;
+}
+
+#create-canvas-step button.cg-thumb--add:hover {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 16%, transparent);
+  border-color: var(--accent, var(--lp-accent));
+}
+
+#create-canvas-step .cg-thumb .cg-thumb-idx {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+#create-canvas-step .cg-thumb.cg-thumb--placeholder .cg-thumb-idx {
+  text-shadow: none;
+  color: var(--text-secondary, var(--lp-dim));
+}
+
+#create-canvas-step .cg-thumb .cg-thumb-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sock-video);
+  font-size: 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+#create-canvas-step .cg-thumb .cg-vid-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: color-mix(in oklch, var(--sock-video) 80%, var(--bg-elevated, var(--lp-card)));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  padding: 1px 4px;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* ════ SECTION 9 — Chrome nodes (Launch / BGM / Sub / Final) ═══════════ */
+
+/* Chrome cards (BGM / Sub / Final) are singletons. Text sized in graph-space
+   so that at zoom 25% it renders at ~14px on screen — matching the left
+   agent panel's UI text. (canvas zoom 25% → multiply by 4 = 56px graph-space.) */
+#create-canvas-step .cg-node--bgm,
+#create-canvas-step .cg-node--sub,
+#create-canvas-step .cg-node--final {
+  font-size: 56px;
+}
+#create-canvas-step .cg-node--bgm .cg-node-head,
+#create-canvas-step .cg-node--sub .cg-node-head,
+#create-canvas-step .cg-node--final .cg-node-head {
+  font-size: 60px;
+  padding: 30px 36px;
+  min-height: 120px;
+}
+/* The label text ("BGM", "Audio + Subtitles", "Final Render") was invisible
+   because .cg-node-title had its own font-size: 18px overriding the head. */
+#create-canvas-step .cg-node--bgm .cg-node-title,
+#create-canvas-step .cg-node--sub .cg-node-title,
+#create-canvas-step .cg-node--final .cg-node-title {
+  font-size: 60px;
+  font-weight: 700;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+  color: var(--text-primary, var(--lp-text));
+}
+#create-canvas-step .cg-node--bgm .cg-node-head .cg-head-dot,
+#create-canvas-step .cg-node--sub .cg-node-head .cg-head-dot,
+#create-canvas-step .cg-node--final .cg-node-head .cg-head-dot {
+  width: 24px;
+  height: 24px;
+}
+#create-canvas-step .cg-node--bgm .cg-stepper,
+#create-canvas-step .cg-node--sub .cg-stepper,
+#create-canvas-step .cg-node--final .cg-stepper {
+  font-size: 56px;
+  min-height: 130px;
+  padding: 24px 32px;
+  border-radius: 16px;
+  border-width: 2px;
+}
+#create-canvas-step .cg-node--bgm .cg-stepper .cg-val,
+#create-canvas-step .cg-node--sub .cg-stepper .cg-val,
+#create-canvas-step .cg-node--final .cg-stepper .cg-val {
+  font-size: 56px;
+  font-weight: 600;
+}
+#create-canvas-step .cg-node--bgm .cg-stepper button.cg-arr,
+#create-canvas-step .cg-node--sub .cg-stepper button.cg-arr,
+#create-canvas-step .cg-node--final .cg-stepper button.cg-arr {
+  font-size: 56px;
+  padding: 12px 20px;
+  font-weight: 600;
+}
+#create-canvas-step .cg-node--bgm .cg-stepper-row,
+#create-canvas-step .cg-node--sub .cg-stepper-row,
+#create-canvas-step .cg-node--final .cg-stepper-row {
+  gap: 30px;
+  margin-top: 24px;
+}
+#create-canvas-step .cg-node--bgm .cg-node-body,
+#create-canvas-step .cg-node--sub .cg-node-body,
+#create-canvas-step .cg-node--final .cg-node-body {
+  padding: 50px 50px;
+  gap: 30px;
+}
+#create-canvas-step .cg-node--final button.cg-final-btn,
+#create-canvas-step .cg-node--final button[type="button"]:not(.cg-arr) {
+  font-size: 60px;
+  font-weight: 700;
+  padding: 28px 40px;
+  min-height: 130px;
+  border-radius: 18px;
+}
+
+/* BGM action buttons (Compose / Library / Skip) — primary + secondary */
+#create-canvas-step .cg-node--bgm .cg-chrome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 12px;
+}
+#create-canvas-step .cg-node--bgm button.cg-chrome-btn {
+  font-size: 48px;
+  font-weight: 600;
+  padding: 22px 30px;
+  min-height: 110px;
+  border-radius: 14px;
+  border: 2px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  color: var(--text-primary, var(--lp-text));
+  cursor: pointer;
+  text-align: center;
+}
+#create-canvas-step .cg-node--bgm button.cg-chrome-btn:hover {
+  border-color: var(--border-hover, var(--lp-card-bdr-h));
+}
+#create-canvas-step .cg-node--bgm button.cg-chrome-btn--primary {
+  background: var(--accent, var(--lp-accent));
+  border-color: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #ffffff);
+}
+#create-canvas-step .cg-node--bgm button.cg-chrome-btn--ghost {
+  background: transparent;
+  color: var(--text-muted, var(--lp-faint));
+}
+
+/* Sub action buttons (Configure / Skip) */
+#create-canvas-step .cg-node--sub .cg-chrome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 12px;
+}
+#create-canvas-step .cg-node--sub button.cg-chrome-btn {
+  font-size: 48px;
+  font-weight: 600;
+  padding: 22px 30px;
+  min-height: 110px;
+  border-radius: 14px;
+  border: 2px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  color: var(--text-primary, var(--lp-text));
+  cursor: pointer;
+  text-align: center;
+}
+#create-canvas-step .cg-node--sub button.cg-chrome-btn:hover {
+  border-color: var(--border-hover, var(--lp-card-bdr-h));
+}
+#create-canvas-step .cg-node--sub button.cg-chrome-btn--primary {
+  background: var(--accent, var(--lp-accent));
+  border-color: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #ffffff);
+}
+#create-canvas-step .cg-node--sub button.cg-chrome-btn--ghost {
+  background: transparent;
+  color: var(--text-muted, var(--lp-faint));
+}
+
+/* Compact summary block — used in BGM + Sub cards */
+#create-canvas-step .cg-chrome-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+#create-canvas-step .cg-chrome-summary-status {
+  font-size: 52px;
+  font-weight: 600;
+  color: var(--text-muted, var(--lp-faint));
+  line-height: 1.2;
+}
+#create-canvas-step .cg-chrome-summary-status--done {
+  color: var(--accent, var(--lp-accent));
+}
+#create-canvas-step .cg-chrome-kv {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+#create-canvas-step .cg-chrome-k {
+  font-size: 44px;
+  font-weight: 500;
+  color: var(--text-muted, var(--lp-faint));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+#create-canvas-step .cg-chrome-v {
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--text-primary, var(--lp-text));
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+#create-canvas-step .cg-node--launch {
+  width: 200px;
+}
+
+#create-canvas-step .cg-launch-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#create-canvas-step button.cg-launch-btn {
+  width: 100%;
+  background: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #fff);
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#create-canvas-step button.cg-launch-btn:hover {
+  background: var(--accent-hover, var(--lp-accent-h));
+}
+
+#create-canvas-step .cg-final-cta {
+  display: flex;
+}
+
+#create-canvas-step button.cg-final-render {
+  flex: 1;
+  background: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #fff);
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#create-canvas-step button.cg-final-render:hover {
+  background: var(--accent-hover, var(--lp-accent-h));
+}
+
+#create-canvas-step button.cg-final-timeline {
+  flex: 1;
+  background: transparent;
+  color: var(--accent, var(--lp-accent));
+  border: 2px solid var(--accent, var(--lp-accent));
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+#create-canvas-step button.cg-final-timeline:hover {
+  background: color-mix(in srgb, var(--accent, var(--lp-accent)) 12%, transparent);
+}
+
+/* ════ SECTION 10 — Floating chrome (top pill / progress / telemetry / zoom dock) ═══ */
+
+/* Containers all live inside #create-canvas-panel (sibling of #create-canvas-step).
+   The panel is hidden by default — only shown when body.canvas-active is set
+   (toggled by openCanvasPanel/closeCanvasPanel in 17c-create-pipeline.js). This
+   stops zoom-dock / telemetry / top-pill from leaking into the regular Copilot
+   form view. */
+
+#create-canvas-panel {
+  display: none;
+}
+body.canvas-active #create-canvas-panel {
+  display: block;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: var(--bg-primary, var(--lp-bg));
+}
+
+/* In canvas mode, hide the rest of the Copilot page chrome that would
+   otherwise clash with the canvas overlay. */
+body.canvas-active #create-breadcrumb,
+body.canvas-active .create-main-heading,
+body.canvas-active #create-workflow {
+  display: none !important;
+}
+
+/* Canvas mount target fills the panel; chrome floats over it. */
+body.canvas-active #create-canvas-step {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── P03 — Agent panel as translucent left overlay in canvas mode ──
+   The panel lives in the page layout (#create-body > #create-agent-panel) and
+   in non-canvas mode is the existing left rail in the Copilot form. When
+   canvas-active, lift it to a fixed translucent overlay on the left so it
+   stays visible above the canvas (z-index 200 > canvas panel z-index 100). */
+body.canvas-active #create-page #create-agent-panel {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  width: 232px;
+  z-index: 200;
+  background: var(--lp-card, rgba(255,255,255,0.04));
+  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  border-right: 1px solid var(--border, var(--lp-card-bdr));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  padding: 14px 12px;
+}
+
+html[data-theme="light"] body.canvas-active #create-page #create-agent-panel {
+  box-shadow: 0 12px 32px rgba(10, 22, 40, 0.10);
+}
+
+/* Collapsed agent panel = 56px icon strip (toggled by collapse button +
+   localStorage stori_agent_panel_collapsed). */
+body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] {
+  width: 56px;
+}
+
+/* Push canvas content rightward so it doesn't sit under the agent panel.
+   The wrapper is inside #create-canvas-step (position: absolute; inset: 0);
+   we offset its visual content via left padding. */
+body.canvas-active #create-canvas-step .cg-wrapper {
+  padding-left: 232px;
+}
+body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] ~ * #create-canvas-step .cg-wrapper,
+body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] + * #create-canvas-step .cg-wrapper {
+  padding-left: 56px;
+}
+
+#create-canvas-panel .cg-top-pill {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+#create-canvas-panel .cg-top-pill button.cg-pill-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, var(--lp-text));
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+#create-canvas-panel .cg-top-pill button.cg-pill-btn:hover {
+  background: var(--bg-elevated, var(--lp-card));
+}
+
+#create-canvas-panel .cg-top-pill button.cg-pill-primary {
+  background: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #fff);
+  padding: 7px 14px;
+  font-weight: 600;
+}
+
+#create-canvas-panel .cg-top-pill button.cg-pill-primary:hover {
+  background: var(--accent-hover, var(--lp-accent-h));
+}
+
+#create-canvas-panel .cg-top-pill button.cg-pill-danger {
+  background: var(--cg-danger, var(--red));
+  color: #fff;
+  padding: 7px 10px;
+}
+#create-canvas-panel .cg-top-pill button.cg-pill-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#create-canvas-panel .cg-pill-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-elevated, var(--lp-card));
+  border-radius: 8px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+}
+
+#create-canvas-panel .cg-pill-stepper button.cg-step {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary, var(--lp-dim));
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+
+#create-canvas-panel .cg-pill-stepper .cg-step-num {
+  min-width: 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary, var(--lp-text));
+}
+
+#create-canvas-panel .cg-pill-status {
+  background: var(--bg-elevated, var(--lp-card));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--lp-dim));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#create-canvas-panel .cg-pill-status .cg-status-dot {
+  position: static;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted, var(--lp-faint));
+}
+
+#create-canvas-panel .cg-pill-status.is-active .cg-status-dot {
+  background: var(--accent, var(--lp-accent));
+  animation: cg-status-pulse 1.2s ease-in-out infinite;
+}
+
+#create-canvas-panel .cg-drag-handle {
+  width: 14px;
+  height: 18px;
+  display: grid;
+  grid-template-columns: 3px 3px;
+  grid-template-rows: 3px 3px 3px;
+  gap: 2px;
+  align-content: center;
+  margin: 0 4px;
+  opacity: 0.45;
+  cursor: grab;
+}
+#create-canvas-panel .cg-drag-handle span {
+  background: var(--text-secondary, var(--lp-dim));
+  border-radius: 999px;
+}
+
+.canvas-panel-mode-badge {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  margin-left: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Progress strip (top right) */
+#create-canvas-panel .cg-progress-strip {
+  position: absolute;
+  top: 70px;
+  right: 18px;
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, var(--lp-dim));
+  display: flex;
+  gap: 14px;
+  z-index: 100;
+}
+#create-canvas-panel .cg-progress-strip[hidden] { display: none; }
+#create-canvas-panel .cg-progress-strip strong {
+  color: var(--text-primary, var(--lp-text));
+  font-weight: 600;
+}
+#create-canvas-panel .cg-progress-bar {
+  width: 100px;
+  height: 3px;
+  background: var(--border, var(--lp-card-bdr));
+  border-radius: 999px;
+  overflow: hidden;
+  align-self: center;
+}
+#create-canvas-panel .cg-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent, var(--lp-accent));
+  width: 0;
+  transition: width 0.18s ease;
+}
+
+/* Telemetry (bottom left) */
+#create-canvas-panel .cg-telemetry {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  line-height: 1.5;
+  z-index: 100;
+  pointer-events: none;
+}
+#create-canvas-panel .cg-telemetry b {
+  color: var(--text-secondary, var(--lp-dim));
+  font-weight: 500;
+}
+
+/* Zoom dock (bottom right) */
+#create-canvas-panel .cg-zoom-dock {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  z-index: 100;
+}
+
+#create-canvas-panel .cg-zoom-dock button.cg-zd-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, var(--lp-text));
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#create-canvas-panel .cg-zoom-dock button.cg-zd-btn:hover {
+  background: var(--bg-elevated, var(--lp-card));
+}
+
+#create-canvas-panel .cg-zoom-dock button.cg-zd-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#create-canvas-panel .cg-zoom-dock .cg-zoom-pct {
+  min-width: 60px;
+  justify-content: center;
+  font-weight: 600;
+}
+
+#create-canvas-panel .cg-zoom-cursor,
+#create-canvas-panel .cg-zoom-pct-wrap {
+  position: relative;
+}
+
+#create-canvas-panel .cg-zoom-cursor-menu,
+#create-canvas-panel .cg-zoom-pct-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 120px;
+  z-index: 110;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+#create-canvas-panel .cg-zoom-cursor-menu[hidden],
+#create-canvas-panel .cg-zoom-pct-menu[hidden] {
+  display: none;
+}
+
+#create-canvas-panel .cg-zoom-cursor-menu button,
+#create-canvas-panel .cg-zoom-pct-menu button {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, var(--lp-text));
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+#create-canvas-panel .cg-zoom-cursor-menu button:hover,
+#create-canvas-panel .cg-zoom-pct-menu button:hover {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 12%, transparent);
+}
+
+#create-canvas-panel .cg-zoom-cursor-menu button:disabled,
+#create-canvas-panel .cg-zoom-pct-menu button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Keep chrome out of the zoom-transformed graph layer (ADR-9) */
+#create-canvas-step .cg-graph-layer .cg-top-pill,
+#create-canvas-step .cg-graph-layer .cg-progress-strip,
+#create-canvas-step .cg-graph-layer .cg-telemetry,
+#create-canvas-step .cg-graph-layer .cg-zoom-dock {
+  /* Should never happen — defensive guard. */
+  transform: none;
+}
+
+/* ════ SECTION 11 — Selection toolbar + context menu ═══════════════════ */
+
+#create-canvas-step .cg-sel-toolbar {
+  position: absolute;
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 999px;
+  padding: 4px 6px;
+  display: flex;
+  gap: 2px;
+  z-index: 50;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  /* Counter-scale so toolbar stays readable at low zoom */
+  transform: translate(-50%, -100%) none;
+  transform-origin: bottom center;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+#create-canvas-step .cg-sel-toolbar button.cg-toolbar-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, var(--lp-text));
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+#create-canvas-step .cg-sel-toolbar button.cg-toolbar-btn:hover {
+  background: var(--bg-elevated, var(--lp-card));
+}
+
+#create-canvas-step .cg-sel-toolbar button.cg-toolbar-btn--danger {
+  color: var(--cg-danger, var(--red));
+}
+
+/* Context menu — lives in document.body (outside graph) */
+.cg-context-menu {
+  position: fixed;
+  background: var(--bg-card, var(--lp-card, rgba(20,24,32,0.95)));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border, var(--lp-card-bdr, rgba(255,255,255,0.08)));
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 180px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.cg-context-menu button.cg-menu-item {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, var(--lp-text, #e6e8ec));
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.cg-context-menu button.cg-menu-item:hover {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent, #4a9eff)) 14%, transparent);
+}
+
+.cg-context-menu button.cg-menu-item--danger {
+  color: var(--cg-danger, var(--red, #c84a4a));
+}
+
+/* ════ SECTION 12 — Marquee ═══════════════════════════════════════════ */
+
+#create-canvas-step .cg-marquee {
+  position: absolute;
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 12%, transparent);
+  border: 1px solid var(--accent, var(--lp-accent));
+  pointer-events: none;
+  z-index: 4;
+  border-radius: 2px;
+}
+
+/* ════ SECTION 13 — Right pane (Properties) ═══════════════════════════ */
+
+#create-canvas-step .cg-right-pane {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 360px;
+  background: var(--bg-card, var(--lp-card));
+  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  backdrop-filter: blur(var(--cg-pill-blur, 14px));
+  border-left: 1px solid var(--border, var(--lp-card-bdr));
+  display: flex;
+  flex-direction: column;
+  z-index: 80;
+  transition: transform 0.18s ease;
+}
+
+#create-canvas-step .cg-right-pane.cg-collapsed {
+  transform: translateX(360px);
+}
+
+#create-canvas-step .cg-rp-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, var(--lp-card-bdr));
+}
+
+#create-canvas-step .cg-rp-title {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, var(--lp-faint));
+  font-weight: 600;
+}
+
+#create-canvas-step .cg-rp-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#create-canvas-step .cg-rp-empty {
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 12px;
+  font-style: italic;
+}
+
+#create-canvas-step .cg-rp-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--border, var(--lp-card-bdr));
+}
+
+#create-canvas-step .cg-rp-row .cg-rp-k {
+  color: var(--text-muted, var(--lp-faint));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+#create-canvas-step .cg-rp-row .cg-rp-v {
+  color: var(--text-primary, var(--lp-text));
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+  text-align: right;
+}
+
+/* ── Rich inspector content (P15) ──────────────────────────────────────── */
+#create-canvas-step .cg-rp-h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, var(--lp-text));
+  margin: 4px 0 4px;
+  letter-spacing: -0.01em;
+}
+#create-canvas-step .cg-rp-meta {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+#create-canvas-step .cg-rp-active-pill {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--accent, var(--lp-accent));
+  color: var(--accent, var(--lp-accent));
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 12%, transparent);
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+#create-canvas-step .cg-rp-active-pill:empty { display: none; }
+#create-canvas-step .cg-rp-section-label {
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted, var(--lp-faint));
+  margin: 14px 0 6px;
+  font-weight: 600;
+}
+#create-canvas-step .cg-rp-prompt-preview {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary, var(--lp-dim));
+  background: var(--bg-elevated, var(--lp-bg2));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 130px;
+  overflow-y: auto;
+}
+/* Master prompt read-only block (per-variant tune feature) */
+#create-canvas-step .cg-rp-prompt-readonly {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary, var(--lp-dim));
+  background: var(--bg-elevated, var(--lp-bg2));
+  border: 1px dashed var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 110px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+/* Tune textarea — editable per-variant prompt override */
+#create-canvas-step textarea.cg-rp-tune {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  background: var(--bg-elevated, var(--lp-bg2));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--text-primary, var(--lp-text));
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#create-canvas-step textarea.cg-rp-tune:focus {
+  border-color: var(--accent, var(--lp-accent));
+  box-shadow: 0 0 0 1px var(--accent, var(--lp-accent));
+}
+#create-canvas-step textarea.cg-rp-tune::placeholder {
+  color: var(--text-muted, var(--lp-faint));
+  font-style: italic;
+}
+#create-canvas-step .cg-rp-tune-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+#create-canvas-step .cg-rp-tune-row .cg-rp-btn {
+  flex: 1;
+}
+#create-canvas-step .cg-rp-preview-wrap {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elevated, var(--lp-bg2));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-canvas-step .cg-rp-preview {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 220px;
+  object-fit: contain;
+}
+#create-canvas-step .cg-rp-empty-tile {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  font-style: italic;
+}
+#create-canvas-step .cg-rp-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#create-canvas-step .cg-rp-ref-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+}
+#create-canvas-step .cg-rp-thumb-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#create-canvas-step .cg-rp-thumb {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.12s, transform 0.12s;
+}
+#create-canvas-step .cg-rp-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#create-canvas-step .cg-rp-thumb:hover {
+  border-color: var(--border-hover, var(--lp-card-bdr-h));
+}
+#create-canvas-step .cg-rp-thumb.is-active {
+  border-color: var(--accent, var(--lp-accent));
+  box-shadow: 0 0 0 1px var(--accent, var(--lp-accent));
+}
+#create-canvas-step .cg-rp-thumb-add {
+  border-style: dashed;
+  border-width: 2px;
+  border-color: color-mix(in oklch, var(--accent, var(--lp-accent)) 55%, var(--border));
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 8%, transparent);
+  color: var(--accent, var(--lp-accent));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+#create-canvas-step .cg-rp-thumb-add .cg-rp-thumb-add-icon {
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+}
+#create-canvas-step .cg-rp-thumb-add .cg-rp-thumb-add-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+#create-canvas-step .cg-rp-thumb-add:hover {
+  background: color-mix(in oklch, var(--accent, var(--lp-accent)) 16%, transparent);
+  border-color: var(--accent, var(--lp-accent));
+}
+#create-canvas-step .cg-rp-thumb-num {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+}
+#create-canvas-step .cg-rp-thumb-vid .cg-rp-thumb-num {
+  color: var(--sock-video);
+  font-weight: 600;
+}
+#create-canvas-step .cg-rp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+#create-canvas-step .cg-rp-actions-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+#create-canvas-step button.cg-rp-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  color: var(--text-primary, var(--lp-text));
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  text-align: center;
+}
+#create-canvas-step button.cg-rp-btn:hover {
+  border-color: var(--border-hover, var(--lp-card-bdr-h));
+}
+#create-canvas-step button.cg-rp-btn.cg-rp-btn-primary {
+  background: var(--accent, var(--lp-accent));
+  border-color: var(--accent, var(--lp-accent));
+  color: var(--lp-on-accent, #ffffff);
+}
+#create-canvas-step button.cg-rp-btn.cg-rp-btn-primary:hover {
+  background: var(--accent-hover, var(--lp-accent-h));
+}
+#create-canvas-step button.cg-rp-btn.cg-rp-btn-danger {
+  color: var(--red, var(--cg-danger));
+  border-color: color-mix(in oklch, var(--red, var(--cg-danger)) 50%, var(--border));
+}
+#create-canvas-step button.cg-rp-btn.cg-rp-btn-danger:hover {
+  background: color-mix(in oklch, var(--red, var(--cg-danger)) 8%, transparent);
+}
+
+/* Right-pane form controls (BGM volume, subtitle style) */
+#create-canvas-step .cg-rp-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+#create-canvas-step .cg-rp-lbl {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  white-space: nowrap;
+  min-width: 58px;
+}
+#create-canvas-step .cg-rp-select {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  color: var(--text-primary, var(--lp-text));
+  font-size: 12px;
+  cursor: pointer;
+}
+#create-canvas-step .cg-rp-select-sm {
+  flex: 0 0 52px;
+}
+#create-canvas-step .cg-rp-num {
+  width: 52px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-elevated, var(--lp-bg2));
+  color: var(--text-primary, var(--lp-text));
+  font-size: 12px;
+}
+#create-canvas-step .cg-rp-color {
+  width: 36px;
+  height: 28px;
+  padding: 2px;
+  border-radius: 5px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: transparent;
+  cursor: pointer;
+}
+#create-canvas-step .cg-rp-slider {
+  flex: 1;
+  accent-color: var(--accent, var(--lp-accent));
+  height: 4px;
+  cursor: pointer;
+}
+#create-canvas-step .cg-rp-slider-val {
+  font-size: 11px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--text-primary, var(--lp-text));
+  min-width: 36px;
+  text-align: right;
+}
+#create-canvas-step .cg-rp-form-2col {
+  display: flex;
+  gap: 10px;
+  margin: 3px 0;
+}
+#create-canvas-step .cg-rp-form-2col > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+#create-canvas-step label.cg-rp-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--lp-dim));
+  cursor: pointer;
+  padding: 4px 0;
+}
+/* Language track rows in Sub right panel */
+#create-canvas-step .cg-rp-track-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--border, var(--lp-card-bdr));
+}
+#create-canvas-step .cg-rp-track-lang {
+  flex: 1;
+  color: var(--text-primary, var(--lp-text));
+  font-weight: 500;
+}
+#create-canvas-step .cg-rp-track-sub {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+}
+#create-canvas-step .cg-rp-track-done  { color: var(--green, #3da858); font-size: 13px; }
+#create-canvas-step .cg-rp-track-err   { color: var(--red, #c03c3c);   font-size: 13px; }
+#create-canvas-step .cg-rp-track-pending { color: var(--text-muted, var(--lp-faint)); font-size: 13px; }
+
+/* ════ SECTION 14 — Toast ═════════════════════════════════════════════ */
+
+.cg-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card, var(--lp-card, rgba(20,24,32,0.95)));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border, var(--lp-card-bdr, rgba(255,255,255,0.08)));
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-primary, var(--lp-text, #e6e8ec));
+  z-index: 300;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.cg-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ════ SECTION 15 — Light theme tuning ═══════════════════════════════ */
+
+html[data-theme="light"] #create-canvas-step .cg-node {
+  box-shadow: 0 4px 12px rgba(15, 30, 60, 0.12);
+}
+
+html[data-theme="light"] #create-canvas-step button.cg-thumb.has-vids {
+  /* On light, --border is faint; bump mix percentage so border is visible */
+  border-color: color-mix(in oklch, var(--sock-video) 70%, var(--border, var(--lp-card-bdr)));
+}
+
+html[data-theme="light"] #create-canvas-step .cg-thumb .cg-vid-badge {
+  /* Slightly higher contrast against light card */
+  background: color-mix(in oklch, var(--sock-video) 85%, var(--bg-elevated, var(--lp-card)));
+}
+
+html[data-theme="light"] #create-canvas-panel .cg-progress-bar {
+  background: rgba(0, 0, 0, 0.10);
+}
+
+/* Selection ring stays the same — accent token theme-swaps automatically. */

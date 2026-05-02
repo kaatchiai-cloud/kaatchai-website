@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Stori — Canvas Redesign Mock</title>
+<style>
+/* ============================================================
+   THEME TOKENS — light & dark
+   ============================================================ */
+:root[data-theme="dark"] {
+  --bg-base:        #0d1014;
+  --bg-elevated:    #16191f;
+  --bg-pill:        rgba(28, 32, 40, 0.78);
+  --border:         rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.18);
+  --text:           #e6e8ec;
+  --text-dim:       #9ba1ad;
+  --text-faint:     #6b7280;
+  --accent:         #4a9eff;
+  --accent-strong:  #2c80e6;
+  --danger:         #c84a4a;
+  --grid-dot:       rgba(255,255,255,0.07);
+
+  --sock-script:    #f5d04a;   /* yellow */
+  --sock-image:     #ff7a59;   /* orange */
+  --sock-video:     #b675f5;   /* purple */
+  --sock-audio:     #4ee0c8;   /* cyan/green */
+  --sock-final:     #4a9eff;   /* blue */
+}
+:root[data-theme="light"] {
+  --bg-base:        #f5f6f8;
+  --bg-elevated:    #ffffff;
+  --bg-pill:        rgba(255,255,255,0.85);
+  --border:         rgba(0,0,0,0.10);
+  --border-strong:  rgba(0,0,0,0.20);
+  --text:           #1a1d22;
+  --text-dim:       #5a626d;
+  --text-faint:     #8e95a1;
+  --accent:         #2c80e6;
+  --accent-strong:  #1f66c0;
+  --danger:         #c84a4a;
+  --grid-dot:       rgba(0,0,0,0.08);
+
+  --sock-script:    #c69a18;
+  --sock-image:     #d65b3a;
+  --sock-video:     #8a4dc5;
+  --sock-audio:     #1ea895;
+  --sock-final:     #2c80e6;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-base);
+  color: var(--text);
+  overflow: hidden;
+  font-size: 13px;
+}
+
+/* ============================================================
+   STORI TOP HEADER (placeholder — unchanged)
+   ============================================================ */
+.app-header {
+  position: fixed; top: 0; left: 0; right: 0; height: 56px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 18px; gap: 16px;
+  z-index: 1000;
+}
+.app-header .brand { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.app-header .crumb { color: var(--text-dim); font-size: 13px; }
+.app-header .spacer { flex: 1; }
+.app-header .theme-toggle {
+  background: var(--bg-pill); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 12px; border-radius: 999px;
+  cursor: pointer; font-size: 12px;
+}
+
+/* ============================================================
+   LEFT ICON RAIL
+   ============================================================ */
+.left-rail {
+  position: fixed; top: 56px; left: 0; bottom: 0; width: 56px;
+  background: var(--bg-pill); backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0; gap: 6px;
+  z-index: 200;
+}
+.rail-spacer { flex: 1; }
+.rail-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); cursor: pointer;
+  font-size: 16px; transition: background .15s, color .15s;
+  position: relative;
+}
+.rail-icon:hover { background: var(--bg-elevated); color: var(--text); }
+.rail-icon.active { background: var(--accent); color: #fff; }
+.rail-icon::after {
+  content: attr(data-label);
+  position: absolute; left: 44px; top: 50%; transform: translateY(-50%);
+  background: var(--bg-elevated); color: var(--text);
+  padding: 5px 10px; border-radius: 6px; font-size: 12px; white-space: nowrap;
+  border: 1px solid var(--border); pointer-events: none;
+  opacity: 0; transition: opacity .15s;
+  z-index: 300;
+}
+.rail-icon:hover::after { opacity: 1; }
+
+/* ============================================================
+   CANVAS AREA
+   ============================================================ */
+.canvas-stage {
+  position: fixed; top: 56px; left: 56px; right: 0; bottom: 0;
+  background:
+    radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 0)
+    0 0 / 24px 24px;
+  background-color: var(--bg-base);
+  overflow: hidden;
+  cursor: grab;
+}
+
+/* ============================================================
+   TOP ACTION PILL
+   ============================================================ */
+.top-pill {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-pill); backdrop-filter: blur(14px);
+  border: 1px solid var(--border); border-radius: 999px;
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 8px; z-index: 250;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.pill-btn {
+  background: transparent; border: 0; color: var(--text);
+  padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+}
+.pill-btn:hover { background: var(--bg-elevated); }
+.pill-btn.primary {
+  background: var(--accent); color: #fff; padding: 7px 14px;
+  font-weight: 600;
+}
+.pill-btn.primary:hover { background: var(--accent-strong); }
+.pill-btn.danger { background: var(--danger); color: #fff; padding: 7px 10px; }
+.pill-divider { width: 1px; height: 18px; background: var(--border-strong); margin: 0 4px; }
+.pill-stepper {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; background: var(--bg-elevated); border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.pill-stepper .num { min-width: 14px; text-align: center; font-weight: 600; font-size: 12px; }
+.pill-stepper .step { color: var(--text-dim); cursor: pointer; user-select: none; }
+.pill-status {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  padding: 5px 10px; border-radius: 8px; font-size: 12px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 6px;
+}
+.pill-status .dot {
+  width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+.drag-handle {
+  width: 14px; height: 18px; display: grid; grid-template-columns: 3px 3px;
+  grid-template-rows: 3px 3px 3px; gap: 2px; align-content: center;
+  margin: 0 4px; opacity: .4; cursor: grab;
+}
+.drag-handle span { background: var(--text-dim); border-radius: 999px; }
+
+/* ============================================================
+   PROGRESS STRIP
+   ============================================================ */
+.progress-strip {
+  position: absolute; top: 70px; right: 18px;
+  background: var(--bg-pill); backdrop-filter: blur(10px);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; font-size: 11px; color: var(--text-dim);
+  display: flex; gap: 14px; z-index: 200;
+}
+.progress-strip strong { color: var(--text); font-weight: 600; }
+.progress-bar {
+  width: 100px; height: 3px; background: var(--border); border-radius: 999px;
+  overflow: hidden; align-self: center;
+}
+.progress-bar > span {
+  display: block; height: 100%; background: var(--accent); width: 14%;
+}
+
+/* ============================================================
+   BOTTOM-LEFT TELEMETRY
+   ============================================================ */
+.telemetry {
+  position: absolute; left: 14px; bottom: 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px; color: var(--text-faint); line-height: 1.5;
+  z-index: 200; pointer-events: none;
+}
+.telemetry b { color: var(--text-dim); font-weight: 500; }
+
+/* ============================================================
+   BOTTOM-RIGHT ZOOM DOCK
+   ============================================================ */
+.zoom-dock {
+  position: absolute; right: 14px; bottom: 14px;
+  background: var(--bg-pill); backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 999px;
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  z-index: 200;
+}
+.zoom-dock button {
+  background: transparent; border: 0; color: var(--text);
+  padding: 6px 10px; border-radius: 999px; cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; gap: 4px;
+}
+.zoom-dock button:hover { background: var(--bg-elevated); }
+.zoom-dock .zoom-pct { min-width: 50px; text-align: center; font-weight: 600; }
+
+/* ============================================================
+   NODE GRAPH LAYER
+   ============================================================ */
+.graph-layer {
+  position: absolute; inset: 0;
+  transform: translate(0,0) scale(1);
+  transform-origin: 0 0;
+}
+.svg-curves {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+
+/* ============================================================
+   NODES
+   ============================================================ */
+.node {
+  position: absolute;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text);
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(0,0,0,0.18);
+}
+.node-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600; font-size: 12px;
+  color: var(--text-dim);
+}
+.node-head .head-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: var(--text-faint);
+}
+.node-body { padding: 10px 12px; }
+
+/* tabs strip on SB cards (Option B for script variants) */
+.tabs {
+  display: flex; gap: 2px; margin-left: auto;
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px;
+}
+.tabs .tab {
+  padding: 2px 8px; font-size: 11px; color: var(--text-dim);
+  border-radius: 4px; cursor: pointer; user-select: none;
+}
+.tabs .tab.active { background: var(--bg-elevated); color: var(--text); font-weight: 600; }
+.tabs .tab.add    { color: var(--text-faint); }
+.tabs .tab:hover  { color: var(--text); }
+
+/* variant tray — dashed rectangle wrapping IMG variants for an SB */
+.variant-tray {
+  position: absolute;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 0;
+}
+.variant-tray .tray-label {
+  position: absolute; top: -10px; left: 14px;
+  background: var(--bg-base); padding: 0 8px;
+  font-size: 10px; color: var(--text-faint);
+  font-family: 'SF Mono', Menlo, monospace; letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ghost "add variation" card */
+.node.ghost {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  box-shadow: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); font-size: 12px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.node.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* active-variant accent pill (replaces old PIN/ACTIVE rocker) */
+.variant-pin {
+  position: absolute; top: 8px; right: 12px;
+  font-size: 9px; color: var(--accent); border: 1px solid var(--accent);
+  padding: 1px 6px; border-radius: 999px;
+  font-family: 'SF Mono', Menlo, monospace; letter-spacing: 0.05em;
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+}
+
+/* thumbnail strip below the active card */
+.thumb-strip {
+  position: absolute;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 10px 12px; align-content: flex-start;
+}
+.thumb {
+  width: 56px; height: 36px; border-radius: 4px;
+  background: linear-gradient(135deg, #2a2f3a, #1a1d24);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); font-size: 10px;
+  font-family: 'SF Mono', Menlo, monospace;
+  cursor: pointer;
+  position: relative;
+  background-size: cover; background-position: center;
+}
+.thumb:hover { border-color: var(--border-strong); }
+.thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.thumb.add {
+  background: transparent; border-style: dashed; color: var(--text-faint);
+}
+.thumb.add:hover { color: var(--accent); border-color: var(--accent); }
+
+/* count badge — bottom-right of a thumbnail */
+.thumb .vid-badge {
+  position: absolute; bottom: 2px; right: 2px;
+  background: color-mix(in oklch, var(--sock-video) 80%, black);
+  color: #fff;
+  font-size: 9px; font-weight: 600;
+  padding: 1px 4px; border-radius: 999px;
+  display: flex; align-items: center; gap: 1px;
+  font-family: 'SF Mono', Menlo, monospace;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* secondary cue — thumb gets a purple-tinted border when it has videos */
+.thumb.has-vids {
+  border-color: color-mix(in oklch, var(--sock-video) 60%, var(--border));
+}
+.thumb.has-vids.active {
+  border-color: var(--accent);   /* active still wins */
+}
+.thumb-strip .strip-label {
+  width: 100%; font-size: 9px; color: var(--text-faint);
+  font-family: 'SF Mono', Menlo, monospace; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+
+/* socket bumps on the node edge */
+.sock {
+  position: absolute; width: 12px; height: 12px; border-radius: 999px;
+  top: 16px;
+  border: 2px solid var(--bg-elevated);
+}
+.sock.in  { left: -8px; }
+.sock.out { right: -8px; }
+.sock.script { background: var(--sock-script); }
+.sock.image  { background: var(--sock-image); }
+.sock.video  { background: var(--sock-video); }
+.sock.audio  { background: var(--sock-audio); }
+.sock.final  { background: var(--sock-final); }
+
+/* SB body */
+.sb-script {
+  width: 100%; min-height: 88px; resize: none;
+  background: transparent; border: 0; outline: none;
+  color: var(--text); font: inherit;
+  font-size: 12px; line-height: 1.45;
+}
+
+/* IMG body */
+.img-preview {
+  width: 100%; aspect-ratio: 16/9;
+  border-radius: 6px; overflow: hidden;
+  background: linear-gradient(135deg, #2a2f3a, #1a1d24);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); font-size: 11px;
+  background-size: cover; background-position: center;
+}
+
+/* inline stepper rows */
+.inline-row {
+  display: flex; gap: 6px; margin-top: 8px;
+}
+.stepper {
+  flex: 1; display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px; font-size: 11px;
+  color: var(--text-dim);
+}
+.stepper .arr { color: var(--text-faint); cursor: pointer; user-select: none; }
+.stepper .val { color: var(--text); font-weight: 500; }
+
+/* status dot in corner */
+.status-dot {
+  position: absolute; top: 10px; right: 10px;
+  width: 6px; height: 6px; border-radius: 999px;
+}
+.status-dot.done    { background: #4ee0c8; }
+.status-dot.running { background: #f5d04a; animation: pulse 1.2s infinite; }
+.status-dot.pending { background: var(--text-faint); }
+
+/* selection toolbar */
+.sel-toolbar {
+  position: absolute;
+  background: var(--bg-pill); backdrop-filter: blur(10px);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 6px; display: flex; gap: 2px;
+  font-size: 11px; z-index: 50;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+}
+.sel-toolbar button {
+  background: transparent; border: 0; color: var(--text);
+  padding: 5px 10px; border-radius: 999px; cursor: pointer; font-size: 11px;
+}
+.sel-toolbar button:hover { background: var(--bg-elevated); }
+.sel-toolbar button.danger { color: var(--danger); }
+
+</style>
+</head>
+<body>
+
+<!-- ============== TOP HEADER ============== -->
+<div class="app-header">
+  <div class="brand">Stori</div>
+  <div class="crumb">Project / The Tamil Nadu Story / Canvas</div>
+  <div class="spacer"></div>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+</div>
+
+<!-- ============== LEFT RAIL ============== -->
+<div class="left-rail">
+  <div class="rail-icon active" data-label="Graph">▦</div>
+  <div class="rail-icon" data-label="Gallery">▣</div>
+  <div class="rail-icon" data-label="Project">◈</div>
+  <div class="rail-icon" data-label="Effects">✦</div>
+  <div class="rail-icon" data-label="Connections">⌬</div>
+  <div class="rail-icon" data-label="Templates">▤</div>
+  <div class="rail-icon" data-label="Layout">⊞</div>
+  <div class="rail-spacer"></div>
+  <div class="rail-icon" data-label="Help">?</div>
+  <div class="rail-icon" data-label="Terminal">⏵</div>
+  <div class="rail-icon" data-label="Shortcuts">⌨</div>
+  <div class="rail-icon" data-label="Settings">⚙</div>
+</div>
+
+<!-- ============== CANVAS ============== -->
+<div class="canvas-stage" id="stage">
+
+  <!-- TOP PILL -->
+  <div class="top-pill">
+    <button class="pill-btn">⊞ Project</button>
+    <button class="pill-btn">★</button>
+    <button class="pill-btn">↶</button>
+    <button class="pill-btn">↷</button>
+    <button class="pill-btn">⤴</button>
+    <span class="drag-handle"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+    <div class="pill-stepper">
+      <span class="step">▼</span>
+      <span class="num">1</span>
+      <span class="step">▲</span>
+    </div>
+    <button class="pill-btn primary">▶ Run</button>
+    <button class="pill-btn">▾</button>
+    <button class="pill-btn danger">✕</button>
+    <div class="pill-status"><span class="dot"></span>1 active</div>
+    <button class="pill-btn">⊟</button>
+  </div>
+
+  <!-- PROGRESS STRIP -->
+  <div class="progress-strip">
+    <div>Total <strong>14%</strong></div>
+    <div class="progress-bar"><span></span></div>
+    <div>Node <strong>60%</strong></div>
+  </div>
+
+  <!-- GRAPH -->
+  <div class="graph-layer" id="graph">
+
+    <svg class="svg-curves" id="curves"></svg>
+
+    <!-- ───────── SB 1 (tabs become clickable) ───────── -->
+    <div class="node" id="sb1" style="left:120px; top:140px; width:300px;">
+      <div class="node-head">
+        <span class="head-dot" style="background:var(--sock-script)"></span>SB 1
+        <div class="tabs" data-sb="sb1">
+          <span class="tab active" data-tab="A">A</span>
+          <span class="tab"        data-tab="B">B</span>
+          <span class="tab add">+</span>
+        </div>
+      </div>
+      <span class="sock in script"></span>
+      <span class="sock out script"></span>
+      <div class="status-dot done"></div>
+      <div class="node-body">
+        <textarea class="sb-script" id="sb1-script">A glowing banyan tree extending its roots across a stylized map of Tamil Nadu, golden light, vibrant Tamil script woven into the foliage.</textarea>
+        <div class="inline-row">
+          <div class="stepper"><span class="arr">◀</span><span class="val">6.0s</span><span class="arr">▶</span></div>
+          <div class="stepper"><span class="arr">◀</span><span class="val">gothic</span><span class="arr">▶</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── IMG 1 variant tray (per SB tab) ───────── -->
+    <div class="variant-tray" id="img1-tray" style="left:510px; top:108px; width:320px; height:480px;">
+      <span class="tray-label" id="img1-tray-label">Img 1 · 10 variants</span>
+    </div>
+
+    <!-- ACTIVE IMG card -->
+    <div class="node selected" id="img1a1" style="left:530px; top:130px; width:280px;">
+      <div class="node-head"><span class="head-dot" style="background:var(--sock-image)"></span><span id="img1-active-label">Img 1.A.3</span></div>
+      <span class="sock in image"></span>
+      <span class="sock out image"></span>
+      <span class="variant-pin">ACTIVE</span>
+      <div class="status-dot done"></div>
+      <div class="node-body">
+        <div class="img-preview" id="img1-preview" style="background-image: linear-gradient(135deg, #4a3a1a, #1a2a3a);">[render]</div>
+        <div class="inline-row">
+          <div class="stepper"><span class="arr">◀</span><span class="val">16:9</span><span class="arr">▶</span></div>
+          <div class="stepper"><span class="arr">◀</span><span class="val" id="img1-seed">seed 117</span><span class="arr">▶</span></div>
+        </div>
+      </div>
+      <div class="sel-toolbar" style="top:-72px; left:50%; transform:translateX(-50%);">
+        <button>↻ Regen</button>
+        <button>✦ Variation</button>
+        <button>↓ Download</button>
+        <button class="danger">⊘ Delete</button>
+      </div>
+    </div>
+
+    <!-- IMG thumb strip (per active SB tab) -->
+    <div class="thumb-strip" id="img1-thumbs" style="left:510px; top:410px; width:320px;">
+      <span class="strip-label">Variants — click to set active</span>
+    </div>
+
+    <!-- ───────── VID 1 variant tray (per active IMG) ───────── -->
+    <div class="variant-tray" id="vid1-tray" style="left:880px; top:108px; width:320px; height:480px;">
+      <span class="tray-label" id="vid1-tray-label">Vid 1.A.3 · 3 variants</span>
+    </div>
+
+    <!-- ACTIVE VID card -->
+    <div class="node" id="vid1a1" style="left:900px; top:130px; width:280px;">
+      <div class="node-head"><span class="head-dot" style="background:var(--sock-video)"></span><span id="vid1-active-label">Vid 1.A.3.2</span></div>
+      <span class="sock in video"></span>
+      <span class="sock out video"></span>
+      <span class="variant-pin">ACTIVE</span>
+      <div class="status-dot done"></div>
+      <div class="node-body">
+        <div class="img-preview" id="vid1-preview" style="background-image: linear-gradient(135deg, #4a3a1a, #1a2a3a); position:relative;">
+          <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; text-shadow:0 2px 8px rgba(0,0,0,0.5);">▶</span>
+        </div>
+        <div class="inline-row">
+          <div class="stepper"><span class="arr">◀</span><span class="val">5.0s</span><span class="arr">▶</span></div>
+          <div class="stepper"><span class="arr">◀</span><span class="val">veo3</span><span class="arr">▶</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VID thumb strip -->
+    <div class="thumb-strip" id="vid1-thumbs" style="left:880px; top:410px; width:320px;">
+      <span class="strip-label">Videos from active image</span>
+    </div>
+
+    <!-- ───────── BGM ───────── -->
+    <div class="node" id="bgm" style="left:1240px; top:200px; width:220px;">
+      <div class="node-head"><span class="head-dot" style="background:var(--sock-audio)"></span>BGM</div>
+      <span class="sock in audio"></span>
+      <span class="sock out audio"></span>
+      <div class="status-dot done"></div>
+      <div class="node-body">
+        <div class="stepper"><span class="arr">◀</span><span class="val">Lyria · uplifting</span><span class="arr">▶</span></div>
+        <div class="inline-row">
+          <div class="stepper"><span class="arr">◀</span><span class="val">vol 0.85</span><span class="arr">▶</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── FINAL ───────── -->
+    <div class="node" id="final" style="left:1520px; top:240px; width:220px;">
+      <div class="node-head"><span class="head-dot" style="background:var(--sock-final)"></span>Final</div>
+      <span class="sock in final"></span>
+      <div class="status-dot pending"></div>
+      <div class="node-body">
+        <div class="stepper"><span class="arr">◀</span><span class="val">1080p · 30fps</span><span class="arr">▶</span></div>
+        <div class="inline-row">
+          <button class="pill-btn primary" style="flex:1; justify-content:center;">▶ Render</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM-LEFT TELEMETRY -->
+  <div class="telemetry">
+    <div><b>T:</b> 0:42</div>
+    <div><b>I:</b> 3 / 10</div>
+    <div><b>N:</b> 12</div>
+    <div><b>V:</b> 6</div>
+    <div><b>FPS:</b> 60</div>
+  </div>
+
+  <!-- BOTTOM-RIGHT ZOOM DOCK -->
+  <div class="zoom-dock">
+    <button>↗ Select ▾</button>
+    <button>⊕</button>
+    <button class="zoom-pct">100% ▾</button>
+    <button>🗺</button>
+    <button>⊘</button>
+  </div>
+
+</div>
+
+<script>
+function toggleTheme() {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  drawCurves();
+}
+
+/* draw bezier curves between nodes — uses offsetLeft/Top so coords are in
+   pre-transform layout space (curves transform with the layer). */
+function drawCurves() {
+  const svg = document.getElementById('curves');
+  svg.innerHTML = '';
+  // Active path only:  SB → IMG → VID → BGM → Final
+  const pairs = [
+    ['sb1',   'img1a1', 'script', false],
+    ['img1a1','vid1a1', 'image',  false],
+    ['vid1a1','bgm',    'video',  false],
+    ['bgm',   'final',  'audio',  false],
+  ];
+  const cs = getComputedStyle(document.documentElement);
+  const colorOf = type => cs.getPropertyValue('--sock-' + type).trim();
+
+  for (const [aId, bId, type, dashed] of pairs) {
+    const a = document.getElementById(aId);
+    const b = document.getElementById(bId);
+    const x1 = a.offsetLeft + a.offsetWidth;
+    const y1 = a.offsetTop + 22;
+    const x2 = b.offsetLeft;
+    const y2 = b.offsetTop + 22;
+    const dx = Math.max(80, (x2 - x1) * 0.5);
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('stroke', colorOf(type));
+    path.setAttribute('stroke-width', dashed ? '1.2' : '1.6');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('opacity', dashed ? '0.45' : '0.9');
+    if (dashed) path.setAttribute('stroke-dasharray', '4 4');
+    svg.appendChild(path);
+  }
+}
+
+/* ============================================================
+   ZOOM + PAN
+   ============================================================ */
+const view = { zoom: 1, panX: 0, panY: 0 };
+const graph = document.getElementById('graph');
+const stage = document.getElementById('stage');
+const zoomLabel = document.querySelector('.zoom-pct');
+
+function applyTransform() {
+  graph.style.transform = `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`;
+  graph.style.transformOrigin = '0 0';
+  if (zoomLabel) zoomLabel.firstChild.nodeValue = Math.round(view.zoom * 100) + '%';
+}
+
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = stage.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const wx = (mx - view.panX) / view.zoom;
+  const wy = (my - view.panY) / view.zoom;
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  const newZoom = Math.max(0.25, Math.min(2.5, view.zoom * factor));
+  view.zoom = newZoom;
+  view.panX = mx - wx * view.zoom;
+  view.panY = my - wy * view.zoom;
+  applyTransform();
+}, { passive: false });
+
+let panning = false, panStart = null;
+stage.addEventListener('mousedown', (e) => {
+  // only pan when clicking empty stage / graph layer / svg, not nodes / chrome
+  const onChrome = e.target.closest('.top-pill, .progress-strip, .telemetry, .zoom-dock, .left-rail, .app-header, .node, .sel-toolbar');
+  if (onChrome) return;
+  panning = true;
+  panStart = { x: e.clientX - view.panX, y: e.clientY - view.panY };
+  stage.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', (e) => {
+  if (!panning) return;
+  view.panX = e.clientX - panStart.x;
+  view.panY = e.clientY - panStart.y;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => {
+  if (!panning) return;
+  panning = false;
+  stage.style.cursor = 'grab';
+});
+
+/* ============================================================
+   DATA MODEL — Option 1: per-SB image set, per-IMG video set
+   ============================================================ */
+const SB1 = {
+  activeTab: 'A',
+  tabs: {
+    A: {
+      script: "A glowing banyan tree extending its roots across a stylized map of Tamil Nadu, golden light, vibrant Tamil script woven into the foliage.",
+      activeImg: 3,
+      images: [
+        { i:1, grad:'#2a3a5a,#1a2030' },
+        { i:2, grad:'#5a3a2a,#30201a' },
+        { i:3, grad:'#4a3a1a,#1a2a3a', seed:117 },
+        { i:4, grad:'#3a2a5a,#20103a' },
+        { i:5, grad:'#5a4a3a,#3a2a1a' },
+        { i:6, grad:'#1a4a3a,#102a1a' },
+        { i:7, grad:'#4a1a3a,#2a102a' },
+        { i:8, grad:'#2a4a4a,#1a2a3a' },
+        { i:9, grad:'#5a2a4a,#3a1a30' },
+        { i:10, grad:'#3a3a5a,#20203a' },
+      ],
+      // videos keyed by image idx
+      vids: {
+        3: { active:2, list:[
+          { i:1, grad:'#4a3a1a,#1a2a3a' },
+          { i:2, grad:'#5a4a2a,#2a3a4a' },
+          { i:3, grad:'#3a2a1a,#1a3a4a' },
+        ]},
+        7: { active:1, list:[ { i:1, grad:'#4a1a3a,#2a102a' } ] },
+      },
+    },
+    B: {
+      script: "Alternative cut: a mist-shrouded forest at dawn, narrow shafts of golden light cutting through pine canopy, moss carpeting silent stones.",
+      activeImg: 2,
+      images: [
+        { i:1, grad:'#1a3a2a,#0a1a10' },
+        { i:2, grad:'#2a4a3a,#1a2a1a', seed:42 },
+        { i:3, grad:'#3a5a4a,#1a3a2a' },
+        { i:4, grad:'#1a2a4a,#0a1a2a' },
+      ],
+      vids: {
+        2: { active:1, list:[
+          { i:1, grad:'#2a4a3a,#1a2a1a' },
+          { i:2, grad:'#3a5a4a,#2a3a2a' },
+        ]},
+      },
+    },
+  },
+};
+
+function rerender() {
+  const tab = SB1.tabs[SB1.activeTab];
+
+  // 1. Script body
+  document.getElementById('sb1-script').value = tab.script;
+
+  // 2. SB tab pills
+  document.querySelectorAll('[data-sb="sb1"] .tab').forEach(t => {
+    if (!t.dataset.tab) return;
+    t.classList.toggle('active', t.dataset.tab === SB1.activeTab);
+  });
+
+  // 3. IMG tray label + active card + thumb strip
+  document.getElementById('img1-tray-label').textContent =
+    `Img 1 · ${tab.images.length} variants`;
+  const actImg = tab.images.find(x => x.i === tab.activeImg) || tab.images[0];
+  document.getElementById('img1-active-label').textContent =
+    `Img 1.${SB1.activeTab}.${actImg.i}`;
+  document.getElementById('img1-preview').style.backgroundImage =
+    `linear-gradient(135deg, ${actImg.grad})`;
+  document.getElementById('img1-seed').textContent =
+    actImg.seed != null ? `seed ${actImg.seed}` : `seed —`;
+
+  const imgStrip = document.getElementById('img1-thumbs');
+  imgStrip.innerHTML = '<span class="strip-label">Variants — click to set active</span>';
+  for (const im of tab.images) {
+    const vidCount = (tab.vids[im.i]?.list?.length) || 0;
+    const t = document.createElement('div');
+    let cls = 'thumb';
+    if (im.i === tab.activeImg) cls += ' active';
+    if (vidCount > 0)            cls += ' has-vids';
+    t.className = cls;
+    t.style.backgroundImage = `linear-gradient(135deg, ${im.grad})`;
+    t.innerHTML = im.i + (vidCount > 0 ? `<span class="vid-badge">▶${vidCount}</span>` : '');
+    t.onclick = () => { tab.activeImg = im.i; rerender(); };
+    imgStrip.appendChild(t);
+  }
+  const imgAdd = document.createElement('div');
+  imgAdd.className = 'thumb add'; imgAdd.textContent = '+';
+  imgStrip.appendChild(imgAdd);
+
+  // 4. VID tray (per active IMG)
+  const vidPool = tab.vids[tab.activeImg] || { active:0, list:[] };
+  document.getElementById('vid1-tray-label').textContent =
+    `Vid 1.${SB1.activeTab}.${actImg.i} · ${vidPool.list.length} variant${vidPool.list.length===1?'':'s'}`;
+
+  const vidStrip = document.getElementById('vid1-thumbs');
+  vidStrip.innerHTML = '<span class="strip-label">Videos from active image</span>';
+  for (const v of vidPool.list) {
+    const t = document.createElement('div');
+    t.className = 'thumb' + (v.i === vidPool.active ? ' active' : '');
+    t.style.backgroundImage = `linear-gradient(135deg, ${v.grad})`;
+    t.innerHTML = `<span style="position:absolute;font-size:10px;text-shadow:0 1px 2px rgba(0,0,0,.6)">▶${v.i}</span>`;
+    t.onclick = () => { vidPool.active = v.i; rerender(); };
+    vidStrip.appendChild(t);
+  }
+  const vidAdd = document.createElement('div');
+  vidAdd.className = 'thumb add'; vidAdd.textContent = '+';
+  vidStrip.appendChild(vidAdd);
+
+  // VID active card (or hide if no videos for this image)
+  const vidNode = document.getElementById('vid1a1');
+  if (vidPool.list.length === 0) {
+    vidNode.style.display = 'none';
+  } else {
+    vidNode.style.display = '';
+    const av = vidPool.list.find(x => x.i === vidPool.active) || vidPool.list[0];
+    document.getElementById('vid1-active-label').textContent =
+      `Vid 1.${SB1.activeTab}.${actImg.i}.${av.i}`;
+    document.getElementById('vid1-preview').style.backgroundImage =
+      `linear-gradient(135deg, ${av.grad})`;
+  }
+
+  // 5. Redraw curves so the active path follows the new selection
+  drawCurves();
+}
+
+// SB tab click → switch active branch
+document.querySelectorAll('[data-sb="sb1"] .tab[data-tab]').forEach(el => {
+  el.addEventListener('click', () => {
+    SB1.activeTab = el.dataset.tab;
+    rerender();
+  });
+});
+
+window.addEventListener('load', () => {
+  rerender();
+  applyTransform();
+});
+window.addEventListener('resize', drawCurves);
+</script>
+</body>
+</html>

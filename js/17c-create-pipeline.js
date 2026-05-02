@@ -843,6 +843,12 @@ function updateStepStates() {
   // showStep('create-references-step', hasScenes);
   // if (hasScenes && typeof renderSceneAssignments === 'function') renderSceneAssignments();
 
+  // Open Canvas button: visible whenever there's something worth re-entering —
+  // generation in progress OR at least one image already exists.
+  const canReopenCanvas = hasScenes && (hasImages || (typeof generateRunning !== 'undefined' && generateRunning));
+  const btnOpenCanvas = $('btn-open-canvas');
+  if (btnOpenCanvas) btnOpenCanvas.style.display = canReopenCanvas ? '' : 'none';
+
   // Step 6: Generate Images — after images start appearing (shown by launchImageAgent)
   showStep('create-generate-step', hasImages);
   markStep('create-generate-step', allImagesDone, hasImages && !allImagesDone);
@@ -2723,6 +2729,11 @@ async function generateSceneImage(idx) {
 }
 
 function updateSceneCardImage(idx) {
+  // Live placeholder→image swap on the canvas (if it's the active workspace).
+  // Safe to call when canvas isn't mounted; notifyImageReady is a no-op then.
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyImageReady) {
+    try { CanvasGraph.notifyImageReady(idx); } catch (_) {}
+  }
   const imgDiv = $(`create-scene-img-${idx}`);
   if (!imgDiv) return;
   const scene = createScenes[idx];
@@ -2740,6 +2751,11 @@ function updateSceneCardImage(idx) {
 }
 
 function updateSceneCardStatus(idx, errorMsg) {
+  // Mirror status flip onto canvas (generating / error / done). Safe when
+  // canvas isn't mounted — notifyImageReady is a no-op.
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyImageReady) {
+    try { CanvasGraph.notifyImageReady(idx); } catch (_) {}
+  }
   const statusEl = $(`create-scene-status-${idx}`);
   if (!statusEl) return;
   const scene = createScenes[idx];
@@ -3061,37 +3077,12 @@ async function runImageGeneration(scenesToGen) {
   updateCreateButtons();
   updateStepStates();
 
-  // Animated mode: run Kling animation after image generation
-  if (createVideoMode === 'animated' && typeof animateScenes === 'function') {
-    const scenesWithImages = createScenes.filter(s => s.imgDataUrl);
-    if (scenesWithImages.length > 0) {
-      const videoBar = $('create-video-bar');
-      const videoLabel = $('create-video-label');
-      const videoProgress = $('create-video-progress');
-      if (videoProgress) videoProgress.classList.add('visible');
-      if (videoBar) videoBar.style.width = '0%';
-      if (videoLabel) videoLabel.textContent = 'Animating scenes…';
-      const videoStep = $('create-video-step');
-      if (videoStep) videoStep.style.display = '';
-      updateStepStates();
-      updateCreateAgent('animation', 'running', `0/${scenesWithImages.length} clips`);
-      try {
-        await animateScenes(scenesWithImages, (done, total, label) => {
-          if (videoBar) videoBar.style.width = Math.round((done / total) * 100) + '%';
-          if (videoLabel) videoLabel.textContent = label;
-          updateCreateAgent('animation', 'running', label);
-        }, getCreateGeminiKey());
-        renderCreateVideoCards();
-        if (videoLabel) videoLabel.textContent = `Done! ${scenesWithImages.length} scenes animated.`;
-        updateCreateAgent('animation', 'done', `${scenesWithImages.length} clips ready`);
-        const animSummary = $('create-launch-animation-summary');
-        if (animSummary) animSummary.textContent = `✅ ${scenesWithImages.length} scenes animated`;
-      } catch (animErr) {
-        if (videoLabel) { videoLabel.textContent = `Animation error: ${animErr.message}`; videoLabel.style.color = '#ef4444'; }
-        updateCreateAgent('animation', 'error', animErr.message);
-      }
-      setTimeout(() => { if (videoProgress) videoProgress.classList.remove('visible'); }, 4000);
-      updateStepStates();
+  // Canvas was already mounted at Launch click. Just refresh agent status —
+  // images are already populated on canvas via per-scene notifyImageReady.
+  if (createVideoMode === 'animated' || createVideoMode === 'illustrated') {
+    if (typeof CanvasGraph !== 'undefined' && CanvasGraph.isActive && CanvasGraph.isActive()) {
+      if (createVideoMode === 'animated') updateCreateAgent('animation', 'idle', 'Use canvas to generate videos');
+      else                                updateCreateAgent('image',     'done', 'Fine-tune in canvas');
     }
   }
 }
@@ -3224,12 +3215,75 @@ btnCreatePause.addEventListener('click', () => {
 
 function launchImageAgent() {
   if (!createScenes || createScenes.length === 0) return;
-  const step = $('create-generate-step');
-  if (step) {
-    step.style.display = '';
-    step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Mount the canvas immediately as the workspace. Scene nodes appear with
+  // image placeholders; placeholders fill in as runImageGeneration completes
+  // each scene (see updateSceneCardImage → CanvasGraph.notifyImageReady).
+  if (createVideoMode === 'animated' || createVideoMode === 'illustrated') {
+    openCanvasPanel();
+  } else {
+    // Fallback path (no video mode): keep legacy behaviour.
+    const step = $('create-generate-step');
+    if (step) {
+      step.style.display = '';
+      step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
+  // Idempotent: if generation is already running, the user is just
+  // re-entering the canvas (e.g. after Back). Don't restart it.
+  // If every scene already has an image, also skip — they can use Regen
+  // on individual nodes from the canvas.
+  if (generateRunning) return;
+  const allDone = createScenes.every(s => s.imgDataUrl);
+  if (allDone) return;
   runImageGeneration([...createScenes]);
+}
+
+// Mount the canvas panel as the right column, hide #create-workflow.
+// Reads the live createScenes / createJobState — same data legacy steps use.
+function openCanvasPanel() {
+  if (typeof CanvasState === 'undefined' || typeof CanvasGraph === 'undefined') return;
+  const mode = createVideoMode === 'animated' ? 'animated' : 'illustrated';
+  CanvasState.migrateAllScenes(createScenes, { stylePreset: createStylePreset || '' });
+  // Seed a pending imageInstance for every storyboard that doesn't have one
+  // yet — required so the canvas renders placeholder nodes immediately at
+  // launch click time (before any image has been generated). Without this,
+  // migrateScene leaves imageInstances:[] and the canvas has nothing to draw.
+  if (CanvasState.ensurePendingImages) {
+    CanvasState.ensurePendingImages(createScenes, { stylePreset: createStylePreset || '' });
+  }
+  CanvasState.normalizeAll(createScenes, mode);
+  CanvasState.syncAllMirrors(createScenes, mode);
+  // Class on <body> so selectors can scope every viewport-fixed overlay
+  // (panel, agent panel, right pane, scroll-lock) under one parent.
+  document.body.classList.add('canvas-active');
+  const badge = $('canvas-panel-mode-badge');
+  if (badge) badge.textContent = mode === 'animated' ? 'Animated' : 'Illustrated';
+  CanvasGraph.mount('create-canvas-step', createScenes, mode, {
+    geminiKey: getCreateGeminiKey(),
+    job: (typeof window !== 'undefined' && window.createJobState) || { bgmSkipped: false, audioSubSkipped: false },
+  });
+  // Mount sets initial view to 60% zoom + pan-to-top; no auto-fit. The Fit
+  // button + the resize listener below handle subsequent fitting.
+  if (!window._cgResizeBound) {
+    window._cgResizeBound = true;
+    window.addEventListener('resize', () => {
+      if (typeof CanvasGraph !== 'undefined' && CanvasGraph.isActive && CanvasGraph.isActive()) {
+        if (CanvasGraph.fitToView) CanvasGraph.fitToView();
+      }
+    });
+  }
+}
+
+function closeCanvasPanel() {
+  document.body.classList.remove('canvas-active');
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.isActive && CanvasGraph.isActive()) {
+    CanvasGraph.unmount('create-canvas-step');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.openCanvasPanel = openCanvasPanel;
+  window.closeCanvasPanel = closeCanvasPanel;
 }
 
 btnCreateRetryFailed.addEventListener('click', async () => {
@@ -3237,4 +3291,192 @@ btnCreateRetryFailed.addEventListener('click', async () => {
   if (remaining.length === 0) return;
   await runImageGeneration(remaining);
 });
+
+// Back-to-storyboard button: tear down canvas, restore #create-workflow.
+// Generation keeps running in the background; createScenes accumulates
+// imgDataUrl as each image lands, so re-opening the canvas (via re-click on
+// Launch Image Agent) shows the current state.
+const btnCanvasBack = $('btn-canvas-back');
+if (btnCanvasBack) {
+  btnCanvasBack.addEventListener('click', () => closeCanvasPanel());
+}
+
+// ── P02 — Floating chrome wiring (Run / Cancel / batch stepper / progress) ──
+// The new top-pill (index.html) replaces the old Tidy/-/%/+/Fit row. Run kicks
+// `launchImageAgent` (the canonical entry); Cancel flips `generateRunning = false`
+// (every gen loop checks this flag — it's the de-facto cancel hook today, though
+// not named "cancel" anywhere). Active count + total/node progress come from
+// `updateSceneCardStatus` which is already invoked across the pipeline.
+(function wireFloatingChrome() {
+  const pillRun    = document.getElementById('cg-pill-run');
+  const pillCancel = document.getElementById('cg-pill-cancel');
+  const stepUp     = document.getElementById('cg-pill-batch-up');
+  const stepDown   = document.getElementById('cg-pill-batch-down');
+  const stepNum    = document.getElementById('cg-pill-batch-num');
+
+  if (pillRun) {
+    pillRun.addEventListener('click', () => {
+      // Idempotent — launchImageAgent guards against double-start.
+      if (typeof launchImageAgent === 'function') launchImageAgent();
+      cgUpdateChromeFromPipeline();
+    });
+  }
+
+  if (pillCancel) {
+    pillCancel.addEventListener('click', () => {
+      // Cancel hook: there is no canonical `cancelImageGeneration()` today.
+      // Flipping `generateRunning = false` causes every `if (!generateRunning) break;`
+      // check inside `runImageGeneration` to abort the loop on the next iteration.
+      // In-flight `generateSceneImage` HTTP calls do NOT have an AbortController
+      // (P02 risk #2), so the current request finishes; subsequent scenes are
+      // skipped. Document this as a known limitation — to be improved in a
+      // future phase that introduces AbortController plumbing.
+      if (typeof generateRunning !== 'undefined' && generateRunning) {
+        // eslint-disable-next-line no-global-assign
+        generateRunning = false;
+      }
+      pillCancel.disabled = true;
+      cgUpdateChromeFromPipeline();
+    });
+  }
+
+  // Batch stepper — UI-only counter for now (mock shows 1; pipeline doesn't
+  // accept a batch arg yet). Stored on window so future phases can read it.
+  let batch = 1;
+  if (typeof window !== 'undefined') window.createCanvasBatch = batch;
+  function setBatch(v) {
+    batch = Math.max(1, Math.min(9, v|0));
+    if (stepNum) stepNum.textContent = String(batch);
+    if (typeof window !== 'undefined') window.createCanvasBatch = batch;
+  }
+  if (stepUp)   stepUp.addEventListener('click',   () => setBatch(batch + 1));
+  if (stepDown) stepDown.addEventListener('click', () => setBatch(batch - 1));
+})();
+
+// Pull live state from the pipeline and push into the floating chrome
+// (active count, progress %, cancel button enabled state). Called on every
+// scene status flip via updateSceneCardStatus, plus on Run / Cancel clicks.
+function cgUpdateChromeFromPipeline() {
+  if (typeof CanvasGraph === 'undefined') return;
+  const running = (typeof generateRunning !== 'undefined') && !!generateRunning;
+  const scenes  = (typeof createScenes !== 'undefined') ? createScenes : null;
+
+  // Active count — 1 if generation is running, else 0. (Pipeline runs scenes
+  // sequentially or in grid batches; there's no per-scene parallel counter
+  // exposed today.)
+  if (CanvasGraph.chromeSetActiveCount) CanvasGraph.chromeSetActiveCount(running ? 1 : 0);
+
+  // Cancel button enabled state.
+  const pillCancel = document.getElementById('cg-pill-cancel');
+  if (pillCancel) pillCancel.disabled = !running;
+
+  // Progress strip — Total% = (done images) / (total images) across all scenes.
+  // Node% = current scene's progress (binary today: 0 if generating, 100 if done,
+  // otherwise unknown — show 0). Shows whenever generation is running OR there
+  // is any non-zero progress; hides when fully idle and no images yet.
+  if (scenes && scenes.length) {
+    const total = scenes.length;
+    const done  = scenes.filter(s => s.status === 'done').length;
+    const generating = scenes.findIndex(s => s.status === 'generating');
+    const totalPct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const nodePct  = generating >= 0 ? 50 : (totalPct === 100 ? 100 : 0);
+    if (running || totalPct > 0) {
+      if (CanvasGraph.chromeShowProgress) CanvasGraph.chromeShowProgress(totalPct, nodePct);
+    } else {
+      if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
+    }
+  } else {
+    if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
+  }
+}
+
+// Hook into the existing per-scene status update call site. updateSceneCardStatus
+// is the canonical event for "scene state changed" (status, imgDataUrl, error).
+// We wrap it once so every existing call point auto-pushes to the chrome.
+(function hookSceneStatusToChrome() {
+  if (typeof updateSceneCardStatus !== 'function') return;
+  const orig = updateSceneCardStatus;
+  // eslint-disable-next-line no-global-assign
+  updateSceneCardStatus = function patchedUpdateSceneCardStatus(idx, errorMsg) {
+    const r = orig(idx, errorMsg);
+    try { cgUpdateChromeFromPipeline(); } catch (_) {}
+    return r;
+  };
+})();
+
+if (typeof window !== 'undefined') {
+  window.cgUpdateChromeFromPipeline = cgUpdateChromeFromPipeline;
+}
+
+// ── P03 — Agent panel row click + collapse toggle ──────────────
+// In canvas-active mode, clicking an agent row pans the canvas to that step's
+// column band (no zoom change). In legacy workflow mode, falls back to the
+// existing scrollToAgentStep behaviour (scroll #create-workflow into view).
+function onCreateAgentRowClick(ev, agentId, stepId, isError, colKey) {
+  // Don't hijack clicks on inner controls (e.g. retry buttons) when added later.
+  if (ev && ev.target && ev.target.closest && ev.target.closest('button')) {
+    // collapse-toggle button is outside .agent-row, so this is a stray button —
+    // let it run its own handler and skip jump.
+    return;
+  }
+  const canvasActive = document.body.classList.contains('canvas-active');
+  if (canvasActive && colKey && typeof CanvasGraph !== 'undefined' &&
+      CanvasGraph.panToColumn && CanvasGraph.isActive && CanvasGraph.isActive()) {
+    CanvasGraph.panToColumn(colKey);
+    return;
+  }
+  if (typeof scrollToAgentStep === 'function') {
+    scrollToAgentStep(stepId, !!isError);
+  }
+}
+
+function setCreateAgentPanelCollapsed(collapsed) {
+  const panel = $('create-agent-panel');
+  const btn = $('create-agent-panel-collapse');
+  if (!panel) return;
+  if (collapsed) {
+    panel.classList.add('collapsed');
+    document.documentElement.setAttribute('data-agent-collapsed', '1');
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Expand agents panel');
+      btn.setAttribute('title', 'Expand panel');
+    }
+  } else {
+    panel.classList.remove('collapsed');
+    document.documentElement.removeAttribute('data-agent-collapsed');
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-label', 'Collapse agents panel');
+      btn.setAttribute('title', 'Collapse panel');
+    }
+  }
+  try { localStorage.setItem('stori_agent_panel_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+}
+
+(function initCreateAgentPanelCollapse() {
+  const btn = $('create-agent-panel-collapse');
+  const panel = $('create-agent-panel');
+  if (!btn || !panel) return;
+  // Apply initial state from FOUC-safe inline-script flag (or read fresh).
+  let initial = false;
+  try { initial = localStorage.getItem('stori_agent_panel_collapsed') === '1'; } catch (e) {}
+  if (initial) panel.classList.add('collapsed');
+  if (btn) {
+    btn.setAttribute('aria-expanded', initial ? 'false' : 'true');
+    btn.setAttribute('aria-label', initial ? 'Expand agents panel' : 'Collapse agents panel');
+    btn.setAttribute('title', initial ? 'Expand panel' : 'Collapse panel');
+  }
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const collapsed = !panel.classList.contains('collapsed');
+    setCreateAgentPanelCollapsed(collapsed);
+  });
+})();
+
+if (typeof window !== 'undefined') {
+  window.onCreateAgentRowClick = onCreateAgentRowClick;
+  window.setCreateAgentPanelCollapsed = setCreateAgentPanelCollapsed;
+}
 

@@ -5080,6 +5080,45 @@ async function exportSingleReel() {
 }
 if (btnReelExport) btnReelExport.addEventListener('click', () => exportSingleReel());
 
+// ── Open in Canvas (Autopilot fine-tune) ──
+const btnReelCanvas      = $('btn-reel-canvas');
+const btnReelCanvasClose = $('btn-reel-canvas-close');
+const reelCanvasStep     = $('reel-canvas-step');
+const reelWorkflowEl     = $('reel-workflow');
+
+if (btnReelCanvas) btnReelCanvas.addEventListener('click', () => {
+  if (!reelScenes || reelScenes.length === 0) { setStatus('Generate a reel first.'); return; }
+  if (typeof CanvasState === 'undefined' || typeof CanvasGraph === 'undefined') {
+    setStatus('Canvas module not available.'); return;
+  }
+  try {
+    // Migrate reel scenes to canvas schema (reel scenes carry imgDataUrl / videoUrl / videoClips / prompt)
+    CanvasState.migrateAllScenes(reelScenes, { stylePreset: reelStyleEl?.value || '' });
+    CanvasState.normalizeAll(reelScenes, 'animated');
+    CanvasState.syncAllMirrors(reelScenes, 'animated');
+
+    if (reelCanvasStep) reelCanvasStep.style.display = '';
+    if (reelWorkflowEl) reelWorkflowEl.style.display = 'none';
+
+    CanvasGraph.mount('reel-canvas-mount', reelScenes, 'animated', {
+      geminiKey: typeof getReelGeminiKey === 'function' ? getReelGeminiKey() :
+                 (typeof getCreateGeminiKey === 'function' ? getCreateGeminiKey() : ''),
+    });
+  } catch (e) {
+    console.error('Reel canvas mount failed:', e);
+    setStatus('Could not open canvas: ' + (e?.message || 'unknown'));
+  }
+});
+
+if (btnReelCanvasClose) btnReelCanvasClose.addEventListener('click', () => {
+  if (typeof CanvasGraph !== 'undefined') CanvasGraph.unmount('reel-canvas-mount');
+  if (reelCanvasStep) reelCanvasStep.style.display = 'none';
+  if (reelWorkflowEl) reelWorkflowEl.style.display = '';
+  // Mirror fields are kept in sync by the canvas; refresh reel preview
+  if (typeof renderReelScenes === 'function') renderReelScenes();
+  if (typeof renderReelFrame === 'function' && reelScenes) renderReelFrame(0);
+});
+
 // ── Export All Reels ──
 const btnReelExportAll = $('btn-reel-export-all');
 

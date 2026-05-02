@@ -475,6 +475,8 @@ async function saveProjectToFile(audioBuf, statusFn) {
         const obj = {
           id: p.id, imgSrc: p.imgSrc, startTime: p.startTime,
           duration: p.duration, transition: p.transition, transDur: p.transDur, motion: p.motion || 'none',
+          // Round-trip merge keys (option-b). Older projects won't have these; that's fine.
+          sceneIdx: p.sceneIdx, imageInstanceId: p.imageInstanceId,
         };
         if (p.type === 'video') {
           obj.type = 'video';
@@ -523,7 +525,7 @@ async function saveProjectToFile(audioBuf, statusFn) {
         videoMode: createVideoMode || 'illustrated',
         inputMode: (typeof createInputMode !== 'undefined') ? createInputMode : 'voice',
         scenes: await Promise.all(createScenes.map(async s => {
-          const base = { prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
+          const base = { id: s.id, prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
           const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
           if (clipsToSave.length > 0) {
             try {
@@ -535,10 +537,76 @@ async function saveProjectToFile(audioBuf, statusFn) {
               base.videoData = base.videoClipsData[0].clipData;
             } catch(e) { console.warn('Scene video save error:', e); }
           }
+          // Canvas graph instance trees (kept verbatim — image data is already base64 inline,
+          // video clip blob URLs are converted to base64).
+          if (Array.isArray(s.storyboardInstances) && s.storyboardInstances.length > 0) {
+            base.storyboardInstances = s.storyboardInstances.map(sb => ({
+              id: sb.id,
+              prompt: sb.prompt || '',
+              refImageDataUrl: sb.refImageDataUrl || '',
+              isActive: !!sb.isActive,
+              canvasPosition: sb.canvasPosition || null,
+              createdAt: sb.createdAt || Date.now(),
+              imageInstances: (sb.imageInstances || []).map(img => ({
+                id: img.id,
+                parentStoryboardId: img.parentStoryboardId || sb.id,
+                style: img.style || '',
+                styleOverridden: !!img.styleOverridden,
+                imgDataUrl: img.imgDataUrl || null,
+                status: img.status || 'pending',
+                error: img.error || null,
+                isActive: !!img.isActive,
+                isRenderActive: !!img.isRenderActive,
+                canvasPosition: img.canvasPosition || null,
+                promptOverride: img.promptOverride || '',
+                generationContext: img.generationContext || { siblingRefIds: [], styleFingerprint: null, modelUsed: 'unknown' },
+                createdAt: img.createdAt || Date.now(),
+              })),
+            }));
+          }
+          if (Array.isArray(s.videoInstances) && s.videoInstances.length > 0) {
+            base.videoInstances = await Promise.all(s.videoInstances.map(async v => {
+              const out = {
+                id: v.id,
+                sourceImageInstanceId: v.sourceImageInstanceId,
+                motionPrompt: v.motionPrompt || '',
+                duration: v.duration,
+                status: v.status || 'pending',
+                error: v.error || null,
+                taskId: v.taskId || null,
+                isActive: !!v.isActive,
+                isRenderActive: !!v.isRenderActive,
+                canvasPosition: v.canvasPosition || null,
+                createdAt: v.createdAt || Date.now(),
+                clipsData: [],
+              };
+              for (const clip of (v.clips || [])) {
+                if (!clip || !clip.url) continue;
+                try {
+                  const resp = await fetch(clip.url);
+                  const blob = await resp.blob();
+                  out.clipsData.push({ clipData: await blobToBase64(blob), clipDuration: clip.clipDuration });
+                } catch(e) { console.warn('Video instance clip save error:', e); }
+              }
+              return out;
+            }));
+          }
           return base;
         })),
         stylePrompt: createStylePrompt || '',
         stylePreset: createStylePreset || '',
+        styleFingerprint: (typeof createStyleFingerprint !== 'undefined') ? (createStyleFingerprint || null) : null,
+        launchAgentPosition: (typeof createLaunchAgentPosition !== 'undefined') ? createLaunchAgentPosition : null,
+        finalRenderPosition: (typeof createFinalRenderPosition !== 'undefined') ? createFinalRenderPosition : null,
+        bgmNodePosition:     (typeof window !== 'undefined') ? (window.createBgmNodePosition || null) : null,
+        canvasJobState:      (typeof window !== 'undefined' && window.createJobState)
+          ? {
+              bgmSkipped:      !!window.createJobState.bgmSkipped,
+              audioSubSkipped: !!window.createJobState.audioSubSkipped,
+              lastExportedAt:  window.createJobState.lastExportedAt || null,
+              subtitleDirty:   !!window.createJobState.subtitleDirty,
+            }
+          : null,
         selectedTemplate: selectedTemplate || '',
         characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
         environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
@@ -578,6 +646,10 @@ async function saveProjectToFile(audioBuf, statusFn) {
             videoDuration: vt.videoDuration,
             inPoint: vt.inPoint, outPoint: vt.outPoint,
             startTime: vt.startTime, duration: vt.duration,
+            // Round-trip merge keys (option-b)
+            sceneIdx: vt.sceneIdx, clipIdx: vt.clipIdx,
+            videoInstanceId: vt.videoInstanceId,
+            sourceImageInstanceId: vt.sourceImageInstanceId,
           };
         } catch(e) { console.warn('Video timeline save error:', e); return null; }
       })).then(arr => arr.filter(Boolean)) : undefined,
@@ -740,6 +812,9 @@ projectInput.addEventListener('change', async () => {
             transDur: p.transDur || 0.5,
             motion: p.motion || 'none',
           };
+          // Round-trip merge keys (option-b). Older saves won't have these.
+          if (p.sceneIdx != null) item.sceneIdx = p.sceneIdx;
+          if (p.imageInstanceId)  item.imageInstanceId = p.imageInstanceId;
           // Restore video properties
           if (p.type === 'video') {
             item.type = 'video';
@@ -954,8 +1029,46 @@ projectInput.addEventListener('change', async () => {
             scene.videoClips = [{ url: scene.videoUrl, clipDuration: s.duration }];
           } catch(e) { console.warn('Scene video restore error:', e); }
         }
+        // Restore canvas graph instance trees if present
+        if (Array.isArray(s.storyboardInstances) && s.storyboardInstances.length > 0) {
+          scene.storyboardInstances = s.storyboardInstances.map(sb => ({
+            ...sb,
+            imageInstances: (sb.imageInstances || []).map(img => ({ ...img })),
+          }));
+        }
+        if (Array.isArray(s.videoInstances) && s.videoInstances.length > 0) {
+          scene.videoInstances = s.videoInstances.map(v => {
+            const out = { ...v };
+            // Decode each clip's base64 → blob URL
+            const clipsData = v.clipsData || [];
+            out.clips = clipsData.map(cd => {
+              try {
+                const blob = base64ToBlob(cd.clipData);
+                return { url: URL.createObjectURL(blob), clipDuration: cd.clipDuration };
+              } catch(e) { console.warn('Video instance clip restore error:', e); return null; }
+            }).filter(Boolean);
+            delete out.clipsData;
+            return out;
+          });
+        }
         return scene;
       }));
+      // Restore canvas job-level state
+      if (typeof window !== 'undefined') {
+        window.createStyleFingerprint    = project.createState.styleFingerprint    || null;
+        window.createLaunchAgentPosition = project.createState.launchAgentPosition || null;
+        window.createFinalRenderPosition = project.createState.finalRenderPosition || null;
+        window.createBgmNodePosition     = project.createState.bgmNodePosition     || null;
+        window.createJobState            = project.createState.canvasJobState     || { bgmSkipped: false, audioSubSkipped: false };
+      }
+      // Run canvas migration + flag normalization (idempotent — handles old + new shapes)
+      if (typeof CanvasState !== 'undefined' && CanvasState.migrateAllScenes) {
+        try {
+          CanvasState.migrateAllScenes(createScenes, { stylePreset: project.createState.stylePreset || createStylePreset || '' });
+          CanvasState.normalizeAll(createScenes, project.createState.videoMode || 'illustrated');
+          CanvasState.syncAllMirrors(createScenes, project.createState.videoMode || 'illustrated');
+        } catch(e) { console.warn('Canvas migration error:', e); }
+      }
       createAudioBuffer = currentBuffer;
       cameFromCreate = true;
       btnBackToCreate.style.display = '';
@@ -1130,6 +1243,10 @@ projectInput.addEventListener('change', async () => {
             inPoint: vt.inPoint || 0, outPoint: vt.outPoint || vt.videoDuration,
             startTime: vt.startTime || 0, duration: vt.duration || vt.videoDuration,
             imgSrc: thumbUrl, imgEl: thumbImg,
+            // Round-trip merge keys (option-b). Older saves won't have these.
+            sceneIdx: vt.sceneIdx, clipIdx: vt.clipIdx,
+            videoInstanceId: vt.videoInstanceId,
+            sourceImageInstanceId: vt.sourceImageInstanceId,
           });
         } catch(e) { console.warn('Video timeline restore error:', e); }
       }

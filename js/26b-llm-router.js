@@ -30,7 +30,7 @@ async function _callGemini(messages, systemPrompt, jsonMode, maxTokens) {
   const body = {
     contents,
     generationConfig: {
-      temperature: 0.85,
+      temperature: 0.95,
       maxOutputTokens: maxTokens,
       ...(jsonMode ? { response_mime_type: 'application/json' } : {}),
       thinkingConfig: { thinkingBudget: jsonMode ? 2048 : 1024 }
@@ -53,7 +53,7 @@ async function _callOpenAI(messages, systemPrompt, jsonMode, maxTokens) {
       ...messages  // already in { role: 'user'|'assistant', content } shape
     ],
     max_tokens: maxTokens,
-    temperature: 0.85,
+    temperature: 0.95,
     ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
   };
 
@@ -88,7 +88,7 @@ async function _callAnthropic(messages, systemPrompt, jsonMode, maxTokens) {
     system: sys,
     messages,  // user/assistant shape — already correct
     max_tokens: maxTokens,
-    temperature: 0.85
+    temperature: 0.95
   };
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {

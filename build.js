@@ -21,8 +21,22 @@ if (fs.existsSync(cssPath)) {
   );
 }
 
-// 1b. Inline themes.css: replace <link rel="stylesheet" href="css/themes.css"> with <style>...</style>
-//     Must load AFTER styles.css AND the inline <style> block to win specificity.
+// 1b. Inline canvas-graph.css: replace <link rel="stylesheet" href="css/canvas-graph.css?v=N">.
+//     Per ADR-8 this sits BETWEEN styles.css and themes.css so theme-light
+//     overrides in themes.css still win specificity. Regex tolerates any
+//     `?v=…` cache-bust query (or none) so future bumps don't break the build.
+const cgPath = path.join(ROOT, 'css', 'canvas-graph.css');
+if (fs.existsSync(cgPath)) {
+  const cgCss = fs.readFileSync(cgPath, 'utf8');
+  html = html.replace(
+    /\s*<link\s+rel="stylesheet"\s+href="css\/canvas-graph\.css(?:\?[^"]*)?"\s*\/?>/,
+    `\n  <style>\n${cgCss}\n  </style>`
+  );
+}
+
+// 1c. Inline themes.css: replace <link rel="stylesheet" href="css/themes.css"> with <style>...</style>
+//     Must load AFTER styles.css AND canvas-graph.css AND the inline <style>
+//     block to win specificity (light overrides land last).
 const themesPath = path.join(ROOT, 'css', 'themes.css');
 if (fs.existsSync(themesPath)) {
   const themesCss = fs.readFileSync(themesPath, 'utf8');
@@ -117,4 +131,4 @@ fs.writeFileSync(OUT, html);
 
 const sizeKB = (Buffer.byteLength(html) / 1024).toFixed(0);
 console.log(`✓ Built: dist/index.html (${sizeKB} KB, ${html.split('\n').length} lines)`);
-console.log(`  CSS inlined from css/styles.css + css/themes.css`);
+console.log(`  CSS inlined from css/styles.css + css/canvas-graph.css + css/themes.css`);

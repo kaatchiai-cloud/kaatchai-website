@@ -5466,6 +5466,87 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
 .bs-extend-btn:hover { filter: brightness(1.08); }
 .bs-extend-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Mode selector cards ─────────────────────────────────────── */
+#brainstorm-page .bs-mode-cards {
+  display: flex; gap: 16px; margin-bottom: 20px;
+}
+#brainstorm-page .bs-mode-card--hero {
+  flex: 1; padding: 22px 20px; border: 1.5px solid var(--lp-card-bdr);
+  border-radius: 14px; background: var(--lp-bg2); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+#brainstorm-page .bs-mode-card--hero:hover {
+  border-color: var(--lp-accent); background: var(--lp-bg3);
+}
+#brainstorm-page .bs-mode-card-icon  { font-size: 26px; margin-bottom: 10px; }
+#brainstorm-page .bs-mode-card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--lp-text); }
+#brainstorm-page .bs-mode-card-desc  { font-size: 12px; color: var(--lp-dim); line-height: 1.55; margin-bottom: 12px; }
+#brainstorm-page .bs-mode-card-badge { font-size: 11px; color: var(--lp-accent); font-weight: 600; }
+
+#brainstorm-page .bs-mode-quick-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border: 1px dashed var(--lp-card-bdr);
+  border-radius: 10px; cursor: pointer; margin-bottom: 16px;
+  transition: border-color .15s, color .15s;
+}
+#brainstorm-page .bs-mode-quick-link:hover { border-color: var(--lp-accent); }
+#brainstorm-page .bs-mode-quick-label { font-size: 14px; font-weight: 500; color: var(--lp-text); }
+#brainstorm-page .bs-mode-quick-hint  { font-size: 12px; color: var(--lp-mute); }
+
+/* ── Brand / Product final screen ────────────────────────────── */
+#brainstorm-page .bs-brand-brief {
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+}
+#brainstorm-page .bs-brief-row {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; font-size: 13px;
+}
+#brainstorm-page .bs-brief-row:last-child { margin-bottom: 0; }
+#brainstorm-page .bs-brief-label {
+  font-weight: 600; color: var(--lp-dim); min-width: 90px; flex-shrink: 0;
+}
+#brainstorm-page .bs-proof-list { margin: 0; padding-left: 18px; }
+#brainstorm-page .bs-proof-list li { margin-bottom: 3px; }
+#brainstorm-page .bs-role-badge {
+  font-size: 10px; font-weight: 600; background: color-mix(in oklch, var(--lp-accent) 12%, transparent);
+  color: var(--lp-accent); padding: 1px 6px; border-radius: 999px; vertical-align: middle;
+}
+
+/* ── Film / Narrative final screen ───────────────────────────── */
+#brainstorm-page .bs-film-premise {
+  font-size: 14px; color: var(--lp-dim); font-style: italic;
+  margin: 0 0 16px; line-height: 1.5;
+}
+#brainstorm-page .bs-section-label {
+  font-size: 11px; font-weight: 700; color: var(--lp-mute);
+  text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px;
+}
+#brainstorm-page .bs-character-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+}
+#brainstorm-page .bs-character-card {
+  flex: 1; min-width: 160px; padding: 12px 14px;
+  background: var(--lp-bg2); border: 1px solid var(--lp-card-bdr); border-radius: 10px;
+}
+#brainstorm-page .bs-char-name   { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+#brainstorm-page .bs-char-role   { font-size: 11px; color: var(--lp-mute); font-weight: 400; }
+#brainstorm-page .bs-char-detail { font-size: 12px; color: var(--lp-dim); margin-top: 3px; }
+#brainstorm-page .bs-act-row {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--lp-card-bdr); font-size: 13px;
+}
+#brainstorm-page .bs-act-row:last-child { border-bottom: none; }
+#brainstorm-page .bs-act-badge {
+  font-size: 10px; font-weight: 700; background: var(--lp-bg2);
+  border: 1px solid var(--lp-card-bdr); padding: 2px 7px; border-radius: 999px; flex-shrink: 0;
+}
+#brainstorm-page .bs-act-label   { font-weight: 600; color: var(--lp-text); flex-shrink: 0; }
+#brainstorm-page .bs-act-summary { color: var(--lp-dim); }
+#brainstorm-page .bs-dialogue-line {
+  font-size: 13px; color: var(--lp-mute); font-style: italic;
+  margin-top: 4px; padding-left: 8px;
+}
+
 /* ── Mobile ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .bs-wizard-chips { flex-direction: column; align-items: stretch; }
@@ -5479,5 +5560,8 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
   .bs-chat-footer { padding: 8px 10px 16px; }
   .bs-final-card { padding: 18px 16px; }
   .bs-handoff-grid { flex-direction: column; }
+  #brainstorm-page .bs-mode-cards { flex-direction: column; }
+  #brainstorm-page .bs-character-grid { flex-direction: column; }
+  #brainstorm-page .bs-character-card { min-width: unset; }
 }
 /* ── End Storypilot ────────────────────────────────────────── */
