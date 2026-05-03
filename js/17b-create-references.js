@@ -1217,12 +1217,10 @@ function getSceneRefImageParts(scene) {
     item._generating = true;
     window.brandRenderSlots();
     try {
-      const sheet = await window.generateAppearanceSheet(item, kind === 'product' ? 'character' /* uses appearance sheet */ : kind, key);
-      // Note: we pass 'character' for product since appearance sheet works similarly;
-      // the dedicated product hero-shot phrasing happens in the image step.
+      const sheet = await window.generateAppearanceSheet(item, kind, key);
       item.appearanceSheet = sheet.appearance;
       item.distinctiveTraits = sheet.distinctiveTraits || [];
-      const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, key);
+      const imgUrl = await window.generateRepresentativeImage(item, kind, key);
       item.representativeImageDataUrl = imgUrl;
     } catch (e) {
       console.warn('[brand generate]', kind, e.message);
@@ -1238,7 +1236,7 @@ function getSceneRefImageParts(scene) {
     item._generating = true;
     window.brandRenderSlots();
     try {
-      const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, key);
+      const imgUrl = await window.generateRepresentativeImage(item, kind, key);
       item.representativeImageDataUrl = imgUrl;
     } catch (e) { console.warn('[brand regen]', kind, e.message); }
     item._generating = false;
@@ -1291,7 +1289,7 @@ function getSceneRefImageParts(scene) {
             item._captioning = true;
             window.brandRenderSlots();
             try {
-              const cap = await window.autoCaptionFromImage(dataUrl, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+              const cap = await window.autoCaptionFromImage(dataUrl, kind, getCreateGeminiKey());
               if (cap) item.userDescription = cap;
             } catch (e) {}
             item._captioning = false;
@@ -2070,7 +2068,7 @@ function getSceneRefImageParts(scene) {
           status.textContent = 'Regenerating image…';
           btn.disabled = true;
           try {
-            const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+            const imgUrl = await window.generateRepresentativeImage(item, kind, getCreateGeminiKey());
             item.representativeImageDataUrl = imgUrl;
             if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
             status.textContent = '✓ Image regenerated.';
@@ -2091,7 +2089,7 @@ function getSceneRefImageParts(scene) {
               item.uploadedImageDataUrl = e.target.result;
               status.textContent = 'Generating with new reference…';
               try {
-                const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+                const imgUrl = await window.generateRepresentativeImage(item, kind, getCreateGeminiKey());
                 item.representativeImageDataUrl = imgUrl;
                 if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
                 status.textContent = '✓ New reference applied.';

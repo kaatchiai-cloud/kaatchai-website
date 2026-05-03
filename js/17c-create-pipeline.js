@@ -3138,17 +3138,12 @@ function createVideoSeek(idx, val) {
 async function regenSceneImageAndVideo(idx) {
   if (!createScenes) return;
   const scene = createScenes[idx];
-  scene.videoUrl = null;
-  scene.videoClips = null;
+  // G6: regen image only — video gen is now manual via canvas Launch Video Agent.
+  // Existing scene.videoUrl is intentionally preserved here; user goes to canvas
+  // to re-animate after the new image is approved.
   updateCreateVideoCard(idx, 'generating');
   try {
     await generateSceneImage(idx);
-    if (scene.imgDataUrl && createVideoMode === 'animated' && typeof animateScenes === 'function') {
-      updateCreateVideoCard(idx, 'animating');
-      await animateScenes([scene], (done, total, label) => {
-        updateCreateVideoCard(idx, label);
-      }, getCreateGeminiKey());
-    }
   } catch (e) {
     updateCreateVideoCard(idx, 'error');
     return;

@@ -23321,10 +23321,27 @@ function castStylePrefix() {
 // Generate canonical appearance sheet. Uploaded image (if any) is attached for likeness.
 async function generateAppearanceSheet(item, type, geminiKey) {
   const stylePrefix = castStylePrefix();
-  const isChar = type === 'character';
-  const isLoc = type === 'location';
-  const promptText = isChar
-    ? `You are a casting director. Write a detailed canonical appearance sheet for a character so an AI image generator can produce visually consistent images across many scenes.
+  const isChar = type === 'character' || type === 'presenter';
+  const isLoc = type === 'location' || type === 'setting';
+  const isProduct = type === 'product';
+  let promptText;
+  if (isProduct) {
+    promptText = `Write a detailed canonical hero-shot description for a product so an AI image generator can produce visually consistent product images across many scenes.
+
+Product name: ${item.name}
+User description: "${item.userDescription || '(none provided)'}"
+Visual style: ${stylePrefix}
+${item.uploadedImageDataUrl ? '(Reference image attached — match the form factor and brand presentation shown.)' : ''}
+
+Return ONLY valid JSON (no markdown):
+{
+  "appearance": "Detailed visual description (3-5 sentences): form factor, materials, colors, surface finish, distinguishing features, any visible logos/badges, packaging if relevant. Hero-shot composition: clean neutral background, soft lighting, centered.",
+  "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image of this product"],
+  "ageRange": "",
+  "build": ""
+}`;
+  } else if (isChar) {
+    promptText = `You are a casting director. Write a detailed canonical appearance sheet for a character so an AI image generator can produce visually consistent images across many scenes.
 
 Character name: ${item.name}
 User description: "${item.userDescription || '(none provided)'}"
@@ -23337,8 +23354,9 @@ Return ONLY valid JSON (no markdown):
   "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image"],
   "ageRange": "X-Y",
   "build": "..."
-}`
-    : `Write a detailed canonical appearance sheet for a location so an AI image generator can produce visually consistent images across many scenes.
+}`;
+  } else {
+    promptText = `Write a detailed canonical appearance sheet for a location so an AI image generator can produce visually consistent images across many scenes.
 
 Location name: ${item.name}
 User description: "${item.userDescription || '(none provided)'}"
@@ -23352,6 +23370,7 @@ Return ONLY valid JSON (no markdown):
   "ageRange": "",
   "build": ""
 }`;
+  }
 
   const parts = [{ text: promptText }];
   if (item.uploadedImageDataUrl) {
@@ -23383,21 +23402,29 @@ Return ONLY valid JSON (no markdown):
 // Generate representative image. Path A = no upload (text-only). Path B = with upload (likeness anchor).
 async function generateRepresentativeImage(item, type, geminiKey) {
   const stylePrefix = castStylePrefix();
-  const isChar = type === 'character';
-  const subject = isChar
-    ? 'Full-body character portrait, subject centered, plain neutral background, eye-level shot, full body visible.'
-    : 'Establishing shot of the location, no people, neutral overcast lighting if outdoors, eye-level angle.';
+  const isChar = type === 'character' || type === 'presenter';
+  const isProduct = type === 'product';
+  let subject;
+  if (isProduct) {
+    subject = 'Hero product shot, centered on a clean neutral background, soft three-point studio lighting, eye-level. No people in frame.';
+  } else if (isChar) {
+    subject = 'Full-body character portrait, subject centered, plain neutral background, eye-level shot, full body visible.';
+  } else {
+    subject = 'Establishing shot of the location, no people, neutral overcast lighting if outdoors, eye-level angle.';
+  }
   let prompt;
   let opts;
   if (item.uploadedImageDataUrl) {
     const m = item.uploadedImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    let refLabel;
+    if (isProduct) refLabel = 'Reference image: match this product\'s form factor, materials, and brand presentation in the rendered image.';
+    else if (isChar) refLabel = 'Reference image: match this person\'s face, build, and likeness in the rendered image.';
+    else refLabel = 'Reference image: match the look and feel of this location in the rendered image.';
     const refParts = m ? [
       { inlineData: { mimeType: m[1], data: m[2] } },
-      { text: isChar
-          ? 'Reference image: match this person\'s face, build, and likeness in the rendered image.'
-          : 'Reference image: match the look and feel of this location in the rendered image.' }
+      { text: refLabel }
     ] : [];
-    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject} Match the reference image's likeness. Re-render in the target style.`;
+    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject} Match the reference image. Re-render in the target style.`;
     opts = { width: 768, height: 1024, refParts };
   } else {
     prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject}`;
@@ -24768,12 +24795,10 @@ function getSceneRefImageParts(scene) {
     item._generating = true;
     window.brandRenderSlots();
     try {
-      const sheet = await window.generateAppearanceSheet(item, kind === 'product' ? 'character' /* uses appearance sheet */ : kind, key);
-      // Note: we pass 'character' for product since appearance sheet works similarly;
-      // the dedicated product hero-shot phrasing happens in the image step.
+      const sheet = await window.generateAppearanceSheet(item, kind, key);
       item.appearanceSheet = sheet.appearance;
       item.distinctiveTraits = sheet.distinctiveTraits || [];
-      const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, key);
+      const imgUrl = await window.generateRepresentativeImage(item, kind, key);
       item.representativeImageDataUrl = imgUrl;
     } catch (e) {
       console.warn('[brand generate]', kind, e.message);
@@ -24789,7 +24814,7 @@ function getSceneRefImageParts(scene) {
     item._generating = true;
     window.brandRenderSlots();
     try {
-      const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, key);
+      const imgUrl = await window.generateRepresentativeImage(item, kind, key);
       item.representativeImageDataUrl = imgUrl;
     } catch (e) { console.warn('[brand regen]', kind, e.message); }
     item._generating = false;
@@ -24842,7 +24867,7 @@ function getSceneRefImageParts(scene) {
             item._captioning = true;
             window.brandRenderSlots();
             try {
-              const cap = await window.autoCaptionFromImage(dataUrl, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+              const cap = await window.autoCaptionFromImage(dataUrl, kind, getCreateGeminiKey());
               if (cap) item.userDescription = cap;
             } catch (e) {}
             item._captioning = false;
@@ -25621,7 +25646,7 @@ function getSceneRefImageParts(scene) {
           status.textContent = 'Regenerating image…';
           btn.disabled = true;
           try {
-            const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+            const imgUrl = await window.generateRepresentativeImage(item, kind, getCreateGeminiKey());
             item.representativeImageDataUrl = imgUrl;
             if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
             status.textContent = '✓ Image regenerated.';
@@ -25642,7 +25667,7 @@ function getSceneRefImageParts(scene) {
               item.uploadedImageDataUrl = e.target.result;
               status.textContent = 'Generating with new reference…';
               try {
-                const imgUrl = await window.generateRepresentativeImage(item, kind === 'product' ? 'character' : kind, getCreateGeminiKey());
+                const imgUrl = await window.generateRepresentativeImage(item, kind, getCreateGeminiKey());
                 item.representativeImageDataUrl = imgUrl;
                 if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
                 status.textContent = '✓ New reference applied.';
@@ -29220,17 +29245,12 @@ function createVideoSeek(idx, val) {
 async function regenSceneImageAndVideo(idx) {
   if (!createScenes) return;
   const scene = createScenes[idx];
-  scene.videoUrl = null;
-  scene.videoClips = null;
+  // G6: regen image only — video gen is now manual via canvas Launch Video Agent.
+  // Existing scene.videoUrl is intentionally preserved here; user goes to canvas
+  // to re-animate after the new image is approved.
   updateCreateVideoCard(idx, 'generating');
   try {
     await generateSceneImage(idx);
-    if (scene.imgDataUrl && createVideoMode === 'animated' && typeof animateScenes === 'function') {
-      updateCreateVideoCard(idx, 'animating');
-      await animateScenes([scene], (done, total, label) => {
-        updateCreateVideoCard(idx, label);
-      }, getCreateGeminiKey());
-    }
   } catch (e) {
     updateCreateVideoCard(idx, 'error');
     return;
