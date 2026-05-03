@@ -1,8 +1,8 @@
-# ADR-011 — Cluster as a Data Primitive
+# ADR-013 — Cluster as a Data Primitive
 
 - **Status:** Accepted (2026-05-03)
 - **Affected phases:** Movie mode (MM-1 through MM-9, see `canvas-movie-mode-plan.md`)
-- **Related:** ADR-012 (runtime-axis layout), ADR-013 (virtual stitch), ADR-014 (editor round-trip), schema migration in `devDoc/movie-mode-migration.md`
+- **Related:** ADR-014 (runtime-axis layout), ADR-015 (virtual stitch), ADR-016 (editor round-trip), schema migration in `devDoc/movie-mode-migration.md`
 
 ## Context
 

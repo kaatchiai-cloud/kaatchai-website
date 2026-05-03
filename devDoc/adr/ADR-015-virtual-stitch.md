@@ -1,8 +1,8 @@
-# ADR-013 — Virtual Stitching: No Cluster Files Mid-Flow
+# ADR-015 — Virtual Stitching: No Cluster Files Mid-Flow
 
 - **Status:** Accepted (2026-05-03)
 - **Affected phases:** Movie mode MM-6 (per-cluster Send to Editor)
-- **Related:** ADR-014 (editor round-trip contract)
+- **Related:** ADR-016 (editor round-trip contract)
 
 ## Context
 

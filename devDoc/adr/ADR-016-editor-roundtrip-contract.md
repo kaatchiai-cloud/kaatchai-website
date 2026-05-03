@@ -1,8 +1,8 @@
-# ADR-014 — Editor Round-Trip Contract
+# ADR-016 — Editor Round-Trip Contract
 
 - **Status:** Accepted (2026-05-03)
 - **Affected phases:** Movie mode MM-6 (per-cluster Send to Editor)
-- **Related:** ADR-011 (cluster as data primitive), ADR-013 (virtual stitch)
+- **Related:** ADR-013 (cluster as data primitive), ADR-015 (virtual stitch)
 
 ## Context
 

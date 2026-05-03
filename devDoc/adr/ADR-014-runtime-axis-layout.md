@@ -1,8 +1,8 @@
-# ADR-012 — Runtime-Axis Layout for Movie Mode
+# ADR-014 — Runtime-Axis Layout for Movie Mode
 
 - **Status:** Accepted (2026-05-03)
 - **Affected phases:** Movie mode MM-1 (data model + cluster bands + runtime ruler)
-- **Related:** ADR-011 (cluster as data primitive), ADR-013 (virtual stitch)
+- **Related:** ADR-013 (cluster as data primitive), ADR-015 (virtual stitch)
 
 ## Context
 
