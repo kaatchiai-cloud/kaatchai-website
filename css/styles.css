@@ -6012,6 +6012,158 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
   background: rgba(255, 255, 255, 0.32);
 }
 
+/* Brainstorm narrator-choice screen (between mode pick and chat for Brand/Film) */
+#bs-narrator-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 24px;
+}
+#bs-narrator-choice.hidden { display: none; }
+.bs-narrator-card {
+  width: min(520px, 92vw);
+  padding: 28px;
+  border-radius: 14px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.12));
+  background: var(--lp-card, rgba(255,255,255,0.04));
+  box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+}
+.bs-narrator-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.bs-narrator-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.bs-narrator-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.bs-narrator-sub {
+  font-size: 12px;
+  color: var(--lp-faint, rgba(255,255,255,0.55));
+}
+.bs-narrator-question {
+  font-size: 14px;
+  margin-bottom: 16px;
+  color: var(--lp-dim, rgba(255,255,255,0.78));
+  line-height: 1.5;
+}
+.bs-narrator-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.bs-narrator-opt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.12));
+  background: var(--lp-bg, rgba(0,0,0,0.2));
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+.bs-narrator-opt:hover {
+  border-color: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 40%, transparent);
+}
+.bs-narrator-opt input[type="radio"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.bs-narrator-opt input[type="radio"]:checked ~ .bs-narrator-opt-label strong {
+  color: var(--lp-accent, oklch(56% 0.18 230));
+}
+.bs-narrator-opt-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bs-narrator-opt-label strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.bs-narrator-opt-label span {
+  font-size: 12px;
+  color: var(--lp-faint, rgba(255,255,255,0.55));
+}
+.bs-narrator-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 6%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 25%, transparent);
+}
+.bs-narrator-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--lp-faint, rgba(255,255,255,0.55));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.bs-narrator-field input[type="text"] {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.18));
+  background: var(--lp-bg, rgba(0,0,0,0.2));
+  color: var(--lp-text, #fff);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 200ms;
+}
+.bs-narrator-style-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--lp-text, #fff);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bs-narrator-style-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.bs-narrator-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bs-cta-secondary,
+.bs-cta-primary {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.18));
+  background: transparent;
+  color: var(--lp-text, #fff);
+}
+.bs-cta-primary {
+  background: var(--lp-accent, oklch(56% 0.18 230));
+  border-color: var(--lp-accent, oklch(56% 0.18 230));
+  color: var(--lp-on-accent, #fff);
+}
+.bs-cta-primary:hover {
+  filter: brightness(1.1);
+}
+.bs-cta-secondary:hover {
+  background: color-mix(in oklch, var(--lp-text, #fff) 8%, transparent);
+}
+
 /* Narrator card (universal across types) */
 #create-page .narrator-card {
   border-color: color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 35%, var(--border, var(--lp-card-bdr)));

@@ -3782,6 +3782,57 @@ body:has(#drop-zone:not(.hidden)) {
   <!-- ═══ Storypilot — AI Script Brainstorm ═══ -->
   <div id="brainstorm-page">
 
+    <!-- Screen 0: Narrator choice (Brand / Film modes only — shown before chat) -->
+    <section id="bs-narrator-choice" class="bs-screen hidden">
+      <div class="bs-narrator-card">
+        <header class="bs-narrator-head">
+          <div class="bs-narrator-icon">🎙</div>
+          <div class="bs-narrator-title">Narrator?</div>
+          <div class="bs-narrator-sub">One quick question before we start writing.</div>
+        </header>
+
+        <div class="bs-narrator-question">
+          Will this video have a single narrator who voices everything, or will characters speak their own dialogue?
+        </div>
+
+        <div class="bs-narrator-options">
+          <label class="bs-narrator-opt">
+            <input type="radio" name="bs-narrator-enabled" value="0" checked>
+            <div class="bs-narrator-opt-label">
+              <strong>No narrator</strong>
+              <span>Characters speak their own lines</span>
+            </div>
+          </label>
+          <label class="bs-narrator-opt">
+            <input type="radio" name="bs-narrator-enabled" value="1">
+            <div class="bs-narrator-opt-label">
+              <strong>Yes — add a narrator</strong>
+              <span>One voice tells the whole story; characters appear visually only</span>
+            </div>
+          </label>
+        </div>
+
+        <div id="bs-narrator-details" class="bs-narrator-details" hidden>
+          <label class="bs-narrator-field">
+            <span>Narrator name</span>
+            <input type="text" id="bs-narrator-name" placeholder="e.g. Sarah, Voice-over, Host">
+          </label>
+          <label class="bs-narrator-field">
+            <span>On-screen style</span>
+            <div class="bs-narrator-style-row">
+              <label class="bs-narrator-style-opt"><input type="radio" name="bs-narrator-style" value="voice-only" checked> Voice only</label>
+              <label class="bs-narrator-style-opt"><input type="radio" name="bs-narrator-style" value="talking-head"> Talking head</label>
+            </div>
+          </label>
+        </div>
+
+        <div class="bs-narrator-actions">
+          <button id="bs-narrator-back" class="bs-cta-secondary">← Back</button>
+          <button id="bs-narrator-continue" class="bs-cta-primary">Continue →</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Screen 1: Chat workspace -->
     <section id="bs-chat" class="bs-screen hidden">
       <header class="bs-chat-hdr">

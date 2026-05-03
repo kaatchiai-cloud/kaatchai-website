@@ -184,6 +184,7 @@ RULES:
   "tone": "...",
   "narrative_structure": "feature-led|problem-led|transformation|social-proof",
   "estDuration": "45s|1:00|1:30|2:00|...",
+  "narrator": null,
   "hook": "Opening line / first 3 seconds",
   "proof_points": [
     "Specific differentiator or supporting claim"
@@ -203,6 +204,7 @@ RULES:
 - No scene cap — estDuration can be "0:30" to "5:00".
 - voice = exactly what is spoken or shown as text on screen.
 - visual = a single concrete visual that illustrates the scene.
+- narrator: leave as null UNLESS the system context explicitly states this video has a narrator. If narrator mode was set, populate as { "name": "...", "description": "...", "onScreenStyle": "voice-only" or "talking-head" } using the name from system context. description can be empty for voice-only.
 - No preamble. No markdown. No explanation. Output ONLY the JSON object.`,
 
   'film-narrative': `The user has clicked "Finalise Script". Based on our conversation above, generate the final structured script in this exact JSON format. Output ONLY the JSON, no preamble or explanation.
@@ -215,8 +217,9 @@ RULES:
   "audience": "...",
   "estDuration": "2:30",
   "structure": "3-act|5-act",
+  "narrator": null,
   "characters": [
-    { "name": "...", "role": "protagonist|antagonist|supporting|narrator", "want": "...", "obstacle": "..." }
+    { "name": "...", "role": "protagonist|antagonist|supporting", "want": "...", "obstacle": "..." }
   ],
   "acts": [
     { "n": 1, "label": "setup", "summary": "One sentence of what this act accomplishes dramatically" },
@@ -239,8 +242,9 @@ RULES:
 - acts count must match structure: 3-act → 3 acts, 5-act → 5 acts.
 - Valid act labels for 3-act: setup, confrontation, resolution. For 5-act: setup, rising-action, climax, falling-action, resolution.
 - Each scene.act must reference a valid act number (1-indexed).
-- narration and dialogue can coexist. dialogue may be an empty array [].
+- narration and dialogue can coexist UNLESS narrator mode is set in system context — then dialogue MUST be an empty array [] for every scene and narration carries the spoken content.
 - No scene cap.
+- narrator: leave as null UNLESS the system context explicitly states this video has a narrator. If narrator mode was set, populate as { "name": "...", "description": "...", "onScreenStyle": "voice-only" or "talking-head" } using the name from system context. description can be empty for voice-only.
 - Do not invent characters or plot points not established in the conversation. Use "..." placeholders if a field was not discussed.
 - No preamble. No markdown. No explanation. Output ONLY the JSON object.`
 };
@@ -263,6 +267,7 @@ const brainstormState = {
   finalScript:    null,
   finalised:      false,
   wizardAnswers:   {},         // { type, length }
+  narratorChoice:  null,       // { enabled, name, onScreenStyle } — locked at chat start for Brand/Film
   sessionSummary:  null,       // set when continuing from a previous session
   willExtend:      false,      // user opted in to continue; triggers auto-extend after message 15
   savedAt:         null,
@@ -306,6 +311,9 @@ function _init() {
   // Add tooltip on locked picker
   var picker = document.getElementById('bs-model-picker');
   if (picker) picker.setAttribute('title', 'Model is locked for this session. Click ↻ to start a new session.');
+
+  // Wire narrator-choice screen (Brand/Film modes)
+  _wireNarratorChoiceScreen();
 
   // Wire chat input
   var input = document.getElementById('bs-input');
@@ -497,8 +505,74 @@ function _confirmMode(mode, pipeline) {
   brainstormState.pipeline = pipeline;
   _updateModeTag(mode);
   _updateSendToButton(pipeline);
-  _showScreen('bs-chat');
-  _renderGreeting();
+  // Brand and Film modes get a narrator-choice step before chat. Quick mode
+  // (social/tutorial via _confirmWizard) skips this — narrator is rare for
+  // short social content; users can add one later on the create page.
+  if (mode === 'brand-product' || mode === 'film-narrative') {
+    _showNarratorChoice();
+  } else {
+    _showScreen('bs-chat');
+    _renderGreeting();
+  }
+}
+
+// Narrator choice screen — shown before chat for Brand/Film modes
+function _showNarratorChoice() {
+  _showScreen('bs-narrator-choice');
+  // Reset form to defaults
+  var noRadio = document.querySelector('input[name="bs-narrator-enabled"][value="0"]');
+  var details = document.getElementById('bs-narrator-details');
+  var nameInput = document.getElementById('bs-narrator-name');
+  if (noRadio) noRadio.checked = true;
+  if (details) details.hidden = true;
+  if (nameInput) nameInput.value = '';
+  var voiceOnly = document.querySelector('input[name="bs-narrator-style"][value="voice-only"]');
+  if (voiceOnly) voiceOnly.checked = true;
+}
+
+function _wireNarratorChoiceScreen() {
+  var enabledRadios = document.querySelectorAll('input[name="bs-narrator-enabled"]');
+  var details = document.getElementById('bs-narrator-details');
+  enabledRadios.forEach(function(r) {
+    if (r._wired) return;
+    r._wired = true;
+    r.addEventListener('change', function() {
+      if (details) details.hidden = (r.value !== '1' || !r.checked);
+    });
+  });
+  var backBtn = document.getElementById('bs-narrator-back');
+  if (backBtn && !backBtn._wired) {
+    backBtn._wired = true;
+    backBtn.addEventListener('click', function() {
+      brainstormState.mode = null;
+      brainstormState.pipeline = null;
+      brainstormState.narratorChoice = null;
+      _showScreen('bs-hero');
+    });
+  }
+  var contBtn = document.getElementById('bs-narrator-continue');
+  if (contBtn && !contBtn._wired) {
+    contBtn._wired = true;
+    contBtn.addEventListener('click', function() {
+      var enabled = document.querySelector('input[name="bs-narrator-enabled"]:checked');
+      var enabledVal = enabled ? enabled.value === '1' : false;
+      if (enabledVal) {
+        var nameInput = document.getElementById('bs-narrator-name');
+        var styleSel = document.querySelector('input[name="bs-narrator-style"]:checked');
+        var name = nameInput ? (nameInput.value || '').trim() : '';
+        var style = styleSel ? styleSel.value : 'voice-only';
+        if (!name) {
+          if (nameInput) { nameInput.focus(); nameInput.style.borderColor = 'var(--red, #d44)'; setTimeout(function(){ nameInput.style.borderColor = ''; }, 2000); }
+          return;
+        }
+        brainstormState.narratorChoice = { enabled: true, name: name, onScreenStyle: style };
+      } else {
+        brainstormState.narratorChoice = { enabled: false };
+      }
+      _showScreen('bs-chat');
+      _renderGreeting();
+    });
+  }
 }
 
 function _resetWizard() {
@@ -811,6 +885,24 @@ function _buildSystemPrompt() {
     base += '\n\n[User context from wizard: type=' + (ctx.type || 'unknown') + ', length=' + (ctx.length || 'unknown') + ' — skip re-asking these; treat as already known.]';
   }
 
+  // Narrator choice — locked at chat start for Brand/Film. Shapes the conversation.
+  var nc = brainstormState.narratorChoice;
+  if (nc) {
+    if (nc.enabled) {
+      base += '\n\n[NARRATOR MODE — IMPORTANT]\n'
+        + 'This video has a single narrator named "' + nc.name + '" (' + (nc.onScreenStyle === 'talking-head' ? 'talking head, appears between scenes' : 'voice-only, never on screen') + '). The narrator voices ALL audio.\n'
+        + 'STRICT RULES for this conversation and the final script:\n'
+        + '- Treat the narrator as the single voice telling the story.\n'
+        + '- Collect narration prose per scene (what the narrator says).\n'
+        + '- Do NOT collect character dialogue. Characters may be defined as visual references but they DO NOT speak.\n'
+        + '- In the finalised JSON, every scene\'s "dialogue" array MUST be empty []. The "narration" field carries the spoken content.\n'
+        + '- Treat the narrator name as fixed — do not rename or substitute.';
+    } else {
+      base += '\n\n[CHARACTER MODE]\n'
+        + 'This video has NO narrator. Characters speak their own dialogue. Collect dialogue per scene as natural conversation. Use the existing dialogue array structure.';
+    }
+  }
+
   if (brainstormState.sessionSummary) {
     base += '\n\n[CONTINUATION SESSION — previous session summary:\n' + brainstormState.sessionSummary + '\nDo NOT re-ask anything already decided above. Pick up exactly where the user left off.]';
   }
@@ -855,6 +947,7 @@ function _clearSession() {
   brainstormState.finalScript    = null;
   brainstormState.finalised       = false;
   brainstormState.wizardAnswers   = {};
+  brainstormState.narratorChoice  = null;
   brainstormState.sessionSummary  = null;
   brainstormState.willExtend      = false;
   brainstormState.savedAt         = null;

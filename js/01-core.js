@@ -428,10 +428,31 @@ function navigateTo(view, pushHistory) {
                   window.createJobState.characters = [];
                   window.createJobState.locations = [];
                 }
+                // Narrator — seeded from explicit upfront pick (brainstorm narrator-choice screen).
+                // Only populated when fs.narrator is non-null with a name.
+                if (fs.narrator && fs.narrator.name) {
+                  window.createJobState.narrator = {
+                    id: 'narr_bs_' + Date.now().toString(36),
+                    name: fs.narrator.name,
+                    userDescription: fs.narrator.description || '',
+                    onScreenStyle: fs.narrator.onScreenStyle === 'talking-head' ? 'talking-head' : 'voice-only',
+                    uploadedImageDataUrl: null,
+                    appearanceSheet: '',
+                    distinctiveTraits: [],
+                    ageRange: '',
+                    build: '',
+                    representativeImageDataUrl: null,
+                    locked: false,
+                    libraryId: null,
+                    createdAt: new Date().toISOString(),
+                  };
+                }
               }
               if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
               if (shape === 'film' && typeof window.castRenderRows === 'function') window.castRenderRows();
               if (shape === 'brand' && typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+              if (typeof window.narratorRenderSlot === 'function') window.narratorRenderSlot();
+              if (typeof window.castShowMutexHints === 'function') window.castShowMutexHints();
             } catch(seedErr) { console.warn('[handoff seed]', seedErr.message); }
           }
           window.__storiHandoff = null;
