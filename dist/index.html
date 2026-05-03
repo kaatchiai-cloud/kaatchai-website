@@ -5982,6 +5982,20 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
   color: #8a5800;
 }
 
+/* G7 — dismiss-detection button */
+#create-page .cast-dismiss-btn {
+  background: transparent;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 11px;
+  cursor: pointer;
+}
+#create-page .cast-dismiss-btn:hover {
+  background: color-mix(in oklch, var(--red, #d44) 12%, transparent);
+  color: var(--red, #d44);
+  border-color: color-mix(in oklch, var(--red, #d44) 35%, transparent);
+}
+
 /* ── Phase 2 — Scene chip strip on storyboard + scene cards ────────────── */
 #create-page .scene-chip-strip {
   display: flex;
@@ -24260,6 +24274,7 @@ function getSceneRefImageParts(scene) {
         <button class="btn-xs cast-upload-btn" data-action="upload">${item.uploadedImageDataUrl ? '🔄 Change ref' : '📎 Upload ref'}</button>
         ${hasSheet ? `<button class="btn-xs cast-regen-img-btn" data-action="regen-image" ${isGenerating ? 'disabled' : ''}>🎨 Regen image</button>` : ''}
         ${hasSheet && hasImage ? `<button class="btn-xs primary cast-lock-btn" data-action="lock">🔒 Lock</button>` : ''}
+        ${item._detected && !hasSheet ? `<button class="btn-xs cast-dismiss-btn" data-action="dismiss" title="Don't suggest this in future detections">✕ Not a ${isChar ? 'character' : 'location'}</button>` : ''}
       </div>
     </div>`;
   }
@@ -24320,10 +24335,32 @@ function getSceneRefImageParts(scene) {
             _lockItem(item, type);
           } else if (action === 'unlock') {
             _unlockItem(item, type);
+          } else if (action === 'dismiss') {
+            _dismissDetection(item, type);
           }
         });
       });
     });
+  }
+
+  // G7 — record a dismissed detection so future detect runs skip this name+kind.
+  // Removes the row immediately. Cap dismissals at 50 to avoid unbounded growth.
+  function _dismissDetection(item, type) {
+    if (!item.name) return;
+    window.createJobState.dismissedDetections = window.createJobState.dismissedDetections || [];
+    const ds = window.createJobState.dismissedDetections;
+    const entry = { name: item.name.trim(), kind: type };
+    const exists = ds.some(d => (d.name || '').toLowerCase() === entry.name.toLowerCase() && d.kind === entry.kind);
+    if (!exists) ds.push(entry);
+    if (ds.length > 50) ds.splice(0, ds.length - 50);
+    // Remove the row
+    if (type === 'character') {
+      window.createJobState.characters = (window.createJobState.characters || []).filter(c => c.id !== item.id);
+    } else if (type === 'location') {
+      window.createJobState.locations = (window.createJobState.locations || []).filter(l => l.id !== item.id);
+    }
+    renderCastRows();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
   }
 
   // File-upload wiring
@@ -24424,6 +24461,12 @@ function getSceneRefImageParts(scene) {
     if (!item.appearanceSheet || !item.representativeImageDataUrl) {
       alert('Generate appearance and image before locking.');
       return;
+    }
+    // G7 — clear any matching dismissal so future detects could re-suggest
+    if (window.createJobState.dismissedDetections && item.name) {
+      const lc = item.name.trim().toLowerCase();
+      window.createJobState.dismissedDetections = window.createJobState.dismissedDetections
+        .filter(d => !((d.name || '').toLowerCase() === lc && d.kind === type));
     }
     item.locked = true;
     item.lockedAt = new Date().toISOString();
@@ -24578,8 +24621,14 @@ function getSceneRefImageParts(scene) {
         if (detectStatus) detectStatus.textContent = 'Analyzing script…';
         try {
           const result = await window.detectRefsFromScript(script, 'film', getCreateGeminiKey());
-          const chars = (result && Array.isArray(result.characters)) ? result.characters : [];
-          const locs = (result && Array.isArray(result.locations)) ? result.locations : [];
+          const rawChars = (result && Array.isArray(result.characters)) ? result.characters : [];
+          const rawLocs = (result && Array.isArray(result.locations)) ? result.locations : [];
+          // G7 — filter dismissed detections
+          const dismissed = window.createJobState.dismissedDetections || [];
+          const isDismissed = (name, kind) => dismissed.some(d =>
+            (d.name || '').toLowerCase() === (name || '').toLowerCase() && d.kind === kind);
+          const chars = rawChars.filter(c => !isDismissed(c.name, 'character'));
+          const locs = rawLocs.filter(l => !isDismissed(l.name, 'location'));
           // Cap at combined 6
           const maxChars = Math.min(chars.length, 6);
           const remaining = Math.max(0, 6 - maxChars);
@@ -24599,6 +24648,7 @@ function getSceneRefImageParts(scene) {
               representativeImageDataUrl: null,
               locked: false, libraryId: null,
               createdAt: new Date().toISOString(),
+              _detected: true,
             });
           }
           for (let i = 0; i < maxLocs; i++) {
@@ -24613,6 +24663,7 @@ function getSceneRefImageParts(scene) {
               representativeImageDataUrl: null,
               locked: false, libraryId: null,
               createdAt: new Date().toISOString(),
+              _detected: true,
             });
           }
           window.createJobState.characters = keptChars;
@@ -25060,6 +25111,17 @@ function getSceneRefImageParts(scene) {
         try {
           const result = await window.detectRefsFromScript(script, 'brand', getCreateGeminiKey());
           if (!result || !result.product) throw new Error('No product detected');
+          // G7 — filter dismissed detections (product/presenter/setting respect dismissals)
+          const dismissed = window.createJobState.dismissedDetections || [];
+          const isDismissed = (name, kind) => name && dismissed.some(d =>
+            (d.name || '').toLowerCase() === name.toLowerCase() && d.kind === kind);
+          if (isDismissed(result.product.name, 'product')) {
+            if (detectStatus) detectStatus.textContent = '⚠ Product was previously dismissed. Re-add it manually if you want it back.';
+            detectBtn.disabled = false;
+            return;
+          }
+          if (isDismissed(result.presenter && result.presenter.name, 'presenter')) result.presenter = null;
+          if (isDismissed(result.setting && result.setting.name, 'setting')) result.setting = null;
           // Always replace product (single entity)
           const existing = window.createJobState.product;
           // Preserve locked product if user already locked one
@@ -25080,6 +25142,7 @@ function getSceneRefImageParts(scene) {
             representativeImageDataUrl: null,
             locked: false, libraryId: null,
             createdAt: new Date().toISOString(),
+            _detected: true,
           };
           // Presenter
           if (result.presenter && !(window.createJobState.presenter && window.createJobState.presenter.locked)) {

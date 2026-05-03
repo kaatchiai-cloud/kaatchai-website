@@ -5953,6 +5953,20 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
   color: #8a5800;
 }
 
+/* G7 — dismiss-detection button */
+#create-page .cast-dismiss-btn {
+  background: transparent;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 11px;
+  cursor: pointer;
+}
+#create-page .cast-dismiss-btn:hover {
+  background: color-mix(in oklch, var(--red, #d44) 12%, transparent);
+  color: var(--red, #d44);
+  border-color: color-mix(in oklch, var(--red, #d44) 35%, transparent);
+}
+
 /* ── Phase 2 — Scene chip strip on storyboard + scene cards ────────────── */
 #create-page .scene-chip-strip {
   display: flex;
