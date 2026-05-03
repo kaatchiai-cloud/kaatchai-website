@@ -1146,9 +1146,24 @@ function getSceneRefImageParts(scene) {
       detectBtn._wired = true;
       detectBtn.addEventListener('click', async () => {
         if (typeof window.readCurrentScriptText !== 'function' || typeof window.detectRefsFromScript !== 'function') return;
-        const script = window.readCurrentScriptText();
+        let script = window.readCurrentScriptText();
+        // G9 — audio/podcast mode without transcript yet → run mini-transcribe first
+        if ((!script || script.length < 30) && typeof createAudioBuffer !== 'undefined' && createAudioBuffer
+            && typeof window.transcribeAudioOnly === 'function') {
+          detectBtn.disabled = true;
+          if (detectStatus) detectStatus.textContent = 'Transcribing audio…';
+          try {
+            await window.transcribeAudioOnly();
+            script = window.readCurrentScriptText();
+          } catch (e) {
+            if (detectStatus) detectStatus.textContent = '⚠ Transcription failed: ' + (e.message || 'unknown error');
+            detectBtn.disabled = false;
+            return;
+          }
+        }
         if (!script || script.length < 30) {
           if (detectStatus) detectStatus.textContent = 'Script too short or empty. Paste/import script first.';
+          detectBtn.disabled = false;
           return;
         }
         detectBtn.disabled = true;
@@ -1287,6 +1302,7 @@ function getSceneRefImageParts(scene) {
     if (state.presenter) cs.presenter = _rehydrate(state.presenter);
     if (state.setting)   cs.setting   = _rehydrate(state.setting);
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
+    if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
     if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
     if (typeof window.castRenderRows === 'function') window.castRenderRows();
@@ -1649,9 +1665,24 @@ function getSceneRefImageParts(scene) {
       detectBtn._wired = true;
       detectBtn.addEventListener('click', async () => {
         if (typeof window.readCurrentScriptText !== 'function' || typeof window.detectRefsFromScript !== 'function') return;
-        const script = window.readCurrentScriptText();
+        let script = window.readCurrentScriptText();
+        // G9 — audio/podcast mode without transcript yet → mini-transcribe first
+        if ((!script || script.length < 30) && typeof createAudioBuffer !== 'undefined' && createAudioBuffer
+            && typeof window.transcribeAudioOnly === 'function') {
+          detectBtn.disabled = true;
+          if (detectStatus) detectStatus.textContent = 'Transcribing audio…';
+          try {
+            await window.transcribeAudioOnly();
+            script = window.readCurrentScriptText();
+          } catch (e) {
+            if (detectStatus) detectStatus.textContent = '⚠ Transcription failed: ' + (e.message || 'unknown error');
+            detectBtn.disabled = false;
+            return;
+          }
+        }
         if (!script || script.length < 30) {
           if (detectStatus) detectStatus.textContent = 'Script too short or empty. Paste/import script first.';
+          detectBtn.disabled = false;
           return;
         }
         detectBtn.disabled = true;

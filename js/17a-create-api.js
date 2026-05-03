@@ -1496,13 +1496,19 @@ function readCurrentScriptText() {
   // Text mode — direct textarea
   const ta = $('create-tts-text');
   if (ta && ta.value && ta.value.trim()) return ta.value.trim();
-  // Audio/podcast mode — transcribed text on createTranscript
-  if (typeof createTranscript === 'string' && createTranscript.trim()) return createTranscript.trim();
-  // Audio with structured segments — concatenate segment text
+  // Audio/podcast mode — G9 transcribe-only cache
+  const cached = window.createJobState && window.createJobState.transcribedSegments;
+  if (Array.isArray(cached) && cached.length > 0) {
+    const t = cached.map(s => s.text || '').filter(Boolean).join(' ');
+    if (t.trim()) return t.trim();
+  }
+  // Storyboard agent already ran — use scene text
   if (typeof createScenes !== 'undefined' && Array.isArray(createScenes) && createScenes.length > 0) {
     const segs = createScenes.map(s => s.text || '').filter(Boolean).join(' ');
     if (segs.trim()) return segs.trim();
   }
+  // Legacy global
+  if (typeof createTranscript === 'string' && createTranscript.trim()) return createTranscript.trim();
   return '';
 }
 

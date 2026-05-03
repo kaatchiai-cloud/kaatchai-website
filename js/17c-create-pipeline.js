@@ -890,6 +890,77 @@ function updateStepStates() {
 }
 
 // Auto-save create state to localStorage (#4)
+// G9 — Transcribe-only path. Used by Detect-from-script in audio/podcast modes
+// before storyboard agent has run. Produces segments with text + timestamps but
+// no scene descriptions. Result is cached on createJobState.transcribedSegments
+// so the storyboard agent can later skip transcription and jump straight to
+// scene-description generation. No double-transcribe.
+async function transcribeAudioOnly() {
+  if (!createAudioBuffer) throw new Error('No audio loaded');
+  const key = getCreateGeminiKey();
+  if (!key) throw new Error('Gemini API key required');
+  const totalDur = createAudioBuffer.duration;
+  // Cache hit?
+  if (window.createJobState && Array.isArray(window.createJobState.transcribedSegments)
+      && window.createJobState.transcribedSegments.length > 0) {
+    const cached = window.createJobState.transcribedSegments;
+    if (cached[0] && Math.abs((cached[0].audioDuration || 0) - totalDur) < 0.5) {
+      return cached;
+    }
+  }
+  const wavBlob = audioBufferToWavBlob(createAudioBuffer);
+  const base64DataUrl = await blobToBase64(wavBlob);
+  const base64Data = base64DataUrl.split(',')[1];
+  const minSeg = getSegmentDuration().min;
+  const maxSeg = getSegmentDuration().max;
+  const promptText = createInputMode === 'podcast'
+    ? `Transcribe this podcast audio (${totalDur.toFixed(1)}s). Break into segments of roughly 30-120 seconds at natural boundaries.
+
+STRICT RULES:
+1. Segment length: 30-120s. Split at natural pauses or topic changes.
+2. Contiguous — no gaps. First starts at 0, last endTime = ${totalDur.toFixed(1)}.
+3. EVERY part transcribed. Use [instrumental] or [silence] for non-speech.
+
+Return ONLY valid JSON, no markdown:
+[{"startTime": 0, "endTime": 60, "text": "transcribed words here"}]`
+    : `Transcribe this audio (${totalDur.toFixed(1)}s). Break into segments of roughly ${minSeg}-${maxSeg} seconds covering 0 to ${totalDur.toFixed(1)} with no gaps.
+
+STRICT RULES:
+1. Segment length: ${minSeg}-${maxSeg}s. Hard limit.
+2. Contiguous — first starts at 0, last endTime = ${totalDur.toFixed(1)}.
+3. EVERY part transcribed.
+
+Return ONLY valid JSON, no markdown:
+[{"startTime": 0, "endTime": 10, "text": "transcribed words here"}]`;
+  const body = {
+    contents: [{ parts: [
+      { inline_data: { mime_type: 'audio/wav', data: base64Data } },
+      { text: promptText }
+    ]}],
+    generationConfig: { response_mime_type: 'application/json' }
+  };
+  const data = await callGeminiAPI(getTranscriptionModels(), body);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('No transcription returned');
+  let segments = parseGeminiJson(text);
+  if (!Array.isArray(segments) || segments.length === 0) throw new Error('Invalid transcription response');
+  // Light post-processing: clamp to total duration, drop OOR segments
+  segments.sort((a, b) => a.startTime - b.startTime);
+  segments = segments.filter(s => s.startTime < totalDur);
+  segments.forEach(s => { if (s.endTime > totalDur) s.endTime = totalDur; });
+  // Cache
+  if (!window.createJobState) window.createJobState = {};
+  window.createJobState.transcribedSegments = segments.map(s => ({
+    startTime: s.startTime,
+    endTime: s.endTime,
+    text: s.text,
+    audioDuration: totalDur,
+  }));
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  return window.createJobState.transcribedSegments;
+}
+window.transcribeAudioOnly = transcribeAudioOnly;
+
 // Strip transient flags + keep persistable fields for cast entities.
 // G3: when IDB is available, image dataURLs are stripped from the localStorage
 // payload (written to IDB instead, fire-and-forget). Falls back to embedded
@@ -949,6 +1020,7 @@ function autoSaveCreateState() {
       presenter: window.createJobState?.presenter ? _castSerializeItem(window.createJobState.presenter) : null,
       setting:   window.createJobState?.setting   ? _castSerializeItem(window.createJobState.setting)   : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
+      transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
@@ -1112,7 +1184,47 @@ btnCreateTranscribe.addEventListener('click', async () => {
       });
 
     } else {
-      // ── Voice mode: full audio transcription ──
+      // ── Voice/Podcast mode: audio transcription ──
+      // G9 — if Detect-from-script already transcribed (createJobState.transcribedSegments
+      // matches current audio duration), reuse those segments and skip the heavy
+      // transcribe Gemini call. Then run scene-description-only call below.
+      const cachedSegs = window.createJobState && window.createJobState.transcribedSegments;
+      const audioDur = createAudioBuffer.duration;
+      const cacheValid = Array.isArray(cachedSegs) && cachedSegs.length > 0
+        && cachedSegs[0].audioDuration && Math.abs(cachedSegs[0].audioDuration - audioDur) < 0.5;
+
+      if (cacheValid) {
+        updateCreateAgentTask('storyboard', 'audio', 'done', 'Audio ready');
+        updateCreateAgentTask('storyboard', 'transcribe', 'done', 'Reused cached transcript');
+        segments = cachedSegs.map(s => ({
+          startTime: s.startTime,
+          endTime: s.endTime,
+          text: s.text,
+          sceneDescription: '',
+        }));
+        // Scene-description-only call with character preamble — same prompt as text mode
+        updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
+        const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
+        const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
+        const descResp = await callGeminiAPI(['gemini-2.5-flash'], {
+          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
+        }, key);
+        const descText = descResp.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (descText) {
+          try {
+            const descriptions = parseGeminiJson(descText);
+            if (Array.isArray(descriptions)) {
+              descriptions.forEach(d => {
+                const idx = d.segmentIndex ?? descriptions.indexOf(d);
+                if (segments[idx]) segments[idx].sceneDescription = d.sceneDescription || '';
+              });
+            }
+          } catch (e) { console.warn('Could not parse scene descriptions:', e); }
+        }
+        segments.forEach(s => { if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`; });
+        if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
+        // Skip the bundled-audio path below
+      } else {
       updateCreateAgentTask('storyboard', 'audio', 'running', 'Converting audio…');
 
       const wavBlob = audioBufferToWavBlob(createAudioBuffer);
@@ -1237,6 +1349,12 @@ Important:
       segments = fixed;
       // #5 Ghost timeline — show skeleton cards after voice transcription
       if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
+      // Cache for future detect re-uses
+      if (!window.createJobState) window.createJobState = {};
+      window.createJobState.transcribedSegments = segments.map(s => ({
+        startTime: s.startTime, endTime: s.endTime, text: s.text, audioDuration: totalDur,
+      }));
+      } // end "else (cache miss)"
     }
 
     // ── Translation + TTS fork (animated mode only, when output language differs from source) ──
