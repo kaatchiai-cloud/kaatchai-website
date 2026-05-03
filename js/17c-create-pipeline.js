@@ -891,8 +891,15 @@ function updateStepStates() {
 
 // Auto-save create state to localStorage (#4)
 // Strip transient flags + keep persistable fields for cast entities.
+// G3: when IDB is available, image dataURLs are stripped from the localStorage
+// payload (written to IDB instead, fire-and-forget). Falls back to embedded
+// images when IDB unavailable.
 function _castSerializeItem(item) {
   if (!item) return null;
+  const idbAvailable = (typeof window._castIdbAvailable === 'function') && window._castIdbAvailable();
+  if (idbAvailable && typeof window._castPersistImages === 'function') {
+    window._castPersistImages(item);
+  }
   return {
     id: item.id,
     name: item.name,
@@ -901,9 +908,9 @@ function _castSerializeItem(item) {
     distinctiveTraits: item.distinctiveTraits || [],
     ageRange: item.ageRange || '',
     build: item.build || '',
-    representativeImageDataUrl: item.representativeImageDataUrl || null,
-    uploadedImageDataUrl: item.uploadedImageDataUrl || null,
-    logoDataUrl: item.logoDataUrl || null,
+    representativeImageDataUrl: idbAvailable ? null : (item.representativeImageDataUrl || null),
+    uploadedImageDataUrl:       idbAvailable ? null : (item.uploadedImageDataUrl || null),
+    logoDataUrl:                idbAvailable ? null : (item.logoDataUrl || null),
     brandColors: item.brandColors || [],
     role: item.role || null,
     locked: !!item.locked,

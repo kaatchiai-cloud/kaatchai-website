@@ -24084,6 +24084,132 @@ function getSceneRefImageParts(scene) {
   window._castAiReleaseSlot = _aiReleaseSlot;
   window._castAiInflightCount = () => _aiInflightCount;
 
+  // ──────────────────────────────────────────────────────────────────────────
+  //  G3 — IndexedDB image storage
+  //  Cast images (representativeImage / uploadedImage / logo) move to IDB,
+  //  keyed by entity id. localStorage keeps text-only metadata.
+  //  Falls back to localStorage with embedded images if IDB unavailable.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const IDB_DB_NAME = 'stori_cast_images_v1';
+  const IDB_STORE = 'images';
+  const IDB_AVAILABLE = (typeof indexedDB !== 'undefined');
+  let _idbDb = null;
+
+  async function _idbOpen() {
+    if (!IDB_AVAILABLE) return null;
+    if (_idbDb) return _idbDb;
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open(IDB_DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+        };
+        req.onsuccess = (e) => { _idbDb = e.target.result; resolve(_idbDb); };
+        req.onerror = () => { console.warn('[cast IDB] open failed'); resolve(null); };
+      } catch (e) {
+        console.warn('[cast IDB] exception:', e.message);
+        resolve(null);
+      }
+    });
+  }
+
+  async function _idbPut(key, dataUrl) {
+    const db = await _idbOpen();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE], 'readwrite');
+        tx.objectStore(IDB_STORE).put(dataUrl, key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      } catch (e) { resolve(false); }
+    });
+  }
+
+  async function _idbGet(key) {
+    const db = await _idbOpen();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE], 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  async function _idbDelete(key) {
+    const db = await _idbOpen();
+    if (!db) return;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE], 'readwrite');
+        tx.objectStore(IDB_STORE).delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch (e) { resolve(); }
+    });
+  }
+
+  // Persist all image dataURLs of an entity to IDB by id. Fire-and-forget — don't block UI.
+  function _castPersistImages(item) {
+    if (!IDB_AVAILABLE || !item || !item.id) return;
+    if (item.representativeImageDataUrl) _idbPut('rep_' + item.id, item.representativeImageDataUrl);
+    if (item.uploadedImageDataUrl)       _idbPut('upl_' + item.id, item.uploadedImageDataUrl);
+    if (item.logoDataUrl)                _idbPut('logo_' + item.id, item.logoDataUrl);
+  }
+
+  // Hydrate image fields from IDB by id (mutates the item).
+  async function _castHydrateImages(item) {
+    if (!IDB_AVAILABLE || !item || !item.id) return;
+    const [rep, upl, logo] = await Promise.all([
+      _idbGet('rep_' + item.id),
+      _idbGet('upl_' + item.id),
+      _idbGet('logo_' + item.id),
+    ]);
+    if (rep && !item.representativeImageDataUrl) item.representativeImageDataUrl = rep;
+    if (upl && !item.uploadedImageDataUrl) item.uploadedImageDataUrl = upl;
+    if (logo && !item.logoDataUrl) item.logoDataUrl = logo;
+  }
+
+  // Delete all images of an entity from IDB.
+  function _castDeleteImages(itemId) {
+    if (!IDB_AVAILABLE || !itemId) return;
+    _idbDelete('rep_' + itemId);
+    _idbDelete('upl_' + itemId);
+    _idbDelete('logo_' + itemId);
+  }
+
+  // Library uses different key prefix to avoid collisions when a project entity
+  // and its library copy share data.
+  function _libPersistImages(libraryId, rep, upl, logo) {
+    if (!IDB_AVAILABLE || !libraryId) return;
+    if (rep)  _idbPut('lib_' + libraryId + '_rep', rep);
+    if (upl)  _idbPut('lib_' + libraryId + '_upl', upl);
+    if (logo) _idbPut('lib_' + libraryId + '_logo', logo);
+  }
+  async function _libHydrateImage(libraryId) {
+    if (!IDB_AVAILABLE || !libraryId) return null;
+    return await _idbGet('lib_' + libraryId + '_rep');
+  }
+  function _libDeleteImages(libraryId) {
+    if (!IDB_AVAILABLE || !libraryId) return;
+    _idbDelete('lib_' + libraryId + '_rep');
+    _idbDelete('lib_' + libraryId + '_upl');
+    _idbDelete('lib_' + libraryId + '_logo');
+  }
+
+  window._castPersistImages = _castPersistImages;
+  window._castHydrateImages = _castHydrateImages;
+  window._castDeleteImages = _castDeleteImages;
+  window._libPersistImages = _libPersistImages;
+  window._libHydrateImage = _libHydrateImage;
+  window._libDeleteImages = _libDeleteImages;
+  window._castIdbAvailable = () => IDB_AVAILABLE;
+
   // G5 — shared name-collision check across all locked entities (characters,
   // locations, product, presenter, setting). Used by both _lockItem (cast) and
   // _brandLock (brand). Returns true if another locked entity has the same name
@@ -24758,6 +24884,20 @@ function getSceneRefImageParts(scene) {
     if (typeof window.castRenderRows === 'function') window.castRenderRows();
     if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
     if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
+    // G3 — hydrate images from IDB asynchronously; re-render when each lands
+    if (typeof window._castHydrateImages === 'function' && window._castIdbAvailable && window._castIdbAvailable()) {
+      const allItems = [
+        ...(cs.characters || []),
+        ...(cs.locations || []),
+        cs.product, cs.presenter, cs.setting,
+      ].filter(Boolean);
+      Promise.all(allItems.map(it => window._castHydrateImages(it))).then(() => {
+        if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
+        if (typeof window.castRenderRows === 'function') window.castRenderRows();
+        if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+        if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
+      });
+    }
   }
 
   // Initialize on DOM ready (or now if already loaded)
@@ -25884,6 +26024,8 @@ function getSceneRefImageParts(scene) {
           if (typeof window.CanvasGraph !== 'undefined' && window.CanvasGraph.notifyCharacterDeleted) {
             window.CanvasGraph.notifyCharacterDeleted(refId);
           }
+          // G3 — clean up IDB images
+          if (typeof window._castDeleteImages === 'function') window._castDeleteImages(refId);
           if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
           _refreshAfterEdit();
           _closeEditModal();
@@ -26108,6 +26250,11 @@ function getSceneRefImageParts(scene) {
   function _libSave(item, kind) {
     const list = _libRead();
     const libId = item.libraryId || ('lib_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6));
+    const idbAvailable = (typeof window._castIdbAvailable === 'function') && window._castIdbAvailable();
+    // G3 — write images to IDB when available; localStorage entry stays text-only.
+    if (idbAvailable && typeof window._libPersistImages === 'function') {
+      window._libPersistImages(libId, item.representativeImageDataUrl, item.uploadedImageDataUrl, item.logoDataUrl);
+    }
     const entry = {
       libraryId: libId,
       kind,
@@ -26117,8 +26264,8 @@ function getSceneRefImageParts(scene) {
       distinctiveTraits: item.distinctiveTraits || [],
       ageRange: item.ageRange || '',
       build: item.build || '',
-      representativeImageDataUrl: item.representativeImageDataUrl || null,
-      uploadedImageDataUrl: item.uploadedImageDataUrl || null,
+      representativeImageDataUrl: idbAvailable ? null : (item.representativeImageDataUrl || null),
+      uploadedImageDataUrl:       idbAvailable ? null : (item.uploadedImageDataUrl || null),
       savedAt: Date.now(),
     };
     // Replace if same libraryId already exists; otherwise prepend
@@ -26133,6 +26280,7 @@ function getSceneRefImageParts(scene) {
   function _libDelete(libId) {
     const list = _libRead().filter(x => x.libraryId !== libId);
     _libWrite(list);
+    if (typeof window._libDeleteImages === 'function') window._libDeleteImages(libId);
   }
 
   function _libList(kindFilter) {
@@ -26191,12 +26339,29 @@ function getSceneRefImageParts(scene) {
         </div>`;
     }
     modal.hidden = false;
+    // G3 — lazy-hydrate thumbnails from IDB for cards without inline images
+    if (typeof window._libHydrateImage === 'function' && window._castIdbAvailable && window._castIdbAvailable()) {
+      body.querySelectorAll('.refs-library-card').forEach(async (card) => {
+        const libId = card.dataset.libId;
+        const thumb = card.querySelector('.refs-library-thumb');
+        if (!thumb || thumb.querySelector('img')) return;
+        const dataUrl = await window._libHydrateImage(libId);
+        if (dataUrl && !thumb.querySelector('img')) {
+          thumb.innerHTML = `<img src="${dataUrl}" alt="">`;
+        }
+      });
+    }
     body.querySelectorAll('.refs-library-card').forEach(card => {
-      card.addEventListener('click', (e) => {
+      card.addEventListener('click', async (e) => {
         if (e.target.closest('[data-lib-delete]')) return;  // delete handler
         const libId = card.dataset.libId;
         const entry = _libRead().find(x => x.libraryId === libId);
         if (!entry) return;
+        // G3 — hydrate image from IDB before handing entry to callback
+        if (!entry.representativeImageDataUrl && typeof window._libHydrateImage === 'function') {
+          const img = await window._libHydrateImage(libId);
+          if (img) entry.representativeImageDataUrl = img;
+        }
         addCallback(entry);
         modal.hidden = true;
       });
@@ -27157,8 +27322,15 @@ function updateStepStates() {
 
 // Auto-save create state to localStorage (#4)
 // Strip transient flags + keep persistable fields for cast entities.
+// G3: when IDB is available, image dataURLs are stripped from the localStorage
+// payload (written to IDB instead, fire-and-forget). Falls back to embedded
+// images when IDB unavailable.
 function _castSerializeItem(item) {
   if (!item) return null;
+  const idbAvailable = (typeof window._castIdbAvailable === 'function') && window._castIdbAvailable();
+  if (idbAvailable && typeof window._castPersistImages === 'function') {
+    window._castPersistImages(item);
+  }
   return {
     id: item.id,
     name: item.name,
@@ -27167,9 +27339,9 @@ function _castSerializeItem(item) {
     distinctiveTraits: item.distinctiveTraits || [],
     ageRange: item.ageRange || '',
     build: item.build || '',
-    representativeImageDataUrl: item.representativeImageDataUrl || null,
-    uploadedImageDataUrl: item.uploadedImageDataUrl || null,
-    logoDataUrl: item.logoDataUrl || null,
+    representativeImageDataUrl: idbAvailable ? null : (item.representativeImageDataUrl || null),
+    uploadedImageDataUrl:       idbAvailable ? null : (item.uploadedImageDataUrl || null),
+    logoDataUrl:                idbAvailable ? null : (item.logoDataUrl || null),
     brandColors: item.brandColors || [],
     role: item.role || null,
     locked: !!item.locked,
