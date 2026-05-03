@@ -1047,11 +1047,53 @@ function getSceneRefImageParts(scene) {
     if (card) card.style.display = '';
   }
 
+  // G1 — restore cast from autosave on init. Only fires when there is a recent
+  // autosave AND in-memory createJobState is still empty (fresh page load).
+  function _rehydrate(saved) {
+    if (!saved) return null;
+    return Object.assign({
+      _generating: false,
+      _captioning: false,
+      distinctiveTraits: [],
+      brandColors: [],
+    }, saved);
+  }
+
+  function _castRestoreFromAutosave() {
+    if (typeof restoreAutoSaveIfAvailable !== 'function') return;
+    const state = restoreAutoSaveIfAvailable();
+    if (!state) return;
+    const cs = window.createJobState;
+    if ((cs.characters && cs.characters.length > 0) ||
+        (cs.locations && cs.locations.length > 0) ||
+        cs.product || cs.presenter || cs.setting) return;
+    if (state.videoType) {
+      cs.videoType = state.videoType;
+      cs.videoTypeLocked = !!state.videoTypeLocked;
+    }
+    cs.styleLocked = !!state.styleLocked;
+    if (Array.isArray(state.castCharacters)) cs.characters = state.castCharacters.map(_rehydrate);
+    if (Array.isArray(state.castLocations))  cs.locations  = state.castLocations.map(_rehydrate);
+    if (state.product)   cs.product   = _rehydrate(state.product);
+    if (state.presenter) cs.presenter = _rehydrate(state.presenter);
+    if (state.setting)   cs.setting   = _rehydrate(state.setting);
+    if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
+    if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
+    if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+    if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+    if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
+  }
+
   // Initialize on DOM ready (or now if already loaded)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _initStatic);
-  } else {
+  function _initWithRestore() {
+    _castRestoreFromAutosave();
     _initStatic();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initWithRestore);
+  } else {
+    _initWithRestore();
   }
 
   // ──────────────────────────────────────────────────────────────────────────

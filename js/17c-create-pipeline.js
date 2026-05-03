@@ -890,8 +890,33 @@ function updateStepStates() {
 }
 
 // Auto-save create state to localStorage (#4)
+// Strip transient flags + keep persistable fields for cast entities.
+function _castSerializeItem(item) {
+  if (!item) return null;
+  return {
+    id: item.id,
+    name: item.name,
+    userDescription: item.userDescription || '',
+    appearanceSheet: item.appearanceSheet || '',
+    distinctiveTraits: item.distinctiveTraits || [],
+    ageRange: item.ageRange || '',
+    build: item.build || '',
+    representativeImageDataUrl: item.representativeImageDataUrl || null,
+    uploadedImageDataUrl: item.uploadedImageDataUrl || null,
+    logoDataUrl: item.logoDataUrl || null,
+    brandColors: item.brandColors || [],
+    role: item.role || null,
+    locked: !!item.locked,
+    libraryId: item.libraryId || null,
+    midProject: !!item.midProject,
+    needsRegen: !!item.needsRegen,
+    createdAt: item.createdAt || null,
+    lockedAt: item.lockedAt || null,
+  };
+}
+
 function autoSaveCreateState() {
- 
+
   try {
     const state = {
       transcript: createTranscript,
@@ -905,19 +930,18 @@ function autoSaveCreateState() {
       selectedTemplate: selectedTemplate,
       characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
       environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
-      // Cast upfront flow — full sheets (text only; images persisted separately to avoid 5MB cap)
-      castCharacters: (window.createJobState?.characters || []).map(c => ({
-        id: c.id, name: c.name, userDescription: c.userDescription,
-        appearanceSheet: c.appearanceSheet, distinctiveTraits: c.distinctiveTraits,
-        ageRange: c.ageRange, build: c.build, locked: !!c.locked, libraryId: c.libraryId,
-        createdAt: c.createdAt, lockedAt: c.lockedAt,
-      })),
-      castLocations: (window.createJobState?.locations || []).map(l => ({
-        id: l.id, name: l.name, userDescription: l.userDescription,
-        appearanceSheet: l.appearanceSheet, distinctiveTraits: l.distinctiveTraits,
-        ageRange: l.ageRange, build: l.build, locked: !!l.locked, libraryId: l.libraryId,
-        createdAt: l.createdAt, lockedAt: l.lockedAt,
-      })),
+      // Cast upfront flow — text fields + representative image. Phase G3 (later)
+      // moves images to IndexedDB; for now they go into localStorage with the rest
+      // (project state with cast can hit the 5MB cap on heavy use — known limit).
+      videoType: window.createJobState?.videoType || null,
+      videoTypeLocked: !!(window.createJobState?.videoTypeLocked),
+      styleLocked: !!(window.createJobState?.styleLocked),
+      castCharacters: (window.createJobState?.characters || []).map(_castSerializeItem),
+      castLocations: (window.createJobState?.locations || []).map(_castSerializeItem),
+      product:   window.createJobState?.product   ? _castSerializeItem(window.createJobState.product)   : null,
+      presenter: window.createJobState?.presenter ? _castSerializeItem(window.createJobState.presenter) : null,
+      setting:   window.createJobState?.setting   ? _castSerializeItem(window.createJobState.setting)   : null,
+      dismissedDetections: window.createJobState?.dismissedDetections || [],
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
