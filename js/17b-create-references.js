@@ -340,9 +340,12 @@ function getSceneRefImageParts(scene) {
     const castFilm = document.getElementById('cast-setup-card');
     const castBrand = document.getElementById('brand-setup-card');
     const castNarr = document.getElementById('narration-notice');
+    const narrator = document.getElementById('narrator-setup-card');
     if (castFilm) castFilm.style.display = (locked && t === 'film') ? '' : 'none';
     if (castBrand) castBrand.style.display = (locked && t === 'brand') ? '' : 'none';
     if (castNarr) castNarr.style.display = (locked && t === 'narration') ? '' : 'none';
+    // Narrator section: universal — shows in all locked types
+    if (narrator) narrator.style.display = (locked && t) ? '' : 'none';
     // Lock-card vs picker visibility
     const cards = document.getElementById('vtype-cards');
     const actionRow = document.querySelector('#create-video-type-step .vtype-action-row');
@@ -751,7 +754,10 @@ function getSceneRefImageParts(scene) {
     const t = (window.createJobState && window.createJobState.videoType) || null;
     const typeLocked = !!(window.createJobState && window.createJobState.videoTypeLocked);
     if (!typeLocked || !t) return false;  // type must be locked first
-    if (t === 'narration') return true;   // no cast required
+    // Narrator (if defined) must be locked
+    const narr = window.createJobState && window.createJobState.narrator;
+    if (narr && !narr.locked) return false;
+    if (t === 'narration') return true;   // narration with locked narrator OR no narrator both pass
     if (t === 'brand') {
       const product = window.createJobState.product;
       const presenter = window.createJobState.presenter;
@@ -1001,17 +1007,56 @@ function getSceneRefImageParts(scene) {
   }
 
   // Update Generate button state
+  // Template-selected gate. Cast image generation depends on the chosen style
+  // preset; if no template is selected, generated images would be in a default
+  // style and trigger needsRegen as soon as the user picks a template.
+  function _hasTemplateSelected() {
+    return !!(typeof selectedTemplate !== 'undefined' && selectedTemplate);
+  }
+
+  // Apply template gate to all Detect / Generate buttons. Called from
+  // applyTemplate (17a) hook so picking/unpicking a template updates state.
+  function _castUpdateTemplateGate() {
+    const hasTpl = _hasTemplateSelected();
+    const detectCast = document.getElementById('btn-cast-detect');
+    const detectCastStatus = document.getElementById('cast-detect-status');
+    if (detectCast) {
+      detectCast.disabled = !hasTpl;
+      if (detectCastStatus && !hasTpl) detectCastStatus.textContent = '⚠ Pick a template above first.';
+      else if (detectCastStatus && detectCastStatus.textContent.startsWith('⚠ Pick a template')) {
+        detectCastStatus.textContent = 'Available after script lands.';
+      }
+    }
+    const detectBrand = document.getElementById('btn-brand-detect');
+    const detectBrandStatus = document.getElementById('brand-detect-status');
+    if (detectBrand) {
+      detectBrand.disabled = !hasTpl;
+      if (detectBrandStatus && !hasTpl) detectBrandStatus.textContent = '⚠ Pick a template above first.';
+      else if (detectBrandStatus && detectBrandStatus.textContent.startsWith('⚠ Pick a template')) {
+        detectBrandStatus.textContent = 'Available after script lands.';
+      }
+    }
+    // Re-eval Generate buttons too
+    if (typeof _updateGenerateButton === 'function') _updateGenerateButton();
+    if (typeof _updateBrandGenerateButton === 'function') _updateBrandGenerateButton();
+  }
+  window.castUpdateTemplateGate = _castUpdateTemplateGate;
+
   function _updateGenerateButton() {
     const btn = document.getElementById('btn-cast-generate');
     const hint = document.getElementById('cast-action-hint');
     if (!btn) return;
+    const hasTpl = _hasTemplateSelected();
     const chars = window.createJobState.characters || [];
     const locs = window.createJobState.locations || [];
     const all = [...chars, ...locs];
     const editable = all.filter(x => !x.locked && !x.appearanceSheet);
     const valid = editable.length > 0 && editable.every(x => (x.name || '').trim() && (x.userDescription || '').trim());
-    btn.disabled = !valid;
-    if (hint) hint.textContent = valid ? 'Click to generate canonical appearances and reference images.' : 'Fill all names and descriptions to enable.';
+    btn.disabled = !hasTpl || !valid;
+    if (hint) {
+      if (!hasTpl) hint.textContent = '⚠ Pick a template above first — style is needed before generating images.';
+      else hint.textContent = valid ? 'Click to generate canonical appearances and reference images.' : 'Fill all names and descriptions to enable.';
+    }
   }
 
   // Generate appearance for one item (text + image)
@@ -1304,6 +1349,9 @@ function getSceneRefImageParts(scene) {
 
     _wireUploadInput();
 
+    // Apply template gate on init (handles fresh page load with no template yet)
+    _castUpdateTemplateGate();
+
     // Library button (Film mode) — opens picker and offers character or location
     const libBtn = document.getElementById('btn-cast-library');
     if (libBtn && !libBtn._wired) {
@@ -1370,24 +1418,28 @@ function getSceneRefImageParts(scene) {
     if (state.product)   cs.product   = _rehydrate(state.product);
     if (state.presenter) cs.presenter = _rehydrate(state.presenter);
     if (state.setting)   cs.setting   = _rehydrate(state.setting);
+    if (state.narrator)  cs.narrator  = _rehydrate(state.narrator);
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
     if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
     if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
     if (typeof window.castRenderRows === 'function') window.castRenderRows();
     if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+    if (typeof window.narratorRenderSlot === 'function') window.narratorRenderSlot();
+    if (typeof window.castShowMutexHints === 'function') window.castShowMutexHints();
     if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
     // G3 — hydrate images from IDB asynchronously; re-render when each lands
     if (typeof window._castHydrateImages === 'function' && window._castIdbAvailable && window._castIdbAvailable()) {
       const allItems = [
         ...(cs.characters || []),
         ...(cs.locations || []),
-        cs.product, cs.presenter, cs.setting,
+        cs.product, cs.presenter, cs.setting, cs.narrator,
       ].filter(Boolean);
       Promise.all(allItems.map(it => window._castHydrateImages(it))).then(() => {
         if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
         if (typeof window.castRenderRows === 'function') window.castRenderRows();
         if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+        if (typeof window.narratorRenderSlot === 'function') window.narratorRenderSlot();
         if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
       });
     }
@@ -1550,15 +1602,19 @@ function getSceneRefImageParts(scene) {
     const hint = document.getElementById('brand-action-hint');
     const row = document.getElementById('brand-action-row');
     if (!btn || !row) return;
+    const hasTpl = (typeof selectedTemplate !== 'undefined' && selectedTemplate);
     const items = [];
     if (window.createJobState.product) items.push(window.createJobState.product);
     if (window.createJobState.presenter) items.push(window.createJobState.presenter);
     if (window.createJobState.setting) items.push(window.createJobState.setting);
     const editable = items.filter(x => !x.locked && !x.appearanceSheet);
     const valid = editable.length > 0 && editable.every(x => (x.name || '').trim() && (x.userDescription || '').trim());
-    btn.disabled = !valid;
+    btn.disabled = !hasTpl || !valid;
     row.style.display = editable.length > 0 ? '' : 'none';
-    if (hint) hint.textContent = valid ? 'Click to generate hero shots and appearance sheets.' : 'Fill name and description for product/presenter/setting to enable.';
+    if (hint) {
+      if (!hasTpl) hint.textContent = '⚠ Pick a template above first — style is needed before generating images.';
+      else hint.textContent = valid ? 'Click to generate hero shots and appearance sheets.' : 'Fill name and description for product/presenter/setting to enable.';
+    }
   }
 
   async function _brandGenerateOne(item, kind) {
@@ -1881,6 +1937,333 @@ function getSceneRefImageParts(scene) {
     _initBrandStatic();
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  //  NARRATOR — universal across all video types.
+  //  Mutex with character voices: if narrator is defined, all audio is the
+  //  narrator's voice; characters appear visually but don't speak.
+  //  If narrator is undefined, characters speak their own lines (existing flow).
+  //  Narrator is NEVER bracketed in scene prompts.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  let _narratorPendingUpload = false;
+
+  function _renderNarratorSlot() {
+    const slot = document.getElementById('narrator-slot');
+    const addRow = document.getElementById('narrator-add-row');
+    const actionRow = document.getElementById('narrator-action-row');
+    if (!slot) return;
+    const n = window.createJobState.narrator;
+    if (!n) {
+      slot.innerHTML = '';
+      if (addRow) addRow.style.display = '';
+      if (actionRow) actionRow.style.display = 'none';
+      return;
+    }
+    if (addRow) addRow.style.display = 'none';
+    if (n.locked) {
+      slot.innerHTML = `<div class="cast-row cast-row-locked">
+        <div class="cast-row-thumb">${n.representativeImageDataUrl ? `<img src="${n.representativeImageDataUrl}">` : '<div class="cast-row-thumb-empty">no img</div>'}</div>
+        <div class="cast-row-meta">
+          <div class="cast-row-name">🎙 ${escapeHtml(n.name)} <span class="cast-row-locked-badge">🔒 Narrator locked</span></div>
+          <div class="cast-row-sub">${n.onScreenStyle === 'talking-head' ? 'Talking head' : 'Voice only'} · ${escapeHtml((n.appearanceSheet || '').slice(0, 80))}</div>
+        </div>
+        <div class="cast-row-actions">
+          <button class="btn-xs" data-narrator-action="unlock">🔓 Unlock</button>
+          <button class="btn-xs" data-narrator-action="remove">✕ Remove</button>
+        </div>
+      </div>`;
+      if (actionRow) actionRow.style.display = 'none';
+    } else {
+      const isGenerating = !!n._generating;
+      const needsRegen = !!n.needsRegen;
+      const onScreen = n.onScreenStyle || 'voice-only';
+      const showFields = onScreen !== 'voice-only';
+      slot.innerHTML = `<div class="cast-row${needsRegen ? ' cast-row-needs-regen' : ''}" data-narrator-row="1">
+        <div class="cast-row-thumb">
+          ${n.representativeImageDataUrl ? `<img src="${n.representativeImageDataUrl}">`
+            : n.uploadedImageDataUrl ? `<img src="${n.uploadedImageDataUrl}" class="cast-row-thumb-pending">`
+            : `<div class="cast-row-thumb-empty">${onScreen === 'voice-only' ? '🎙' : 'no img'}</div>`}
+          ${isGenerating ? '<div class="cast-row-thumb-spinner"></div>' : ''}
+        </div>
+        <div class="cast-row-fields">
+          <div class="narrator-style-row">
+            <label class="narrator-style-opt"><input type="radio" name="narrator-style" value="voice-only" ${onScreen === 'voice-only' ? 'checked' : ''}> Voice only</label>
+            <label class="narrator-style-opt"><input type="radio" name="narrator-style" value="talking-head" ${onScreen === 'talking-head' ? 'checked' : ''}> Talking head</label>
+          </div>
+          ${showFields ? `<input type="text" placeholder="Narrator name (e.g. Host)" value="${escapeHtml(n.name)}" data-narrator-field="name">` : ''}
+          ${showFields ? `<textarea rows="2" placeholder="Description (e.g. late 30s, navy suit, glasses)" data-narrator-field="userDescription">${escapeHtml(n.userDescription || '')}</textarea>` : ''}
+          ${!showFields ? `<input type="text" placeholder="Narrator name (e.g. Voice-over)" value="${escapeHtml(n.name)}" data-narrator-field="name">` : ''}
+          ${n.appearanceSheet ? `<div class="cast-row-sheet"><strong>Appearance:</strong> ${escapeHtml(n.appearanceSheet)}</div>` : ''}
+          ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate to lock</div>' : ''}
+        </div>
+        <div class="cast-row-actions">
+          ${showFields ? `<button class="btn-xs" data-narrator-action="upload">${n.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>` : ''}
+          ${n.appearanceSheet && showFields ? `<button class="btn-xs" data-narrator-action="regen-image" ${isGenerating ? 'disabled' : ''}>🎨 Regen</button>` : ''}
+          ${(showFields ? (n.appearanceSheet && n.representativeImageDataUrl) : (n.name && n.name.trim())) ? `<button class="btn-xs primary" data-narrator-action="lock">🔒 Lock</button>` : ''}
+          <button class="btn-xs" data-narrator-action="remove">✕ Remove</button>
+        </div>
+      </div>`;
+      _updateNarratorGenerateButton();
+    }
+    _wireNarratorRow();
+  }
+
+  function _wireNarratorRow() {
+    const slot = document.getElementById('narrator-slot');
+    if (!slot) return;
+    const n = window.createJobState.narrator;
+    if (!n) return;
+
+    slot.querySelectorAll('input[data-narrator-field], textarea[data-narrator-field]').forEach(field => {
+      field.addEventListener('input', () => {
+        n[field.dataset.narratorField] = field.value;
+        _updateNarratorGenerateButton();
+      });
+    });
+    slot.querySelectorAll('input[name="narrator-style"]').forEach(r => {
+      r.addEventListener('change', () => {
+        n.onScreenStyle = r.value;
+        _renderNarratorSlot();
+      });
+    });
+    slot.querySelectorAll('button[data-narrator-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const a = btn.dataset.narratorAction;
+        if (a === 'upload') {
+          _narratorPendingUpload = true;
+          const input = document.getElementById('cast-img-upload');
+          if (input) input.click();
+        } else if (a === 'regen-image') {
+          _narratorRegenImage();
+        } else if (a === 'lock') {
+          _narratorLock();
+        } else if (a === 'unlock') {
+          _narratorUnlock();
+        } else if (a === 'remove') {
+          if (n.locked) {
+            if (!confirm('Remove the locked narrator? Characters will resume speaking their own lines.')) return;
+          }
+          window.createJobState.narrator = null;
+          _renderNarratorSlot();
+          _showMutexHints();
+          if (typeof updateCreateButtons === 'function') updateCreateButtons();
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        }
+      });
+    });
+  }
+
+  function _updateNarratorGenerateButton() {
+    const btn = document.getElementById('btn-narrator-generate');
+    const hint = document.getElementById('narrator-action-hint');
+    const row = document.getElementById('narrator-action-row');
+    if (!btn || !row) return;
+    const n = window.createJobState.narrator;
+    if (!n || n.locked || n.appearanceSheet) {
+      row.style.display = 'none';
+      return;
+    }
+    const onScreen = n.onScreenStyle || 'voice-only';
+    const hasTpl = (typeof selectedTemplate !== 'undefined' && selectedTemplate);
+    if (onScreen === 'voice-only') {
+      // Voice-only narrator doesn't need image gen — skip Generate button entirely
+      row.style.display = 'none';
+      return;
+    }
+    row.style.display = '';
+    const valid = (n.name || '').trim() && (n.userDescription || '').trim();
+    btn.disabled = !hasTpl || !valid;
+    if (hint) {
+      if (!hasTpl) hint.textContent = '⚠ Pick a template above first.';
+      else hint.textContent = valid ? 'Click to generate the narrator portrait.' : 'Fill name and description to enable.';
+    }
+  }
+
+  async function _narratorGenerateOne() {
+    const n = window.createJobState.narrator;
+    if (!n) return;
+    const key = getCreateGeminiKey();
+    if (!key) return;
+    n._generating = true;
+    _renderNarratorSlot();
+    try {
+      const sheet = await window.generateAppearanceSheet(n, 'narrator', key);
+      n.appearanceSheet = sheet.appearance;
+      n.distinctiveTraits = sheet.distinctiveTraits || [];
+      const imgUrl = await window.generateRepresentativeImage(n, 'narrator', key);
+      n.representativeImageDataUrl = imgUrl;
+    } catch (e) {
+      console.warn('[narrator generate]', e.message);
+    } finally {
+      n._generating = false;
+      _renderNarratorSlot();
+    }
+  }
+
+  async function _narratorRegenImage() {
+    const n = window.createJobState.narrator;
+    if (!n) return;
+    const key = getCreateGeminiKey();
+    if (!key) return;
+    n._generating = true;
+    _renderNarratorSlot();
+    try {
+      const imgUrl = await window.generateRepresentativeImage(n, 'narrator', key);
+      n.representativeImageDataUrl = imgUrl;
+    } catch (e) { console.warn('[narrator regen]', e.message); }
+    n._generating = false;
+    _renderNarratorSlot();
+  }
+
+  function _narratorLock() {
+    const n = window.createJobState.narrator;
+    if (!n) return;
+    if ((n.onScreenStyle || 'voice-only') !== 'voice-only') {
+      if (!n.appearanceSheet || !n.representativeImageDataUrl) {
+        alert('Generate the narrator portrait before locking.');
+        return;
+      }
+    } else {
+      if (!(n.name || '').trim()) { alert('Enter a name before locking.'); return; }
+    }
+    if (window._castNameCollision && window._castNameCollision(n.name, n.id)) {
+      alert(`Another locked entity is already named "${n.name}". Rename one of them before locking.`);
+      return;
+    }
+    n.locked = true;
+    n.lockedAt = new Date().toISOString();
+    n.needsRegen = false;
+    if (!window.createJobState.styleLocked) window.createJobState.styleLocked = true;
+    _renderNarratorSlot();
+    _showMutexHints();
+    if (typeof updateCreateButtons === 'function') updateCreateButtons();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _narratorUnlock() {
+    const n = window.createJobState.narrator;
+    if (!n) return;
+    n.locked = false;
+    _renderNarratorSlot();
+    _showMutexHints();
+    if (typeof updateCreateButtons === 'function') updateCreateButtons();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _showMutexHints() {
+    // Surface a soft hint inside cast/brand cards when narrator is locked.
+    const isNarrMode = !!(window.createJobState.narrator && window.createJobState.narrator.locked);
+    document.querySelectorAll('#cast-setup-card, #brand-setup-card').forEach(card => {
+      let banner = card.querySelector('.narrator-mutex-banner');
+      if (isNarrMode) {
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.className = 'narrator-mutex-banner';
+          banner.innerHTML = '🎙 <strong>Narrator defined</strong> — characters appear visually only. All audio is the narrator\'s voice.';
+          card.insertBefore(banner, card.firstChild.nextSibling);
+        }
+      } else if (banner) {
+        banner.remove();
+      }
+    });
+  }
+  window.castShowMutexHints = _showMutexHints;
+
+  function _wireNarratorUpload() {
+    const input = document.getElementById('cast-img-upload');
+    if (!input || input._narratorWired) return;
+    input._narratorWired = true;
+    input.addEventListener('change', async () => {
+      if (!_narratorPendingUpload) return;
+      const file = input.files && input.files[0];
+      if (!file) { _narratorPendingUpload = false; return; }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const n = window.createJobState.narrator;
+        if (n) {
+          n.uploadedImageDataUrl = dataUrl;
+          if (!n.userDescription && typeof window.autoCaptionFromImage === 'function') {
+            n._captioning = true;
+            _renderNarratorSlot();
+            try {
+              const cap = await window.autoCaptionFromImage(dataUrl, 'character', getCreateGeminiKey());
+              if (cap) n.userDescription = cap;
+            } catch (e2) {}
+            n._captioning = false;
+          }
+          _renderNarratorSlot();
+        }
+        _narratorPendingUpload = false;
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Public — re-render entry point
+  window.narratorRenderSlot = _renderNarratorSlot;
+  window.narratorIsActive = function () {
+    return !!(window.createJobState.narrator && window.createJobState.narrator.locked);
+  };
+
+  function _initNarratorStatic() {
+    const addBtn = document.getElementById('btn-narrator-add');
+    const genBtn = document.getElementById('btn-narrator-generate');
+    if (addBtn && !addBtn._wired) {
+      addBtn._wired = true;
+      addBtn.addEventListener('click', () => {
+        if (window.createJobState.narrator) return;
+        // Cap-of-6 check
+        const total = ((window.createJobState.characters || []).length)
+          + ((window.createJobState.locations || []).length)
+          + (window.createJobState.product ? 1 : 0)
+          + (window.createJobState.presenter ? 1 : 0)
+          + (window.createJobState.setting ? 1 : 0);
+        if (total >= 6) { alert('Cap of 6 reached. Delete an existing entity first.'); return; }
+        // Confirm if characters with potential dialogue already exist
+        const charsExist = (window.createJobState.characters || []).some(c => c.locked);
+        if (charsExist) {
+          if (!confirm('Adding a narrator means all voice content goes to the narrator. Defined characters will appear visually but won\'t have dialogue. Continue?')) return;
+        }
+        window.createJobState.narrator = {
+          id: 'narr_' + Date.now().toString(36),
+          name: '',
+          userDescription: '',
+          uploadedImageDataUrl: null,
+          appearanceSheet: '',
+          distinctiveTraits: [],
+          ageRange: '',
+          build: '',
+          representativeImageDataUrl: null,
+          onScreenStyle: 'voice-only',
+          locked: false,
+          libraryId: null,
+          createdAt: new Date().toISOString(),
+        };
+        _renderNarratorSlot();
+        _showMutexHints();
+      });
+    }
+    if (genBtn && !genBtn._wired) {
+      genBtn._wired = true;
+      genBtn.addEventListener('click', async () => {
+        const n = window.createJobState.narrator;
+        if (!n || n.locked || n.appearanceSheet) return;
+        genBtn.disabled = true;
+        await _narratorGenerateOne();
+        genBtn.disabled = false;
+      });
+    }
+    _wireNarratorUpload();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initNarratorStatic);
+  } else {
+    _initNarratorStatic();
+  }
+
   // Bracket parsing utility — used after storyboard generation
   // Returns: { tokens: ['Maya', 'Joe'], idsCharacters: [...], idsLocations: [...] }
   window.castParseBracketTokens = function (promptText) {
@@ -1918,14 +2301,21 @@ function getSceneRefImageParts(scene) {
     const product = window.createJobState.product;
     const presenter = window.createJobState.presenter;
     const setting = window.createJobState.setting;
+    const narrator = window.createJobState.narrator;
     const productLocked = product && product.locked;
     const presenterLocked = presenter && presenter.locked;
     const settingLocked = setting && setting.locked;
+    const narratorLocked = narrator && narrator.locked;
 
-    if (t === 'narration') return '';
+    // Narrator-mode hint — universal across types
+    const narratorHint = narratorLocked
+      ? `NARRATOR MODE: This video has a single narrator (${escapeHtml(narrator.name)}) who voices ALL audio content. Characters and other entities appear visually in scenes but DO NOT speak — there is no character dialogue. Treat all script text as narration prose. The narrator does NOT appear in scene visuals (rendered separately at edit time).\n\n`
+      : '';
+
+    if (t === 'narration') return narratorHint;
     if (t === 'brand') {
-      if (!productLocked && !presenterLocked && !settingLocked) return '';
-      let out = '';
+      if (!productLocked && !presenterLocked && !settingLocked) return narratorHint;
+      let out = narratorHint;
       if (productLocked) {
         out += 'PRODUCT (the hero of every scene):\n';
         out += `- [${product.name}] — ${product.appearanceSheet || product.userDescription || product.name}\n`;
@@ -1943,8 +2333,8 @@ function getSceneRefImageParts(scene) {
       return out;
     }
     // film mode (default)
-    if (chars.length === 0 && locs.length === 0) return '';
-    let out = '';
+    if (chars.length === 0 && locs.length === 0) return narratorHint;
+    let out = narratorHint;
     if (chars.length) {
       out += 'CHARACTERS in this story:\n';
       for (const c of chars) {
@@ -2666,6 +3056,11 @@ function getSceneRefImageParts(scene) {
           + (window.createJobState.presenter ? 1 : 0)
           + (window.createJobState.setting ? 1 : 0);
         if (total >= 6) { if (status) status.textContent = '⚠ Cap of 6 reached. Delete an existing entity first.'; return; }
+        // Template gate — image gen depends on style preset
+        if (typeof selectedTemplate === 'undefined' || !selectedTemplate) {
+          if (status) status.textContent = '⚠ Pick a template (in Step 1) before adding new characters — style is needed for image gen.';
+          return;
+        }
         // Read uploaded file (if any)
         let uploaded = null;
         if (upEl && upEl.files && upEl.files[0]) {

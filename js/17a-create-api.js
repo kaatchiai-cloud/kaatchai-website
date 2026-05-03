@@ -219,6 +219,8 @@ function applyTemplate(templateId) {
   }
   updateCreateButtons();
   updateStepStates();
+  // Update cast/brand template-gate buttons (Detect, Generate)
+  if (typeof window.castUpdateTemplateGate === 'function') window.castUpdateTemplateGate();
 }
 
 function setTemplateCategoryFilter(cat) {
@@ -1289,7 +1291,8 @@ function castStylePrefix() {
 // Generate canonical appearance sheet. Uploaded image (if any) is attached for likeness.
 async function generateAppearanceSheet(item, type, geminiKey) {
   const stylePrefix = castStylePrefix();
-  const isChar = type === 'character' || type === 'presenter';
+  const isNarrator = type === 'narrator';
+  const isChar = type === 'character' || type === 'presenter' || isNarrator;
   const isLoc = type === 'location' || type === 'setting';
   const isProduct = type === 'product';
   let promptText;
@@ -1370,11 +1373,14 @@ Return ONLY valid JSON (no markdown):
 // Generate representative image. Path A = no upload (text-only). Path B = with upload (likeness anchor).
 async function generateRepresentativeImage(item, type, geminiKey) {
   const stylePrefix = castStylePrefix();
-  const isChar = type === 'character' || type === 'presenter';
+  const isNarrator = type === 'narrator';
+  const isChar = type === 'character' || type === 'presenter' || isNarrator;
   const isProduct = type === 'product';
   let subject;
   if (isProduct) {
     subject = 'Hero product shot, centered on a clean neutral background, soft three-point studio lighting, eye-level. No people in frame.';
+  } else if (isNarrator) {
+    subject = 'Talking-head portrait of the narrator, head and shoulders, neutral studio backdrop, soft key light, direct eye contact with camera.';
   } else if (isChar) {
     subject = 'Full-body character portrait, subject centered, plain neutral background, eye-level shot, full body visible.';
   } else {

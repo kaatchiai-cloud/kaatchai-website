@@ -2440,6 +2440,20 @@ body:has(#drop-zone:not(.hidden)) {
           </select>
         </label>
       </div>
+      <!-- Narrator section — universal across all modes (mutex with character voices) -->
+      <div id="narrator-setup-card" class="cast-setup-card narrator-card" style="display:none;">
+        <h4 class="create-section-heading">🎙 Narrator <span class="cast-optional">(optional, mutex with character voices)</span></h4>
+        <p class="text-sm text-muted mb-md">If defined, the narrator voices everything. Characters appear in scenes but won't speak.</p>
+        <div id="narrator-slot" class="brand-slot"></div>
+        <div class="brand-add-row" id="narrator-add-row">
+          <button id="btn-narrator-add" class="btn-xs">+ Add narrator</button>
+        </div>
+        <div class="cast-action-row" id="narrator-action-row" style="display:none;">
+          <button id="btn-narrator-generate" class="btn-md primary" disabled>✨ Generate narrator</button>
+          <span id="narrator-action-hint" class="text-sm text-muted">Fill name and description to enable.</span>
+        </div>
+      </div>
+
       <!-- Characters & Locations Setup (Film mode) -->
       <div id="cast-setup-card" class="cast-setup-card" style="display:none;" data-mode="film">
         <h4 class="create-section-heading">👥 Characters &amp; Locations <span class="cast-optional">(optional, helps consistency)</span></h4>

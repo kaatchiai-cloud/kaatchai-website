@@ -1019,6 +1019,7 @@ function autoSaveCreateState() {
       product:   window.createJobState?.product   ? _castSerializeItem(window.createJobState.product)   : null,
       presenter: window.createJobState?.presenter ? _castSerializeItem(window.createJobState.presenter) : null,
       setting:   window.createJobState?.setting   ? _castSerializeItem(window.createJobState.setting)   : null,
+      narrator:  window.createJobState?.narrator  ? Object.assign(_castSerializeItem(window.createJobState.narrator), { onScreenStyle: window.createJobState.narrator.onScreenStyle || 'voice-only' }) : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
