@@ -492,6 +492,75 @@ function getSceneRefImageParts(scene) {
   window._castAiReleaseSlot = _aiReleaseSlot;
   window._castAiInflightCount = () => _aiInflightCount;
 
+  // Click-to-preview lightbox for any cast / brand / panel / library thumbnail.
+  // Opens a fullscreen modal with the image at native resolution.
+  function _castOpenImagePreview(dataUrl, label) {
+    if (!dataUrl) return;
+    let modal = document.getElementById('cast-image-preview');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'cast-image-preview';
+      modal.className = 'cast-image-preview';
+      modal.innerHTML = `
+        <div class="cast-image-preview-backdrop" data-action="close-preview"></div>
+        <div class="cast-image-preview-card">
+          <button class="cast-image-preview-close" data-action="close-preview" aria-label="Close">×</button>
+          <img class="cast-image-preview-img" alt="">
+          <div class="cast-image-preview-label"></div>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => {
+        if (e.target.dataset.action === 'close-preview') modal.hidden = true;
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
+      });
+    }
+    const imgEl = modal.querySelector('.cast-image-preview-img');
+    const lblEl = modal.querySelector('.cast-image-preview-label');
+    if (imgEl) imgEl.src = dataUrl;
+    if (lblEl) lblEl.textContent = label || '';
+    modal.hidden = false;
+  }
+  window.castOpenImagePreview = _castOpenImagePreview;
+
+  // Wire click-to-preview on any thumb under the document. Delegated, idempotent.
+  function _wireThumbPreviewDelegate() {
+    if (window._castThumbPreviewWired) return;
+    window._castThumbPreviewWired = true;
+    document.addEventListener('click', (e) => {
+      const thumb = e.target.closest(
+        '.cast-row-thumb img, .refs-panel-thumb img, .refs-modal-thumb img, .refs-library-thumb img'
+      );
+      if (!thumb) return;
+      // Skip if click was on a button overlay inside the thumb
+      if (e.target.closest('button')) return;
+      const src = thumb.getAttribute('src');
+      if (!src || !src.startsWith('data:image') && !src.startsWith('blob:') && !src.startsWith('http')) return;
+      // Pick a label from the closest card
+      const row = thumb.closest('[data-id], .cast-row, .refs-panel-row, .refs-library-card, .refs-modal-row');
+      let label = '';
+      if (row) {
+        const nameEl = row.querySelector('.cast-row-name, .refs-panel-name, .refs-library-name');
+        if (nameEl) label = (nameEl.textContent || '').trim();
+      }
+      _castOpenImagePreview(src, label);
+    });
+    // Cursor cue on hover
+    const styleId = 'cast-thumb-preview-cursor';
+    if (!document.getElementById(styleId)) {
+      const s = document.createElement('style');
+      s.id = styleId;
+      s.textContent = `.cast-row-thumb img, .refs-panel-thumb img, .refs-modal-thumb img, .refs-library-thumb img { cursor: zoom-in; }`;
+      document.head.appendChild(s);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _wireThumbPreviewDelegate);
+  } else {
+    _wireThumbPreviewDelegate();
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   //  G3 — IndexedDB image storage
   //  Cast images (representativeImage / uploadedImage / logo) move to IDB,
