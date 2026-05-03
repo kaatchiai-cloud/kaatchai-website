@@ -306,6 +306,10 @@ function navigateTo(view, pushHistory) {
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
   }
+  // Close canvas panel when leaving create page
+  if (currentView === 'create' && view !== 'create') {
+    try { if (typeof closeCanvasPanel === 'function') closeCanvasPanel(); } catch(_) {}
+  }
   // Clear reel status bar when leaving reel page
   if (currentView === 'reel' && view !== 'reel') {
     const reelStatus = $('reel-generate-status');

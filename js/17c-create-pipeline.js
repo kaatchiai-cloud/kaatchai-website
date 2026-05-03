@@ -905,6 +905,19 @@ function autoSaveCreateState() {
       selectedTemplate: selectedTemplate,
       characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
       environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
+      // Cast upfront flow — full sheets (text only; images persisted separately to avoid 5MB cap)
+      castCharacters: (window.createJobState?.characters || []).map(c => ({
+        id: c.id, name: c.name, userDescription: c.userDescription,
+        appearanceSheet: c.appearanceSheet, distinctiveTraits: c.distinctiveTraits,
+        ageRange: c.ageRange, build: c.build, locked: !!c.locked, libraryId: c.libraryId,
+        createdAt: c.createdAt, lockedAt: c.lockedAt,
+      })),
+      castLocations: (window.createJobState?.locations || []).map(l => ({
+        id: l.id, name: l.name, userDescription: l.userDescription,
+        appearanceSheet: l.appearanceSheet, distinctiveTraits: l.distinctiveTraits,
+        ageRange: l.ageRange, build: l.build, locked: !!l.locked, libraryId: l.libraryId,
+        createdAt: l.createdAt, lockedAt: l.lockedAt,
+      })),
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
@@ -1041,9 +1054,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
+      const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -1079,11 +1093,12 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'audio', 'done', 'Audio ready');
       updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Sending to Gemini…');
 
+      const _castPreambleVoice = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const transcribeBody = {
             contents: [{
               parts: [
                 { inline_data: { mime_type: 'audio/wav', data: base64Data } },
-                { text: createInputMode === 'podcast'
+                { text: _castPreambleVoice + (createInputMode === 'podcast'
                   ? `Transcribe this podcast audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 30-120 seconds each, splitting at natural topic or sentence boundaries.
 
 STRICT RULES:
@@ -1130,7 +1145,7 @@ Return ONLY a valid JSON array with no markdown formatting, in this exact struct
 
 Important:
 - sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.
-- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.` }
+- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.`) }
               ]
             }],
             generationConfig: { response_mime_type: 'application/json' },
@@ -1276,7 +1291,12 @@ Important:
         emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
         imgDataUrl: null,
         status: 'pending',
+        refCharacters: [],
+        refEnvironment: -1,
+        promptDirty: false,
       }));
+      // Auto-assign refs from bracket tokens in prompts
+      if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
       renderStoryboard();
 
       // ── Phase 4: Subtitle generation (animated mode only) ──
@@ -1664,7 +1684,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nEach description should be suitable for AI image generation.'}\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors, camera direction and motion"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
+              contents: [{ parts: [{ text: `${(typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : ''}For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nEach description should be suitable for AI image generation.'}\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors, camera direction and motion"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
               generationConfig: { temperature: 0.7 }
             })
           }
@@ -1697,6 +1717,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
       }
     }
 
+    if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
     renderStoryboard();
     updateCreateButtons();
     updateStepStates();
@@ -1988,11 +2009,6 @@ function renderSceneCard(scene, idx, ratio) {
     const card = document.createElement('div');
     card.className = 'scene-card';
 
-    const refThumbHtml = scene.refImageDataUrl
-      ? `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">`
-      : '';
-    const refLabel = scene.refImageDataUrl ? '✓ Reference set' : '';
-
     card.innerHTML = `
       <div class="scene-img" id="create-scene-img-${idx}" style="aspect-ratio:${ratio};">
         ${scene.imgDataUrl
@@ -2004,18 +2020,10 @@ function renderSceneCard(scene, idx, ratio) {
         <div class="scene-text">"${sanitize(scene.text)}"</div>
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
         <div class="scene-actions">
-          <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
           <button class="btn-download-img" style="font-size:0.68rem; padding:3px 8px; ${scene.imgDataUrl ? '' : 'display:none;'}">📥 Download</button>
-          <button class="btn-ref" style="font-size:0.68rem; padding:3px 8px;">📎 Ref Image</button>
-          <input type="file" class="ref-input" accept="image/*" style="display:none;">
           <span class="scene-status ${scene.status || ''}" id="create-scene-status-${idx}">
             ${scene.status === 'done' ? '✓ Done' : scene.status === 'generating' ? '⏳ Generating...' : scene.status === 'error' ? '✗ Error' : '○ Pending'}
           </span>
-        </div>
-        <div class="scene-ref-row" id="create-scene-ref-${idx}" style="${scene.refImageDataUrl ? '' : 'display:none;'}">
-          ${refThumbHtml}
-          <span class="ref-label">${refLabel}</span>
-          <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px; ${scene.refImageDataUrl ? '' : 'display:none;'}">✕</button>
         </div>
       </div>
     `;
@@ -2028,9 +2036,6 @@ function renderSceneCard(scene, idx, ratio) {
       });
     }
 
-    // Regenerate button
-    card.querySelector('.btn-regen').addEventListener('click', () => regenerateScene(idx));
-
     // Download individual image
     const btnDownloadImg = card.querySelector('.btn-download-img');
     if (btnDownloadImg) {
@@ -2040,60 +2045,6 @@ function renderSceneCard(scene, idx, ratio) {
         a.href = scene.imgDataUrl;
         a.download = `stori-scene-${idx + 1}.png`;
         a.click();
-      });
-    }
-
-    // Reference image upload
-    const refInput = card.querySelector('.ref-input');
-    const btnRef = card.querySelector('.btn-ref');
-    const refRow = card.querySelector('.scene-ref-row');
-    const btnRefRemove = card.querySelector('.btn-ref-remove');
-
-    btnRef.addEventListener('click', () => refInput.click());
-
-    refInput.addEventListener('change', async () => {
-      const file = refInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        scene.refImageDataUrl = e.target.result;
-        // Show thumbnail
-        refRow.style.display = '';
-        refRow.innerHTML = `
-          <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-          <span class="ref-label">⏳ Analyzing reference...</span>
-        `;
-        // Auto-update prompt based on reference image using Gemini
-        try {
-          await updatePromptFromReference(idx);
-          refRow.innerHTML = `
-            <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-            <span class="ref-label" style="color:#10b981;">✓ Prompt updated from reference</span>
-            <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>
-          `;
-          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => {
-            scene.refImageDataUrl = null;
-            refRow.style.display = 'none';
-          });
-        } catch (err) {
-          refRow.innerHTML = `
-            <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-            <span class="ref-label" style="color:#ef4444;">✗ ${err.message}</span>
-            <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>
-          `;
-          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => {
-            scene.refImageDataUrl = null;
-            refRow.style.display = 'none';
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (btnRefRemove) {
-      btnRefRemove.addEventListener('click', () => {
-        scene.refImageDataUrl = null;
-        refRow.style.display = 'none';
       });
     }
 
@@ -2589,9 +2540,6 @@ let createBgmWavesurfer = null;
 function initCreateBgmWaveform(url) {
   const container = $('create-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
-  // #15 Hide faux wave, show real WaveSurfer waveform
-  const fauxWave = $('create-bgm-faux-wave');
-  if (fauxWave) fauxWave.style.display = 'none';
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
@@ -3256,8 +3204,6 @@ function openCanvasPanel() {
   // Class on <body> so selectors can scope every viewport-fixed overlay
   // (panel, agent panel, right pane, scroll-lock) under one parent.
   document.body.classList.add('canvas-active');
-  const badge = $('canvas-panel-mode-badge');
-  if (badge) badge.textContent = mode === 'animated' ? 'Animated' : 'Illustrated';
   CanvasGraph.mount('create-canvas-step', createScenes, mode, {
     geminiKey: getCreateGeminiKey(),
     job: (typeof window !== 'undefined' && window.createJobState) || { bgmSkipped: false, audioSubSkipped: false },
@@ -3281,6 +3227,96 @@ function closeCanvasPanel() {
   }
 }
 
+// ── Canvas video prompt helpers ─────────────────────────────────────────────
+
+async function _callGeminiForVideoPrompts(scene, geminiKey) {
+  const FALLBACK = { camera: '', motion: '', environment: '', negative: '' };
+  if (!geminiKey || !scene.imgDataUrl) return FALLBACK;
+  const rawB64 = scene.imgDataUrl.includes(',') ? scene.imgDataUrl.split(',')[1] : scene.imgDataUrl;
+  const mimeType = scene.imgDataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const systemPrompt =
+    'Analyze this image and scene description, then generate structured motion prompts for an AI video model (Kling I2V).\n\n' +
+    'Scene description: "' + (scene.prompt || 'A cinematic scene') + '"\n\n' +
+    'Return ONLY valid JSON with exactly these 4 fields:\n' +
+    '{"camera":"Camera movement (e.g. slow dolly-in, aerial crane, panning left, static shot)","motion":"Subject and environment motion (e.g. person walks, leaves flutter, coat sways)","environment":"Atmosphere details (e.g. golden hour light, gentle fog, bokeh background)","negative":"Things to avoid (e.g. blur, jitter, watermark, abrupt cuts)"}\n\n' +
+    'Keep each field to 1-2 short sentences. Return ONLY valid JSON, no markdown.';
+  try {
+    const resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [
+          { text: systemPrompt },
+          { inline_data: { mime_type: mimeType, data: rawB64 } }
+        ]}] })
+      }
+    );
+    if (!resp.ok) throw new Error('Gemini ' + resp.status);
+    const data = await resp.json();
+    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      camera: parsed.camera || '',
+      motion: parsed.motion || '',
+      environment: parsed.environment || '',
+      negative: parsed.negative || ''
+    };
+  } catch (e) {
+    console.warn('[cgFillVideoPrompts] Gemini failed for scene, using empty prompts:', e.message);
+    return FALLBACK;
+  }
+}
+
+window.cgFillVideoPrompts = async function () {
+  if (!createScenes || !createScenes.length) return;
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('filling');
+  const key = getCreateGeminiKey();
+  const toFill = createScenes.filter(s => s.imgDataUrl);
+  await Promise.all(toFill.map(async scene => {
+    const result = await _callGeminiForVideoPrompts(scene, key);
+    // Store on the active VID instance
+    const vids = scene.videoInstances || [];
+    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    if (vid) {
+      vid.cameraPrompt = result.camera;
+      vid.motionPrompt = result.motion;
+      vid.environmentPrompt = result.environment;
+      vid.negativePrompt = result.negative;
+    }
+  }));
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('ready');
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+};
+
+window.cgLaunchVideoAgent = async function () {
+  if (!createScenes || !createScenes.length) return;
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('running');
+  const key = getCreateGeminiKey();
+  const toAnimate = createScenes.filter(s => s.imgDataUrl && !s.videoUrl);
+  await Promise.all(toAnimate.map(async scene => {
+    const sceneIdx = createScenes.indexOf(scene);
+    const vids = scene.videoInstances || [];
+    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    if (vid) {
+      const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+      scene.motionPrompt = parts.join('. ') || scene.prompt || '';
+      scene.negativePrompt = vid.negativePrompt || '';
+    }
+    try {
+      await animateScenes([scene], () => {}, key);
+      if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
+      if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
+    } catch (e) {
+      console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
+    }
+  }));
+  // Populate the legacy video grid step
+  if (typeof renderCreateVideoGrid === 'function') renderCreateVideoGrid();
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+};
+
 if (typeof window !== 'undefined') {
   window.openCanvasPanel = openCanvasPanel;
   window.closeCanvasPanel = closeCanvasPanel;
@@ -3296,62 +3332,6 @@ btnCreateRetryFailed.addEventListener('click', async () => {
 // Generation keeps running in the background; createScenes accumulates
 // imgDataUrl as each image lands, so re-opening the canvas (via re-click on
 // Launch Image Agent) shows the current state.
-const btnCanvasBack = $('btn-canvas-back');
-if (btnCanvasBack) {
-  btnCanvasBack.addEventListener('click', () => closeCanvasPanel());
-}
-
-// ── P02 — Floating chrome wiring (Run / Cancel / batch stepper / progress) ──
-// The new top-pill (index.html) replaces the old Tidy/-/%/+/Fit row. Run kicks
-// `launchImageAgent` (the canonical entry); Cancel flips `generateRunning = false`
-// (every gen loop checks this flag — it's the de-facto cancel hook today, though
-// not named "cancel" anywhere). Active count + total/node progress come from
-// `updateSceneCardStatus` which is already invoked across the pipeline.
-(function wireFloatingChrome() {
-  const pillRun    = document.getElementById('cg-pill-run');
-  const pillCancel = document.getElementById('cg-pill-cancel');
-  const stepUp     = document.getElementById('cg-pill-batch-up');
-  const stepDown   = document.getElementById('cg-pill-batch-down');
-  const stepNum    = document.getElementById('cg-pill-batch-num');
-
-  if (pillRun) {
-    pillRun.addEventListener('click', () => {
-      // Idempotent — launchImageAgent guards against double-start.
-      if (typeof launchImageAgent === 'function') launchImageAgent();
-      cgUpdateChromeFromPipeline();
-    });
-  }
-
-  if (pillCancel) {
-    pillCancel.addEventListener('click', () => {
-      // Cancel hook: there is no canonical `cancelImageGeneration()` today.
-      // Flipping `generateRunning = false` causes every `if (!generateRunning) break;`
-      // check inside `runImageGeneration` to abort the loop on the next iteration.
-      // In-flight `generateSceneImage` HTTP calls do NOT have an AbortController
-      // (P02 risk #2), so the current request finishes; subsequent scenes are
-      // skipped. Document this as a known limitation — to be improved in a
-      // future phase that introduces AbortController plumbing.
-      if (typeof generateRunning !== 'undefined' && generateRunning) {
-        // eslint-disable-next-line no-global-assign
-        generateRunning = false;
-      }
-      pillCancel.disabled = true;
-      cgUpdateChromeFromPipeline();
-    });
-  }
-
-  // Batch stepper — UI-only counter for now (mock shows 1; pipeline doesn't
-  // accept a batch arg yet). Stored on window so future phases can read it.
-  let batch = 1;
-  if (typeof window !== 'undefined') window.createCanvasBatch = batch;
-  function setBatch(v) {
-    batch = Math.max(1, Math.min(9, v|0));
-    if (stepNum) stepNum.textContent = String(batch);
-    if (typeof window !== 'undefined') window.createCanvasBatch = batch;
-  }
-  if (stepUp)   stepUp.addEventListener('click',   () => setBatch(batch + 1));
-  if (stepDown) stepDown.addEventListener('click', () => setBatch(batch - 1));
-})();
 
 // Pull live state from the pipeline and push into the floating chrome
 // (active count, progress %, cancel button enabled state). Called on every
@@ -3366,28 +3346,6 @@ function cgUpdateChromeFromPipeline() {
   // exposed today.)
   if (CanvasGraph.chromeSetActiveCount) CanvasGraph.chromeSetActiveCount(running ? 1 : 0);
 
-  // Cancel button enabled state.
-  const pillCancel = document.getElementById('cg-pill-cancel');
-  if (pillCancel) pillCancel.disabled = !running;
-
-  // Progress strip — Total% = (done images) / (total images) across all scenes.
-  // Node% = current scene's progress (binary today: 0 if generating, 100 if done,
-  // otherwise unknown — show 0). Shows whenever generation is running OR there
-  // is any non-zero progress; hides when fully idle and no images yet.
-  if (scenes && scenes.length) {
-    const total = scenes.length;
-    const done  = scenes.filter(s => s.status === 'done').length;
-    const generating = scenes.findIndex(s => s.status === 'generating');
-    const totalPct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const nodePct  = generating >= 0 ? 50 : (totalPct === 100 ? 100 : 0);
-    if (running || totalPct > 0) {
-      if (CanvasGraph.chromeShowProgress) CanvasGraph.chromeShowProgress(totalPct, nodePct);
-    } else {
-      if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
-    }
-  } else {
-    if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
-  }
 }
 
 // Hook into the existing per-scene status update call site. updateSceneCardStatus
@@ -3436,6 +3394,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   if (!panel) return;
   if (collapsed) {
     panel.classList.add('collapsed');
+    panel.setAttribute('data-collapsed', '1');
     document.documentElement.setAttribute('data-agent-collapsed', '1');
     if (btn) {
       btn.setAttribute('aria-expanded', 'false');
@@ -3444,6 +3403,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
     }
   } else {
     panel.classList.remove('collapsed');
+    panel.removeAttribute('data-collapsed');
     document.documentElement.removeAttribute('data-agent-collapsed');
     if (btn) {
       btn.setAttribute('aria-expanded', 'true');
@@ -3461,7 +3421,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   // Apply initial state from FOUC-safe inline-script flag (or read fresh).
   let initial = false;
   try { initial = localStorage.getItem('stori_agent_panel_collapsed') === '1'; } catch (e) {}
-  if (initial) panel.classList.add('collapsed');
+  if (initial) { panel.classList.add('collapsed'); panel.setAttribute('data-collapsed', '1'); }
   if (btn) {
     btn.setAttribute('aria-expanded', initial ? 'false' : 'true');
     btn.setAttribute('aria-label', initial ? 'Expand agents panel' : 'Collapse agents panel');
@@ -3470,7 +3430,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const collapsed = !panel.classList.contains('collapsed');
+    const collapsed = panel.getAttribute('data-collapsed') !== '1';
     setCreateAgentPanelCollapsed(collapsed);
   });
 })();

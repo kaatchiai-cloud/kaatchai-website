@@ -131,6 +131,11 @@ function syncMirrorFields(scene, mode) {
       || sb.imageInstances.find(i => i.isActive)
       || sb.imageInstances[0];
     scene.imgDataUrl = renderImg?.imgDataUrl || null;
+    if (renderImg) {
+      if (renderImg.imgDataUrl) scene.status = 'done';
+      else if (renderImg.status === 'error') scene.status = 'error';
+      else if (renderImg.status === 'generating') scene.status = 'generating';
+    }
     scene.videoUrl = null;
     scene.videoClips = null;
   } else {
@@ -139,6 +144,11 @@ function syncMirrorFields(scene, mode) {
       || sb.imageInstances.find(i => i.isActive)
       || sb.imageInstances[0];
     scene.imgDataUrl = renderImg?.imgDataUrl || null;
+    if (renderImg) {
+      if (renderImg.imgDataUrl) scene.status = 'done';
+      else if (renderImg.status === 'error') scene.status = 'error';
+      else if (renderImg.status === 'generating') scene.status = 'generating';
+    }
 
     const renderVid = (scene.videoInstances || []).find(v => v.isRenderActive)
       || (scene.videoInstances || []).find(v => v.isActive)

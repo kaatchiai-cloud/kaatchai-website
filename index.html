@@ -2140,6 +2140,18 @@ body:has(#drop-zone:not(.hidden)) {
           <div class="emoji-reel-rows" id="create-emoji-reel-rows"></div>
           <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
         </div>
+        <!-- References panel (Characters & Locations) — read-only on timeline, interactive in canvas -->
+        <div id="create-refs-panel" class="refs-panel" data-surface="timeline" style="display:none;">
+          <div class="refs-panel-header">
+            <span class="refs-panel-title">REFERENCES</span>
+            <button class="refs-panel-add-btn" id="refs-panel-add-btn" disabled title="Open canvas to add">+ Add</button>
+          </div>
+          <div class="refs-panel-tabs">
+            <button class="refs-panel-tab active" data-tab="characters">Characters</button>
+            <button class="refs-panel-tab" data-tab="locations">Locations</button>
+          </div>
+          <div class="refs-panel-list" id="refs-panel-list"></div>
+        </div>
       </div>
       <div id="create-workflow">
 
@@ -2394,6 +2406,43 @@ body:has(#drop-zone:not(.hidden)) {
           </select>
         </label>
       </div>
+      <!-- Characters & Locations Setup (defined upfront, before storyboard) -->
+      <div id="cast-setup-card" class="cast-setup-card" style="display:none;">
+        <h4 class="create-section-heading">👥 Characters &amp; Locations <span class="cast-optional">(optional, helps consistency)</span></h4>
+        <p class="text-sm text-muted mb-md">Define recurring characters and locations. AI generates a canonical appearance and a reference image. Lock them to maintain visual consistency across all scenes.</p>
+        <div class="cast-counts-row">
+          <label class="form-label">Characters:
+            <select id="cast-char-count" class="text-sm">
+              <option value="0" selected>0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+          <label class="form-label">Locations:
+            <select id="cast-loc-count" class="text-sm">
+              <option value="0" selected>0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+          <span class="text-xs text-muted" id="cast-cap-hint">Combined max: 6</span>
+        </div>
+        <input type="file" id="cast-img-upload" accept="image/*" hidden>
+        <div id="cast-char-rows" class="cast-rows"></div>
+        <div id="cast-loc-rows" class="cast-rows"></div>
+        <div class="cast-action-row" id="cast-action-row" style="display:none;">
+          <button id="btn-cast-generate" class="btn-md primary" disabled>✨ Generate appearances</button>
+          <span id="cast-action-hint" class="text-sm text-muted">Fill all names and descriptions to enable.</span>
+        </div>
+      </div>
       <div class="agent-launch-row visible" id="create-input-launch-row">
         <span class="agent-launch-summary" id="create-script-launch-hint">Import audio to begin</span>
         <button id="btn-create-transcribe" class="agent-launch-btn" disabled>▶ Script, Storyboard & Prompt Agent</button>
@@ -2622,37 +2671,7 @@ body:has(#drop-zone:not(.hidden)) {
       <div id="create-canvas-panel">
         <!-- ── P02 Floating chrome (outside #graph per ADR-9) ── -->
 
-        <!-- Top action pill (top-center) -->
-        <div class="cg-top-pill" role="toolbar" aria-label="Canvas actions">
-          <button type="button" id="cg-pill-project" class="cg-pill-btn" title="Project">⊞ Project</button>
-          <button type="button" id="cg-pill-star"    class="cg-pill-btn" title="Favorite" aria-label="Favorite">★</button>
-          <button type="button" id="cg-pill-undo"    class="cg-pill-btn" title="Undo" aria-label="Undo">↶</button>
-          <button type="button" id="cg-pill-redo"    class="cg-pill-btn" title="Redo" aria-label="Redo">↷</button>
-          <button type="button" id="cg-pill-share"   class="cg-pill-btn" title="Share" aria-label="Share">⤴</button>
-          <span class="cg-drag-handle" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span>
-          <div class="cg-pill-stepper" role="group" aria-label="Batch size">
-            <button type="button" id="cg-pill-batch-down" class="cg-step" aria-label="Decrease batch">▼</button>
-            <span class="cg-step-num" id="cg-pill-batch-num" aria-live="polite">1</span>
-            <button type="button" id="cg-pill-batch-up" class="cg-step" aria-label="Increase batch">▲</button>
-          </div>
-          <button type="button" id="cg-pill-run" class="cg-pill-btn cg-pill-primary" title="Run">▶ Run</button>
-          <button type="button" id="cg-pill-run-menu" class="cg-pill-btn cg-pill-chev" title="Run options" aria-label="Run options">▾</button>
-          <button type="button" id="cg-pill-cancel" class="cg-pill-btn cg-pill-danger" title="Cancel" aria-label="Cancel" disabled>✕</button>
-          <div class="cg-pill-status" id="cg-pill-status" aria-live="polite">
-            <span class="cg-status-dot" aria-hidden="true"></span>
-            <span class="cg-status-text">0 active</span>
-          </div>
-          <button type="button" id="cg-pill-pane-toggle" class="cg-pill-btn" title="Toggle properties pane" aria-label="Toggle properties pane">⊟</button>
-          <button type="button" id="btn-canvas-back" class="cg-pill-btn" title="Back to storyboard" aria-label="Back to storyboard">← Back</button>
-          <span id="canvas-panel-mode-badge" class="canvas-panel-mode-badge"></span>
-        </div>
-
-        <!-- Top-right progress strip (hidden when idle) -->
-        <div class="cg-progress-strip" id="cg-progress-strip" hidden>
-          <div>Total <strong id="cg-prog-total">0%</strong></div>
-          <div class="cg-progress-bar"><span id="cg-prog-fill"></span></div>
-          <div>Node <strong id="cg-prog-node">0%</strong></div>
-        </div>
+        <!-- Minimal canvas controls (top-left) -->
 
         <!-- Bottom-left telemetry -->
         <div class="cg-telemetry" id="cg-telemetry" aria-hidden="true">

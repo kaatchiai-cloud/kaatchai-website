@@ -32,19 +32,21 @@ async function generateKlingJWT() {
 }
 
 // Submit Kling i2v task — no retry (retry creates duplicate billable tasks on 429)
-async function submitKlingI2V(base64DataUrl, prompt, duration) {
+async function submitKlingI2V(base64DataUrl, prompt, duration, negativePrompt) {
   const rawB64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
   const jwt = await generateKlingJWT();
+  const body = {
+    model_name: 'kling-v2-5-turbo',
+    image: rawB64,
+    prompt: prompt.slice(0, 2500),
+    duration: String(duration),
+    mode: 'pro'
+  };
+  if (negativePrompt && negativePrompt.trim()) body.negative_prompt = negativePrompt.trim().slice(0, 2500);
   const resp = await fetch(`${KLING_BASE}/videos/image2video`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
-    body: JSON.stringify({
-      model_name: 'kling-v2-5-turbo',
-      image: rawB64,
-      prompt: prompt.slice(0, 2500),
-      duration: String(duration),
-      mode: 'pro'
-    })
+    body: JSON.stringify(body)
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
@@ -182,7 +184,7 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
 
   let firstTaskId;
   try {
-    firstTaskId = await submitKlingI2V(scene.imgDataUrl, motionPrompt, clipPlan[0]);
+    firstTaskId = await submitKlingI2V(scene.imgDataUrl, motionPrompt, clipPlan[0], scene.negativePrompt);
   } catch (err) {
     console.error(`[Kling] Scene ${sceneIdx + 1} submit failed:`, err.message);
     scene.videoError = err.message;

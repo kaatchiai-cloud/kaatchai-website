@@ -55,8 +55,8 @@ const COL_SB         = 80;
 const COL_IMG        = 860;    // 80 + 520 + 260
 const COL_LAUNCH     = 1640;   // 860 + 520 + 260
 const COL_VID        = 2100;   // 1640 + 200 + 260
-const COL_FINAL_ANIM = 2880;   // 2100 + 520 + 260  (BGM/Sub removed)
-const COL_FINAL_ILL  = 1640;   // 860 + 520 + 260   (BGM/Sub removed)
+const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
+const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
 
 // Spacing
 const ROW_GAP   = 60;
@@ -65,11 +65,11 @@ const TOP_PAD   = 40;
 const SAFE_PAD  = 60;             // safe-area inside wrapper for fitToView
 
 // Variant tray geometry. Thumbs are big enough to recognise the image at a glance.
-const THUMB_W       = 140;
-const THUMB_H       = 80;     // ~16:9 at the new width
+const THUMB_W       = 240;
+const THUMB_H       = 135;    // ~16:9 at the new width
 const THUMB_GAP     = 10;
 const THUMB_PAD     = 14;
-const THUMBS_PER_ROW = 3;     // wider thumbs → fewer per row
+const THUMBS_PER_ROW = 2;     // wider thumbs → fewer per row
 const STRIP_GAP_TOP = 8;          // gap between active card bottom and strip top
 const TRAY_PAD_X    = 16;
 const TRAY_PAD_TOP  = 16;
@@ -131,6 +131,9 @@ function freshGraphState() {
     bgmEl: null,
     subEl: null,
     finalEl: null,
+
+    // Two-phase video generation: idle → filling → ready → running → done
+    videoPhase: 'idle',
 
     // chrome
     cgChrome: null,
@@ -317,25 +320,24 @@ function runLayout() {
     const bandTop = curY;
     const innerTop = bandTop + BAND_PAD;
 
-    // SB: place at COL_SB, vertically centered to its own header
+    // SB: X is user-preserved; Y is always canonical to the band row
     if (sb) {
-      sb.canvasPosition = sb.canvasPosition || { x: COL_SB, y: innerTop };
-      // honour saved position on x but recompute y (column band is canonical)
-      if (typeof sb.canvasPosition.y !== 'number') sb.canvasPosition.y = innerTop;
+      if (!sb.canvasPosition) sb.canvasPosition = { x: COL_SB, y: innerTop };
+      sb.canvasPosition.y = innerTop;
       if (typeof sb.canvasPosition.x !== 'number') sb.canvasPosition.x = COL_SB;
 
-      // Position images for active SB only (others share the slot)
+      // Position images — X preserved, Y always canonical
       (sb.imageInstances || []).forEach(im => {
-        im.canvasPosition = im.canvasPosition || { x: COL_IMG, y: innerTop };
-        if (typeof im.canvasPosition.y !== 'number') im.canvasPosition.y = innerTop;
+        if (!im.canvasPosition) im.canvasPosition = { x: COL_IMG, y: innerTop };
+        im.canvasPosition.y = innerTop;
         if (typeof im.canvasPosition.x !== 'number') im.canvasPosition.x = COL_IMG;
       });
     }
 
-    // Videos
+    // Videos — X preserved, Y always canonical
     (scene.videoInstances || []).forEach(v => {
-      v.canvasPosition = v.canvasPosition || { x: COL_VID, y: innerTop };
-      if (typeof v.canvasPosition.y !== 'number') v.canvasPosition.y = innerTop;
+      if (!v.canvasPosition) v.canvasPosition = { x: COL_VID, y: innerTop };
+      v.canvasPosition.y = innerTop;
       if (typeof v.canvasPosition.x !== 'number') v.canvasPosition.x = COL_VID;
     });
 
@@ -727,7 +729,7 @@ function ensureImgVariantTray(scene, sceneIdx, sb) {
   // Position tray to wrap active img card
   const activeImg = (sb.imageInstances || []).find(i => i.isRenderActive)
                  || (sb.imageInstances || [])[0];
-  const x = COL_IMG - TRAY_PAD_X;
+  const x = (activeImg?.canvasPosition?.x ?? COL_IMG) - TRAY_PAD_X;
   const y = (activeImg && activeImg.canvasPosition && typeof activeImg.canvasPosition.y === 'number')
             ? activeImg.canvasPosition.y - TRAY_PAD_TOP
             : (sb.canvasPosition?.y ?? scene._innerTop ?? TOP_PAD) - TRAY_PAD_TOP;
@@ -777,8 +779,8 @@ function ensureImgVariantTray(scene, sceneIdx, sb) {
         }
         strip.appendChild(t);
       });
-      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-img', 'aria-label': 'Add image variant — generates a new image' });
-      add.innerHTML = '<span class="cg-thumb-add-icon">+</span><span class="cg-thumb-add-label">Regenerate</span>';
+      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-img', 'aria-label': 'Add image variant' });
+      add.innerHTML = '<span class="cg-thumb-add-icon">+</span>';
       strip.appendChild(add);
     }
   }
@@ -813,7 +815,8 @@ function ensureVidVariantTray(scene, sceneIdx, sb, activeImg) {
   const baseY = (renderActive && renderActive.canvasPosition && typeof renderActive.canvasPosition.y === 'number')
                 ? renderActive.canvasPosition.y - TRAY_PAD_TOP
                 : (scene._innerTop ?? TOP_PAD) - TRAY_PAD_TOP;
-  tray.style.left = (COL_VID - TRAY_PAD_X) + 'px';
+  const baseX = (renderActive?.canvasPosition?.x ?? COL_VID) - TRAY_PAD_X;
+  tray.style.left = baseX + 'px';
   tray.style.top = baseY + 'px';
   tray.style.width = trayW + 'px';
   tray.style.height = trayH + 'px';
@@ -849,8 +852,8 @@ function ensureVidVariantTray(scene, sceneIdx, sb, activeImg) {
         t.appendChild(play);
         strip.appendChild(t);
       });
-      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-vid', 'aria-label': 'Add video variant — generates a new video' });
-      add.innerHTML = '<span class="cg-thumb-add-icon">+</span><span class="cg-thumb-add-label">Re-animate</span>';
+      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-vid', 'aria-label': 'Add video variant' });
+      add.innerHTML = '<span class="cg-thumb-add-icon">+</span>';
       strip.appendChild(add);
     }
   }
@@ -937,6 +940,42 @@ function buildSimpleNode(cls, sockType, label, opts) {
   return node;
 }
 
+function _buildLaunchBodyHtml(phase) {
+  if (phase === 'idle') {
+    return '<div class="cg-launch-body">' +
+      '<button type="button" class="cg-launch-btn cg-launch-btn--prompts">✨ Gen Video Prompts</button>' +
+    '</div>';
+  }
+  if (phase === 'filling') {
+    return '<div class="cg-launch-body cg-launch-body--status">' +
+      '<div class="cg-launch-spinner"></div>' +
+      '<span class="cg-launch-status-lbl">Analyzing scenes…</span>' +
+    '</div>';
+  }
+  if (phase === 'ready') {
+    const n = (g.scenes || []).filter(s => {
+      const vids = s.videoInstances || [];
+      const v = vids.find(vi => vi.isRenderActive) || vids[0];
+      return v && v.cameraPrompt;
+    }).length;
+    return '<div class="cg-launch-body cg-launch-body--ready">' +
+      '<span class="cg-launch-status-lbl">' + n + ' prompt' + (n === 1 ? '' : 's') + ' ready</span>' +
+      '<button type="button" class="cg-launch-btn cg-launch-btn--videos">🚀 Launch Video Agent</button>' +
+    '</div>';
+  }
+  if (phase === 'running') {
+    const done = (g.scenes || []).filter(s => s.videoUrl).length;
+    const total = (g.scenes || []).length;
+    return '<div class="cg-launch-body cg-launch-body--status">' +
+      '<div class="cg-launch-spinner"></div>' +
+      '<span class="cg-launch-status-lbl">Generating ' + done + ' / ' + total + '</span>' +
+    '</div>';
+  }
+  return '<div class="cg-launch-body cg-launch-body--done">' +
+    '<span class="cg-launch-status-lbl cg-launch-done-lbl">✓ All videos ready</span>' +
+  '</div>';
+}
+
 function renderLaunchNode() {
   if (g.mode !== 'animated') {
     if (g.launchEl && g.launchEl.parentNode) g.launchEl.parentNode.removeChild(g.launchEl);
@@ -944,24 +983,32 @@ function renderLaunchNode() {
     g.nodeEls.delete('cg-launch');
     return;
   }
-  let entry = g.nodeEls.get('cg-launch');
-  if (!entry) {
-    const node = buildSimpleNode('cg-node--launch', 'video', '🚀 Launch', {
+
+  const phase = g.videoPhase || 'idle';
+  const phaseSig = phase === 'running'
+    ? 'running:' + (g.scenes || []).filter(s => s.videoUrl).length
+    : phase;
+
+  if (!g.launchEl || !g.launchEl.isConnected) {
+    const node = buildSimpleNode('cg-node--launch', 'video', '⚡ Video Agent', {
       w: LAUNCH_W,
       h: LAUNCH_H,
       hasIn: false,
       hasOut: true,
-      bodyHtml:
-        '<div class="cg-launch-body">' +
-          '<button type="button" class="cg-launch-btn">Generate Videos</button>' +
-        '</div>',
+      bodyHtml: _buildLaunchBodyHtml(phase),
     });
     node.dataset.id = 'cg-launch';
     node.dataset.type = 'launch';
+    node.dataset.phase = phaseSig;
     g.graphLayerEl.appendChild(node);
     g.nodeEls.set('cg-launch', { el: node, type: 'launch' });
     g.launchEl = node;
+  } else if (g.launchEl.dataset.phase !== phaseSig) {
+    const body = g.launchEl.querySelector('.cg-node-body');
+    if (body) body.innerHTML = _buildLaunchBodyHtml(phase);
+    g.launchEl.dataset.phase = phaseSig;
   }
+
   const pos = window.createLaunchAgentPosition || { x: COL_LAUNCH, y: (g.chromeMidY || TOP_PAD) - LAUNCH_H / 2 };
   placeNode(g.launchEl, pos.x, pos.y);
 }
@@ -1124,7 +1171,9 @@ function drawCurveXY(x1, y1, x2, y2, type, status, fromId, toId) {
     path.setAttribute('opacity', '0.9');
   }
   const isSel = (fromId && g.selectedIds.has(fromId)) || (toId && g.selectedIds.has(toId));
-  path.setAttribute('stroke-width', isSel ? '1.8' : '1.6');
+  const isFinal = type === 'final';
+  const isImage = type === 'image';
+  path.setAttribute('stroke-width', isFinal ? (isSel ? '4' : '3') : isImage ? (isSel ? '3' : '2.5') : (isSel ? '1.8' : '1.6'));
   path.setAttribute('stroke-linecap', 'round');
   path.classList.add('cg-curve');
   if (fromId) path.dataset.from = fromId;
@@ -1314,7 +1363,7 @@ function attachEvents() {
   g.onMouseDown = function (e) {
     if (e.button !== 0) return;
     const target = e.target;
-    if (target.closest('.cg-pill-btn, .cg-zd-btn, .cg-pill-stepper, .cg-pill-status, .cg-progress-strip, .cg-telemetry, .cg-zoom-dock, .cg-top-pill, .cg-zoom-cursor-menu, .cg-zoom-pct-menu, .cg-context-menu, .cg-sel-toolbar, .cg-right-pane')) return;
+    if (target.closest('.cg-pill-btn, .cg-zd-btn, .cg-pill-stepper, .cg-pill-status, .cg-telemetry, .cg-zoom-dock, .cg-top-pill, .cg-zoom-cursor-menu, .cg-zoom-pct-menu, .cg-context-menu, .cg-sel-toolbar, .cg-right-pane')) return;
 
     // Drag a node — by header OR by any non-interactive part of the card.
     // Interactive children (textarea / button / input / sockets / thumbs / tabs /
@@ -1329,6 +1378,7 @@ function attachEvents() {
         const id = node.dataset.id;
         // initiate drag
         g.dragNodeId = id;
+        g.graphLayerEl.classList.add('cg-dragging');
         g.dragStartPx = { x: e.clientX, y: e.clientY };
         const inst = findInstance(id);
         let pos = null;
@@ -1421,6 +1471,7 @@ function attachEvents() {
     }
     if (g.dragNodeId) {
       g.dragNodeId = null;
+      g.graphLayerEl.classList.remove('cg-dragging');
       triggerSave();
     }
     if (g.marquee) {
@@ -1464,19 +1515,20 @@ function attachEvents() {
       return;
     }
 
-    // Thumb click in IMG strip
+    // Thumb click in IMG strip — + opens right panel for the active IMG node
     const thumbAddImg = target.closest('[data-role="add-img"]');
     if (thumbAddImg) {
       e.preventDefault();
       const tray = thumbAddImg.closest('.cg-variant-tray');
       const sbId = tray && tray.dataset.id ? tray.dataset.id.slice('tray-img-'.length) : null;
       if (sbId) {
-        let scene = null;
         (g.scenes || []).forEach(s => {
           const sb = (s.storyboardInstances || []).find(x => x.id === sbId);
-          if (sb) scene = s;
+          if (sb) {
+            const activeImg = (sb.imageInstances || []).find(x => x.isActive);
+            if (activeImg) selectNode(activeImg.id);
+          }
         });
-        if (scene) window.imgActions.addVariation(scene, sbId);
       }
       return;
     }
@@ -1497,7 +1549,7 @@ function attachEvents() {
       return;
     }
 
-    // Thumb click in VID strip
+    // Thumb click in VID strip — + opens right panel for the active VID node
     const thumbAddVid = target.closest('[data-role="add-vid"]');
     if (thumbAddVid) {
       e.preventDefault();
@@ -1505,7 +1557,7 @@ function attachEvents() {
       const srcId = tray && tray.dataset.id ? tray.dataset.id.slice('tray-vid-'.length) : null;
       if (srcId) {
         const inst = findInstance(srcId);
-        if (inst && inst.scene) window.vidActions.addVariation(inst.scene, srcId);
+        if (inst) selectNode(inst.vid ? inst.vid.id : srcId);
       }
       return;
     }
@@ -1548,10 +1600,16 @@ function attachEvents() {
       return;
     }
 
-    // Launch button
-    if (target.closest('.cg-launch-btn')) {
+    // Launch button — phase 1: generate prompts
+    if (target.closest('.cg-launch-btn--prompts')) {
       e.preventDefault();
-      if (typeof window.launchImageAgent === 'function') window.launchImageAgent();
+      if (typeof window.cgFillVideoPrompts === 'function') window.cgFillVideoPrompts();
+      return;
+    }
+    // Launch button — phase 2: launch video agent
+    if (target.closest('.cg-launch-btn--videos')) {
+      e.preventDefault();
+      if (typeof window.cgLaunchVideoAgent === 'function') window.cgLaunchVideoAgent();
       return;
     }
 
@@ -1879,47 +1937,7 @@ function cgCloseContextMenu() {
 }
 
 function cgUpdateSelToolbar() {
-  if (!g) return;
-  if (g.selectedIds.size !== 1 || !g.selectedId) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  const id = g.selectedId;
-  const entry = g.nodeEls.get(id);
-  if (!entry) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  const items = cgGetMenuItems(id);
-  if (items.length === 0) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  let bar = g.selToolbarEl;
-  if (!bar) {
-    bar = el('div', 'cg-sel-toolbar');
-    g.graphLayerEl.appendChild(bar);
-    g.selToolbarEl = bar;
-  }
-  // Rebuild items only if signature changed
-  const sig = id + '|' + items.map(i => i.label).join('|');
-  if (bar.dataset._sig !== sig) {
-    bar.dataset._sig = sig;
-    bar.innerHTML = '';
-    items.forEach(item => {
-      const btn = el('button', 'cg-toolbar-btn' + (item.danger ? ' cg-toolbar-btn--danger' : ''), { type: 'button' });
-      btn.textContent = item.label;
-      btn.addEventListener('click', (e) => { e.stopPropagation(); try { item.action(); } catch (err) { console.warn('toolbar action failed:', err); } });
-      bar.appendChild(btn);
-    });
-  }
-  // Position
-  const r = nodeRect(id);
-  if (!r) return;
-  const x = r.x + r.w / 2;
-  const y = r.y - 16;
-  bar.style.left = x + 'px';
-  bar.style.top = y + 'px';
+  cgRemoveSelToolbar();
 }
 
 function cgRemoveSelToolbar() {
@@ -2009,9 +2027,6 @@ function cgRenderProperties() {
       <div class="cg-rp-tune-row">
         <button class="cg-rp-btn cg-rp-btn-primary" data-rp-act="img-regen-with-tune">▶ Regenerate with this prompt</button>
       </div>
-      <div class="cg-rp-section-label">Settings</div>
-      <div class="cg-rp-row"><span class="cg-rp-k">Aspect ratio</span><span class="cg-rp-v">${safe(inst.img.aspectRatio || '16:9')}</span></div>
-      <div class="cg-rp-row"><span class="cg-rp-k">Seed</span><span class="cg-rp-v">${inst.img.seed != null ? inst.img.seed : '—'}</span></div>
       <div class="cg-rp-actions">
         <button class="cg-rp-btn" data-rp-act="img-regen">Regenerate</button>
         <button class="cg-rp-btn" data-rp-act="img-add-variation">+ Variation</button>
@@ -2046,9 +2061,21 @@ function cgRenderProperties() {
         ${stripHtml}
         <button class="cg-rp-thumb cg-rp-thumb-add" data-rp-act="vid-add-variation" title="New video"><span class="cg-rp-thumb-add-icon">+</span><span class="cg-rp-thumb-add-label">Re-animate</span></button>
       </div>
-      <div class="cg-rp-section-label">Motion prompt — camera moves, action, environmental motion</div>
-      <textarea class="cg-rp-tune" id="cg-rp-motion" rows="5"
-                placeholder="e.g. &quot;Camera slowly dollies in. Subject turns to face camera. Wind moves leaves. Light flickers.&quot;">${safe(vid.motionPrompt || '')}</textarea>
+      <div class="cg-rp-section-label">Motion prompt</div>
+      <div class="cg-vid-prompt-group">
+        <label class="cg-vid-prompt-label">Camera</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-camera" rows="2"
+                  placeholder="Slow dolly-in, aerial crane, panning left…">${safe(vid.cameraPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Motion</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-motion" rows="2"
+                  placeholder="Subject walks forward, leaves flutter, coat sways…">${safe(vid.motionPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Environment</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-environment" rows="2"
+                  placeholder="Golden hour, soft fog, city bokeh…">${safe(vid.environmentPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Negative</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-negative" rows="2"
+                  placeholder="blur, jitter, watermark, text overlay…">${safe(vid.negativePrompt || '')}</textarea>
+      </div>
       <div class="cg-rp-tune-row">
         <button class="cg-rp-btn cg-rp-btn-primary" data-rp-act="vid-regen-with-motion">▶ Re-animate with this motion</button>
       </div>
@@ -2095,17 +2122,18 @@ function cgRenderProperties() {
       }
     });
   }
-  // Live-save the VID Motion textarea onto motionPrompt.
-  const motionTa = body.querySelector('#cg-rp-motion');
-  if (motionTa) {
-    motionTa.addEventListener('input', () => {
+  // Live-save the 4 VID structured prompt fields.
+  ['camera', 'motion', 'environment', 'negative'].forEach(field => {
+    const ta = body.querySelector('#cg-rp-' + field);
+    if (!ta) return;
+    ta.addEventListener('input', () => {
       const cur = findInstance(g.selectedId);
       if (cur && cur.vid) {
-        cur.vid.motionPrompt = motionTa.value || '';
+        cur.vid[field + 'Prompt'] = ta.value || '';
         if (window._actions?.triggerSave) window._actions.triggerSave();
       }
     });
-  }
+  });
 
   // BGM volume slider
   const bgmVolSlider = body.querySelector('#cg-rp-bgm-vol');
@@ -2252,9 +2280,11 @@ function cgRenderProperties() {
         else if (act === 'img-delete')   window.imgActions.delete?.(i.scene, i.sb, i.img);
         else if (act === 'vid-regen')    window.vidActions.regen?.(i.scene, i.vid);
         else if (act === 'vid-regen-with-motion') {
-          const ta = body.querySelector('#cg-rp-motion');
-          if (ta && i.vid) {
-            i.vid.motionPrompt = ta.value || '';
+          if (i.vid) {
+            i.vid.cameraPrompt = body.querySelector('#cg-rp-camera')?.value || '';
+            i.vid.motionPrompt = body.querySelector('#cg-rp-motion')?.value || '';
+            i.vid.environmentPrompt = body.querySelector('#cg-rp-environment')?.value || '';
+            i.vid.negativePrompt = body.querySelector('#cg-rp-negative')?.value || '';
             if (window._actions?.triggerSave) window._actions.triggerSave();
           }
           window.vidActions.regen?.(i.scene, i.vid);
@@ -2511,24 +2541,6 @@ function cgChromeUnmount() {
   g.cgChrome = null;
 }
 
-function chromeShowProgress(totalPct, nodePct) {
-  const strip = $('cg-progress-strip');
-  if (!strip) return;
-  strip.removeAttribute('hidden');
-  const t = $('cg-prog-total');
-  if (t) t.textContent = (totalPct | 0) + '%';
-  const fill = $('cg-prog-fill');
-  if (fill) fill.style.width = Math.max(0, Math.min(100, totalPct | 0)) + '%';
-  const n = $('cg-prog-node');
-  if (n) n.textContent = (nodePct | 0) + '%';
-}
-
-function chromeHideProgress() {
-  const strip = $('cg-progress-strip');
-  if (!strip) return;
-  strip.setAttribute('hidden', '');
-}
-
 function chromeSetActiveCount(n) {
   const status = $('cg-pill-status');
   if (!status) return;
@@ -2779,9 +2791,11 @@ if (!window.imgActions.setSeed) {
 
 if (!window.vidActions.regen) {
   window.vidActions.regen = function (scene, vid) {
-    // Forward this variant's motion prompt onto scene before the kling pipeline
-    // reads it (21-kling.js:175 reads scene.motionPrompt with fallback).
-    if (vid && vid.motionPrompt) scene.motionPrompt = vid.motionPrompt;
+    if (vid) {
+      const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+      scene.motionPrompt = parts.join('. ') || vid.motionPrompt || scene.prompt || '';
+      scene.negativePrompt = vid.negativePrompt || '';
+    }
     return _actions.reanimateVideo(scene, vid);
   };
 }
@@ -2795,10 +2809,13 @@ if (!window.vidActions.addVariation) {
       runLayout();
       renderAll();
       triggerSave();
-      // Trigger video gen via animateScenes. Forward this variant's motion
-      // prompt onto the scene so 21-kling.js:175 picks it up.
+      // Trigger video gen via animateScenes. Assemble structured fields into prose.
       if (typeof window.animateScenes === 'function') {
-        if (vid && vid.motionPrompt) scene.motionPrompt = vid.motionPrompt;
+        if (vid) {
+          const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+          scene.motionPrompt = parts.join('. ') || vid.motionPrompt || scene.prompt || '';
+          scene.negativePrompt = vid.negativePrompt || '';
+        }
         try {
           await window.animateScenes([scene], () => {}, g.geminiKey);
           CanvasState.syncMirrorFields(scene, g.mode);
@@ -2855,10 +2872,14 @@ if (!window.vidActions.setModel) {
 if (!window._cgSendToTimeline) {
   window._cgSendToTimeline = function () {
     if (window.closeCanvasPanel) window.closeCanvasPanel();
-    const langStep = document.getElementById('create-language-step');
-    if (langStep) {
-      langStep.style.display = '';
-      setTimeout(() => langStep.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    // Animated mode: show the video review step (Step 7 — Animate Scenes)
+    // Illustrated mode: show the language/voiceover step
+    const isAnimated = window.createVideoMode === 'animated';
+    const targetId = isAnimated ? 'create-video-step' : 'create-language-step';
+    const step = document.getElementById(targetId);
+    if (step) {
+      step.style.display = '';
+      setTimeout(() => step.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }
   };
 }
@@ -2959,6 +2980,40 @@ function notifyImageReady(sceneIdx) {
   }
 }
 
+// ════ Public API: notifyVideoReady ═════════════════════════════════════════
+
+function notifyVideoReady(sceneIdx) {
+  if (!g || !g.scenes) return;
+  const scene = g.scenes[sceneIdx];
+  if (!scene) return;
+  const vid = (scene.videoInstances || []).find(v => v.isRenderActive)
+           || (scene.videoInstances || [])[0];
+  if (vid) {
+    if (scene.videoUrl) vid.videoUrl = scene.videoUrl;
+    if (scene.videoError) { vid.status = 'error'; vid.videoError = scene.videoError; }
+    else if (scene.videoUrl) vid.status = 'done';
+  }
+  // Refresh launch node progress sig
+  const allDone = (g.scenes || []).every(s => s.videoUrl || s.videoError);
+  if (allDone && g.videoPhase === 'running') g.videoPhase = 'done';
+  // Refresh VID node
+  const node = vid ? g.nodeEls.get(vid.id) : null;
+  if (node && node.el) {
+    const sceneEntry = g.scenes[sceneIdx];
+    updateVidNode(node.el, sceneEntry, sceneIdx, vid);
+  }
+  renderLaunchNode();
+  redrawCurves();
+  if (g.selectedId === (vid && vid.id)) cgRenderProperties();
+  triggerSave();
+}
+
+function setVideoPhase(phase) {
+  if (!g) return;
+  g.videoPhase = phase;
+  renderLaunchNode();
+}
+
 // ════ SECTION 15 — Public API export ═══════════════════════════════════════
 
 function mount(containerId, scenes, mode, opts) {
@@ -3048,13 +3103,13 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   unmount,
   refresh,
   notifyImageReady,
+  notifyVideoReady,
+  setVideoPhase,
   fitToView,
   panToColumn,
   tidyLayout,
   getScenes,
   isActive,
-  chromeShowProgress,
-  chromeHideProgress,
   chromeSetActiveCount,
   _cursorMode: 'pan',                // mirror; updated by chrome cursor dropdown
   _actions,

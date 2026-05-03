@@ -5595,6 +5595,269 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
 }
 /* ── End Storypilot ────────────────────────────────────────── */
 
+/* ══════════════════════════════════════════════════════════════
+   CAST UPFRONT FLOW — Characters & Locations setup card,
+   refs panel, and per-row styling.
+   ══════════════════════════════════════════════════════════════ */
+
+#create-page .cast-setup-card {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 5%, transparent);
+}
+#create-page .cast-setup-card .create-section-heading {
+  margin: 0 0 6px 0;
+}
+#create-page .cast-optional {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted, var(--lp-faint));
+  letter-spacing: 0.02em;
+}
+#create-page .cast-counts-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+#create-page .cast-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#create-page .cast-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-card, color-mix(in oklch, var(--lp-bg, #050814) 50%, transparent));
+  align-items: start;
+}
+#create-page .cast-row-locked {
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 8%, transparent);
+  border-color: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 35%, transparent);
+}
+#create-page .cast-row-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  background: var(--bg-elevated, rgba(0,0,0,0.2));
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-page .cast-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#create-page .cast-row-thumb-pending { opacity: 0.55; }
+#create-page .cast-row-thumb-empty {
+  font-size: 10px;
+  color: var(--text-muted, var(--lp-faint));
+  text-align: center;
+}
+#create-page .cast-row-thumb-spinner {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-page .cast-row-thumb-spinner::before {
+  content: '';
+  width: 22px;
+  height: 22px;
+  border: 2px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 30%, transparent);
+  border-top-color: var(--lp-accent, oklch(56% 0.18 230));
+  border-radius: 50%;
+  animation: cast-spin 0.7s linear infinite;
+}
+@keyframes cast-spin { to { transform: rotate(360deg); } }
+#create-page .cast-row-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+#create-page .cast-row-name-input,
+#create-page .cast-row-desc-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: var(--bg-input, transparent);
+  color: var(--text-primary, var(--lp-text));
+  font-size: 13px;
+  font-family: inherit;
+}
+#create-page .cast-row-desc-input { resize: vertical; min-height: 44px; }
+#create-page .cast-row-sheet {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary, var(--lp-dim));
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 6%, transparent);
+}
+#create-page .cast-row-sheet strong { color: var(--text-primary, var(--lp-text)); }
+#create-page .cast-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 110px;
+}
+#create-page .cast-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, var(--lp-text));
+}
+#create-page .cast-row-locked-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 35%, transparent);
+  color: var(--lp-accent, oklch(56% 0.18 230));
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 12%, transparent);
+}
+#create-page .cast-row-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+#create-page .cast-row-sub {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  line-height: 1.4;
+}
+#create-page .cast-action-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* ── Refs panel (below agent panel; read-only on timeline, full in canvas) ─ */
+#create-page .refs-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 4%, transparent);
+}
+#create-page .refs-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+#create-page .refs-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, var(--lp-faint));
+}
+#create-page .refs-panel-add-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: transparent;
+  color: var(--text-secondary, var(--lp-dim));
+  cursor: pointer;
+}
+#create-page .refs-panel-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#create-page .refs-panel-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+#create-page .refs-panel-tab {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: transparent;
+  color: var(--text-muted, var(--lp-faint));
+  cursor: pointer;
+}
+#create-page .refs-panel-tab.active {
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 14%, transparent);
+  color: var(--lp-accent, oklch(56% 0.18 230));
+  border-color: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 40%, transparent);
+}
+#create-page .refs-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#create-page .refs-panel-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--lp-bg, #050814) 30%, transparent);
+}
+#create-page .refs-panel-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-elevated, rgba(0,0,0,0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 11px;
+}
+#create-page .refs-panel-thumb img { width: 100%; height: 100%; object-fit: cover; }
+#create-page .refs-panel-meta { min-width: 0; }
+#create-page .refs-panel-name { font-size: 12px; font-weight: 600; color: var(--text-primary, var(--lp-text)); }
+#create-page .refs-panel-sub { font-size: 10px; color: var(--text-muted, var(--lp-faint)); }
+#create-page .refs-panel-count { font-size: 10px; color: var(--text-secondary, var(--lp-dim)); }
+#create-page .refs-panel-actions { display: flex; gap: 4px; }
+#create-page .ref-action-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+#create-page .ref-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+#create-page .refs-panel[data-surface="timeline"] .ref-action-btn,
+#create-page .refs-panel[data-surface="timeline"] .refs-panel-add-btn {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+#create-page .refs-panel-empty {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  font-style: italic;
+  padding: 8px;
+}
+
+
   </style>
   <style>
 /* ══════════════════════════════════════════════════════════════════════════
@@ -5700,6 +5963,7 @@ html[data-theme="light"] #create-canvas-step {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: top 0.38s cubic-bezier(0.4, 0, 0.2, 1);
 }
 /* Body fills the card; textarea inside SB fills the body so the SB card
    reaches its declared SB_H height even if prompt is short. */
@@ -5716,6 +5980,12 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   box-shadow: 0 4px 12px rgba(15, 30, 60, 0.10);
 }
 
+/* Suppress transitions while user is actively dragging a node */
+#create-canvas-step .cg-graph-layer.cg-dragging .cg-node,
+#create-canvas-step .cg-graph-layer.cg-dragging .cg-variant-tray {
+  transition: none;
+}
+
 /* Selection: 1px aurora-cyan ring on the border itself, no glow / no scale */
 #create-canvas-step .cg-node.cg-node-selected {
   border-color: var(--accent, var(--lp-accent));
@@ -5730,7 +6000,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   border-bottom: 1px solid var(--border, var(--lp-card-bdr));
   background: color-mix(in oklch, var(--bg-elevated, var(--lp-bg2)) 60%, var(--accent, var(--lp-accent)) 4%);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 24px;
   color: var(--text-primary, var(--lp-text));
   cursor: grab;
   flex-wrap: nowrap;
@@ -5750,7 +6020,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   background: color-mix(in oklch, var(--accent, var(--lp-accent)) 10%, var(--bg-elevated, var(--lp-bg2)));
   color: var(--accent, var(--lp-accent));
   font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-align: center;
@@ -5781,7 +6051,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--text-primary, var(--lp-text));
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   letter-spacing: 0.02em;
@@ -5867,7 +6137,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   outline: none;
   color: var(--text-primary, var(--lp-text));
   font: inherit;
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1.45;
   padding: 0;
 }
@@ -5889,7 +6159,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 
 #create-canvas-step button.cg-tab {
   padding: 2px 8px;
-  font-size: 14px;
+  font-size: 18px;
   color: var(--text-secondary, var(--lp-dim));
   background: transparent;
   border: 0;
@@ -6009,6 +6279,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   border-radius: 12px;
   pointer-events: none;
   z-index: 1;
+  transition: top 0.38s cubic-bezier(0.4, 0, 0.2, 1), height 0.38s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #create-canvas-step .cg-variant-tray .cg-tray-label {
@@ -6028,10 +6299,8 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 #create-canvas-step .cg-thumb-strip {
   position: absolute;
   display: grid;
-  /* 3 columns × 140px (matches THUMBS_PER_ROW + THUMB_W) — earlier
-     `repeat(4, 56px)` was a leftover from the small-thumb layout and made
-     wide thumbs overflow their cells, hiding sibling thumbs and the `+` tile. */
-  grid-template-columns: repeat(3, 140px);
+  /* 2 columns × 240px (matches THUMBS_PER_ROW + THUMB_W in 29-canvas-render.js) */
+  grid-template-columns: repeat(2, 240px);
   gap: 12px;
   padding: 12px 0;
   align-content: flex-start;
@@ -6039,8 +6308,8 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 }
 
 #create-canvas-step button.cg-thumb {
-  width: 140px;
-  height: 80px;
+  width: 240px;
+  height: 135px;
   border-radius: 6px;
   background: linear-gradient(135deg,
               color-mix(in oklch, var(--bg-primary, var(--lp-bg)) 60%, var(--accent, var(--lp-accent))),
@@ -6091,16 +6360,9 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   line-height: 1;
 }
 #create-canvas-step button.cg-thumb--add .cg-thumb-add-icon {
-  font-size: 32px;
+  font-size: 56px;
   font-weight: 300;
   line-height: 1;
-}
-#create-canvas-step button.cg-thumb--add .cg-thumb-add-label {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  margin-top: 4px;
-  text-transform: none;
 }
 
 #create-canvas-step button.cg-thumb--add:hover {
@@ -6340,20 +6602,125 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   justify-content: center;
 }
 
-#create-canvas-step button.cg-launch-btn {
+#create-canvas-step .cg-launch-body--status {
+  flex-direction: column;
+  gap: 8px;
+}
+
+#create-canvas-step .cg-launch-body--ready {
+  flex-direction: column;
+  gap: 8px;
+}
+
+#create-canvas-step .cg-launch-body--done {
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Phase 1 — Generate Video Prompts */
+#create-canvas-step button.cg-launch-btn--prompts {
   width: 100%;
   background: var(--accent, var(--lp-accent));
   color: var(--lp-on-accent, #fff);
-  border: 0;
-  padding: 8px 12px;
+  border: 1px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 50%, transparent);
+  padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  position: relative;
+  overflow: hidden;
+  transition: filter 150ms;
+}
+#create-canvas-step button.cg-launch-btn--prompts::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%);
+  background-size: 200% 100%;
+  animation: cg-shimmer 2.4s linear infinite;
+}
+#create-canvas-step button.cg-launch-btn--prompts:hover { filter: brightness(1.12); }
+
+/* Phase 2 — Launch Video Agent (aurora cyan glow) */
+#create-canvas-step button.cg-launch-btn--videos {
+  width: 100%;
+  background: linear-gradient(135deg,
+    oklch(62% 0.20 200) 0%,
+    var(--lp-accent, oklch(56% 0.18 230)) 100%);
+  color: #fff;
+  border: 1px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 55%, transparent);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  box-shadow: 0 0 14px color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 40%, transparent);
+  animation: cg-vid-pulse 2s ease-in-out infinite;
+  transition: filter 150ms;
+}
+#create-canvas-step button.cg-launch-btn--videos:hover { filter: brightness(1.14); }
+
+@keyframes cg-shimmer {
+  0%   { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes cg-vid-pulse {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 30%, transparent); }
+  50%       { box-shadow: 0 0 22px color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 55%, transparent); }
 }
 
-#create-canvas-step button.cg-launch-btn:hover {
-  background: var(--accent-hover, var(--lp-accent-h));
+/* Status label inside launch node */
+#create-canvas-step .cg-launch-status-lbl {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+#create-canvas-step .cg-launch-done-lbl {
+  color: oklch(68% 0.18 150);
+  font-weight: 600;
+}
+
+/* Spinner */
+#create-canvas-step .cg-launch-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 25%, transparent);
+  border-top-color: var(--lp-accent, oklch(56% 0.18 230));
+  border-radius: 50%;
+  animation: cg-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes cg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* VID right panel — structured prompt fields */
+#create-canvas-step .cg-vid-prompt-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 2px solid color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 45%, transparent);
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 5%, transparent);
+}
+#create-canvas-step .cg-vid-prompt-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, var(--lp-faint));
+  margin-top: 6px;
+}
+#create-canvas-step .cg-vid-prompt-label:first-child {
+  margin-top: 0;
+}
+#create-canvas-step .cg-vid-prompt-field {
+  font-size: 11px;
+  line-height: 1.4;
+  resize: vertical;
 }
 
 #create-canvas-step .cg-final-cta {
@@ -6469,178 +6836,8 @@ body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] + * #cre
   padding-left: 56px;
 }
 
-#create-canvas-panel .cg-top-pill {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-card, var(--lp-card));
-  -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
-  backdrop-filter: blur(var(--cg-pill-blur, 14px));
-  border: 1px solid var(--border, var(--lp-card-bdr));
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  z-index: 100;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-
-#create-canvas-panel .cg-top-pill button.cg-pill-btn {
-  background: transparent;
-  border: 0;
-  color: var(--text-primary, var(--lp-text));
-  padding: 6px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-family: inherit;
-}
-
-#create-canvas-panel .cg-top-pill button.cg-pill-btn:hover {
-  background: var(--bg-elevated, var(--lp-card));
-}
-
-#create-canvas-panel .cg-top-pill button.cg-pill-primary {
-  background: var(--accent, var(--lp-accent));
-  color: var(--lp-on-accent, #fff);
-  padding: 7px 14px;
-  font-weight: 600;
-}
-
-#create-canvas-panel .cg-top-pill button.cg-pill-primary:hover {
-  background: var(--accent-hover, var(--lp-accent-h));
-}
-
-#create-canvas-panel .cg-top-pill button.cg-pill-danger {
-  background: var(--cg-danger, var(--red));
-  color: #fff;
-  padding: 7px 10px;
-}
-#create-canvas-panel .cg-top-pill button.cg-pill-danger:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-#create-canvas-panel .cg-pill-stepper {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--bg-elevated, var(--lp-card));
-  border-radius: 8px;
-  border: 1px solid var(--border, var(--lp-card-bdr));
-}
-
-#create-canvas-panel .cg-pill-stepper button.cg-step {
-  background: transparent;
-  border: 0;
-  color: var(--text-secondary, var(--lp-dim));
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0 2px;
-}
-
-#create-canvas-panel .cg-pill-stepper .cg-step-num {
-  min-width: 14px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--text-primary, var(--lp-text));
-}
-
-#create-canvas-panel .cg-pill-status {
-  background: var(--bg-elevated, var(--lp-card));
-  border: 1px solid var(--border, var(--lp-card-bdr));
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  color: var(--text-secondary, var(--lp-dim));
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-#create-canvas-panel .cg-pill-status .cg-status-dot {
-  position: static;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted, var(--lp-faint));
-}
-
-#create-canvas-panel .cg-pill-status.is-active .cg-status-dot {
-  background: var(--accent, var(--lp-accent));
-  animation: cg-status-pulse 1.2s ease-in-out infinite;
-}
-
-#create-canvas-panel .cg-drag-handle {
-  width: 14px;
-  height: 18px;
-  display: grid;
-  grid-template-columns: 3px 3px;
-  grid-template-rows: 3px 3px 3px;
-  gap: 2px;
-  align-content: center;
-  margin: 0 4px;
-  opacity: 0.45;
-  cursor: grab;
-}
-#create-canvas-panel .cg-drag-handle span {
-  background: var(--text-secondary, var(--lp-dim));
-  border-radius: 999px;
-}
-
-.canvas-panel-mode-badge {
-  font-size: 11px;
-  color: var(--text-muted, var(--lp-faint));
-  margin-left: 8px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 
 /* Progress strip (top right) */
-#create-canvas-panel .cg-progress-strip {
-  position: absolute;
-  top: 70px;
-  right: 18px;
-  background: var(--bg-card, var(--lp-card));
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border, var(--lp-card-bdr));
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 11px;
-  color: var(--text-secondary, var(--lp-dim));
-  display: flex;
-  gap: 14px;
-  z-index: 100;
-}
-#create-canvas-panel .cg-progress-strip[hidden] { display: none; }
-#create-canvas-panel .cg-progress-strip strong {
-  color: var(--text-primary, var(--lp-text));
-  font-weight: 600;
-}
-#create-canvas-panel .cg-progress-bar {
-  width: 100px;
-  height: 3px;
-  background: var(--border, var(--lp-card-bdr));
-  border-radius: 999px;
-  overflow: hidden;
-  align-self: center;
-}
-#create-canvas-panel .cg-progress-bar > span {
-  display: block;
-  height: 100%;
-  background: var(--accent, var(--lp-accent));
-  width: 0;
-  transition: width 0.18s ease;
-}
-
 /* Telemetry (bottom left) */
 #create-canvas-panel .cg-telemetry {
   position: absolute;
@@ -6661,7 +6858,7 @@ body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] + * #cre
 /* Zoom dock (bottom right) */
 #create-canvas-panel .cg-zoom-dock {
   position: absolute;
-  right: 14px;
+  right: 374px;
   bottom: 14px;
   background: var(--bg-card, var(--lp-card));
   -webkit-backdrop-filter: blur(var(--cg-pill-blur, 14px));
@@ -6756,8 +6953,6 @@ body.canvas-active #create-page #create-agent-panel[data-collapsed="1"] + * #cre
 }
 
 /* Keep chrome out of the zoom-transformed graph layer (ADR-9) */
-#create-canvas-step .cg-graph-layer .cg-top-pill,
-#create-canvas-step .cg-graph-layer .cg-progress-strip,
 #create-canvas-step .cg-graph-layer .cg-telemetry,
 #create-canvas-step .cg-graph-layer .cg-zoom-dock {
   /* Should never happen — defensive guard. */
@@ -7312,10 +7507,6 @@ html[data-theme="light"] #create-canvas-step button.cg-thumb.has-vids {
 html[data-theme="light"] #create-canvas-step .cg-thumb .cg-vid-badge {
   /* Slightly higher contrast against light card */
   background: color-mix(in oklch, var(--sock-video) 85%, var(--bg-elevated, var(--lp-card)));
-}
-
-html[data-theme="light"] #create-canvas-panel .cg-progress-bar {
-  background: rgba(0, 0, 0, 0.10);
 }
 
 /* Selection ring stays the same — accent token theme-swaps automatically. */
@@ -9657,6 +9848,18 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
           <div class="emoji-reel-rows" id="create-emoji-reel-rows"></div>
           <div class="emoji-reel-autoplay" aria-hidden="true">autoplay</div>
         </div>
+        <!-- References panel (Characters & Locations) — read-only on timeline, interactive in canvas -->
+        <div id="create-refs-panel" class="refs-panel" data-surface="timeline" style="display:none;">
+          <div class="refs-panel-header">
+            <span class="refs-panel-title">REFERENCES</span>
+            <button class="refs-panel-add-btn" id="refs-panel-add-btn" disabled title="Open canvas to add">+ Add</button>
+          </div>
+          <div class="refs-panel-tabs">
+            <button class="refs-panel-tab active" data-tab="characters">Characters</button>
+            <button class="refs-panel-tab" data-tab="locations">Locations</button>
+          </div>
+          <div class="refs-panel-list" id="refs-panel-list"></div>
+        </div>
       </div>
       <div id="create-workflow">
 
@@ -9911,6 +10114,43 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
           </select>
         </label>
       </div>
+      <!-- Characters & Locations Setup (defined upfront, before storyboard) -->
+      <div id="cast-setup-card" class="cast-setup-card" style="display:none;">
+        <h4 class="create-section-heading">👥 Characters &amp; Locations <span class="cast-optional">(optional, helps consistency)</span></h4>
+        <p class="text-sm text-muted mb-md">Define recurring characters and locations. AI generates a canonical appearance and a reference image. Lock them to maintain visual consistency across all scenes.</p>
+        <div class="cast-counts-row">
+          <label class="form-label">Characters:
+            <select id="cast-char-count" class="text-sm">
+              <option value="0" selected>0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+          <label class="form-label">Locations:
+            <select id="cast-loc-count" class="text-sm">
+              <option value="0" selected>0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+          <span class="text-xs text-muted" id="cast-cap-hint">Combined max: 6</span>
+        </div>
+        <input type="file" id="cast-img-upload" accept="image/*" hidden>
+        <div id="cast-char-rows" class="cast-rows"></div>
+        <div id="cast-loc-rows" class="cast-rows"></div>
+        <div class="cast-action-row" id="cast-action-row" style="display:none;">
+          <button id="btn-cast-generate" class="btn-md primary" disabled>✨ Generate appearances</button>
+          <span id="cast-action-hint" class="text-sm text-muted">Fill all names and descriptions to enable.</span>
+        </div>
+      </div>
       <div class="agent-launch-row visible" id="create-input-launch-row">
         <span class="agent-launch-summary" id="create-script-launch-hint">Import audio to begin</span>
         <button id="btn-create-transcribe" class="agent-launch-btn" disabled>▶ Script, Storyboard & Prompt Agent</button>
@@ -10139,37 +10379,7 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
       <div id="create-canvas-panel">
         <!-- ── P02 Floating chrome (outside #graph per ADR-9) ── -->
 
-        <!-- Top action pill (top-center) -->
-        <div class="cg-top-pill" role="toolbar" aria-label="Canvas actions">
-          <button type="button" id="cg-pill-project" class="cg-pill-btn" title="Project">⊞ Project</button>
-          <button type="button" id="cg-pill-star"    class="cg-pill-btn" title="Favorite" aria-label="Favorite">★</button>
-          <button type="button" id="cg-pill-undo"    class="cg-pill-btn" title="Undo" aria-label="Undo">↶</button>
-          <button type="button" id="cg-pill-redo"    class="cg-pill-btn" title="Redo" aria-label="Redo">↷</button>
-          <button type="button" id="cg-pill-share"   class="cg-pill-btn" title="Share" aria-label="Share">⤴</button>
-          <span class="cg-drag-handle" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span>
-          <div class="cg-pill-stepper" role="group" aria-label="Batch size">
-            <button type="button" id="cg-pill-batch-down" class="cg-step" aria-label="Decrease batch">▼</button>
-            <span class="cg-step-num" id="cg-pill-batch-num" aria-live="polite">1</span>
-            <button type="button" id="cg-pill-batch-up" class="cg-step" aria-label="Increase batch">▲</button>
-          </div>
-          <button type="button" id="cg-pill-run" class="cg-pill-btn cg-pill-primary" title="Run">▶ Run</button>
-          <button type="button" id="cg-pill-run-menu" class="cg-pill-btn cg-pill-chev" title="Run options" aria-label="Run options">▾</button>
-          <button type="button" id="cg-pill-cancel" class="cg-pill-btn cg-pill-danger" title="Cancel" aria-label="Cancel" disabled>✕</button>
-          <div class="cg-pill-status" id="cg-pill-status" aria-live="polite">
-            <span class="cg-status-dot" aria-hidden="true"></span>
-            <span class="cg-status-text">0 active</span>
-          </div>
-          <button type="button" id="cg-pill-pane-toggle" class="cg-pill-btn" title="Toggle properties pane" aria-label="Toggle properties pane">⊟</button>
-          <button type="button" id="btn-canvas-back" class="cg-pill-btn" title="Back to storyboard" aria-label="Back to storyboard">← Back</button>
-          <span id="canvas-panel-mode-badge" class="canvas-panel-mode-badge"></span>
-        </div>
-
-        <!-- Top-right progress strip (hidden when idle) -->
-        <div class="cg-progress-strip" id="cg-progress-strip" hidden>
-          <div>Total <strong id="cg-prog-total">0%</strong></div>
-          <div class="cg-progress-bar"><span id="cg-prog-fill"></span></div>
-          <div>Node <strong id="cg-prog-node">0%</strong></div>
-        </div>
+        <!-- Minimal canvas controls (top-left) -->
 
         <!-- Bottom-left telemetry -->
         <div class="cg-telemetry" id="cg-telemetry" aria-hidden="true">
@@ -13229,6 +13439,10 @@ function navigateTo(view, pushHistory) {
   if (pushHistory !== false && view !== currentView) {
     history.pushState({ view }, '', '#' + view);
   }
+  // Close canvas panel when leaving create page
+  if (currentView === 'create' && view !== 'create') {
+    try { if (typeof closeCanvasPanel === 'function') closeCanvasPanel(); } catch(_) {}
+  }
   // Clear reel status bar when leaving reel page
   if (currentView === 'reel' && view !== 'reel') {
     const reelStatus = $('reel-generate-status');
@@ -15537,6 +15751,11 @@ function syncMirrorFields(scene, mode) {
       || sb.imageInstances.find(i => i.isActive)
       || sb.imageInstances[0];
     scene.imgDataUrl = renderImg?.imgDataUrl || null;
+    if (renderImg) {
+      if (renderImg.imgDataUrl) scene.status = 'done';
+      else if (renderImg.status === 'error') scene.status = 'error';
+      else if (renderImg.status === 'generating') scene.status = 'generating';
+    }
     scene.videoUrl = null;
     scene.videoClips = null;
   } else {
@@ -15545,6 +15764,11 @@ function syncMirrorFields(scene, mode) {
       || sb.imageInstances.find(i => i.isActive)
       || sb.imageInstances[0];
     scene.imgDataUrl = renderImg?.imgDataUrl || null;
+    if (renderImg) {
+      if (renderImg.imgDataUrl) scene.status = 'done';
+      else if (renderImg.status === 'error') scene.status = 'error';
+      else if (renderImg.status === 'generating') scene.status = 'generating';
+    }
 
     const renderVid = (scene.videoInstances || []).find(v => v.isRenderActive)
       || (scene.videoInstances || []).find(v => v.isActive)
@@ -21525,7 +21749,9 @@ function updateCreateButtons() {
   // Output language required for animated mode or text mode
   const needsOutputLang = createVideoMode === 'animated' || isTextMode;
   const hasOutputLanguage = !needsOutputLang || !!($('create-output-language')?.value);
-  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage);
+  // Cast gate: if user has defined characters/locations, all must be locked before storyboard launch
+  const castReady = (typeof window.castAllLocked === 'function') ? window.castAllLocked() : true;
+  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage && castReady);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
@@ -21534,6 +21760,7 @@ function updateCreateButtons() {
     else if (!hasTemplate) hint.textContent = 'Select a template to begin';
     else if (needsOutputLang && !hasOutputLanguage) hint.textContent = 'Select output language to begin';
     else if (!hasKey) hint.textContent = 'API key required';
+    else if (!castReady) hint.textContent = 'Lock all characters/locations to continue';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
   // Update transcribe button label based on input mode
@@ -22324,6 +22551,158 @@ function inferReelAgentStates() {
 // Init video mode to set button labels correctly
 setCreateVideoMode(createVideoMode);
 
+// ── Cast (Characters & Locations) AI helpers ──────────────────────────────────
+
+const CAST_STYLE_PREFIX = {
+  cinematic: 'Cinematic film aesthetic, dramatic three-point lighting, shallow depth of field',
+  photorealistic: 'Photorealistic, natural lighting, lifelike skin and textures',
+  watercolor: 'Soft watercolor illustration, flowing brushstrokes, paper texture',
+  anime: 'Anime style, expressive features, clean line art, vibrant cel shading',
+  'oil-painting': 'Oil painting, rich impasto, classical composition',
+  'digital-art': 'Polished digital art, clean shading, vibrant colors',
+  minimalist: 'Minimalist illustration, flat shapes, limited palette',
+  comic: 'Comic book style, bold ink outlines, halftone shading',
+  'pixel-art': 'Pixel art, 16-bit aesthetic, dithered shading',
+  '3d-render': 'High-quality 3D render, soft global illumination, realistic materials',
+  sketch: 'Pencil sketch, hatched shading, paper grain',
+  vintage: 'Vintage film aesthetic, faded color palette, soft grain',
+  'flat-design': 'Flat design illustration, geometric shapes, bold colors',
+  gothic: 'Gothic illustration, moody lighting, ornate detail',
+  pastel: 'Pastel art, soft chalky textures, gentle gradients',
+  'ukiyo-e': 'Ukiyo-e woodblock print, flat color regions, calligraphic linework',
+  'stained-glass': 'Stained glass design, jeweled colors, dark leading',
+  'pop-art': 'Pop art, halftone dots, saturated primary colors',
+  noir: 'Film noir, high-contrast black and white, hard shadows',
+  surrealism: 'Surrealist composition, dreamlike juxtaposition',
+};
+
+function castStylePrefix() {
+  const preset = (typeof createStylePreset === 'string' && createStylePreset) || '';
+  if (preset === 'custom' || !preset) {
+    const custom = (typeof createStylePrompt === 'string' && createStylePrompt.trim()) || '';
+    return custom || 'Highly detailed visual style';
+  }
+  return CAST_STYLE_PREFIX[preset] || ('Style preset: ' + preset);
+}
+
+// Generate canonical appearance sheet. Uploaded image (if any) is attached for likeness.
+async function generateAppearanceSheet(item, type, geminiKey) {
+  const stylePrefix = castStylePrefix();
+  const isChar = type === 'character';
+  const isLoc = type === 'location';
+  const promptText = isChar
+    ? `You are a casting director. Write a detailed canonical appearance sheet for a character so an AI image generator can produce visually consistent images across many scenes.
+
+Character name: ${item.name}
+User description: "${item.userDescription || '(none provided)'}"
+Visual style: ${stylePrefix}
+${item.uploadedImageDataUrl ? '(Reference image attached — match the likeness shown.)' : ''}
+
+Return ONLY valid JSON (no markdown):
+{
+  "appearance": "Detailed visual description (3-5 sentences): age, height, build, face shape, hair (color/length/style), eyes, distinctive features, clothing (specific items, colors, fabrics), accessories",
+  "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image"],
+  "ageRange": "X-Y",
+  "build": "..."
+}`
+    : `Write a detailed canonical appearance sheet for a location so an AI image generator can produce visually consistent images across many scenes.
+
+Location name: ${item.name}
+User description: "${item.userDescription || '(none provided)'}"
+Visual style: ${stylePrefix}
+${item.uploadedImageDataUrl ? '(Reference image attached — match the look shown.)' : ''}
+
+Return ONLY valid JSON (no markdown):
+{
+  "appearance": "Detailed visual description (3-5 sentences): setting type, time of day, lighting, mood, key visual elements, materials, colors",
+  "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image of this location"],
+  "ageRange": "",
+  "build": ""
+}`;
+
+  const parts = [{ text: promptText }];
+  if (item.uploadedImageDataUrl) {
+    const m = item.uploadedImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+  }
+  const data = await callGeminiAPI(['gemini-2.5-flash'], { contents: [{ parts }] }, geminiKey);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(cleaned); }
+  catch (e) {
+    // Fallback: use raw user description as appearance
+    return {
+      appearance: item.userDescription || item.name,
+      distinctiveTraits: [],
+      ageRange: '',
+      build: '',
+    };
+  }
+  return {
+    appearance: typeof parsed.appearance === 'string' ? parsed.appearance : (item.userDescription || ''),
+    distinctiveTraits: Array.isArray(parsed.distinctiveTraits) ? parsed.distinctiveTraits.slice(0, 5) : [],
+    ageRange: parsed.ageRange || '',
+    build: parsed.build || '',
+  };
+}
+
+// Generate representative image. Path A = no upload (text-only). Path B = with upload (likeness anchor).
+async function generateRepresentativeImage(item, type, geminiKey) {
+  const stylePrefix = castStylePrefix();
+  const isChar = type === 'character';
+  const subject = isChar
+    ? 'Full-body character portrait, subject centered, plain neutral background, eye-level shot, full body visible.'
+    : 'Establishing shot of the location, no people, neutral overcast lighting if outdoors, eye-level angle.';
+  let prompt;
+  let opts;
+  if (item.uploadedImageDataUrl) {
+    const m = item.uploadedImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    const refParts = m ? [
+      { inlineData: { mimeType: m[1], data: m[2] } },
+      { text: isChar
+          ? 'Reference image: match this person\'s face, build, and likeness in the rendered image.'
+          : 'Reference image: match the look and feel of this location in the rendered image.' }
+    ] : [];
+    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject} Match the reference image's likeness. Re-render in the target style.`;
+    opts = { width: 768, height: 1024, refParts };
+  } else {
+    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject}`;
+    opts = { width: 768, height: 1024 };
+  }
+  if (typeof generateImageGeminiFlash === 'function') {
+    return await generateImageGeminiFlash(prompt, geminiKey, opts);
+  }
+  throw new Error('generateImageGeminiFlash not available');
+}
+
+// Vision auto-caption: when user uploads image but leaves description blank, fill it in.
+async function autoCaptionFromImage(imgDataUrl, type, geminiKey) {
+  const m = imgDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!m) return '';
+  const promptText = type === 'character'
+    ? 'Describe this person concisely for an AI image generator: age, build, hair color/style, distinctive features, clothing. 1-2 sentences. Output only the description, no preamble.'
+    : 'Describe this location concisely for an AI image generator: setting type, lighting, mood, key visual elements. 1-2 sentences. Output only the description, no preamble.';
+  try {
+    const data = await callGeminiAPI(['gemini-2.5-flash'], {
+      contents: [{ parts: [
+        { inlineData: { mimeType: m[1], data: m[2] } },
+        { text: promptText }
+      ]}]
+    }, geminiKey);
+    return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  } catch (e) {
+    console.warn('[autoCaptionFromImage] failed:', e.message);
+    return '';
+  }
+}
+
+// Expose to other modules
+window.generateAppearanceSheet = generateAppearanceSheet;
+window.generateRepresentativeImage = generateRepresentativeImage;
+window.autoCaptionFromImage = autoCaptionFromImage;
+window.castStylePrefix = castStylePrefix;
+
 
     // ── 17b-create-references.js ──
 // ══════════════════════════════════════════
@@ -22639,6 +23018,523 @@ function getSceneRefImageParts(scene) {
   }
   return parts;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CAST UPFRONT FLOW — defined before storyboard generation
+//  Owns: createJobState.characters, createJobState.locations
+//  Mirrors locked refs to legacy storyCharacters / storyEnvironments so
+//  existing buildScenePromptWithRefs and getSceneRefImageParts keep working.
+// ════════════════════════════════════════════════════════════════════════════
+
+(function initCastSetup() {
+  if (!window.createJobState) window.createJobState = {};
+  if (!Array.isArray(window.createJobState.characters)) window.createJobState.characters = [];
+  if (!Array.isArray(window.createJobState.locations)) window.createJobState.locations = [];
+  let _castNextId = 1;
+  let _pendingUploadType = null;  // 'char' | 'loc'
+  let _pendingUploadId = null;
+
+  function castNextId(prefix) { return `${prefix}_${Date.now().toString(36)}_${(_castNextId++).toString(36)}`; }
+
+  // Public — used by 17a updateCreateButtons to gate the launch button.
+  window.castAllLocked = function () {
+    const cs = window.createJobState.characters || [];
+    const ls = window.createJobState.locations || [];
+    if (cs.length === 0 && ls.length === 0) return true;
+    return cs.every(c => c.locked) && ls.every(l => l.locked);
+  };
+
+  // Mirror locked refs to legacy globals so existing image-gen flow still works.
+  function _syncToLegacy() {
+    storyCharacters = (window.createJobState.characters || []).filter(c => c.locked).map(c => ({
+      id: c.id,
+      name: c.name,
+      description: c.appearanceSheet || c.userDescription || '',
+      imgDataUrl: c.representativeImageDataUrl || c.uploadedImageDataUrl || null,
+      imgEl: null,
+    }));
+    storyEnvironments = (window.createJobState.locations || []).filter(l => l.locked).map(l => ({
+      id: l.id,
+      name: l.name,
+      description: l.appearanceSheet || l.userDescription || '',
+      imgDataUrl: l.representativeImageDataUrl || l.uploadedImageDataUrl || null,
+      imgEl: null,
+    }));
+  }
+  window._castSyncToLegacy = _syncToLegacy;
+
+  // Combined cap enforcement (6 total)
+  function _enforceCap() {
+    const charSel = document.getElementById('cast-char-count');
+    const locSel = document.getElementById('cast-loc-count');
+    if (!charSel || !locSel) return;
+    const c = parseInt(charSel.value, 10) || 0;
+    const l = parseInt(locSel.value, 10) || 0;
+    const total = c + l;
+    const hint = document.getElementById('cast-cap-hint');
+    if (hint) hint.textContent = total > 6 ? `Cap exceeded: ${total}/6` : `Combined max: 6 (using ${total})`;
+  }
+
+  // Render a single character/location row card.
+  function _renderRowCard(item, type) {
+    const isChar = type === 'character';
+    const isLocked = !!item.locked;
+    if (isLocked) {
+      // Compact locked card
+      return `<div class="cast-row cast-row-locked" data-id="${item.id}" data-type="${type}">
+        <div class="cast-row-thumb">
+          ${item.representativeImageDataUrl ? `<img src="${item.representativeImageDataUrl}" alt="">` : '<div class="cast-row-thumb-empty">no img</div>'}
+        </div>
+        <div class="cast-row-meta">
+          <div class="cast-row-name">${escapeHtml(item.name)} <span class="cast-row-locked-badge">🔒 Locked</span></div>
+          <div class="cast-row-sub">${isChar ? (item.ageRange ? item.ageRange + ' · ' : '') : ''}${escapeHtml((item.appearanceSheet || '').slice(0, 80))}${(item.appearanceSheet || '').length > 80 ? '…' : ''}</div>
+        </div>
+        <div class="cast-row-actions">
+          <button class="btn-xs cast-unlock-btn" data-action="unlock">🔓 Unlock</button>
+        </div>
+      </div>`;
+    }
+    // Editable / review state
+    const hasSheet = !!item.appearanceSheet;
+    const hasImage = !!item.representativeImageDataUrl;
+    const isGenerating = !!item._generating;
+    return `<div class="cast-row" data-id="${item.id}" data-type="${type}">
+      <div class="cast-row-thumb">
+        ${hasImage ? `<img src="${item.representativeImageDataUrl}" alt="">`
+          : item.uploadedImageDataUrl ? `<img src="${item.uploadedImageDataUrl}" alt="" class="cast-row-thumb-pending">`
+          : '<div class="cast-row-thumb-empty">no img</div>'}
+        ${isGenerating ? '<div class="cast-row-thumb-spinner"></div>' : ''}
+      </div>
+      <div class="cast-row-fields">
+        <input type="text" class="cast-row-name-input" placeholder="${isChar ? 'Character name (e.g. Maya)' : 'Location name (e.g. Kitchen)'}" value="${escapeHtml(item.name)}" data-field="name">
+        <textarea class="cast-row-desc-input" rows="2" placeholder="${isChar ? 'Description (e.g. 8 yrs old, curly black hair, red dress)' : 'Description (e.g. 1970s kitchen, yellow walls, vintage stove)'}" data-field="userDescription">${escapeHtml(item.userDescription || '')}</textarea>
+        ${hasSheet ? `<div class="cast-row-sheet"><strong>Appearance:</strong> ${escapeHtml(item.appearanceSheet)}</div>` : ''}
+      </div>
+      <div class="cast-row-actions">
+        <button class="btn-xs cast-upload-btn" data-action="upload">${item.uploadedImageDataUrl ? '🔄 Change ref' : '📎 Upload ref'}</button>
+        ${hasSheet ? `<button class="btn-xs cast-regen-img-btn" data-action="regen-image" ${isGenerating ? 'disabled' : ''}>🎨 Regen image</button>` : ''}
+        ${hasSheet && hasImage ? `<button class="btn-xs primary cast-lock-btn" data-action="lock">🔒 Lock</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderCastRows() {
+    const charContainer = document.getElementById('cast-char-rows');
+    const locContainer = document.getElementById('cast-loc-rows');
+    const actionRow = document.getElementById('cast-action-row');
+    if (!charContainer || !locContainer) return;
+
+    const chars = window.createJobState.characters || [];
+    const locs = window.createJobState.locations || [];
+    charContainer.innerHTML = chars.map(c => _renderRowCard(c, 'character')).join('');
+    locContainer.innerHTML = locs.map(l => _renderRowCard(l, 'location')).join('');
+
+    // Show action row only if there's at least one editable row needing AI generation
+    const anyNeedsGen = chars.some(c => !c.locked && !c.appearanceSheet) || locs.some(l => !l.locked && !l.appearanceSheet);
+    if (actionRow) actionRow.style.display = (chars.length + locs.length > 0 && anyNeedsGen) ? '' : 'none';
+
+    _wireRowEvents();
+    _updateGenerateButton();
+    if (typeof updateCreateButtons === 'function') updateCreateButtons();
+    if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
+  }
+
+  window.castRenderRows = renderCastRows;
+
+  function _wireRowEvents() {
+    document.querySelectorAll('#cast-char-rows .cast-row, #cast-loc-rows .cast-row').forEach(rowEl => {
+      const id = rowEl.dataset.id;
+      const type = rowEl.dataset.type;
+      const list = type === 'character' ? window.createJobState.characters : window.createJobState.locations;
+      const item = list.find(x => x.id === id);
+      if (!item) return;
+
+      rowEl.querySelectorAll('input[data-field], textarea[data-field]').forEach(field => {
+        field.addEventListener('input', () => {
+          item[field.dataset.field] = field.value;
+          _updateGenerateButton();
+        });
+      });
+
+      rowEl.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.dataset.action;
+          if (action === 'upload') {
+            _pendingUploadType = type === 'character' ? 'char' : 'loc';
+            _pendingUploadId = id;
+            const input = document.getElementById('cast-img-upload');
+            if (input) input.click();
+          } else if (action === 'regen-image') {
+            _regenImage(item, type);
+          } else if (action === 'lock') {
+            _lockItem(item, type);
+          } else if (action === 'unlock') {
+            _unlockItem(item, type);
+          }
+        });
+      });
+    });
+  }
+
+  // File-upload wiring
+  function _wireUploadInput() {
+    const input = document.getElementById('cast-img-upload');
+    if (!input || input._castWired) return;
+    input._castWired = true;
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const type = _pendingUploadType === 'char' ? 'character' : 'location';
+        const list = type === 'character' ? window.createJobState.characters : window.createJobState.locations;
+        const item = list.find(x => x.id === _pendingUploadId);
+        if (item) {
+          item.uploadedImageDataUrl = dataUrl;
+          // If description is empty, auto-caption (per chosen default).
+          if (!item.userDescription && typeof window.autoCaptionFromImage === 'function') {
+            item._captioning = true;
+            renderCastRows();
+            try {
+              const cap = await window.autoCaptionFromImage(dataUrl, type, getCreateGeminiKey());
+              if (cap) item.userDescription = cap;
+            } catch (e) { /* swallow */ }
+            item._captioning = false;
+          }
+          renderCastRows();
+        }
+        input.value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Update Generate button state
+  function _updateGenerateButton() {
+    const btn = document.getElementById('btn-cast-generate');
+    const hint = document.getElementById('cast-action-hint');
+    if (!btn) return;
+    const chars = window.createJobState.characters || [];
+    const locs = window.createJobState.locations || [];
+    const all = [...chars, ...locs];
+    const editable = all.filter(x => !x.locked && !x.appearanceSheet);
+    const valid = editable.length > 0 && editable.every(x => (x.name || '').trim() && (x.userDescription || '').trim());
+    btn.disabled = !valid;
+    if (hint) hint.textContent = valid ? 'Click to generate canonical appearances and reference images.' : 'Fill all names and descriptions to enable.';
+  }
+
+  // Generate appearance for one item (text + image)
+  async function _generateOne(item, type) {
+    const key = getCreateGeminiKey();
+    if (!key) throw new Error('Gemini API key required');
+    item._generating = true;
+    renderCastRows();
+    try {
+      // Step 1: appearance sheet
+      const sheet = await window.generateAppearanceSheet(item, type, key);
+      item.appearanceSheet = sheet.appearance;
+      item.distinctiveTraits = sheet.distinctiveTraits || [];
+      item.ageRange = sheet.ageRange || '';
+      item.build = sheet.build || '';
+      // Step 2: representative image
+      const imgUrl = await window.generateRepresentativeImage(item, type, key);
+      item.representativeImageDataUrl = imgUrl;
+    } catch (e) {
+      console.warn('[cast generate] failed for', item.name, e.message);
+      item._generateError = e.message;
+    } finally {
+      item._generating = false;
+      renderCastRows();
+    }
+  }
+
+  async function _regenImage(item, type) {
+    const key = getCreateGeminiKey();
+    if (!key) return;
+    item._generating = true;
+    renderCastRows();
+    try {
+      const imgUrl = await window.generateRepresentativeImage(item, type, key);
+      item.representativeImageDataUrl = imgUrl;
+    } catch (e) {
+      console.warn('[cast regen] failed:', e.message);
+    } finally {
+      item._generating = false;
+      renderCastRows();
+    }
+  }
+
+  function _lockItem(item, type) {
+    // Name-collision check
+    const list = type === 'character' ? window.createJobState.characters : window.createJobState.locations;
+    const collision = list.some(x => x.id !== item.id && x.locked && (x.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
+    if (collision) {
+      alert(`Another ${type} is already named "${item.name}". Rename one of them before locking.`);
+      return;
+    }
+    if (!item.appearanceSheet || !item.representativeImageDataUrl) {
+      alert('Generate appearance and image before locking.');
+      return;
+    }
+    item.locked = true;
+    item.lockedAt = new Date().toISOString();
+    _syncToLegacy();
+    renderCastRows();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _unlockItem(item, type) {
+    const sceneCount = (typeof createScenes !== 'undefined' && Array.isArray(createScenes))
+      ? createScenes.filter(s => (s.refCharacters || []).includes(item.id) || s.refEnvironment === item.id).length
+      : 0;
+    if (sceneCount > 0) {
+      if (!confirm(`Unlocking "${item.name}" will mark ${sceneCount} scene(s) as needing regen. Continue?`)) return;
+    }
+    item.locked = false;
+    _syncToLegacy();
+    renderCastRows();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  // Sync rows to count selectors
+  function _syncCountsToList() {
+    const charSel = document.getElementById('cast-char-count');
+    const locSel = document.getElementById('cast-loc-count');
+    if (!charSel || !locSel) return;
+    const targetChars = parseInt(charSel.value, 10) || 0;
+    const targetLocs = parseInt(locSel.value, 10) || 0;
+    // Combined cap
+    if (targetChars + targetLocs > 6) {
+      // Clamp the just-changed selector — let the other one win
+      const total = targetChars + targetLocs;
+      const overage = total - 6;
+      // Clamp via natural reduction below; here we just warn
+    }
+
+    const chars = window.createJobState.characters || [];
+    const locs = window.createJobState.locations || [];
+    // Add or remove characters
+    while (chars.length < targetChars) {
+      chars.push({
+        id: castNextId('char'),
+        name: '',
+        userDescription: '',
+        uploadedImageDataUrl: null,
+        appearanceSheet: '',
+        distinctiveTraits: [],
+        ageRange: '',
+        build: '',
+        representativeImageDataUrl: null,
+        locked: false,
+        libraryId: null,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    while (chars.length > targetChars) {
+      // Remove from the end, but only if not locked
+      const lastUnlockedIdx = (() => {
+        for (let i = chars.length - 1; i >= 0; i--) if (!chars[i].locked) return i;
+        return -1;
+      })();
+      if (lastUnlockedIdx === -1) break;
+      chars.splice(lastUnlockedIdx, 1);
+    }
+    while (locs.length < targetLocs) {
+      locs.push({
+        id: castNextId('loc'),
+        name: '',
+        userDescription: '',
+        uploadedImageDataUrl: null,
+        appearanceSheet: '',
+        distinctiveTraits: [],
+        ageRange: '',
+        build: '',
+        representativeImageDataUrl: null,
+        locked: false,
+        libraryId: null,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    while (locs.length > targetLocs) {
+      const lastUnlockedIdx = (() => {
+        for (let i = locs.length - 1; i >= 0; i--) if (!locs[i].locked) return i;
+        return -1;
+      })();
+      if (lastUnlockedIdx === -1) break;
+      locs.splice(lastUnlockedIdx, 1);
+    }
+    _enforceCap();
+    renderCastRows();
+  }
+
+  // Wire static handlers once on load
+  function _initStatic() {
+    const charSel = document.getElementById('cast-char-count');
+    const locSel = document.getElementById('cast-loc-count');
+    const genBtn = document.getElementById('btn-cast-generate');
+    const card = document.getElementById('cast-setup-card');
+    if (charSel && !charSel._wired) {
+      charSel._wired = true;
+      charSel.addEventListener('change', () => {
+        const total = (parseInt(charSel.value, 10) || 0) + (parseInt(locSel.value, 10) || 0);
+        if (total > 6) {
+          const otherMax = 6 - (parseInt(charSel.value, 10) || 0);
+          locSel.value = String(Math.max(0, otherMax));
+        }
+        _syncCountsToList();
+      });
+    }
+    if (locSel && !locSel._wired) {
+      locSel._wired = true;
+      locSel.addEventListener('change', () => {
+        const total = (parseInt(charSel.value, 10) || 0) + (parseInt(locSel.value, 10) || 0);
+        if (total > 6) {
+          const otherMax = 6 - (parseInt(locSel.value, 10) || 0);
+          charSel.value = String(Math.max(0, otherMax));
+        }
+        _syncCountsToList();
+      });
+    }
+    if (genBtn && !genBtn._wired) {
+      genBtn._wired = true;
+      genBtn.addEventListener('click', async () => {
+        const all = [
+          ...(window.createJobState.characters || []).map(c => ({ item: c, type: 'character' })),
+          ...(window.createJobState.locations || []).map(l => ({ item: l, type: 'location' })),
+        ].filter(({ item }) => !item.locked && !item.appearanceSheet);
+        if (all.length === 0) return;
+        genBtn.disabled = true;
+        await Promise.all(all.map(({ item, type }) => _generateOne(item, type)));
+        genBtn.disabled = false;
+        _updateGenerateButton();
+      });
+    }
+    _wireUploadInput();
+    // Show the setup card once user has audio/text input
+    if (card) card.style.display = '';
+  }
+
+  // Initialize on DOM ready (or now if already loaded)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initStatic);
+  } else {
+    _initStatic();
+  }
+
+  // Bracket parsing utility — used after storyboard generation
+  // Returns: { tokens: ['Maya', 'Joe'], idsCharacters: [...], idsLocations: [...] }
+  window.castParseBracketTokens = function (promptText) {
+    if (!promptText) return { tokens: [], characterIds: [], locationIds: [] };
+    const tokens = (promptText.match(/\[([^\]]+)\]/g) || []).map(t => t.slice(1, -1).trim());
+    const seen = new Set();
+    const unique = tokens.filter(t => { const k = t.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    const chars = window.createJobState.characters || [];
+    const locs = window.createJobState.locations || [];
+    const characterIds = [];
+    const locationIds = [];
+    for (const tok of unique) {
+      const c = chars.find(x => x.locked && (x.name || '').toLowerCase() === tok.toLowerCase());
+      if (c) { characterIds.push(c.id); continue; }
+      const l = locs.find(x => x.locked && (x.name || '').toLowerCase() === tok.toLowerCase());
+      if (l) { locationIds.push(l.id); }
+    }
+    return { tokens: unique, characterIds, locationIds };
+  };
+
+  // Build the storyboard preamble injected into Gemini prompts.
+  window.castBuildStoryboardPreamble = function () {
+    const chars = (window.createJobState.characters || []).filter(c => c.locked);
+    const locs = (window.createJobState.locations || []).filter(l => l.locked);
+    if (chars.length === 0 && locs.length === 0) return '';
+    let out = '';
+    if (chars.length) {
+      out += 'CHARACTERS in this story:\n';
+      for (const c of chars) {
+        out += `- [${c.name}] — ${c.appearanceSheet || c.userDescription || c.name}\n`;
+      }
+    }
+    if (locs.length) {
+      out += '\nLOCATIONS:\n';
+      for (const l of locs) {
+        out += `- [${l.name}] — ${l.appearanceSheet || l.userDescription || l.name}\n`;
+      }
+    }
+    out += '\nWhen a scene features a character or location, refer to them by their bracketed name (e.g. [' + (chars[0]?.name || locs[0]?.name) + '] enters the room). The image generator already has their reference image and will lock visual consistency. Do NOT redescribe their physical traits in the scene description.\n\n';
+    return out;
+  };
+
+  // After storyboard generation: parse each scene's prompt and populate refs.
+  window.castAutoAssignRefs = function () {
+    if (typeof createScenes === 'undefined' || !Array.isArray(createScenes)) return;
+    for (const scene of createScenes) {
+      if (!scene.prompt) continue;
+      const parsed = window.castParseBracketTokens(scene.prompt);
+      scene.refCharacters = parsed.characterIds;
+      // Use first matched location (existing field is single-valued)
+      scene.refEnvironment = parsed.locationIds.length > 0 ? parsed.locationIds[0] : -1;
+      scene.bracketTokens = parsed.tokens;
+      scene.promptDirty = false;
+    }
+  };
+
+  // Refs panel renderer (read-only on timeline; full features land in canvas Phase 4)
+  window.renderRefsPanel = function (surface) {
+    const panel = document.getElementById('create-refs-panel');
+    if (!panel) return;
+    const chars = window.createJobState.characters || [];
+    const locs = window.createJobState.locations || [];
+    const lockedChars = chars.filter(c => c.locked);
+    const lockedLocs = locs.filter(l => l.locked);
+    if (lockedChars.length === 0 && lockedLocs.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = '';
+    panel.dataset.surface = surface || 'timeline';
+    const isCanvas = (surface === 'canvas');
+    const activeTab = panel.dataset.activeTab || 'characters';
+    const items = activeTab === 'locations' ? lockedLocs : lockedChars;
+    const list = document.getElementById('refs-panel-list');
+    if (!list) return;
+    list.innerHTML = items.map(item => {
+      const sceneCount = (typeof createScenes !== 'undefined' && Array.isArray(createScenes))
+        ? createScenes.filter(s => activeTab === 'characters'
+            ? (s.refCharacters || []).includes(item.id)
+            : s.refEnvironment === item.id).length
+        : 0;
+      const totalScenes = (typeof createScenes !== 'undefined' && Array.isArray(createScenes)) ? createScenes.length : 0;
+      return `<div class="refs-panel-row" data-id="${item.id}">
+        <div class="refs-panel-thumb">${item.representativeImageDataUrl ? `<img src="${item.representativeImageDataUrl}" alt="">` : '·'}</div>
+        <div class="refs-panel-meta">
+          <div class="refs-panel-name">${escapeHtml(item.name)} 🔒</div>
+          <div class="refs-panel-sub">${activeTab === 'characters' && item.ageRange ? item.ageRange + ' · ' : ''}${escapeHtml((createStylePreset || 'cinematic'))}</div>
+          ${totalScenes > 0 ? `<div class="refs-panel-count">${sceneCount} / ${totalScenes} scenes</div>` : ''}
+        </div>
+        <div class="refs-panel-actions">
+          <button class="ref-action-btn" data-action="filter" ${isCanvas ? '' : 'disabled'} title="${isCanvas ? 'Filter by this' : 'Open canvas to filter'}">👁</button>
+          <button class="ref-action-btn" data-action="edit" ${isCanvas ? '' : 'disabled'} title="${isCanvas ? 'Edit' : 'Open canvas to edit'}">✏</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="refs-panel-empty">No locked ' + activeTab + ' yet.</div>';
+
+    // Tab switching
+    panel.querySelectorAll('.refs-panel-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.tab === activeTab);
+      if (!tab._wired) {
+        tab._wired = true;
+        tab.addEventListener('click', () => {
+          panel.dataset.activeTab = tab.dataset.tab;
+          window.renderRefsPanel(panel.dataset.surface);
+        });
+      }
+    });
+  };
+})();
 
 
     // ── 17c-create-pipeline.js ──
@@ -23549,6 +24445,19 @@ function autoSaveCreateState() {
       selectedTemplate: selectedTemplate,
       characters: storyCharacters.map(c => ({ id: c.id, name: c.name, description: c.description, imgDataUrl: c.imgDataUrl })),
       environments: storyEnvironments.map(e => ({ id: e.id, name: e.name, description: e.description, imgDataUrl: e.imgDataUrl })),
+      // Cast upfront flow — full sheets (text only; images persisted separately to avoid 5MB cap)
+      castCharacters: (window.createJobState?.characters || []).map(c => ({
+        id: c.id, name: c.name, userDescription: c.userDescription,
+        appearanceSheet: c.appearanceSheet, distinctiveTraits: c.distinctiveTraits,
+        ageRange: c.ageRange, build: c.build, locked: !!c.locked, libraryId: c.libraryId,
+        createdAt: c.createdAt, lockedAt: c.lockedAt,
+      })),
+      castLocations: (window.createJobState?.locations || []).map(l => ({
+        id: l.id, name: l.name, userDescription: l.userDescription,
+        appearanceSheet: l.appearanceSheet, distinctiveTraits: l.distinctiveTraits,
+        ageRange: l.ageRange, build: l.build, locked: !!l.locked, libraryId: l.libraryId,
+        createdAt: l.createdAt, lockedAt: l.lockedAt,
+      })),
       timestamp: Date.now(),
     };
     localStorage.setItem('stori_create_autosave', JSON.stringify(state));
@@ -23685,9 +24594,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
+      const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -23723,11 +24633,12 @@ btnCreateTranscribe.addEventListener('click', async () => {
       updateCreateAgentTask('storyboard', 'audio', 'done', 'Audio ready');
       updateCreateAgentTask('storyboard', 'transcribe', 'running', 'Sending to Gemini…');
 
+      const _castPreambleVoice = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const transcribeBody = {
             contents: [{
               parts: [
                 { inline_data: { mime_type: 'audio/wav', data: base64Data } },
-                { text: createInputMode === 'podcast'
+                { text: _castPreambleVoice + (createInputMode === 'podcast'
                   ? `Transcribe this podcast audio which is ${createAudioBuffer.duration.toFixed(1)} seconds long. Break it into segments of roughly 30-120 seconds each, splitting at natural topic or sentence boundaries.
 
 STRICT RULES:
@@ -23774,7 +24685,7 @@ Return ONLY a valid JSON array with no markdown formatting, in this exact struct
 
 Important:
 - sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling.
-- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.` }
+- emojis: 3-5 emojis per segment that capture its feeling and key subjects (a silent emoji story of the scene). Pick vivid, specific emojis — not generic ones. They play like a silent movie while images generate.`) }
               ]
             }],
             generationConfig: { response_mime_type: 'application/json' },
@@ -23920,7 +24831,12 @@ Important:
         emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
         imgDataUrl: null,
         status: 'pending',
+        refCharacters: [],
+        refEnvironment: -1,
+        promptDirty: false,
       }));
+      // Auto-assign refs from bracket tokens in prompts
+      if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
       renderStoryboard();
 
       // ── Phase 4: Subtitle generation (animated mode only) ──
@@ -24308,7 +25224,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: `For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nEach description should be suitable for AI image generation.'}\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors, camera direction and motion"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
+              contents: [{ parts: [{ text: `${(typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : ''}For the podcast chapter "${ch.title}", generate a vivid visual scene description for each scene.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : '\n\nEach description should be suitable for AI image generation.'}\n\nScenes:\n${sceneTexts}\n\nReturn a JSON array with EXACTLY ${chScenes.length} entries, one per scene, starting from index 0:\n[{"sceneIndex":0,"sceneDescription":"detailed visual description: subject, composition, mood, colors, camera direction and motion"}]\n\nIMPORTANT: Return EXACTLY ${chScenes.length} entries. All string values MUST be in double quotes. Return ONLY valid JSON, no markdown.` }] }],
               generationConfig: { temperature: 0.7 }
             })
           }
@@ -24341,6 +25257,7 @@ if (btnChapterProceed) btnChapterProceed.addEventListener('click', async () => {
       }
     }
 
+    if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
     renderStoryboard();
     updateCreateButtons();
     updateStepStates();
@@ -24632,11 +25549,6 @@ function renderSceneCard(scene, idx, ratio) {
     const card = document.createElement('div');
     card.className = 'scene-card';
 
-    const refThumbHtml = scene.refImageDataUrl
-      ? `<img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">`
-      : '';
-    const refLabel = scene.refImageDataUrl ? '✓ Reference set' : '';
-
     card.innerHTML = `
       <div class="scene-img" id="create-scene-img-${idx}" style="aspect-ratio:${ratio};">
         ${scene.imgDataUrl
@@ -24648,18 +25560,10 @@ function renderSceneCard(scene, idx, ratio) {
         <div class="scene-text">"${sanitize(scene.text)}"</div>
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
         <div class="scene-actions">
-          <button class="btn-regen" style="font-size:0.7rem; padding:3px 10px;">🔄 Regenerate</button>
           <button class="btn-download-img" style="font-size:0.68rem; padding:3px 8px; ${scene.imgDataUrl ? '' : 'display:none;'}">📥 Download</button>
-          <button class="btn-ref" style="font-size:0.68rem; padding:3px 8px;">📎 Ref Image</button>
-          <input type="file" class="ref-input" accept="image/*" style="display:none;">
           <span class="scene-status ${scene.status || ''}" id="create-scene-status-${idx}">
             ${scene.status === 'done' ? '✓ Done' : scene.status === 'generating' ? '⏳ Generating...' : scene.status === 'error' ? '✗ Error' : '○ Pending'}
           </span>
-        </div>
-        <div class="scene-ref-row" id="create-scene-ref-${idx}" style="${scene.refImageDataUrl ? '' : 'display:none;'}">
-          ${refThumbHtml}
-          <span class="ref-label">${refLabel}</span>
-          <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px; ${scene.refImageDataUrl ? '' : 'display:none;'}">✕</button>
         </div>
       </div>
     `;
@@ -24672,9 +25576,6 @@ function renderSceneCard(scene, idx, ratio) {
       });
     }
 
-    // Regenerate button
-    card.querySelector('.btn-regen').addEventListener('click', () => regenerateScene(idx));
-
     // Download individual image
     const btnDownloadImg = card.querySelector('.btn-download-img');
     if (btnDownloadImg) {
@@ -24684,60 +25585,6 @@ function renderSceneCard(scene, idx, ratio) {
         a.href = scene.imgDataUrl;
         a.download = `stori-scene-${idx + 1}.png`;
         a.click();
-      });
-    }
-
-    // Reference image upload
-    const refInput = card.querySelector('.ref-input');
-    const btnRef = card.querySelector('.btn-ref');
-    const refRow = card.querySelector('.scene-ref-row');
-    const btnRefRemove = card.querySelector('.btn-ref-remove');
-
-    btnRef.addEventListener('click', () => refInput.click());
-
-    refInput.addEventListener('change', async () => {
-      const file = refInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        scene.refImageDataUrl = e.target.result;
-        // Show thumbnail
-        refRow.style.display = '';
-        refRow.innerHTML = `
-          <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-          <span class="ref-label">⏳ Analyzing reference...</span>
-        `;
-        // Auto-update prompt based on reference image using Gemini
-        try {
-          await updatePromptFromReference(idx);
-          refRow.innerHTML = `
-            <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-            <span class="ref-label" style="color:#10b981;">✓ Prompt updated from reference</span>
-            <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>
-          `;
-          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => {
-            scene.refImageDataUrl = null;
-            refRow.style.display = 'none';
-          });
-        } catch (err) {
-          refRow.innerHTML = `
-            <img class="ref-thumb" src="${scene.refImageDataUrl}" alt="Ref">
-            <span class="ref-label" style="color:#ef4444;">✗ ${err.message}</span>
-            <button class="btn-ref-remove" style="font-size:0.62rem; padding:1px 6px;">✕</button>
-          `;
-          refRow.querySelector('.btn-ref-remove').addEventListener('click', () => {
-            scene.refImageDataUrl = null;
-            refRow.style.display = 'none';
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (btnRefRemove) {
-      btnRefRemove.addEventListener('click', () => {
-        scene.refImageDataUrl = null;
-        refRow.style.display = 'none';
       });
     }
 
@@ -25233,9 +26080,6 @@ let createBgmWavesurfer = null;
 function initCreateBgmWaveform(url) {
   const container = $('create-bgm-waveform');
   if (!container || typeof WaveSurfer === 'undefined') return;
-  // #15 Hide faux wave, show real WaveSurfer waveform
-  const fauxWave = $('create-bgm-faux-wave');
-  if (fauxWave) fauxWave.style.display = 'none';
   if (createBgmWavesurfer) { try { createBgmWavesurfer.destroy(); } catch(e) {} createBgmWavesurfer = null; }
   createBgmWavesurfer = WaveSurfer.create({
     container: '#create-bgm-waveform',
@@ -25900,8 +26744,6 @@ function openCanvasPanel() {
   // Class on <body> so selectors can scope every viewport-fixed overlay
   // (panel, agent panel, right pane, scroll-lock) under one parent.
   document.body.classList.add('canvas-active');
-  const badge = $('canvas-panel-mode-badge');
-  if (badge) badge.textContent = mode === 'animated' ? 'Animated' : 'Illustrated';
   CanvasGraph.mount('create-canvas-step', createScenes, mode, {
     geminiKey: getCreateGeminiKey(),
     job: (typeof window !== 'undefined' && window.createJobState) || { bgmSkipped: false, audioSubSkipped: false },
@@ -25925,6 +26767,96 @@ function closeCanvasPanel() {
   }
 }
 
+// ── Canvas video prompt helpers ─────────────────────────────────────────────
+
+async function _callGeminiForVideoPrompts(scene, geminiKey) {
+  const FALLBACK = { camera: '', motion: '', environment: '', negative: '' };
+  if (!geminiKey || !scene.imgDataUrl) return FALLBACK;
+  const rawB64 = scene.imgDataUrl.includes(',') ? scene.imgDataUrl.split(',')[1] : scene.imgDataUrl;
+  const mimeType = scene.imgDataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const systemPrompt =
+    'Analyze this image and scene description, then generate structured motion prompts for an AI video model (Kling I2V).\n\n' +
+    'Scene description: "' + (scene.prompt || 'A cinematic scene') + '"\n\n' +
+    'Return ONLY valid JSON with exactly these 4 fields:\n' +
+    '{"camera":"Camera movement (e.g. slow dolly-in, aerial crane, panning left, static shot)","motion":"Subject and environment motion (e.g. person walks, leaves flutter, coat sways)","environment":"Atmosphere details (e.g. golden hour light, gentle fog, bokeh background)","negative":"Things to avoid (e.g. blur, jitter, watermark, abrupt cuts)"}\n\n' +
+    'Keep each field to 1-2 short sentences. Return ONLY valid JSON, no markdown.';
+  try {
+    const resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [
+          { text: systemPrompt },
+          { inline_data: { mime_type: mimeType, data: rawB64 } }
+        ]}] })
+      }
+    );
+    if (!resp.ok) throw new Error('Gemini ' + resp.status);
+    const data = await resp.json();
+    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      camera: parsed.camera || '',
+      motion: parsed.motion || '',
+      environment: parsed.environment || '',
+      negative: parsed.negative || ''
+    };
+  } catch (e) {
+    console.warn('[cgFillVideoPrompts] Gemini failed for scene, using empty prompts:', e.message);
+    return FALLBACK;
+  }
+}
+
+window.cgFillVideoPrompts = async function () {
+  if (!createScenes || !createScenes.length) return;
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('filling');
+  const key = getCreateGeminiKey();
+  const toFill = createScenes.filter(s => s.imgDataUrl);
+  await Promise.all(toFill.map(async scene => {
+    const result = await _callGeminiForVideoPrompts(scene, key);
+    // Store on the active VID instance
+    const vids = scene.videoInstances || [];
+    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    if (vid) {
+      vid.cameraPrompt = result.camera;
+      vid.motionPrompt = result.motion;
+      vid.environmentPrompt = result.environment;
+      vid.negativePrompt = result.negative;
+    }
+  }));
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('ready');
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+};
+
+window.cgLaunchVideoAgent = async function () {
+  if (!createScenes || !createScenes.length) return;
+  if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('running');
+  const key = getCreateGeminiKey();
+  const toAnimate = createScenes.filter(s => s.imgDataUrl && !s.videoUrl);
+  await Promise.all(toAnimate.map(async scene => {
+    const sceneIdx = createScenes.indexOf(scene);
+    const vids = scene.videoInstances || [];
+    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    if (vid) {
+      const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+      scene.motionPrompt = parts.join('. ') || scene.prompt || '';
+      scene.negativePrompt = vid.negativePrompt || '';
+    }
+    try {
+      await animateScenes([scene], () => {}, key);
+      if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
+      if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
+    } catch (e) {
+      console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
+    }
+  }));
+  // Populate the legacy video grid step
+  if (typeof renderCreateVideoGrid === 'function') renderCreateVideoGrid();
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+};
+
 if (typeof window !== 'undefined') {
   window.openCanvasPanel = openCanvasPanel;
   window.closeCanvasPanel = closeCanvasPanel;
@@ -25940,62 +26872,6 @@ btnCreateRetryFailed.addEventListener('click', async () => {
 // Generation keeps running in the background; createScenes accumulates
 // imgDataUrl as each image lands, so re-opening the canvas (via re-click on
 // Launch Image Agent) shows the current state.
-const btnCanvasBack = $('btn-canvas-back');
-if (btnCanvasBack) {
-  btnCanvasBack.addEventListener('click', () => closeCanvasPanel());
-}
-
-// ── P02 — Floating chrome wiring (Run / Cancel / batch stepper / progress) ──
-// The new top-pill (index.html) replaces the old Tidy/-/%/+/Fit row. Run kicks
-// `launchImageAgent` (the canonical entry); Cancel flips `generateRunning = false`
-// (every gen loop checks this flag — it's the de-facto cancel hook today, though
-// not named "cancel" anywhere). Active count + total/node progress come from
-// `updateSceneCardStatus` which is already invoked across the pipeline.
-(function wireFloatingChrome() {
-  const pillRun    = document.getElementById('cg-pill-run');
-  const pillCancel = document.getElementById('cg-pill-cancel');
-  const stepUp     = document.getElementById('cg-pill-batch-up');
-  const stepDown   = document.getElementById('cg-pill-batch-down');
-  const stepNum    = document.getElementById('cg-pill-batch-num');
-
-  if (pillRun) {
-    pillRun.addEventListener('click', () => {
-      // Idempotent — launchImageAgent guards against double-start.
-      if (typeof launchImageAgent === 'function') launchImageAgent();
-      cgUpdateChromeFromPipeline();
-    });
-  }
-
-  if (pillCancel) {
-    pillCancel.addEventListener('click', () => {
-      // Cancel hook: there is no canonical `cancelImageGeneration()` today.
-      // Flipping `generateRunning = false` causes every `if (!generateRunning) break;`
-      // check inside `runImageGeneration` to abort the loop on the next iteration.
-      // In-flight `generateSceneImage` HTTP calls do NOT have an AbortController
-      // (P02 risk #2), so the current request finishes; subsequent scenes are
-      // skipped. Document this as a known limitation — to be improved in a
-      // future phase that introduces AbortController plumbing.
-      if (typeof generateRunning !== 'undefined' && generateRunning) {
-        // eslint-disable-next-line no-global-assign
-        generateRunning = false;
-      }
-      pillCancel.disabled = true;
-      cgUpdateChromeFromPipeline();
-    });
-  }
-
-  // Batch stepper — UI-only counter for now (mock shows 1; pipeline doesn't
-  // accept a batch arg yet). Stored on window so future phases can read it.
-  let batch = 1;
-  if (typeof window !== 'undefined') window.createCanvasBatch = batch;
-  function setBatch(v) {
-    batch = Math.max(1, Math.min(9, v|0));
-    if (stepNum) stepNum.textContent = String(batch);
-    if (typeof window !== 'undefined') window.createCanvasBatch = batch;
-  }
-  if (stepUp)   stepUp.addEventListener('click',   () => setBatch(batch + 1));
-  if (stepDown) stepDown.addEventListener('click', () => setBatch(batch - 1));
-})();
 
 // Pull live state from the pipeline and push into the floating chrome
 // (active count, progress %, cancel button enabled state). Called on every
@@ -26010,28 +26886,6 @@ function cgUpdateChromeFromPipeline() {
   // exposed today.)
   if (CanvasGraph.chromeSetActiveCount) CanvasGraph.chromeSetActiveCount(running ? 1 : 0);
 
-  // Cancel button enabled state.
-  const pillCancel = document.getElementById('cg-pill-cancel');
-  if (pillCancel) pillCancel.disabled = !running;
-
-  // Progress strip — Total% = (done images) / (total images) across all scenes.
-  // Node% = current scene's progress (binary today: 0 if generating, 100 if done,
-  // otherwise unknown — show 0). Shows whenever generation is running OR there
-  // is any non-zero progress; hides when fully idle and no images yet.
-  if (scenes && scenes.length) {
-    const total = scenes.length;
-    const done  = scenes.filter(s => s.status === 'done').length;
-    const generating = scenes.findIndex(s => s.status === 'generating');
-    const totalPct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const nodePct  = generating >= 0 ? 50 : (totalPct === 100 ? 100 : 0);
-    if (running || totalPct > 0) {
-      if (CanvasGraph.chromeShowProgress) CanvasGraph.chromeShowProgress(totalPct, nodePct);
-    } else {
-      if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
-    }
-  } else {
-    if (CanvasGraph.chromeHideProgress) CanvasGraph.chromeHideProgress();
-  }
 }
 
 // Hook into the existing per-scene status update call site. updateSceneCardStatus
@@ -26080,6 +26934,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   if (!panel) return;
   if (collapsed) {
     panel.classList.add('collapsed');
+    panel.setAttribute('data-collapsed', '1');
     document.documentElement.setAttribute('data-agent-collapsed', '1');
     if (btn) {
       btn.setAttribute('aria-expanded', 'false');
@@ -26088,6 +26943,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
     }
   } else {
     panel.classList.remove('collapsed');
+    panel.removeAttribute('data-collapsed');
     document.documentElement.removeAttribute('data-agent-collapsed');
     if (btn) {
       btn.setAttribute('aria-expanded', 'true');
@@ -26105,7 +26961,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   // Apply initial state from FOUC-safe inline-script flag (or read fresh).
   let initial = false;
   try { initial = localStorage.getItem('stori_agent_panel_collapsed') === '1'; } catch (e) {}
-  if (initial) panel.classList.add('collapsed');
+  if (initial) { panel.classList.add('collapsed'); panel.setAttribute('data-collapsed', '1'); }
   if (btn) {
     btn.setAttribute('aria-expanded', initial ? 'false' : 'true');
     btn.setAttribute('aria-label', initial ? 'Expand agents panel' : 'Collapse agents panel');
@@ -26114,7 +26970,7 @@ function setCreateAgentPanelCollapsed(collapsed) {
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const collapsed = !panel.classList.contains('collapsed');
+    const collapsed = panel.getAttribute('data-collapsed') !== '1';
     setCreateAgentPanelCollapsed(collapsed);
   });
 })();
@@ -33252,19 +34108,21 @@ async function generateKlingJWT() {
 }
 
 // Submit Kling i2v task — no retry (retry creates duplicate billable tasks on 429)
-async function submitKlingI2V(base64DataUrl, prompt, duration) {
+async function submitKlingI2V(base64DataUrl, prompt, duration, negativePrompt) {
   const rawB64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
   const jwt = await generateKlingJWT();
+  const body = {
+    model_name: 'kling-v2-5-turbo',
+    image: rawB64,
+    prompt: prompt.slice(0, 2500),
+    duration: String(duration),
+    mode: 'pro'
+  };
+  if (negativePrompt && negativePrompt.trim()) body.negative_prompt = negativePrompt.trim().slice(0, 2500);
   const resp = await fetch(`${KLING_BASE}/videos/image2video`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
-    body: JSON.stringify({
-      model_name: 'kling-v2-5-turbo',
-      image: rawB64,
-      prompt: prompt.slice(0, 2500),
-      duration: String(duration),
-      mode: 'pro'
-    })
+    body: JSON.stringify(body)
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
@@ -33402,7 +34260,7 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
 
   let firstTaskId;
   try {
-    firstTaskId = await submitKlingI2V(scene.imgDataUrl, motionPrompt, clipPlan[0]);
+    firstTaskId = await submitKlingI2V(scene.imgDataUrl, motionPrompt, clipPlan[0], scene.negativePrompt);
   } catch (err) {
     console.error(`[Kling] Scene ${sceneIdx + 1} submit failed:`, err.message);
     scene.videoError = err.message;
@@ -39296,8 +40154,8 @@ const COL_SB         = 80;
 const COL_IMG        = 860;    // 80 + 520 + 260
 const COL_LAUNCH     = 1640;   // 860 + 520 + 260
 const COL_VID        = 2100;   // 1640 + 200 + 260
-const COL_FINAL_ANIM = 2880;   // 2100 + 520 + 260  (BGM/Sub removed)
-const COL_FINAL_ILL  = 1640;   // 860 + 520 + 260   (BGM/Sub removed)
+const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
+const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
 
 // Spacing
 const ROW_GAP   = 60;
@@ -39306,11 +40164,11 @@ const TOP_PAD   = 40;
 const SAFE_PAD  = 60;             // safe-area inside wrapper for fitToView
 
 // Variant tray geometry. Thumbs are big enough to recognise the image at a glance.
-const THUMB_W       = 140;
-const THUMB_H       = 80;     // ~16:9 at the new width
+const THUMB_W       = 240;
+const THUMB_H       = 135;    // ~16:9 at the new width
 const THUMB_GAP     = 10;
 const THUMB_PAD     = 14;
-const THUMBS_PER_ROW = 3;     // wider thumbs → fewer per row
+const THUMBS_PER_ROW = 2;     // wider thumbs → fewer per row
 const STRIP_GAP_TOP = 8;          // gap between active card bottom and strip top
 const TRAY_PAD_X    = 16;
 const TRAY_PAD_TOP  = 16;
@@ -39372,6 +40230,9 @@ function freshGraphState() {
     bgmEl: null,
     subEl: null,
     finalEl: null,
+
+    // Two-phase video generation: idle → filling → ready → running → done
+    videoPhase: 'idle',
 
     // chrome
     cgChrome: null,
@@ -39558,25 +40419,24 @@ function runLayout() {
     const bandTop = curY;
     const innerTop = bandTop + BAND_PAD;
 
-    // SB: place at COL_SB, vertically centered to its own header
+    // SB: X is user-preserved; Y is always canonical to the band row
     if (sb) {
-      sb.canvasPosition = sb.canvasPosition || { x: COL_SB, y: innerTop };
-      // honour saved position on x but recompute y (column band is canonical)
-      if (typeof sb.canvasPosition.y !== 'number') sb.canvasPosition.y = innerTop;
+      if (!sb.canvasPosition) sb.canvasPosition = { x: COL_SB, y: innerTop };
+      sb.canvasPosition.y = innerTop;
       if (typeof sb.canvasPosition.x !== 'number') sb.canvasPosition.x = COL_SB;
 
-      // Position images for active SB only (others share the slot)
+      // Position images — X preserved, Y always canonical
       (sb.imageInstances || []).forEach(im => {
-        im.canvasPosition = im.canvasPosition || { x: COL_IMG, y: innerTop };
-        if (typeof im.canvasPosition.y !== 'number') im.canvasPosition.y = innerTop;
+        if (!im.canvasPosition) im.canvasPosition = { x: COL_IMG, y: innerTop };
+        im.canvasPosition.y = innerTop;
         if (typeof im.canvasPosition.x !== 'number') im.canvasPosition.x = COL_IMG;
       });
     }
 
-    // Videos
+    // Videos — X preserved, Y always canonical
     (scene.videoInstances || []).forEach(v => {
-      v.canvasPosition = v.canvasPosition || { x: COL_VID, y: innerTop };
-      if (typeof v.canvasPosition.y !== 'number') v.canvasPosition.y = innerTop;
+      if (!v.canvasPosition) v.canvasPosition = { x: COL_VID, y: innerTop };
+      v.canvasPosition.y = innerTop;
       if (typeof v.canvasPosition.x !== 'number') v.canvasPosition.x = COL_VID;
     });
 
@@ -39968,7 +40828,7 @@ function ensureImgVariantTray(scene, sceneIdx, sb) {
   // Position tray to wrap active img card
   const activeImg = (sb.imageInstances || []).find(i => i.isRenderActive)
                  || (sb.imageInstances || [])[0];
-  const x = COL_IMG - TRAY_PAD_X;
+  const x = (activeImg?.canvasPosition?.x ?? COL_IMG) - TRAY_PAD_X;
   const y = (activeImg && activeImg.canvasPosition && typeof activeImg.canvasPosition.y === 'number')
             ? activeImg.canvasPosition.y - TRAY_PAD_TOP
             : (sb.canvasPosition?.y ?? scene._innerTop ?? TOP_PAD) - TRAY_PAD_TOP;
@@ -40018,8 +40878,8 @@ function ensureImgVariantTray(scene, sceneIdx, sb) {
         }
         strip.appendChild(t);
       });
-      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-img', 'aria-label': 'Add image variant — generates a new image' });
-      add.innerHTML = '<span class="cg-thumb-add-icon">+</span><span class="cg-thumb-add-label">Regenerate</span>';
+      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-img', 'aria-label': 'Add image variant' });
+      add.innerHTML = '<span class="cg-thumb-add-icon">+</span>';
       strip.appendChild(add);
     }
   }
@@ -40054,7 +40914,8 @@ function ensureVidVariantTray(scene, sceneIdx, sb, activeImg) {
   const baseY = (renderActive && renderActive.canvasPosition && typeof renderActive.canvasPosition.y === 'number')
                 ? renderActive.canvasPosition.y - TRAY_PAD_TOP
                 : (scene._innerTop ?? TOP_PAD) - TRAY_PAD_TOP;
-  tray.style.left = (COL_VID - TRAY_PAD_X) + 'px';
+  const baseX = (renderActive?.canvasPosition?.x ?? COL_VID) - TRAY_PAD_X;
+  tray.style.left = baseX + 'px';
   tray.style.top = baseY + 'px';
   tray.style.width = trayW + 'px';
   tray.style.height = trayH + 'px';
@@ -40090,8 +40951,8 @@ function ensureVidVariantTray(scene, sceneIdx, sb, activeImg) {
         t.appendChild(play);
         strip.appendChild(t);
       });
-      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-vid', 'aria-label': 'Add video variant — generates a new video' });
-      add.innerHTML = '<span class="cg-thumb-add-icon">+</span><span class="cg-thumb-add-label">Re-animate</span>';
+      const add = el('button', 'cg-thumb cg-thumb--add', { type: 'button', 'data-role': 'add-vid', 'aria-label': 'Add video variant' });
+      add.innerHTML = '<span class="cg-thumb-add-icon">+</span>';
       strip.appendChild(add);
     }
   }
@@ -40178,6 +41039,42 @@ function buildSimpleNode(cls, sockType, label, opts) {
   return node;
 }
 
+function _buildLaunchBodyHtml(phase) {
+  if (phase === 'idle') {
+    return '<div class="cg-launch-body">' +
+      '<button type="button" class="cg-launch-btn cg-launch-btn--prompts">✨ Gen Video Prompts</button>' +
+    '</div>';
+  }
+  if (phase === 'filling') {
+    return '<div class="cg-launch-body cg-launch-body--status">' +
+      '<div class="cg-launch-spinner"></div>' +
+      '<span class="cg-launch-status-lbl">Analyzing scenes…</span>' +
+    '</div>';
+  }
+  if (phase === 'ready') {
+    const n = (g.scenes || []).filter(s => {
+      const vids = s.videoInstances || [];
+      const v = vids.find(vi => vi.isRenderActive) || vids[0];
+      return v && v.cameraPrompt;
+    }).length;
+    return '<div class="cg-launch-body cg-launch-body--ready">' +
+      '<span class="cg-launch-status-lbl">' + n + ' prompt' + (n === 1 ? '' : 's') + ' ready</span>' +
+      '<button type="button" class="cg-launch-btn cg-launch-btn--videos">🚀 Launch Video Agent</button>' +
+    '</div>';
+  }
+  if (phase === 'running') {
+    const done = (g.scenes || []).filter(s => s.videoUrl).length;
+    const total = (g.scenes || []).length;
+    return '<div class="cg-launch-body cg-launch-body--status">' +
+      '<div class="cg-launch-spinner"></div>' +
+      '<span class="cg-launch-status-lbl">Generating ' + done + ' / ' + total + '</span>' +
+    '</div>';
+  }
+  return '<div class="cg-launch-body cg-launch-body--done">' +
+    '<span class="cg-launch-status-lbl cg-launch-done-lbl">✓ All videos ready</span>' +
+  '</div>';
+}
+
 function renderLaunchNode() {
   if (g.mode !== 'animated') {
     if (g.launchEl && g.launchEl.parentNode) g.launchEl.parentNode.removeChild(g.launchEl);
@@ -40185,24 +41082,32 @@ function renderLaunchNode() {
     g.nodeEls.delete('cg-launch');
     return;
   }
-  let entry = g.nodeEls.get('cg-launch');
-  if (!entry) {
-    const node = buildSimpleNode('cg-node--launch', 'video', '🚀 Launch', {
+
+  const phase = g.videoPhase || 'idle';
+  const phaseSig = phase === 'running'
+    ? 'running:' + (g.scenes || []).filter(s => s.videoUrl).length
+    : phase;
+
+  if (!g.launchEl || !g.launchEl.isConnected) {
+    const node = buildSimpleNode('cg-node--launch', 'video', '⚡ Video Agent', {
       w: LAUNCH_W,
       h: LAUNCH_H,
       hasIn: false,
       hasOut: true,
-      bodyHtml:
-        '<div class="cg-launch-body">' +
-          '<button type="button" class="cg-launch-btn">Generate Videos</button>' +
-        '</div>',
+      bodyHtml: _buildLaunchBodyHtml(phase),
     });
     node.dataset.id = 'cg-launch';
     node.dataset.type = 'launch';
+    node.dataset.phase = phaseSig;
     g.graphLayerEl.appendChild(node);
     g.nodeEls.set('cg-launch', { el: node, type: 'launch' });
     g.launchEl = node;
+  } else if (g.launchEl.dataset.phase !== phaseSig) {
+    const body = g.launchEl.querySelector('.cg-node-body');
+    if (body) body.innerHTML = _buildLaunchBodyHtml(phase);
+    g.launchEl.dataset.phase = phaseSig;
   }
+
   const pos = window.createLaunchAgentPosition || { x: COL_LAUNCH, y: (g.chromeMidY || TOP_PAD) - LAUNCH_H / 2 };
   placeNode(g.launchEl, pos.x, pos.y);
 }
@@ -40365,7 +41270,9 @@ function drawCurveXY(x1, y1, x2, y2, type, status, fromId, toId) {
     path.setAttribute('opacity', '0.9');
   }
   const isSel = (fromId && g.selectedIds.has(fromId)) || (toId && g.selectedIds.has(toId));
-  path.setAttribute('stroke-width', isSel ? '1.8' : '1.6');
+  const isFinal = type === 'final';
+  const isImage = type === 'image';
+  path.setAttribute('stroke-width', isFinal ? (isSel ? '4' : '3') : isImage ? (isSel ? '3' : '2.5') : (isSel ? '1.8' : '1.6'));
   path.setAttribute('stroke-linecap', 'round');
   path.classList.add('cg-curve');
   if (fromId) path.dataset.from = fromId;
@@ -40555,7 +41462,7 @@ function attachEvents() {
   g.onMouseDown = function (e) {
     if (e.button !== 0) return;
     const target = e.target;
-    if (target.closest('.cg-pill-btn, .cg-zd-btn, .cg-pill-stepper, .cg-pill-status, .cg-progress-strip, .cg-telemetry, .cg-zoom-dock, .cg-top-pill, .cg-zoom-cursor-menu, .cg-zoom-pct-menu, .cg-context-menu, .cg-sel-toolbar, .cg-right-pane')) return;
+    if (target.closest('.cg-pill-btn, .cg-zd-btn, .cg-pill-stepper, .cg-pill-status, .cg-telemetry, .cg-zoom-dock, .cg-top-pill, .cg-zoom-cursor-menu, .cg-zoom-pct-menu, .cg-context-menu, .cg-sel-toolbar, .cg-right-pane')) return;
 
     // Drag a node — by header OR by any non-interactive part of the card.
     // Interactive children (textarea / button / input / sockets / thumbs / tabs /
@@ -40570,6 +41477,7 @@ function attachEvents() {
         const id = node.dataset.id;
         // initiate drag
         g.dragNodeId = id;
+        g.graphLayerEl.classList.add('cg-dragging');
         g.dragStartPx = { x: e.clientX, y: e.clientY };
         const inst = findInstance(id);
         let pos = null;
@@ -40662,6 +41570,7 @@ function attachEvents() {
     }
     if (g.dragNodeId) {
       g.dragNodeId = null;
+      g.graphLayerEl.classList.remove('cg-dragging');
       triggerSave();
     }
     if (g.marquee) {
@@ -40705,19 +41614,20 @@ function attachEvents() {
       return;
     }
 
-    // Thumb click in IMG strip
+    // Thumb click in IMG strip — + opens right panel for the active IMG node
     const thumbAddImg = target.closest('[data-role="add-img"]');
     if (thumbAddImg) {
       e.preventDefault();
       const tray = thumbAddImg.closest('.cg-variant-tray');
       const sbId = tray && tray.dataset.id ? tray.dataset.id.slice('tray-img-'.length) : null;
       if (sbId) {
-        let scene = null;
         (g.scenes || []).forEach(s => {
           const sb = (s.storyboardInstances || []).find(x => x.id === sbId);
-          if (sb) scene = s;
+          if (sb) {
+            const activeImg = (sb.imageInstances || []).find(x => x.isActive);
+            if (activeImg) selectNode(activeImg.id);
+          }
         });
-        if (scene) window.imgActions.addVariation(scene, sbId);
       }
       return;
     }
@@ -40738,7 +41648,7 @@ function attachEvents() {
       return;
     }
 
-    // Thumb click in VID strip
+    // Thumb click in VID strip — + opens right panel for the active VID node
     const thumbAddVid = target.closest('[data-role="add-vid"]');
     if (thumbAddVid) {
       e.preventDefault();
@@ -40746,7 +41656,7 @@ function attachEvents() {
       const srcId = tray && tray.dataset.id ? tray.dataset.id.slice('tray-vid-'.length) : null;
       if (srcId) {
         const inst = findInstance(srcId);
-        if (inst && inst.scene) window.vidActions.addVariation(inst.scene, srcId);
+        if (inst) selectNode(inst.vid ? inst.vid.id : srcId);
       }
       return;
     }
@@ -40789,10 +41699,16 @@ function attachEvents() {
       return;
     }
 
-    // Launch button
-    if (target.closest('.cg-launch-btn')) {
+    // Launch button — phase 1: generate prompts
+    if (target.closest('.cg-launch-btn--prompts')) {
       e.preventDefault();
-      if (typeof window.launchImageAgent === 'function') window.launchImageAgent();
+      if (typeof window.cgFillVideoPrompts === 'function') window.cgFillVideoPrompts();
+      return;
+    }
+    // Launch button — phase 2: launch video agent
+    if (target.closest('.cg-launch-btn--videos')) {
+      e.preventDefault();
+      if (typeof window.cgLaunchVideoAgent === 'function') window.cgLaunchVideoAgent();
       return;
     }
 
@@ -41120,47 +42036,7 @@ function cgCloseContextMenu() {
 }
 
 function cgUpdateSelToolbar() {
-  if (!g) return;
-  if (g.selectedIds.size !== 1 || !g.selectedId) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  const id = g.selectedId;
-  const entry = g.nodeEls.get(id);
-  if (!entry) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  const items = cgGetMenuItems(id);
-  if (items.length === 0) {
-    cgRemoveSelToolbar();
-    return;
-  }
-  let bar = g.selToolbarEl;
-  if (!bar) {
-    bar = el('div', 'cg-sel-toolbar');
-    g.graphLayerEl.appendChild(bar);
-    g.selToolbarEl = bar;
-  }
-  // Rebuild items only if signature changed
-  const sig = id + '|' + items.map(i => i.label).join('|');
-  if (bar.dataset._sig !== sig) {
-    bar.dataset._sig = sig;
-    bar.innerHTML = '';
-    items.forEach(item => {
-      const btn = el('button', 'cg-toolbar-btn' + (item.danger ? ' cg-toolbar-btn--danger' : ''), { type: 'button' });
-      btn.textContent = item.label;
-      btn.addEventListener('click', (e) => { e.stopPropagation(); try { item.action(); } catch (err) { console.warn('toolbar action failed:', err); } });
-      bar.appendChild(btn);
-    });
-  }
-  // Position
-  const r = nodeRect(id);
-  if (!r) return;
-  const x = r.x + r.w / 2;
-  const y = r.y - 16;
-  bar.style.left = x + 'px';
-  bar.style.top = y + 'px';
+  cgRemoveSelToolbar();
 }
 
 function cgRemoveSelToolbar() {
@@ -41250,9 +42126,6 @@ function cgRenderProperties() {
       <div class="cg-rp-tune-row">
         <button class="cg-rp-btn cg-rp-btn-primary" data-rp-act="img-regen-with-tune">▶ Regenerate with this prompt</button>
       </div>
-      <div class="cg-rp-section-label">Settings</div>
-      <div class="cg-rp-row"><span class="cg-rp-k">Aspect ratio</span><span class="cg-rp-v">${safe(inst.img.aspectRatio || '16:9')}</span></div>
-      <div class="cg-rp-row"><span class="cg-rp-k">Seed</span><span class="cg-rp-v">${inst.img.seed != null ? inst.img.seed : '—'}</span></div>
       <div class="cg-rp-actions">
         <button class="cg-rp-btn" data-rp-act="img-regen">Regenerate</button>
         <button class="cg-rp-btn" data-rp-act="img-add-variation">+ Variation</button>
@@ -41287,9 +42160,21 @@ function cgRenderProperties() {
         ${stripHtml}
         <button class="cg-rp-thumb cg-rp-thumb-add" data-rp-act="vid-add-variation" title="New video"><span class="cg-rp-thumb-add-icon">+</span><span class="cg-rp-thumb-add-label">Re-animate</span></button>
       </div>
-      <div class="cg-rp-section-label">Motion prompt — camera moves, action, environmental motion</div>
-      <textarea class="cg-rp-tune" id="cg-rp-motion" rows="5"
-                placeholder="e.g. &quot;Camera slowly dollies in. Subject turns to face camera. Wind moves leaves. Light flickers.&quot;">${safe(vid.motionPrompt || '')}</textarea>
+      <div class="cg-rp-section-label">Motion prompt</div>
+      <div class="cg-vid-prompt-group">
+        <label class="cg-vid-prompt-label">Camera</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-camera" rows="2"
+                  placeholder="Slow dolly-in, aerial crane, panning left…">${safe(vid.cameraPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Motion</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-motion" rows="2"
+                  placeholder="Subject walks forward, leaves flutter, coat sways…">${safe(vid.motionPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Environment</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-environment" rows="2"
+                  placeholder="Golden hour, soft fog, city bokeh…">${safe(vid.environmentPrompt || '')}</textarea>
+        <label class="cg-vid-prompt-label">Negative</label>
+        <textarea class="cg-rp-tune cg-vid-prompt-field" id="cg-rp-negative" rows="2"
+                  placeholder="blur, jitter, watermark, text overlay…">${safe(vid.negativePrompt || '')}</textarea>
+      </div>
       <div class="cg-rp-tune-row">
         <button class="cg-rp-btn cg-rp-btn-primary" data-rp-act="vid-regen-with-motion">▶ Re-animate with this motion</button>
       </div>
@@ -41336,17 +42221,18 @@ function cgRenderProperties() {
       }
     });
   }
-  // Live-save the VID Motion textarea onto motionPrompt.
-  const motionTa = body.querySelector('#cg-rp-motion');
-  if (motionTa) {
-    motionTa.addEventListener('input', () => {
+  // Live-save the 4 VID structured prompt fields.
+  ['camera', 'motion', 'environment', 'negative'].forEach(field => {
+    const ta = body.querySelector('#cg-rp-' + field);
+    if (!ta) return;
+    ta.addEventListener('input', () => {
       const cur = findInstance(g.selectedId);
       if (cur && cur.vid) {
-        cur.vid.motionPrompt = motionTa.value || '';
+        cur.vid[field + 'Prompt'] = ta.value || '';
         if (window._actions?.triggerSave) window._actions.triggerSave();
       }
     });
-  }
+  });
 
   // BGM volume slider
   const bgmVolSlider = body.querySelector('#cg-rp-bgm-vol');
@@ -41493,9 +42379,11 @@ function cgRenderProperties() {
         else if (act === 'img-delete')   window.imgActions.delete?.(i.scene, i.sb, i.img);
         else if (act === 'vid-regen')    window.vidActions.regen?.(i.scene, i.vid);
         else if (act === 'vid-regen-with-motion') {
-          const ta = body.querySelector('#cg-rp-motion');
-          if (ta && i.vid) {
-            i.vid.motionPrompt = ta.value || '';
+          if (i.vid) {
+            i.vid.cameraPrompt = body.querySelector('#cg-rp-camera')?.value || '';
+            i.vid.motionPrompt = body.querySelector('#cg-rp-motion')?.value || '';
+            i.vid.environmentPrompt = body.querySelector('#cg-rp-environment')?.value || '';
+            i.vid.negativePrompt = body.querySelector('#cg-rp-negative')?.value || '';
             if (window._actions?.triggerSave) window._actions.triggerSave();
           }
           window.vidActions.regen?.(i.scene, i.vid);
@@ -41752,24 +42640,6 @@ function cgChromeUnmount() {
   g.cgChrome = null;
 }
 
-function chromeShowProgress(totalPct, nodePct) {
-  const strip = $('cg-progress-strip');
-  if (!strip) return;
-  strip.removeAttribute('hidden');
-  const t = $('cg-prog-total');
-  if (t) t.textContent = (totalPct | 0) + '%';
-  const fill = $('cg-prog-fill');
-  if (fill) fill.style.width = Math.max(0, Math.min(100, totalPct | 0)) + '%';
-  const n = $('cg-prog-node');
-  if (n) n.textContent = (nodePct | 0) + '%';
-}
-
-function chromeHideProgress() {
-  const strip = $('cg-progress-strip');
-  if (!strip) return;
-  strip.setAttribute('hidden', '');
-}
-
 function chromeSetActiveCount(n) {
   const status = $('cg-pill-status');
   if (!status) return;
@@ -42020,9 +42890,11 @@ if (!window.imgActions.setSeed) {
 
 if (!window.vidActions.regen) {
   window.vidActions.regen = function (scene, vid) {
-    // Forward this variant's motion prompt onto scene before the kling pipeline
-    // reads it (21-kling.js:175 reads scene.motionPrompt with fallback).
-    if (vid && vid.motionPrompt) scene.motionPrompt = vid.motionPrompt;
+    if (vid) {
+      const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+      scene.motionPrompt = parts.join('. ') || vid.motionPrompt || scene.prompt || '';
+      scene.negativePrompt = vid.negativePrompt || '';
+    }
     return _actions.reanimateVideo(scene, vid);
   };
 }
@@ -42036,10 +42908,13 @@ if (!window.vidActions.addVariation) {
       runLayout();
       renderAll();
       triggerSave();
-      // Trigger video gen via animateScenes. Forward this variant's motion
-      // prompt onto the scene so 21-kling.js:175 picks it up.
+      // Trigger video gen via animateScenes. Assemble structured fields into prose.
       if (typeof window.animateScenes === 'function') {
-        if (vid && vid.motionPrompt) scene.motionPrompt = vid.motionPrompt;
+        if (vid) {
+          const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
+          scene.motionPrompt = parts.join('. ') || vid.motionPrompt || scene.prompt || '';
+          scene.negativePrompt = vid.negativePrompt || '';
+        }
         try {
           await window.animateScenes([scene], () => {}, g.geminiKey);
           CanvasState.syncMirrorFields(scene, g.mode);
@@ -42096,10 +42971,14 @@ if (!window.vidActions.setModel) {
 if (!window._cgSendToTimeline) {
   window._cgSendToTimeline = function () {
     if (window.closeCanvasPanel) window.closeCanvasPanel();
-    const langStep = document.getElementById('create-language-step');
-    if (langStep) {
-      langStep.style.display = '';
-      setTimeout(() => langStep.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    // Animated mode: show the video review step (Step 7 — Animate Scenes)
+    // Illustrated mode: show the language/voiceover step
+    const isAnimated = window.createVideoMode === 'animated';
+    const targetId = isAnimated ? 'create-video-step' : 'create-language-step';
+    const step = document.getElementById(targetId);
+    if (step) {
+      step.style.display = '';
+      setTimeout(() => step.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }
   };
 }
@@ -42200,6 +43079,40 @@ function notifyImageReady(sceneIdx) {
   }
 }
 
+// ════ Public API: notifyVideoReady ═════════════════════════════════════════
+
+function notifyVideoReady(sceneIdx) {
+  if (!g || !g.scenes) return;
+  const scene = g.scenes[sceneIdx];
+  if (!scene) return;
+  const vid = (scene.videoInstances || []).find(v => v.isRenderActive)
+           || (scene.videoInstances || [])[0];
+  if (vid) {
+    if (scene.videoUrl) vid.videoUrl = scene.videoUrl;
+    if (scene.videoError) { vid.status = 'error'; vid.videoError = scene.videoError; }
+    else if (scene.videoUrl) vid.status = 'done';
+  }
+  // Refresh launch node progress sig
+  const allDone = (g.scenes || []).every(s => s.videoUrl || s.videoError);
+  if (allDone && g.videoPhase === 'running') g.videoPhase = 'done';
+  // Refresh VID node
+  const node = vid ? g.nodeEls.get(vid.id) : null;
+  if (node && node.el) {
+    const sceneEntry = g.scenes[sceneIdx];
+    updateVidNode(node.el, sceneEntry, sceneIdx, vid);
+  }
+  renderLaunchNode();
+  redrawCurves();
+  if (g.selectedId === (vid && vid.id)) cgRenderProperties();
+  triggerSave();
+}
+
+function setVideoPhase(phase) {
+  if (!g) return;
+  g.videoPhase = phase;
+  renderLaunchNode();
+}
+
 // ════ SECTION 15 — Public API export ═══════════════════════════════════════
 
 function mount(containerId, scenes, mode, opts) {
@@ -42289,13 +43202,13 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   unmount,
   refresh,
   notifyImageReady,
+  notifyVideoReady,
+  setVideoPhase,
   fitToView,
   panToColumn,
   tidyLayout,
   getScenes,
   isActive,
-  chromeShowProgress,
-  chromeHideProgress,
   chromeSetActiveCount,
   _cursorMode: 'pan',                // mirror; updated by chrome cursor dropdown
   _actions,

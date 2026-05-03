@@ -423,7 +423,9 @@ function updateCreateButtons() {
   // Output language required for animated mode or text mode
   const needsOutputLang = createVideoMode === 'animated' || isTextMode;
   const hasOutputLanguage = !needsOutputLang || !!($('create-output-language')?.value);
-  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage);
+  // Cast gate: if user has defined characters/locations, all must be locked before storyboard launch
+  const castReady = (typeof window.castAllLocked === 'function') ? window.castAllLocked() : true;
+  btnCreateTranscribe.disabled = !(hasKey && hasInput && hasTemplate && hasOutputLanguage && castReady);
   // Update hint text next to launch button
   const hint = $('create-script-launch-hint');
   if (hint) {
@@ -432,6 +434,7 @@ function updateCreateButtons() {
     else if (!hasTemplate) hint.textContent = 'Select a template to begin';
     else if (needsOutputLang && !hasOutputLanguage) hint.textContent = 'Select output language to begin';
     else if (!hasKey) hint.textContent = 'API key required';
+    else if (!castReady) hint.textContent = 'Lock all characters/locations to continue';
     else hint.textContent = 'Ready — launch to generate storyboard & prompts';
   }
   // Update transcribe button label based on input mode
@@ -1221,3 +1224,155 @@ function inferReelAgentStates() {
 
 // Init video mode to set button labels correctly
 setCreateVideoMode(createVideoMode);
+
+// ── Cast (Characters & Locations) AI helpers ──────────────────────────────────
+
+const CAST_STYLE_PREFIX = {
+  cinematic: 'Cinematic film aesthetic, dramatic three-point lighting, shallow depth of field',
+  photorealistic: 'Photorealistic, natural lighting, lifelike skin and textures',
+  watercolor: 'Soft watercolor illustration, flowing brushstrokes, paper texture',
+  anime: 'Anime style, expressive features, clean line art, vibrant cel shading',
+  'oil-painting': 'Oil painting, rich impasto, classical composition',
+  'digital-art': 'Polished digital art, clean shading, vibrant colors',
+  minimalist: 'Minimalist illustration, flat shapes, limited palette',
+  comic: 'Comic book style, bold ink outlines, halftone shading',
+  'pixel-art': 'Pixel art, 16-bit aesthetic, dithered shading',
+  '3d-render': 'High-quality 3D render, soft global illumination, realistic materials',
+  sketch: 'Pencil sketch, hatched shading, paper grain',
+  vintage: 'Vintage film aesthetic, faded color palette, soft grain',
+  'flat-design': 'Flat design illustration, geometric shapes, bold colors',
+  gothic: 'Gothic illustration, moody lighting, ornate detail',
+  pastel: 'Pastel art, soft chalky textures, gentle gradients',
+  'ukiyo-e': 'Ukiyo-e woodblock print, flat color regions, calligraphic linework',
+  'stained-glass': 'Stained glass design, jeweled colors, dark leading',
+  'pop-art': 'Pop art, halftone dots, saturated primary colors',
+  noir: 'Film noir, high-contrast black and white, hard shadows',
+  surrealism: 'Surrealist composition, dreamlike juxtaposition',
+};
+
+function castStylePrefix() {
+  const preset = (typeof createStylePreset === 'string' && createStylePreset) || '';
+  if (preset === 'custom' || !preset) {
+    const custom = (typeof createStylePrompt === 'string' && createStylePrompt.trim()) || '';
+    return custom || 'Highly detailed visual style';
+  }
+  return CAST_STYLE_PREFIX[preset] || ('Style preset: ' + preset);
+}
+
+// Generate canonical appearance sheet. Uploaded image (if any) is attached for likeness.
+async function generateAppearanceSheet(item, type, geminiKey) {
+  const stylePrefix = castStylePrefix();
+  const isChar = type === 'character';
+  const isLoc = type === 'location';
+  const promptText = isChar
+    ? `You are a casting director. Write a detailed canonical appearance sheet for a character so an AI image generator can produce visually consistent images across many scenes.
+
+Character name: ${item.name}
+User description: "${item.userDescription || '(none provided)'}"
+Visual style: ${stylePrefix}
+${item.uploadedImageDataUrl ? '(Reference image attached — match the likeness shown.)' : ''}
+
+Return ONLY valid JSON (no markdown):
+{
+  "appearance": "Detailed visual description (3-5 sentences): age, height, build, face shape, hair (color/length/style), eyes, distinctive features, clothing (specific items, colors, fabrics), accessories",
+  "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image"],
+  "ageRange": "X-Y",
+  "build": "..."
+}`
+    : `Write a detailed canonical appearance sheet for a location so an AI image generator can produce visually consistent images across many scenes.
+
+Location name: ${item.name}
+User description: "${item.userDescription || '(none provided)'}"
+Visual style: ${stylePrefix}
+${item.uploadedImageDataUrl ? '(Reference image attached — match the look shown.)' : ''}
+
+Return ONLY valid JSON (no markdown):
+{
+  "appearance": "Detailed visual description (3-5 sentences): setting type, time of day, lighting, mood, key visual elements, materials, colors",
+  "distinctiveTraits": ["3-5 specific visual anchors that must appear in every image of this location"],
+  "ageRange": "",
+  "build": ""
+}`;
+
+  const parts = [{ text: promptText }];
+  if (item.uploadedImageDataUrl) {
+    const m = item.uploadedImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+  }
+  const data = await callGeminiAPI(['gemini-2.5-flash'], { contents: [{ parts }] }, geminiKey);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  let parsed;
+  try { parsed = JSON.parse(cleaned); }
+  catch (e) {
+    // Fallback: use raw user description as appearance
+    return {
+      appearance: item.userDescription || item.name,
+      distinctiveTraits: [],
+      ageRange: '',
+      build: '',
+    };
+  }
+  return {
+    appearance: typeof parsed.appearance === 'string' ? parsed.appearance : (item.userDescription || ''),
+    distinctiveTraits: Array.isArray(parsed.distinctiveTraits) ? parsed.distinctiveTraits.slice(0, 5) : [],
+    ageRange: parsed.ageRange || '',
+    build: parsed.build || '',
+  };
+}
+
+// Generate representative image. Path A = no upload (text-only). Path B = with upload (likeness anchor).
+async function generateRepresentativeImage(item, type, geminiKey) {
+  const stylePrefix = castStylePrefix();
+  const isChar = type === 'character';
+  const subject = isChar
+    ? 'Full-body character portrait, subject centered, plain neutral background, eye-level shot, full body visible.'
+    : 'Establishing shot of the location, no people, neutral overcast lighting if outdoors, eye-level angle.';
+  let prompt;
+  let opts;
+  if (item.uploadedImageDataUrl) {
+    const m = item.uploadedImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    const refParts = m ? [
+      { inlineData: { mimeType: m[1], data: m[2] } },
+      { text: isChar
+          ? 'Reference image: match this person\'s face, build, and likeness in the rendered image.'
+          : 'Reference image: match the look and feel of this location in the rendered image.' }
+    ] : [];
+    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject} Match the reference image's likeness. Re-render in the target style.`;
+    opts = { width: 768, height: 1024, refParts };
+  } else {
+    prompt = `${stylePrefix}. ${item.appearanceSheet || item.userDescription || item.name}. ${subject}`;
+    opts = { width: 768, height: 1024 };
+  }
+  if (typeof generateImageGeminiFlash === 'function') {
+    return await generateImageGeminiFlash(prompt, geminiKey, opts);
+  }
+  throw new Error('generateImageGeminiFlash not available');
+}
+
+// Vision auto-caption: when user uploads image but leaves description blank, fill it in.
+async function autoCaptionFromImage(imgDataUrl, type, geminiKey) {
+  const m = imgDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!m) return '';
+  const promptText = type === 'character'
+    ? 'Describe this person concisely for an AI image generator: age, build, hair color/style, distinctive features, clothing. 1-2 sentences. Output only the description, no preamble.'
+    : 'Describe this location concisely for an AI image generator: setting type, lighting, mood, key visual elements. 1-2 sentences. Output only the description, no preamble.';
+  try {
+    const data = await callGeminiAPI(['gemini-2.5-flash'], {
+      contents: [{ parts: [
+        { inlineData: { mimeType: m[1], data: m[2] } },
+        { text: promptText }
+      ]}]
+    }, geminiKey);
+    return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  } catch (e) {
+    console.warn('[autoCaptionFromImage] failed:', e.message);
+    return '';
+  }
+}
+
+// Expose to other modules
+window.generateAppearanceSheet = generateAppearanceSheet;
+window.generateRepresentativeImage = generateRepresentativeImage;
+window.autoCaptionFromImage = autoCaptionFromImage;
+window.castStylePrefix = castStylePrefix;
