@@ -24042,6 +24042,54 @@ function getSceneRefImageParts(scene) {
 
   function castNextId(prefix) { return `${prefix}_${Date.now().toString(36)}_${(_castNextId++).toString(36)}`; }
 
+  // G8 — global concurrency cap on AI rewrite calls. Per-scene _aiBusy guard
+  // already prevents the same scene from firing twice; this caps total parallel
+  // calls across all scenes. Excess calls queue FIFO.
+  const AI_REWRITE_MAX_CONCURRENT = 2;
+  let _aiInflightCount = 0;
+  const _aiQueue = [];
+  function _aiAcquireSlot() {
+    return new Promise((resolve) => {
+      if (_aiInflightCount < AI_REWRITE_MAX_CONCURRENT) {
+        _aiInflightCount++;
+        resolve();
+      } else {
+        _aiQueue.push(resolve);
+      }
+    });
+  }
+  function _aiReleaseSlot() {
+    if (_aiQueue.length > 0) {
+      const next = _aiQueue.shift();
+      next();
+    } else {
+      _aiInflightCount = Math.max(0, _aiInflightCount - 1);
+    }
+  }
+  window._castAiAcquireSlot = _aiAcquireSlot;
+  window._castAiReleaseSlot = _aiReleaseSlot;
+  window._castAiInflightCount = () => _aiInflightCount;
+
+  // G5 — shared name-collision check across all locked entities (characters,
+  // locations, product, presenter, setting). Used by both _lockItem (cast) and
+  // _brandLock (brand). Returns true if another locked entity has the same name
+  // (case-insensitive). excludeId allows checking before locking the item itself.
+  function _castNameCollision(name, excludeId) {
+    if (!name) return false;
+    const lc = name.trim().toLowerCase();
+    if (!lc) return false;
+    const all = [
+      ...(window.createJobState.characters || []),
+      ...(window.createJobState.locations || []),
+      window.createJobState.product,
+      window.createJobState.presenter,
+      window.createJobState.setting,
+    ].filter(Boolean);
+    return all.some(x => x.id !== excludeId && x.locked
+      && (x.name || '').trim().toLowerCase() === lc);
+  }
+  window._castNameCollision = _castNameCollision;
+
   // Public — count of locked entities across all modes (for style-change warnings)
   window.castLockedCount = function () {
     const cs = (window.createJobState.characters || []).filter(c => c.locked).length;
@@ -24368,11 +24416,9 @@ function getSceneRefImageParts(scene) {
   }
 
   function _lockItem(item, type) {
-    // Name-collision check
-    const list = type === 'character' ? window.createJobState.characters : window.createJobState.locations;
-    const collision = list.some(x => x.id !== item.id && x.locked && (x.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
-    if (collision) {
-      alert(`Another ${type} is already named "${item.name}". Rename one of them before locking.`);
+    // G5 — name-collision check across all locked entities
+    if (_castNameCollision(item.name, item.id)) {
+      alert(`Another locked entity is already named "${item.name}". Rename one of them before locking.`);
       return;
     }
     if (!item.appearanceSheet || !item.representativeImageDataUrl) {
@@ -24864,6 +24910,11 @@ function getSceneRefImageParts(scene) {
   }
 
   function _brandLock(item, kind) {
+    // G5 — name-collision check across all locked entities
+    if (window._castNameCollision && window._castNameCollision(item.name, item.id)) {
+      alert(`Another locked entity is already named "${item.name}". Rename one of them before locking.`);
+      return;
+    }
     if (!item.appearanceSheet || !item.representativeImageDataUrl) {
       alert('Generate appearance and image before locking.');
       return;
@@ -25398,6 +25449,8 @@ function getSceneRefImageParts(scene) {
         scene._aiBusy = true;
         cardEl.classList.add('scene-chip-busy');
         aiBtn.disabled = true;
+        // G8 — wait for a global concurrency slot before firing Gemini
+        await _aiAcquireSlot();
         try {
           const refs = _allLockedRefs();
           const parsed = window.castParseBracketTokens(scene.prompt || '');
@@ -25414,6 +25467,7 @@ function getSceneRefImageParts(scene) {
         } catch (err) {
           alert('AI update failed: ' + err.message);
         } finally {
+          _aiReleaseSlot();
           scene._aiBusy = false;
           cardEl.classList.remove('scene-chip-busy');
         }
