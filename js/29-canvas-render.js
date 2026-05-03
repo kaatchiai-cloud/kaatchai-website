@@ -135,6 +135,9 @@ function freshGraphState() {
     // Two-phase video generation: idle → filling → ready → running → done
     videoPhase: 'idle',
 
+    // Phase 5 — Character filter (session-only)
+    characterFilter: { activeIds: new Set(), mode: 'AND', compactView: false },
+
     // chrome
     cgChrome: null,
 
@@ -421,6 +424,27 @@ function placeNode(elNode, x, y) {
   elNode.style.top  = y + 'px';
 }
 
+// Phase 5 — character filter predicate
+function isSceneFilteredOut(scene) {
+  if (!g || !g.characterFilter) return false;
+  const f = g.characterFilter;
+  if (f.activeIds.size === 0) return false;
+  const inScene = new Set(scene.refCharacters || []);
+  if (f.mode === 'AND') {
+    for (const id of f.activeIds) if (!inScene.has(id)) return true;
+    return false;
+  }
+  // OR mode
+  for (const id of f.activeIds) if (inScene.has(id)) return false;
+  return true;
+}
+
+function applyFilterToNode(nodeEl, sceneOrNull) {
+  if (!nodeEl) return;
+  const dimmed = !!(sceneOrNull && isSceneFilteredOut(sceneOrNull));
+  nodeEl.classList.toggle('cg-node--dimmed', dimmed);
+}
+
 function ensureNode(id, type, buildFn) {
   let cached = g.nodeEls.get(id);
   if (cached && cached.el && cached.el.isConnected) return cached.el;
@@ -525,6 +549,8 @@ function updateSBNode(node, scene, sb, sceneIdx) {
   // Selection
   if (g.selectedIds.has(sb.id)) node.classList.add('cg-node-selected');
   else node.classList.remove('cg-node-selected');
+
+  applyFilterToNode(node, scene);
 }
 
 // ─── IMG node ──────────────────────────────────────────────────────────────
@@ -626,6 +652,8 @@ function updateImgNode(node, scene, sceneIdx, sb, img) {
 
   if (g.selectedIds.has(img.id)) node.classList.add('cg-node-selected');
   else node.classList.remove('cg-node-selected');
+
+  applyFilterToNode(node, scene);
 }
 
 // ─── VID node ──────────────────────────────────────────────────────────────
@@ -706,6 +734,8 @@ function updateVidNode(node, scene, sceneIdx, sb, srcImg, vid) {
 
   if (g.selectedIds.has(vid.id)) node.classList.add('cg-node-selected');
   else node.classList.remove('cg-node-selected');
+
+  applyFilterToNode(node, scene);
 }
 
 // ─── Variant tray + thumb strip ────────────────────────────────────────────
@@ -1178,6 +1208,14 @@ function drawCurveXY(x1, y1, x2, y2, type, status, fromId, toId) {
   path.classList.add('cg-curve');
   if (fromId) path.dataset.from = fromId;
   if (toId)   path.dataset.to = toId;
+  // Phase 5 — dim curves whose endpoints are dimmed by the character filter
+  const fromEl = fromId ? (g.nodeEls.get(fromId)?.el) : null;
+  const toEl = toId ? (g.nodeEls.get(toId)?.el) : null;
+  const fromDim = fromEl && fromEl.classList.contains('cg-node--dimmed');
+  const toDim = toEl && toEl.classList.contains('cg-node--dimmed');
+  if (fromDim || toDim) {
+    path.setAttribute('opacity', '0.15');
+  }
   if (g.hoveredNodeId) {
     if (fromId === g.hoveredNodeId || toId === g.hoveredNodeId) path.classList.add('connected');
   }
@@ -1725,6 +1763,11 @@ function attachEvents() {
 
     if (e.key === 'Escape') {
       cgCloseContextMenu();
+      // If a character filter is active, clear it first
+      if (g.characterFilter && g.characterFilter.activeIds.size > 0) {
+        clearCharacterFilter();
+        return;
+      }
       clearSelection();
       return;
     }
@@ -3014,6 +3057,111 @@ function setVideoPhase(phase) {
   renderLaunchNode();
 }
 
+// ════ Public API: Character filter (Phase 5) ═══════════════════════════════
+
+function _renderFilterChip() {
+  if (!g || !g.wrapperEl) return;
+  let chip = document.getElementById('cg-filter-chip');
+  const f = g.characterFilter;
+  if (!f || f.activeIds.size === 0) {
+    if (chip) chip.remove();
+    return;
+  }
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = 'cg-filter-chip';
+    chip.className = 'cg-filter-chip';
+    g.wrapperEl.appendChild(chip);
+  }
+  // Resolve names from createJobState
+  const chars = (window.createJobState && window.createJobState.characters) || [];
+  const presenter = window.createJobState && window.createJobState.presenter;
+  const names = [...f.activeIds].map(id => {
+    const c = chars.find(x => x.id === id);
+    if (c) return c.name;
+    if (presenter && presenter.id === id) return presenter.name;
+    return '?';
+  });
+  // Count matching scenes
+  const total = (g.scenes || []).length;
+  const matching = (g.scenes || []).filter(s => !isSceneFilteredOut(s)).length;
+  const modeBtn = (f.activeIds.size > 1)
+    ? `<button class="cg-filter-mode-toggle" data-action="cg-filter-mode">${f.mode}</button>`
+    : '';
+  const compactBtn = `<button class="cg-filter-compact-toggle ${f.compactView ? 'active' : ''}" data-action="cg-filter-compact" title="Compact view: hide non-matching scenes">${f.compactView ? '◱' : '◰'}</button>`;
+  chip.innerHTML = `
+    <span class="cg-filter-icon">🔎</span>
+    <span class="cg-filter-text">Filtering: ${names.map(n => '<span class="cg-filter-name">' + n + '</span>').join((f.mode === 'AND' && names.length > 1) ? ' <em>and</em> ' : ' <em>or</em> ')}</span>
+    <span class="cg-filter-count">${matching}/${total} scenes</span>
+    ${modeBtn}
+    ${compactBtn}
+    <button class="cg-filter-clear" data-action="cg-filter-clear" title="Clear filter (Esc)">✕</button>
+  `;
+  // Wire chip buttons
+  chip.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = btn.dataset.action;
+      if (a === 'cg-filter-clear') clearCharacterFilter();
+      else if (a === 'cg-filter-mode') {
+        f.mode = (f.mode === 'AND') ? 'OR' : 'AND';
+        renderAll();
+        redrawCurves();
+        _renderFilterChip();
+      } else if (a === 'cg-filter-compact') {
+        f.compactView = !f.compactView;
+        if (g.containerEl) g.containerEl.classList.toggle('cg-compact-filter', f.compactView);
+        renderAll();
+        redrawCurves();
+        _renderFilterChip();
+      }
+    });
+  });
+}
+
+function setCharacterFilter(charId, modifiers) {
+  if (!g) return;
+  if (!g.characterFilter) g.characterFilter = { activeIds: new Set(), mode: 'AND', compactView: false };
+  const f = g.characterFilter;
+  modifiers = modifiers || {};
+  if (modifiers.shift || modifiers.cmd) {
+    if (f.activeIds.has(charId)) f.activeIds.delete(charId);
+    else f.activeIds.add(charId);
+  } else if (modifiers.right) {
+    f.activeIds = new Set([charId]);
+  } else {
+    if (f.activeIds.size === 1 && f.activeIds.has(charId)) {
+      f.activeIds = new Set();
+    } else {
+      f.activeIds = new Set([charId]);
+    }
+  }
+  renderAll();
+  redrawCurves();
+  _renderFilterChip();
+}
+
+function clearCharacterFilter() {
+  if (!g || !g.characterFilter) return;
+  g.characterFilter.activeIds = new Set();
+  g.characterFilter.compactView = false;
+  if (g.containerEl) g.containerEl.classList.remove('cg-compact-filter');
+  renderAll();
+  redrawCurves();
+  _renderFilterChip();
+}
+
+// Auto-clear filter when a character it references is deleted.
+function notifyCharacterDeleted(charId) {
+  if (!g || !g.characterFilter) return;
+  if (g.characterFilter.activeIds.has(charId)) {
+    g.characterFilter.activeIds.delete(charId);
+    if (g.characterFilter.activeIds.size === 0) g.characterFilter.compactView = false;
+    renderAll();
+    redrawCurves();
+    _renderFilterChip();
+  }
+}
+
 // ════ SECTION 15 — Public API export ═══════════════════════════════════════
 
 function mount(containerId, scenes, mode, opts) {
@@ -3105,6 +3253,9 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   notifyImageReady,
   notifyVideoReady,
   setVideoPhase,
+  setCharacterFilter,
+  clearCharacterFilter,
+  notifyCharacterDeleted,
   fitToView,
   panToColumn,
   tidyLayout,

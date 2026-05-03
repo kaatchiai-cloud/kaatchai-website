@@ -1648,3 +1648,94 @@ html[data-theme="light"] #create-canvas-step .cg-thumb .cg-vid-badge {
 }
 
 /* Selection ring stays the same — accent token theme-swaps automatically. */
+
+/* ════════════════════════════════════════════════════════════════════════
+   PHASE 5 — Character filter
+   ════════════════════════════════════════════════════════════════════════ */
+
+#create-canvas-step .cg-node--dimmed {
+  opacity: 0.18;
+  transition: opacity 200ms ease;
+}
+#create-canvas-step .cg-node--dimmed.cg-node-selected {
+  opacity: 0.45;
+}
+
+/* Compact view — hide non-matching nodes entirely */
+#create-canvas-step.cg-compact-filter .cg-node--dimmed {
+  display: none;
+}
+
+/* Filter chip — fixed at top of viewport */
+#create-canvas-step .cg-filter-chip {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-bg, #050814) 88%, transparent);
+  border: 1px solid color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 50%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  color: var(--text-primary, var(--lp-text));
+  white-space: nowrap;
+}
+#create-canvas-step .cg-filter-icon { font-size: 13px; }
+#create-canvas-step .cg-filter-text { display: inline-flex; align-items: center; gap: 4px; }
+#create-canvas-step .cg-filter-text em {
+  font-style: normal;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, var(--lp-faint));
+  margin: 0 2px;
+}
+#create-canvas-step .cg-filter-name {
+  font-weight: 600;
+  color: var(--lp-accent, oklch(56% 0.18 230));
+}
+#create-canvas-step .cg-filter-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 16%, transparent);
+  color: var(--lp-accent, oklch(56% 0.18 230));
+  font-size: 11px;
+  font-weight: 500;
+}
+#create-canvas-step .cg-filter-mode-toggle,
+#create-canvas-step .cg-filter-compact-toggle {
+  background: transparent;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  color: var(--text-secondary, var(--lp-dim));
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+#create-canvas-step .cg-filter-mode-toggle:hover,
+#create-canvas-step .cg-filter-compact-toggle:hover {
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 12%, transparent);
+}
+#create-canvas-step .cg-filter-compact-toggle.active {
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 22%, transparent);
+  color: var(--lp-accent, oklch(56% 0.18 230));
+  border-color: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 45%, transparent);
+}
+#create-canvas-step .cg-filter-clear {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+#create-canvas-step .cg-filter-clear:hover { opacity: 1; }

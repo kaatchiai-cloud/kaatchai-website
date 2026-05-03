@@ -2205,8 +2205,42 @@ body:has(#drop-zone:not(.hidden)) {
       <p class="text-xs text-muted" style="margin:2px 0 0 114px;">Optional — enables sample-accurate subtitle word timing via Scribe. Falls back to Gemini.</p>
     </div>
 
+    <!-- Step 0: Video Type (Brand / Film / Narration) -->
+    <div class="create-step" id="create-video-type-step">
+      <h3><span class="step-num">0</span> Type of video</h3>
+      <p class="text-sm text-muted mb-md">Pick the kind of video you're making. The cast section adapts: brand asks for a product + presenter, film asks for characters + locations, narration skips cast entirely.</p>
+      <div id="vtype-cards" class="vtype-cards">
+        <div class="vtype-card" data-type="brand">
+          <div class="vtype-icon">🎁</div>
+          <div class="vtype-name">Brand / Product</div>
+          <div class="vtype-desc">Hero a product, launch, demo, commercial.</div>
+        </div>
+        <div class="vtype-card" data-type="film">
+          <div class="vtype-icon">🎬</div>
+          <div class="vtype-name">Film / Story</div>
+          <div class="vtype-desc">Characters, plot, scenes — short film or doc.</div>
+        </div>
+        <div class="vtype-card" data-type="narration">
+          <div class="vtype-icon">🎙️</div>
+          <div class="vtype-name">Narration</div>
+          <div class="vtype-desc">Voice-over essay, explainer — no characters.</div>
+        </div>
+      </div>
+      <div class="vtype-action-row">
+        <span class="vtype-selected-label" id="vtype-selected-label">No type selected</span>
+        <button id="btn-vtype-lock" class="btn-md primary" disabled>✓ Lock type</button>
+      </div>
+      <!-- Locked state (shown after lock) -->
+      <div id="vtype-locked-row" class="vtype-locked-row" style="display:none;">
+        <span class="vtype-locked-icon" id="vtype-locked-icon">🎬</span>
+        <span class="vtype-locked-name" id="vtype-locked-name">Film / Story</span>
+        <span class="vtype-locked-badge">✅ Locked</span>
+        <button id="btn-vtype-change" class="btn-xs">⟲ Change</button>
+      </div>
+    </div>
+
     <!-- Step 1: Input & Template -->
-    <div class="create-step" id="create-input-step">
+    <div class="create-step" id="create-input-step" style="display:none;">
       <h3><span class="step-num">1</span> Input &amp; Template</h3>
       <div id="create-input-mode-toggle" class="input-mode-toggle">
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
@@ -2406,8 +2440,8 @@ body:has(#drop-zone:not(.hidden)) {
           </select>
         </label>
       </div>
-      <!-- Characters & Locations Setup (defined upfront, before storyboard) -->
-      <div id="cast-setup-card" class="cast-setup-card" style="display:none;">
+      <!-- Characters & Locations Setup (Film mode) -->
+      <div id="cast-setup-card" class="cast-setup-card" style="display:none;" data-mode="film">
         <h4 class="create-section-heading">👥 Characters &amp; Locations <span class="cast-optional">(optional, helps consistency)</span></h4>
         <p class="text-sm text-muted mb-md">Define recurring characters and locations. AI generates a canonical appearance and a reference image. Lock them to maintain visual consistency across all scenes.</p>
         <div class="cast-counts-row">
@@ -2435,6 +2469,11 @@ body:has(#drop-zone:not(.hidden)) {
           </label>
           <span class="text-xs text-muted" id="cast-cap-hint">Combined max: 6</span>
         </div>
+        <div class="cast-detect-row">
+          <button id="btn-cast-detect" class="btn-xs">🪄 Detect from script</button>
+          <button id="btn-cast-library" class="btn-xs">📚 Library</button>
+          <span id="cast-detect-status" class="text-xs text-muted">Available after script lands.</span>
+        </div>
         <input type="file" id="cast-img-upload" accept="image/*" hidden>
         <div id="cast-char-rows" class="cast-rows"></div>
         <div id="cast-loc-rows" class="cast-rows"></div>
@@ -2442,6 +2481,33 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-cast-generate" class="btn-md primary" disabled>✨ Generate appearances</button>
           <span id="cast-action-hint" class="text-sm text-muted">Fill all names and descriptions to enable.</span>
         </div>
+      </div>
+
+      <!-- Brand mode setup (Product + Presenter + Setting) -->
+      <div id="brand-setup-card" class="cast-setup-card" style="display:none;" data-mode="brand">
+        <h4 class="create-section-heading">🎁 Product &amp; Cast</h4>
+        <p class="text-sm text-muted mb-md">Define the product hero of the video. Optionally add a presenter (a person on camera) and a setting (where the video plays).</p>
+        <div class="cast-detect-row">
+          <button id="btn-brand-detect" class="btn-xs">🪄 Detect product from script</button>
+          <button id="btn-brand-library" class="btn-xs">📚 Library</button>
+          <span id="brand-detect-status" class="text-xs text-muted">Available after script lands.</span>
+        </div>
+        <div id="brand-product-slot" class="brand-slot"></div>
+        <div id="brand-presenter-slot" class="brand-slot"></div>
+        <div id="brand-setting-slot" class="brand-slot"></div>
+        <div class="brand-add-row">
+          <button id="btn-brand-add-presenter" class="btn-xs">+ Add presenter</button>
+          <button id="btn-brand-add-setting" class="btn-xs">+ Add setting</button>
+        </div>
+        <div class="cast-action-row" id="brand-action-row" style="display:none;">
+          <button id="btn-brand-generate" class="btn-md primary" disabled>✨ Generate appearances</button>
+          <span id="brand-action-hint" class="text-sm text-muted">Fill product name and description to enable.</span>
+        </div>
+      </div>
+
+      <!-- Narration mode notice -->
+      <div id="narration-notice" class="narration-notice" style="display:none;" data-mode="narration">
+        <p class="text-sm text-muted">🎙️ Narration mode — no characters, presenters, or product to define. The storyboard agent will generate visuals abstractly from the text.</p>
       </div>
       <div class="agent-launch-row visible" id="create-input-launch-row">
         <span class="agent-launch-summary" id="create-script-launch-hint">Import audio to begin</span>
@@ -5424,6 +5490,48 @@ body:has(#drop-zone:not(.hidden)) {
     <input type="number" id="create-sub-bg-alpha" value="0.5" min="0" max="1" step="0.1">
     <input type="checkbox" id="create-sub-bold" checked>
     <input type="checkbox" id="create-sub-all-caps">
+  </div>
+
+  <!-- Phase 4: Refs panel edit modal (canvas surface) -->
+  <div id="refs-edit-modal" class="refs-edit-modal" hidden>
+    <div class="refs-edit-modal-backdrop" data-action="close-modal"></div>
+    <div class="refs-edit-modal-card">
+      <header class="refs-edit-modal-head">
+        <span class="refs-edit-modal-title" id="refs-edit-modal-title">Character</span>
+        <button class="refs-edit-modal-close" data-action="close-modal" aria-label="Close">×</button>
+      </header>
+      <div class="refs-edit-modal-body" id="refs-edit-modal-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 4: Add-character mid-project modal -->
+  <div id="refs-add-modal" class="refs-edit-modal" hidden>
+    <div class="refs-edit-modal-backdrop" data-action="close-add-modal"></div>
+    <div class="refs-edit-modal-card">
+      <header class="refs-edit-modal-head">
+        <span class="refs-edit-modal-title">Add new character</span>
+        <button class="refs-edit-modal-close" data-action="close-add-modal" aria-label="Close">×</button>
+      </header>
+      <div class="refs-edit-modal-body">
+        <p class="text-sm text-muted mb-md">⚠ Characters added now will only appear in NEW scenes or scenes you explicitly assign them to via chips. Existing generated images won't auto-include them.</p>
+        <label class="form-label">Name:
+          <input type="text" id="refs-add-name" placeholder="e.g. Mom" style="width:100%; margin-top:4px;">
+        </label>
+        <label class="form-label" style="margin-top:8px;">Description:
+          <textarea id="refs-add-desc" rows="2" style="width:100%;" placeholder="e.g. late 30s, harried, in apron"></textarea>
+        </label>
+        <label class="form-label" style="margin-top:8px;">Reference photo (optional):
+          <input type="file" id="refs-add-upload" accept="image/*" style="margin-top:4px;">
+        </label>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button id="btn-refs-add-create" class="btn-md primary">✨ Generate &amp; add</button>
+          <button data-action="close-add-modal" class="btn-md">Cancel</button>
+        </div>
+        <div id="refs-add-status" class="text-xs text-muted" style="margin-top:8px;"></div>
+      </div>
+    </div>
   </div>
 </body>
 </html>

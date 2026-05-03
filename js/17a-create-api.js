@@ -157,6 +157,33 @@ function renderTemplateGrid(category = 'all') {
 function applyTemplate(templateId) {
   const tpl = TEMPLATES.find(t => t.id === templateId);
   if (!tpl) return;
+
+  // Style soft-lock guard (R23): if any cast/product is locked AND this
+  // template would change the visual style, confirm before proceeding.
+  const styleLocked = !!(window.createJobState && window.createJobState.styleLocked);
+  const newStyle = (tpl.style && STYLE_PRESETS[tpl.style]) ? tpl.style : '';
+  const styleWouldChange = styleLocked && newStyle && newStyle !== createStylePreset;
+  if (styleWouldChange && typeof window.castConfirmStyleChange === 'function') {
+    const lockedCount = window.castLockedCount ? window.castLockedCount() : 0;
+    if (lockedCount > 0) {
+      const fromStyle = createStylePreset || 'no preset';
+      const toStyle = newStyle;
+      const ok = window.confirm(
+        'Switching template will change visual style from "' + fromStyle + '" to "' + toStyle + '". '
+        + lockedCount + ' locked item(s) were generated in the old style. Continue and mark them for regen?'
+      );
+      if (!ok) {
+        // Re-highlight the previously selected template card (revert UI)
+        const grid = $('template-grid');
+        if (grid) grid.querySelectorAll('.template-card').forEach(c => {
+          c.classList.toggle('selected', c.dataset.tpl === selectedTemplate);
+        });
+        return;
+      }
+      window.castConfirmStyleChange();
+    }
+  }
+
   selectedTemplate = templateId;
   // Set output size
   if (tpl.size && createImageSize) {
@@ -1371,8 +1398,119 @@ async function autoCaptionFromImage(imgDataUrl, type, geminiKey) {
   }
 }
 
+// Detect references from script text — mode-aware extraction.
+// videoType: 'film' | 'brand'. Returns:
+//   film  → { characters: [{name, description}], locations: [{name, description}] }
+//   brand → { product: {name, description}, presenter: {name, description} | null,
+//             setting: {name, description} | null }
+async function detectRefsFromScript(scriptText, videoType, geminiKey) {
+  if (!geminiKey) throw new Error('Gemini API key required');
+  if (!scriptText || !scriptText.trim()) throw new Error('No script text to analyze');
+  let promptText;
+  if (videoType === 'film') {
+    promptText = `Read this script and identify recurring characters and locations worth defining as references for visual consistency in an AI-generated video.
+
+Script:
+"""
+${scriptText.slice(0, 8000)}
+"""
+
+Return ONLY valid JSON (no markdown, no preamble):
+{
+  "characters": [
+    {"name": "Character Name", "description": "1-2 sentence visual description: age, build, clothing, distinctive features (inferred from script)"}
+  ],
+  "locations": [
+    {"name": "Location Name", "description": "1-2 sentence visual description: setting type, atmosphere, key visual elements"}
+  ]
+}
+
+RULES:
+- Only include items that appear in 2+ scenes/segments OR are clearly central to the story.
+- Cap: 6 items combined (characters + locations).
+- For unnamed characters who recur (e.g. "the bartender"), assign a useful name.
+- If the script has no recurring characters or locations, return empty arrays.
+- Return ONLY the JSON object.`;
+  } else if (videoType === 'brand') {
+    promptText = `Read this brand/product video script and identify the product being featured, plus the on-screen presenter (if any) and the setting (if any).
+
+Script:
+"""
+${scriptText.slice(0, 8000)}
+"""
+
+Return ONLY valid JSON (no markdown, no preamble):
+{
+  "product": {"name": "Product Name", "description": "1-2 sentence visual description of the product (color, form, materials, distinguishing features)"},
+  "presenter": {"name": "Presenter Name or 'Presenter'", "description": "1-2 sentence visual description"} or null,
+  "setting": {"name": "Setting Name", "description": "1-2 sentence visual description"} or null
+}
+
+RULES:
+- product is required. If no clear product, infer the brand/service as the product.
+- presenter is optional — only include if a person is on camera demonstrating, narrating, or modeling the product.
+- setting is optional — only include if a specific location is established (studio, kitchen, gym, etc.).
+- Return ONLY the JSON object.`;
+  } else {
+    return null;
+  }
+  const data = await callGeminiAPI(['gemini-2.5-flash'], { contents: [{ parts: [{ text: promptText }] }] }, geminiKey);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    throw new Error('Could not parse Gemini response as JSON');
+  }
+}
+
+// Read the current script text from whichever input mode is active.
+function readCurrentScriptText() {
+  // Text mode — direct textarea
+  const ta = $('create-tts-text');
+  if (ta && ta.value && ta.value.trim()) return ta.value.trim();
+  // Audio/podcast mode — transcribed text on createTranscript
+  if (typeof createTranscript === 'string' && createTranscript.trim()) return createTranscript.trim();
+  // Audio with structured segments — concatenate segment text
+  if (typeof createScenes !== 'undefined' && Array.isArray(createScenes) && createScenes.length > 0) {
+    const segs = createScenes.map(s => s.text || '').filter(Boolean).join(' ');
+    if (segs.trim()) return segs.trim();
+  }
+  return '';
+}
+
+// AI rewrite — smooth raw bracket tokens into the prose naturally.
+// User has already mutated the prose structurally (added/removed [Name] tokens).
+// This call asks Gemini to weave them in / smooth removals so the prose reads well.
+//   prose: the current scene prose (may contain raw [Name] tokens awkwardly placed)
+//   contextRefs: array of { name, description } for all locked refs that ARE
+//                referenced in the prose
+//   geminiKey
+// Returns the rewritten prose. No REMOVE_FAILED — removal already happened
+// structurally; this call just polishes the language around it.
+async function rewriteSceneSmoothBrackets(prose, contextRefs, geminiKey) {
+  if (!geminiKey) throw new Error('Gemini API key required');
+  const refsBlock = (contextRefs || []).length > 0
+    ? 'References in this scene:\n' + contextRefs.map(r => `- [${r.name}] — ${r.description || r.name}`).join('\n') + '\n\n'
+    : '';
+  const prompt = `Scene prose (may contain awkwardly-placed [Name] tokens that need smoothing):
+"""
+${prose}
+"""
+
+${refsBlock}Rewrite the scene so each [Name] token is woven in naturally — describe their presence, action, or interaction with the existing scene. Keep the same length, mood, camera direction, and pacing. Use the exact bracket names that appear above (do not introduce new bracket names, do not strip existing ones). Do NOT redescribe physical traits — the image generator already has the reference images.
+
+Return ONLY the rewritten prose. No commentary, no markdown, no quotation marks around the result.`;
+  const data = await callGeminiAPI(['gemini-2.5-flash'], { contents: [{ parts: [{ text: prompt }] }] }, geminiKey);
+  const out = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  return out.replace(/^["']|["']$/g, '').trim();
+}
+
 // Expose to other modules
 window.generateAppearanceSheet = generateAppearanceSheet;
 window.generateRepresentativeImage = generateRepresentativeImage;
 window.autoCaptionFromImage = autoCaptionFromImage;
 window.castStylePrefix = castStylePrefix;
+window.detectRefsFromScript = detectRefsFromScript;
+window.readCurrentScriptText = readCurrentScriptText;
+window.rewriteSceneSmoothBrackets = rewriteSceneSmoothBrackets;

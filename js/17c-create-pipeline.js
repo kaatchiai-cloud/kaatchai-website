@@ -1827,6 +1827,8 @@ RULES:
 function renderStoryboardSceneCard(scene, idx) {
   const card = document.createElement('div');
   card.className = 'storyboard-card';
+  if (scene.promptDirty) card.classList.add('scene-prompt-dirty');
+  const chipHtml = (typeof window.castBuildChipStripHtml === 'function') ? window.castBuildChipStripHtml(scene, idx) : '';
   card.innerHTML = `
     <div class="storyboard-time">
       <span class="time-badge">${fmt(scene.startTime)}</span>
@@ -1837,6 +1839,7 @@ function renderStoryboardSceneCard(scene, idx) {
       <div class="storyboard-transcript">🗣 "${scene.text}"</div>
       <div class="storyboard-prompt-label">Image Prompt</div>
       <textarea class="storyboard-prompt" id="create-storyboard-prompt-${idx}" rows="3">${scene.prompt}</textarea>
+      ${chipHtml}
     </div>
   `;
   const textarea = card.querySelector(`#create-storyboard-prompt-${idx}`);
@@ -1845,6 +1848,10 @@ function renderStoryboardSceneCard(scene, idx) {
     const scenePrompt = $(`create-scene-prompt-${idx}`);
     if (scenePrompt) scenePrompt.value = textarea.value;
   });
+  // Wire chip-strip handlers (uses textarea blur to re-sync)
+  if (typeof window.castWireSceneChipStrip === 'function') {
+    window.castWireSceneChipStrip(card, scene, idx);
+  }
   return card;
 }
 
@@ -2008,6 +2015,8 @@ function getSelectedImageSize() {
 function renderSceneCard(scene, idx, ratio) {
     const card = document.createElement('div');
     card.className = 'scene-card';
+    if (scene.promptDirty) card.classList.add('scene-prompt-dirty');
+    const chipHtml = (typeof window.castBuildChipStripHtml === 'function') ? window.castBuildChipStripHtml(scene, idx) : '';
 
     card.innerHTML = `
       <div class="scene-img" id="create-scene-img-${idx}" style="aspect-ratio:${ratio};">
@@ -2019,6 +2028,7 @@ function renderSceneCard(scene, idx, ratio) {
         <div class="scene-time">🕐 ${fmt(scene.startTime)} – ${fmt(scene.endTime)}</div>
         <div class="scene-text">"${sanitize(scene.text)}"</div>
         <textarea id="create-scene-prompt-${idx}">${scene.prompt}</textarea>
+        ${chipHtml}
         <div class="scene-actions">
           <button class="btn-download-img" style="font-size:0.68rem; padding:3px 8px; ${scene.imgDataUrl ? '' : 'display:none;'}">📥 Download</button>
           <span class="scene-status ${scene.status || ''}" id="create-scene-status-${idx}">
@@ -2027,6 +2037,9 @@ function renderSceneCard(scene, idx, ratio) {
         </div>
       </div>
     `;
+    if (typeof window.castWireSceneChipStrip === 'function') {
+      window.castWireSceneChipStrip(card, scene, idx);
+    }
     // Image preview click
     const imgEl = card.querySelector('.scene-img img');
     if (imgEl) {
@@ -2783,7 +2796,24 @@ async function runImageGeneration(scenesToGen) {
   createScenes.forEach((s, i) => {
     const el = $(`create-storyboard-prompt-${i}`);
     if (el) s.prompt = el.value;
+    // Re-sync refs and dirty flag from current prose
+    if (typeof window._castSyncSceneRefsFromProse === 'function') window._castSyncSceneRefsFromProse(s);
+    if (typeof window._castRecomputeDirty === 'function') window._castRecomputeDirty(s);
   });
+  // Image-gen gate: block if any scenes have unresolved chip/prose mismatch
+  if (typeof window.castGetDirtyScenes === 'function') {
+    const dirty = window.castGetDirtyScenes();
+    if (dirty.length > 0) {
+      const list = dirty.map(i => 'Scene ' + (i + 1)).join(', ');
+      const ok = confirm(`${dirty.length} scene(s) have unresolved prose vs chip mismatch (${list}). Skip them and generate the rest?`);
+      if (!ok) return;
+      scenesToGen = scenesToGen.filter(s => {
+        const i = createScenes.indexOf(s);
+        return !dirty.includes(i);
+      });
+      if (scenesToGen.length === 0) return;
+    }
+  }
   renderCreateSceneCards();
   const genStep = $('create-generate-step');
   if (genStep) genStep.style.display = '';
@@ -3204,6 +3234,8 @@ function openCanvasPanel() {
   // Class on <body> so selectors can scope every viewport-fixed overlay
   // (panel, agent panel, right pane, scroll-lock) under one parent.
   document.body.classList.add('canvas-active');
+  // Phase 4: refs panel becomes interactive when canvas is active
+  if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('canvas');
   CanvasGraph.mount('create-canvas-step', createScenes, mode, {
     geminiKey: getCreateGeminiKey(),
     job: (typeof window !== 'undefined' && window.createJobState) || { bgmSkipped: false, audioSubSkipped: false },
@@ -3222,6 +3254,8 @@ function openCanvasPanel() {
 
 function closeCanvasPanel() {
   document.body.classList.remove('canvas-active');
+  // Phase 4: refs panel back to read-only on timeline
+  if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
   if (typeof CanvasGraph !== 'undefined' && CanvasGraph.isActive && CanvasGraph.isActive()) {
     CanvasGraph.unmount('create-canvas-step');
   }

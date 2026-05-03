@@ -362,7 +362,7 @@ function navigateTo(view, pushHistory) {
       var cm = localStorage.getItem('stori_copilot_metaphor') || 'filmstrip';
       if (createPage) createPage.setAttribute('data-metaphor', cm);
     } catch(e){}
-    // Storypilot handoff — pre-fill Copilot text mode
+    // Storypilot handoff — pre-fill Copilot text mode + structured cast seed
     try {
       var ho = window.__storiHandoff;
       if (ho && ho.target === 'copilot') {
@@ -372,6 +372,68 @@ function navigateTo(view, pushHistory) {
           if (textBtn) textBtn.click();
           var ta = document.getElementById('create-tts-text');
           if (ta) ta.value = ho.plainText;
+          // Detect brainstorm script shape and seed video type + cast/product
+          if (ho.source === 'brainstorm' && ho.finalScript) {
+            try {
+              var fs = ho.finalScript;
+              window.createJobState = window.createJobState || {};
+              // Determine type from shape
+              var shape = (fs.characters !== undefined && fs.acts !== undefined) ? 'film'
+                       : (fs.core_claim !== undefined || fs.product !== undefined) ? 'brand'
+                       : null;
+              if (shape) {
+                window.createJobState.videoType = shape;
+                window.createJobState.videoTypeLocked = true;
+                if (shape === 'film' && Array.isArray(fs.characters)) {
+                  window.createJobState.characters = fs.characters.map(function(ch, i) {
+                    var desc = [];
+                    if (ch.role) desc.push('role: ' + ch.role);
+                    if (ch.want) desc.push('wants: ' + ch.want);
+                    if (ch.obstacle) desc.push('obstacle: ' + ch.obstacle);
+                    return {
+                      id: 'char_bs_' + i + '_' + Date.now().toString(36),
+                      name: ch.name || ('Character ' + (i + 1)),
+                      userDescription: desc.join(', '),
+                      uploadedImageDataUrl: null,
+                      appearanceSheet: '',
+                      distinctiveTraits: [],
+                      ageRange: '',
+                      build: '',
+                      representativeImageDataUrl: null,
+                      locked: false,
+                      libraryId: null,
+                      createdAt: new Date().toISOString(),
+                    };
+                  });
+                  window.createJobState.locations = [];
+                }
+                if (shape === 'brand') {
+                  // Seed product from finalScript.product (string today)
+                  var prodName = fs.product || fs.brand || 'Product';
+                  var prodDesc = fs.core_claim || (fs.brand ? ('Brand: ' + fs.brand) : '');
+                  window.createJobState.product = {
+                    id: 'prod_bs_' + Date.now().toString(36),
+                    name: prodName,
+                    userDescription: prodDesc,
+                    brandColors: [],
+                    logoDataUrl: null,
+                    uploadedImageDataUrl: null,
+                    appearanceSheet: '',
+                    distinctiveTraits: [],
+                    representativeImageDataUrl: null,
+                    locked: false,
+                    libraryId: null,
+                    createdAt: new Date().toISOString(),
+                  };
+                  window.createJobState.characters = [];
+                  window.createJobState.locations = [];
+                }
+              }
+              if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
+              if (shape === 'film' && typeof window.castRenderRows === 'function') window.castRenderRows();
+              if (shape === 'brand' && typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
+            } catch(seedErr) { console.warn('[handoff seed]', seedErr.message); }
+          }
           window.__storiHandoff = null;
           var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
           if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Generate.' + tail);
