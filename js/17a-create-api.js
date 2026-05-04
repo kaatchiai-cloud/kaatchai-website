@@ -184,6 +184,37 @@ function applyTemplate(templateId) {
     }
   }
 
+  // Visual-bible template-lock guard (Phase 9): if a bible exists, changing
+  // the template invalidates it. Surface a hard confirm before discarding.
+  const bibleApplies = !!(window.createJobState && window.createJobState.templateLocked && window.createJobState.bible && window.createJobState.bible.status === 'ready');
+  const sameTemplate = selectedTemplate === templateId;
+  if (bibleApplies && !sameTemplate) {
+    const bb = window.createJobState.bible;
+    const pageCost = bb.pages && bb.pages.length === 2 ? 0.27 : 0.13;
+    const sceneCount = (typeof createScenes !== 'undefined' && Array.isArray(createScenes)) ? createScenes.length : 0;
+    const ok = window.confirm(
+      `Changing the template will discard the visual bible and regenerate it ` +
+      `for the new style.\n\n` +
+      `Cost to regenerate bible: $${pageCost.toFixed(2)}\n` +
+      (sceneCount ? `${sceneCount} generated scene${sceneCount === 1 ? '' : 's'} will be marked stale ` +
+       `(regen costs vary).\n` : '') +
+      `\nContinue with template change?`
+    );
+    if (!ok) {
+      const grid = $('template-grid');
+      if (grid) grid.querySelectorAll('.template-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.tpl === selectedTemplate);
+      });
+      return;
+    }
+    // Mark bible stale + flag every scene; bible will be regenerated at next
+    // image-gen launch via ensureBibleBeforeImageGen, or sooner if user clicks
+    // "Regen all" on the chrome node.
+    bb.status = 'stale';
+    if (Array.isArray(createScenes)) createScenes.forEach(s => { s.bibleStale = true; });
+    if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+  }
+
   selectedTemplate = templateId;
   // Set output size
   if (tpl.size && createImageSize) {

@@ -51,6 +51,8 @@ const LAUNCH_W    = 200;
 const LAUNCH_H    = 110;
 const NSETUP_W    = 320;
 const NSETUP_H    = 360;
+const BIBLE_W     = 380;
+const BIBLE_H     = 460;
 
 // Layout grid (X positions). 260px gap. NODE_W=520, LAUNCH_W=200, BGM/SUB/FINAL_W=720.
 const COL_SB         = 80;
@@ -60,6 +62,7 @@ const COL_VID        = 2100;   // 1640 + 200 + 260
 const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
 const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
 const COL_NSETUP     = -440;   // free-floating, left of bands (NSETUP_W=320 → bg ends at -120)
+const COL_BIBLE      = -880;   // bible chrome node, left of narrator-setup
 
 // Spacing
 const ROW_GAP   = 60;
@@ -419,6 +422,7 @@ function findInstance(id) {
   if (id === 'cg-sub') return { type: 'sub' };
   if (id === 'cg-final') return { type: 'final' };
   if (id === 'cg-narrator-setup') return { type: 'narratorSetup' };
+  if (id === 'cg-bible') return { type: 'bible' };
   return null;
 }
 
@@ -1110,6 +1114,209 @@ function renderNarratorSetupNode() {
   placeNode(g.narratorSetupEl, setup.canvasPosition.x, setup.canvasPosition.y);
 }
 
+function renderBibleNode() {
+  const cs = window.createJobState || {};
+  const applies = (typeof window.bibleApplies === 'function') && window.bibleApplies();
+  const bible = cs.bible;
+  // Show node when bible applies (regardless of status — pending/error states surface here too)
+  if (!applies) {
+    if (g.bibleEl && g.bibleEl.parentNode) g.bibleEl.parentNode.removeChild(g.bibleEl);
+    g.bibleEl = null;
+    g.nodeEls.delete('cg-bible');
+    return;
+  }
+  const status = bible ? bible.status : 'pending';
+  const pages = (bible && bible.pages) || [];
+  const cellsTotal = pages.reduce((n, p) => n + (p.slots ? p.slots.length : 0), 0);
+  const cellsFilled = pages.reduce((n, p) => n + (p.slots ? p.slots.filter(s => s.cellImageId).length : 0), 0);
+  const indexedCount = bible && bible.cellsByName ? Object.keys(bible.cellsByName).length : 0;
+  const tplLockedTxt = cs.templateLocked ? ' · 🔒 template locked' : '';
+
+  // Status banner color cue via class
+  const statusCls = status === 'ready' ? 'cg-bible-status-ok'
+    : status === 'error' ? 'cg-bible-status-err'
+    : status === 'stale' ? 'cg-bible-status-stale'
+    : 'cg-bible-status-busy';
+  const statusLabel = status === 'ready'   ? '✓ Ready'
+                    : status === 'error'   ? '⚠ Error'
+                    : status === 'stale'   ? '⚠ Stale'
+                    : status === 'generating' ? '⏳ Generating…'
+                    : '— Pending';
+
+  // Mini 3×3 grid preview using the 4K display image (or 2K fallback) async via IDB
+  // We render placeholder thumbnails synchronously and refresh below if IDB hits.
+  const slotPreviewsHtml = (page) => {
+    if (!page || !page.slots) return '';
+    return page.slots.map((s, i) => {
+      const label = (s.priority === 'entity' || s.priority === 'extra')
+        ? (s.baseEntityName || s.name).replace(/__angle$|__detail$/, '').slice(0, 8)
+        : (s.name || '').slice(0, 8);
+      const hasVersions = !!(s.versions && s.versions.length > 0);
+      const isPaletteLocked = (s.priority === 'utility' && s.name === 'palette');
+      return `<div class="cg-bible-cell" data-page-idx="${page.pageIdx}" data-slot-idx="${i}" data-cell-key="${s.cellImageId || ''}">` +
+        `<div class="cg-bible-cell-thumb"></div>` +
+        `<span class="cg-bible-cell-label">${label.replace(/</g, '&lt;')}</span>` +
+        `<div class="cg-bible-cell-actions">` +
+          (isPaletteLocked
+            ? `<button type="button" class="cg-bible-cell-btn" disabled title="Palette is locked">🔒</button>`
+            : `<button type="button" class="cg-bible-cell-btn" data-action="regen-cell" data-page-idx="${page.pageIdx}" data-slot-idx="${i}" title="Regen this cell ($0.04)">↻</button>`
+          ) +
+          (hasVersions
+            ? `<button type="button" class="cg-bible-cell-btn" data-action="revert-cell" data-page-idx="${page.pageIdx}" data-slot-idx="${i}" title="Revert to prior version">↶</button>`
+            : '') +
+        `</div>` +
+        `</div>`;
+    }).join('');
+  };
+
+  const pageHtml = pages.map(p =>
+    `<div class="cg-bible-page" data-page-idx="${p.pageIdx}">` +
+      `<div class="cg-bible-page-label">Page ${p.pageIdx + 1}</div>` +
+      `<div class="cg-bible-grid">${slotPreviewsHtml(p)}</div>` +
+    `</div>`
+  ).join('');
+
+  const errMsg = (status === 'error' && bible && bible.lastError)
+    ? `<div class="cg-bible-error">${String(bible.lastError).slice(0, 200).replace(/</g, '&lt;')}</div>` : '';
+
+  const sig = `${status}|${pages.length}|${cellsFilled}|${cellsTotal}|${indexedCount}|${cs.templateLocked ? 1 : 0}`;
+  const bodyHtml =
+    '<div class="cg-bible-body">' +
+      `<div class="cg-bible-status ${statusCls}">${statusLabel}${tplLockedTxt}</div>` +
+      (pages.length
+        ? pageHtml
+        : '<div class="cg-bible-empty">Bible not yet generated. Will run automatically when you Launch the Image Agent.</div>') +
+      errMsg +
+      '<div class="cg-bible-meta">' +
+        (cellsTotal ? `<span>Cells: ${cellsFilled} / ${cellsTotal}</span>` : '') +
+        (indexedCount ? `<span>· ${indexedCount} entities indexed</span>` : '') +
+      '</div>' +
+      '<div class="cg-bible-actions">' +
+        (status === 'ready'
+          ? '<button type="button" class="cg-bible-btn-regen" data-action="regen-all">↻ Regen all</button>'
+          : status === 'error'
+            ? '<button type="button" class="cg-bible-btn-retry" data-action="retry">↻ Retry</button>'
+            : '<button type="button" class="cg-bible-btn-regen" data-action="regen-now">⚙ Generate now</button>'
+        ) +
+      '</div>' +
+    '</div>';
+
+  if (!g.bibleEl || !g.bibleEl.isConnected) {
+    const node = buildSimpleNode('cg-node--bible', 'image', '📖 Visual Bible', {
+      w: BIBLE_W,
+      h: BIBLE_H,
+      hasIn: false,
+      hasOut: true,
+      bodyHtml,
+    });
+    node.dataset.id = 'cg-bible';
+    node.dataset.type = 'bible';
+    node.dataset.sig = sig;
+    g.graphLayerEl.appendChild(node);
+    g.nodeEls.set('cg-bible', { el: node, type: 'bible' });
+    g.bibleEl = node;
+    _wireBibleNodeOnce();
+  } else if (g.bibleEl.dataset.sig !== sig) {
+    const body = g.bibleEl.querySelector('.cg-node-body');
+    if (body) body.innerHTML = bodyHtml;
+    g.bibleEl.dataset.sig = sig;
+  }
+
+  if (!bible || !bible.canvasPosition) {
+    const pos = { x: COL_BIBLE, y: (g.chromeMidY || TOP_PAD) - BIBLE_H / 2 };
+    if (bible) bible.canvasPosition = pos;
+    placeNode(g.bibleEl, pos.x, pos.y);
+  } else {
+    placeNode(g.bibleEl, bible.canvasPosition.x, bible.canvasPosition.y);
+  }
+
+  // Hydrate cell thumbnails from IDB asynchronously (best-effort).
+  _hydrateBibleCellThumbs();
+}
+
+let _bibleNodeWired = false;
+function _wireBibleNodeOnce() {
+  if (_bibleNodeWired) return;
+  _bibleNodeWired = true;
+  document.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (!t || !(t instanceof HTMLElement)) return;
+    if (!g || !g.bibleEl || !g.bibleEl.contains(t)) return;
+    // Cell-action buttons (regen / revert) — read data attrs from the button
+    const btn = t.closest('button[data-action]');
+    if (btn && g.bibleEl.contains(btn)) {
+      const action = btn.dataset.action;
+      const pIdx = btn.dataset.pageIdx !== undefined ? Number(btn.dataset.pageIdx) : null;
+      const sIdx = btn.dataset.slotIdx !== undefined ? Number(btn.dataset.slotIdx) : null;
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        if (action === 'regen-cell' && pIdx !== null && sIdx !== null) {
+          const ok = window.confirm('Regen this bible cell? Cost: $0.04. Scenes featuring this entity will be marked stale.');
+          if (!ok) return;
+          if (typeof window.regenBibleCell === 'function') {
+            const res = await window.regenBibleCell(pIdx, sIdx);
+            if (res && res.affectedScenes) {
+              console.log(`[Bible] Cell regen complete · ${res.affectedScenes} scenes marked stale`);
+            }
+            if (typeof renderAll === 'function') renderAll();
+          }
+        } else if (action === 'revert-cell' && pIdx !== null && sIdx !== null) {
+          if (typeof window.revertBibleCell === 'function') {
+            await window.revertBibleCell(pIdx, sIdx);
+            if (typeof renderAll === 'function') renderAll();
+          }
+        } else if (action === 'regen-now' || action === 'retry') {
+          if (typeof window.generateBible === 'function') {
+            await window.generateBible({ onProgress: (m) => console.log('[Bible]', m) });
+            if (typeof renderAll === 'function') renderAll();
+          }
+        } else if (action === 'regen-all') {
+          const ok = window.confirm('Regenerate the entire visual bible? Cost: $0.13 per page. All scenes will be marked stale.');
+          if (!ok) return;
+          if (typeof window.regenBibleWhole === 'function') {
+            await window.regenBibleWhole();
+            if (typeof renderAll === 'function') renderAll();
+          } else if (typeof window.generateBible === 'function') {
+            await window.generateBible({ onProgress: (m) => console.log('[Bible]', m) });
+            if (typeof renderAll === 'function') renderAll();
+          }
+        }
+      } catch (err) {
+        alert('Bible action failed: ' + (err.message || err));
+      }
+      return;
+    }
+    // Fallthrough — cell-thumbnail click opens preview
+    const cell = t.closest('.cg-bible-cell');
+    if (cell && cell.dataset.cellKey && window.castIdb && window.castIdb.get) {
+      try {
+        const url = await window.castIdb.get(cell.dataset.cellKey);
+        if (url && typeof window.castOpenImagePreview === 'function') {
+          window.castOpenImagePreview(url, 'Bible cell');
+        }
+      } catch (_) {}
+    }
+  });
+}
+
+async function _hydrateBibleCellThumbs() {
+  if (!g || !g.bibleEl || !window.castIdb || !window.castIdb.get) return;
+  const cells = g.bibleEl.querySelectorAll('.cg-bible-cell');
+  for (const cell of cells) {
+    const key = cell.dataset.cellKey;
+    const thumb = cell.querySelector('.cg-bible-cell-thumb');
+    if (!key || !thumb || thumb.dataset.loaded === '1') continue;
+    try {
+      const url = await window.castIdb.get(key);
+      if (url) {
+        thumb.style.backgroundImage = `url(${url})`;
+        thumb.dataset.loaded = '1';
+      }
+    } catch (_) {}
+  }
+}
+
 function renderFinalNode() {
   let entry = g.nodeEls.get('cg-final');
   if (!entry) {
@@ -1198,6 +1405,7 @@ function renderAll() {
   renderBgmNode();
   renderSubtitleNode();
   renderNarratorSetupNode();
+  renderBibleNode();
   renderFinalNode();
   redrawCurves();
   cgUpdateSelToolbar();
@@ -1220,6 +1428,11 @@ function nodeRect(id) {
     const setup = window.createJobState && window.createJobState.narratorSetup;
     const pos = (setup && setup.canvasPosition) || { x: COL_NSETUP, y: (g.chromeMidY || TOP_PAD) - NSETUP_H / 2 };
     return { x: pos.x, y: pos.y, w: NSETUP_W, h: NSETUP_H };
+  }
+  if (id === 'cg-bible' && g.bibleEl) {
+    const bible = window.createJobState && window.createJobState.bible;
+    const pos = (bible && bible.canvasPosition) || { x: COL_BIBLE, y: (g.chromeMidY || TOP_PAD) - BIBLE_H / 2 };
+    return { x: pos.x, y: pos.y, w: BIBLE_W, h: BIBLE_H };
   }
   if (id === 'cg-final' && g.finalEl) {
     const colFinalFb = (g.mode === 'animated') ? COL_FINAL_ANIM : COL_FINAL_ILL;
@@ -1419,6 +1632,10 @@ function fitToView() {
     const p = window.createJobState?.narratorSetup?.canvasPosition;
     if (p) addBox(p.x, p.y, NSETUP_W, NSETUP_H);
   }
+  if (g.bibleEl) {
+    const p = window.createJobState?.bible?.canvasPosition;
+    if (p) addBox(p.x, p.y, BIBLE_W, BIBLE_H);
+  }
 
   if (!isFinite(minX)) return; // nothing to fit
 
@@ -1490,6 +1707,7 @@ function attachEvents() {
           else if (inst.type === 'launch') pos = window.createLaunchAgentPosition;
           else if (inst.type === 'final') pos = window.createFinalRenderPosition;
           else if (inst.type === 'narratorSetup') pos = window.createJobState?.narratorSetup?.canvasPosition || null;
+          else if (inst.type === 'bible') pos = window.createJobState?.bible?.canvasPosition || null;
         }
         g.dragStartPos = pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 };
         // ensure selection
@@ -1547,6 +1765,13 @@ function attachEvents() {
           if (ns) {
             ns.canvasPosition = ns.canvasPosition || { x: 0, y: 0 };
             pos = ns.canvasPosition;
+          }
+        }
+        else if (inst.type === 'bible') {
+          const bb = window.createJobState?.bible;
+          if (bb) {
+            bb.canvasPosition = bb.canvasPosition || { x: 0, y: 0 };
+            pos = bb.canvasPosition;
           }
         }
       }
@@ -3317,6 +3542,11 @@ function isActive() { return g !== null; }
 
 function getScenes() { return g ? g.scenes : null; }
 
+window.renderBibleNode = function () {
+  if (!g) return;
+  renderBibleNode();
+};
+
 window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   mount,
   unmount,
@@ -3333,6 +3563,7 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   getScenes,
   isActive,
   chromeSetActiveCount,
+  renderBibleNode,
   _cursorMode: 'pan',                // mirror; updated by chrome cursor dropdown
   _actions,
 });

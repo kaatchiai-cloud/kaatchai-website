@@ -1026,6 +1026,33 @@ function autoSaveCreateState() {
         locked: !!window.createJobState.narratorSetup.locked,
         canvasPosition: window.createJobState.narratorSetup.canvasPosition || null,
       } : null,
+      // Visual bible metadata (image bytes live in IDB only, never localStorage)
+      bible: window.createJobState?.bible ? {
+        id: window.createJobState.bible.id,
+        status: window.createJobState.bible.status,
+        templateId: window.createJobState.bible.templateId,
+        styleFingerprint: window.createJobState.bible.styleFingerprint || null,
+        generatedAt: window.createJobState.bible.generatedAt || null,
+        lastError: window.createJobState.bible.lastError || null,
+        pages: (window.createJobState.bible.pages || []).map(p => ({
+          pageIdx: p.pageIdx,
+          gridImageId: p.gridImageId || null,
+          gridImageDisplayId: p.gridImageDisplayId || null,
+          slots: (p.slots || []).map(s => ({
+            idx: s.idx, name: s.name, priority: s.priority, locked: !!s.locked,
+            cellImageId: s.cellImageId || null,
+            baseEntityName: s.baseEntityName || null,
+            angleVariation: s.angleVariation || null,
+            versions: (s.versions || []).map(v => ({
+              cellImageId: v.cellImageId, generatedAt: v.generatedAt, prompt: v.prompt || '',
+            })),
+          })),
+        })),
+        cellsByName: window.createJobState.bible.cellsByName || {},
+        canvasPosition: window.createJobState.bible.canvasPosition || null,
+      } : null,
+      templateLocked: !!(window.createJobState?.templateLocked),
+      templateLockedAt: window.createJobState?.templateLockedAt || null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
@@ -2446,8 +2473,11 @@ async function generateImageImagen(prompt, key, { width, height } = {}, modelOve
 }
 
 // ── Grid Image Generation ──
-// Generates up to 9 scene images in a single 3x3 grid API call
-async function generateGridImage(prompts, key, stylePrompt, modelOverride, formatHint) {
+// Generates up to 9 scene images in a single 3x3 grid API call.
+// extras (optional): { refParts: [{inlineData}, {text}, ...] } — when provided,
+// these inline images + text labels are prepended to the request as additional
+// parts. Used by the visual-bible call to thread cast portraits as anchors.
+async function generateGridImage(prompts, key, stylePrompt, modelOverride, formatHint, extras) {
   // Pad to 9 prompts by duplicating from the start
   const padded = [...prompts];
   while (padded.length < 9) padded.push(prompts[padded.length % prompts.length]);
@@ -2491,7 +2521,11 @@ async function generateGridImage(prompts, key, stylePrompt, modelOverride, forma
   // 2.5 Flash: no generationConfig (flat pricing, returns 1K)
   // 3.1 Flash / Pro: pass imageConfig with aspectRatio + imageSize for resolution control
   const useImageConfig = modelOverride ? !modelOverride.startsWith('gemini-2.5') : true;
-  const bodyObj = { contents: [{ parts: [{ text: gridPrompt }] }] };
+  // Refs (cast portraits etc) come BEFORE the prompt text so the model has
+  // the visual anchors loaded before it reads instructions referring to them.
+  const refParts = (extras && Array.isArray(extras.refParts)) ? extras.refParts : [];
+  const partsArr = refParts.concat([{ text: gridPrompt }]);
+  const bodyObj = { contents: [{ parts: partsArr }] };
   if (useImageConfig) {
     bodyObj.generationConfig = {
       responseModalities: ['TEXT', 'IMAGE'],
@@ -2639,6 +2673,687 @@ function getGridFormatHint(width, height) {
   // Distinguish 9:16 (ratio ≥ 1.7) from 4:5 (ratio < 1.7)
   return (height / width) >= 1.7 ? 'portrait format (9:16 aspect ratio)' : 'portrait format (4:5 aspect ratio)';
 }
+
+// ─── Visual Bible — Phase 3 (generation pipeline) ──────────────────────
+// Orchestrates the full bible build: spec → per-page prompts → grid call
+// with cast portraits as refs → 2K composite stored in IDB → cell crops at
+// 2K + 4K-upscaled display version. Mutates window.createJobState.bible.
+//
+// onProgress callback (optional): (msg) => void — surfaced to the agent task
+// log during the call.
+async function generateBible(opts) {
+  const onProgress = (opts && opts.onProgress) || function () {};
+  const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+  if (!key) throw new Error('Gemini API key required for bible generation');
+  if (typeof window.bibleApplies !== 'function' || !window.bibleApplies()) {
+    return null;
+  }
+  const spec = window.castBuildBibleSpec();
+  if (!spec || !spec.pages.length) return null;
+
+  // Initialize / reset bible state
+  const bible = window.castInitBibleState();
+  bible.status = 'generating';
+  bible.pages = spec.pages.map(p => ({
+    pageIdx: p.pageIdx,
+    gridImageId: null,
+    gridImageDisplayId: null,
+    slots: p.slots.map(s => Object.assign({}, s, { cellImageId: null, versions: [] })),
+  }));
+  window.createJobState.bible = bible;
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+  // Bible cell aspect/format — the bible itself is rendered as a 1:1 grid
+  // (each cell is square so portraits, locations, and product shots all fit).
+  const formatHint = 'square format (1:1 aspect ratio)';
+
+  for (const page of bible.pages) {
+    onProgress(`Composing bible page ${page.pageIdx + 1} of ${bible.pages.length}…`);
+    const prompts = window.castBuildBiblePrompts(page);
+    const refParts = await window.castBuildBibleRefParts(page);
+
+    // Style prompt for grid call. Uses createStylePrompt (current project style).
+    const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+    let gridDataUrl;
+    try {
+      // Try Pro → 3.1 Flash → 2.5 Flash (existing fallback chain).
+      const models = ['gemini-3-pro-image-preview', 'gemini-3-flash-image-preview', 'gemini-2.5-flash-image'];
+      let lastErr = null;
+      for (const m of models) {
+        try {
+          gridDataUrl = await generateGridImage(prompts, key, sp, m, formatHint, { refParts });
+          break;
+        } catch (e) {
+          lastErr = e;
+          console.warn(`[Bible] grid model ${m} failed:`, e.message);
+        }
+      }
+      if (!gridDataUrl) throw lastErr || new Error('All grid models failed');
+    } catch (e) {
+      bible.status = 'error';
+      bible.lastError = e.message || String(e);
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+      throw e;
+    }
+
+    // Persist 2K original grid to IDB (used as ref for future regens).
+    const grid2kKey = window.bibleIdbKey(bible.id, 'grid2k', page.pageIdx);
+    if (idbAvail) await window.castIdb.put(grid2kKey, gridDataUrl);
+    page.gridImageId = grid2kKey;
+
+    // Crop 9 cells at 2K (used as refParts for per-scene gen).
+    onProgress(`Cropping bible page ${page.pageIdx + 1}…`);
+    let cells2k;
+    try {
+      cells2k = await cropGridCells(gridDataUrl, 3, 3, 9);
+    } catch (e) {
+      bible.status = 'error';
+      bible.lastError = 'Failed to crop bible cells: ' + (e.message || e);
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+      throw e;
+    }
+    for (let i = 0; i < 9 && i < cells2k.length; i++) {
+      const cellKey = window.bibleIdbKey(bible.id, 'cell2k', page.pageIdx, i);
+      if (idbAvail) await window.castIdb.put(cellKey, cells2k[i]);
+      page.slots[i].cellImageId = cellKey;
+      page.slots[i].versions = [{ cellImageId: cellKey, generatedAt: new Date().toISOString(), prompt: prompts[i] }];
+    }
+
+    // Upscaled 4K display version (best-effort — non-fatal if it fails).
+    try {
+      onProgress(`Upscaling bible page ${page.pageIdx + 1} for display…`);
+      const display4k = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth * 2;
+          c.height = img.naturalHeight * 2;
+          const ctx = c.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.9));
+        };
+        img.onerror = () => reject(new Error('upscale load failed'));
+        img.src = gridDataUrl;
+      });
+      const grid4kKey = window.bibleIdbKey(bible.id, 'grid4k', page.pageIdx);
+      if (idbAvail) await window.castIdb.put(grid4kKey, display4k);
+      page.gridImageDisplayId = grid4kKey;
+    } catch (e) {
+      console.warn('[Bible] 4K upscale failed (non-fatal):', e.message);
+    }
+  }
+
+  // Build cellsByName index, mark ready, lock template.
+  bible.cellsByName = window.castBuildBibleCellsByName(bible);
+  bible.status = 'ready';
+  bible.generatedAt = new Date().toISOString();
+  bible.lastError = null;
+  bible.styleFingerprint = _bibleStyleFingerprint();
+  window.createJobState.templateLocked = true;
+  window.createJobState.templateLockedAt = bible.generatedAt;
+
+  // Cost tracking
+  if (typeof trackCost === 'function') {
+    for (let i = 0; i < bible.pages.length; i++) trackCost('imagen-3-pro', 1);
+  }
+
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  onProgress(`Visual bible ready — ${bible.pages.length} page${bible.pages.length > 1 ? 's' : ''}, ${Object.keys(bible.cellsByName).length} cells indexed.`);
+  return bible;
+}
+
+// Compute a style fingerprint so we can detect template/style changes that
+// invalidate the bible. Cheap hash of (templateId + stylePrompt).
+function _bibleStyleFingerprint() {
+  const t = (typeof selectedTemplate !== 'undefined' && selectedTemplate) ? (selectedTemplate.id || selectedTemplate) : '';
+  const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  let h = 0;
+  const s = String(t) + '|' + String(sp);
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return h.toString(36);
+}
+
+window.generateBible = generateBible;
+window._bibleStyleFingerprint = _bibleStyleFingerprint;
+
+// ─── End Phase 3 ───────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 4 (storyboard finalize gate + modal) ─────────
+// Confirm-and-generate flow surfaced at image-gen launch time. Returns
+// true on success or skip-not-applicable; false on cancel; throws on
+// error. Idempotent — re-running with a ready bible is a no-op.
+window.ensureBibleBeforeImageGen = async function () {
+  if (typeof window.bibleApplies !== 'function' || !window.bibleApplies()) return true;
+  const cs = window.createJobState || {};
+  const existing = cs.bible;
+  // If already ready and not stale (template + style match), skip.
+  if (existing && existing.status === 'ready' && existing.styleFingerprint === _bibleStyleFingerprint()) {
+    return true;
+  }
+  const spec = window.castBuildBibleSpec();
+  if (!spec) return true;
+  const pageCount = spec.pages.length;
+  const cost = (pageCount === 2) ? 0.27 : 0.13;
+  const entCount = window.bibleEntityCount();
+  const entLine = pageCount === 2
+    ? `Project has ${entCount} locked entities — bible needs 2 pages.`
+    : `Project has ${entCount} locked entit${entCount === 1 ? 'y' : 'ies'}.`;
+
+  // Modal — uses native confirm so it works without HTML markup; richer
+  // modal can be added later (Phase 5 chrome node UI).
+  const msg =
+    `Visual bible required\n\n` +
+    `${entLine}\n` +
+    `Generating a ${pageCount}-page bible (~30-60s) to lock visual ` +
+    `consistency across all scenes.\n\n` +
+    `Cost: $${cost.toFixed(2)}\n` +
+    `Once generated, your template will be locked.\n\n` +
+    `Generate bible now?`;
+  const ok = window.confirm(msg);
+  if (!ok) return false;
+
+  // Surface progress via the storyboard agent task line.
+  const onProgress = (m) => {
+    if (typeof updateCreateAgentTask === 'function') {
+      updateCreateAgentTask('storyboard', 'bible', 'running', m);
+    }
+  };
+  if (typeof updateCreateAgentTask === 'function') {
+    updateCreateAgentTask('storyboard', 'bible', 'running', 'Composing visual bible…');
+  }
+
+  try {
+    await window.generateBible({ onProgress });
+    if (typeof updateCreateAgentTask === 'function') {
+      updateCreateAgentTask('storyboard', 'bible', 'done', `Visual bible ready · ${pageCount} page${pageCount > 1 ? 's' : ''}`);
+    }
+    if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+    return true;
+  } catch (e) {
+    if (typeof updateCreateAgentTask === 'function') {
+      updateCreateAgentTask('storyboard', 'bible', 'error', 'Bible generation failed: ' + (e.message || e));
+    }
+    throw e;
+  }
+};
+// ─── End Phase 4 ───────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 7 (cell-level regen + composite) ─────────────
+//
+// Composite a freshly-rendered single cell back into the page's 2K grid
+// image so the bible-as-ref payload (used for future regens) reflects the
+// new cell. This keeps the bible internally consistent across regens.
+async function compositeCellIntoGrid(gridDataUrl, slotIdx, newCellDataUrl) {
+  if (!gridDataUrl || !newCellDataUrl) return gridDataUrl;
+  return new Promise((resolve, reject) => {
+    const grid = new Image();
+    grid.onload = () => {
+      const cell = new Image();
+      cell.onload = () => {
+        const cw = grid.naturalWidth, ch = grid.naturalHeight;
+        const cellW = Math.round(cw / 3), cellH = Math.round(ch / 3);
+        const row = Math.floor(slotIdx / 3), col = slotIdx % 3;
+        const dx = col * cellW, dy = row * cellH;
+        const c = document.createElement('canvas');
+        c.width = cw; c.height = ch;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(grid, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(cell, 0, 0, cell.naturalWidth, cell.naturalHeight, dx, dy, cellW, cellH);
+        resolve(c.toDataURL('image/png'));
+      };
+      cell.onerror = () => reject(new Error('Cell image failed to load for composite'));
+      cell.src = newCellDataUrl;
+    };
+    grid.onerror = () => reject(new Error('Grid image failed to load for composite'));
+    grid.src = gridDataUrl;
+  });
+}
+
+// Mark every scene whose bracket tokens reference the given entity name
+// (case-insensitive) as bibleStale. Used after cell-regen / cast edit.
+function markScenesStaleByEntity(entityName) {
+  if (!entityName || !Array.isArray(createScenes)) return 0;
+  const lc = String(entityName).toLowerCase();
+  let count = 0;
+  for (const scene of createScenes) {
+    const txt = scene && scene.prompt ? String(scene.prompt) : '';
+    const tokens = (txt.match(/\[([^\]]+)\]/g) || []).map(t => t.slice(1, -1).trim().toLowerCase());
+    if (tokens.includes(lc)) {
+      scene.bibleStale = true;
+      count++;
+    }
+  }
+  return count;
+}
+window.markScenesStaleByEntity = markScenesStaleByEntity;
+
+// Single-cell regen using the existing bible image as a style/coherence anchor.
+// Uses generateImageGeminiFlash (single-image, ~$0.039) — much cheaper than
+// re-running the whole grid call. Keeps the bible internally consistent by
+// compositing the new cell back into the page's 2K grid.
+async function regenBibleCell(pageIdx, slotIdx, opts) {
+  opts = opts || {};
+  const cs = window.createJobState || {};
+  const bible = cs.bible;
+  if (!bible || bible.status !== 'ready') throw new Error('Bible not ready');
+  const page = (bible.pages || []).find(p => p.pageIdx === pageIdx);
+  if (!page) throw new Error(`Bible page ${pageIdx} not found`);
+  const slot = (page.slots || [])[slotIdx];
+  if (!slot) throw new Error(`Bible slot ${slotIdx} not found on page ${pageIdx}`);
+  if (slot.priority === 'utility' && slot.name === 'palette' && opts.allowPalette !== true) {
+    throw new Error('Palette cell is locked from auto-regen (anchors project consistency)');
+  }
+  const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+  if (!key) throw new Error('Gemini API key required');
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+
+  // Build cell prompt — same builder used for initial bible gen
+  const _bibleCellPromptFn = window._castBibleCellPrompt || null;  // not exported; rebuild via prompts builder
+  let cellPrompt;
+  // Use castBuildBiblePrompts for a 9-element array, then pick this slot's prompt
+  const allPrompts = window.castBuildBiblePrompts(page);
+  cellPrompt = allPrompts[slotIdx];
+
+  // refParts: the existing bible 2K composite (so the model matches style)
+  const refParts = [];
+  if (idbAvail && page.gridImageId) {
+    try {
+      const bibleGrid = await window.castIdb.get(page.gridImageId);
+      if (bibleGrid && typeof bibleGrid === 'string') {
+        const m = bibleGrid.match(/^data:([^;]+);base64,(.+)$/);
+        if (m) {
+          refParts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+          refParts.push({ text: 'Reference: existing project bible. Match its overall style, palette, lighting, and rendering quality. Generate ONLY a single replacement cell as described below; do NOT replicate the grid layout.' });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Single-image call — bible cells render as 768×768 (matches bible cell aspect)
+  const newCellDataUrl = await generateImageGeminiFlash(cellPrompt, key, {
+    width: 768, height: 768, refParts,
+  }, 'gemini-3-flash-image-preview').catch(async (e) => {
+    // Fall back through the standard Gemini chain
+    return generateImageGeminiFlash(cellPrompt, key, {
+      width: 768, height: 768, refParts,
+    });
+  });
+
+  if (!newCellDataUrl) throw new Error('Cell regen returned no image');
+
+  // Push current version into history (cap 2 — drop oldest if needed)
+  if (slot.cellImageId) {
+    slot.versions = slot.versions || [];
+    slot.versions.push({
+      cellImageId: slot.cellImageId,
+      generatedAt: slot.versions.length ? new Date().toISOString() : (bible.generatedAt || new Date().toISOString()),
+      prompt: cellPrompt,
+    });
+    while (slot.versions.length > 2) {
+      const dropped = slot.versions.shift();
+      if (idbAvail && dropped && dropped.cellImageId) {
+        try { await window.castIdb.del(dropped.cellImageId); } catch (_) {}
+      }
+    }
+  }
+
+  // Persist new cell
+  const newCellKey = window.bibleIdbKey(bible.id, 'cellVer', pageIdx, slotIdx, Date.now().toString(36));
+  if (idbAvail) await window.castIdb.put(newCellKey, newCellDataUrl);
+  slot.cellImageId = newCellKey;
+
+  // Composite back into the 2K grid + persist
+  if (idbAvail && page.gridImageId) {
+    try {
+      const oldGrid = await window.castIdb.get(page.gridImageId);
+      if (oldGrid) {
+        const newGrid = await compositeCellIntoGrid(oldGrid, slotIdx, newCellDataUrl);
+        await window.castIdb.put(page.gridImageId, newGrid);
+      }
+    } catch (e) {
+      console.warn('[Bible] Failed to composite cell back into grid (non-fatal):', e.message);
+    }
+  }
+
+  // Surgical staleness — only scenes referencing this entity (Option C)
+  const entityName = slot.baseEntityName || slot.name.replace(/__angle$|__detail$/, '');
+  const affected = markScenesStaleByEntity(entityName);
+
+  // Cost tracking
+  if (typeof trackCost === 'function') trackCost('imageGen', 1);
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+  // Also re-render scene cards so stale banners surface
+  if (typeof renderCreateSceneCards === 'function') renderCreateSceneCards();
+
+  return { newCellKey, affectedScenes: affected };
+}
+
+window.regenBibleCell = regenBibleCell;
+window.compositeCellIntoGrid = compositeCellIntoGrid;
+// ─── End Phase 7 ───────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 8 (cell revert + per-cell UI helpers) ────────
+//
+// Revert a cell to the prior version stored in slot.versions[]. Free op —
+// only swaps IDs and re-composites. Caller is responsible for re-rendering.
+async function revertBibleCell(pageIdx, slotIdx) {
+  const cs = window.createJobState || {};
+  const bible = cs.bible;
+  if (!bible) throw new Error('No bible state');
+  const page = (bible.pages || []).find(p => p.pageIdx === pageIdx);
+  if (!page) throw new Error('Bible page not found');
+  const slot = (page.slots || [])[slotIdx];
+  if (!slot || !slot.versions || !slot.versions.length) {
+    throw new Error('No version history for this cell');
+  }
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+  const prev = slot.versions.pop();      // most recent prior version
+  if (!prev || !prev.cellImageId) throw new Error('Version history corrupt');
+  // Verify the IDB entry still exists
+  let prevDataUrl = null;
+  if (idbAvail) {
+    try { prevDataUrl = await window.castIdb.get(prev.cellImageId); } catch (_) {}
+  }
+  if (!prevDataUrl) {
+    // Nothing to revert to — push the version record back and bail
+    slot.versions.push(prev);
+    throw new Error('Prior cell image is no longer in storage');
+  }
+  // Drop the current image from IDB (it's being replaced) — no version record
+  // needed; revert is single-step undo only per consistency-plan.md.
+  if (idbAvail && slot.cellImageId) {
+    try { await window.castIdb.del(slot.cellImageId); } catch (_) {}
+  }
+  slot.cellImageId = prev.cellImageId;
+  // Re-composite into the page grid for ref-coherence
+  if (idbAvail && page.gridImageId) {
+    try {
+      const oldGrid = await window.castIdb.get(page.gridImageId);
+      if (oldGrid) {
+        const newGrid = await compositeCellIntoGrid(oldGrid, slotIdx, prevDataUrl);
+        await window.castIdb.put(page.gridImageId, newGrid);
+      }
+    } catch (e) {
+      console.warn('[Bible] Revert composite failed (non-fatal):', e.message);
+    }
+  }
+  // Surgical staleness — entity scenes affected
+  const entityName = slot.baseEntityName || slot.name.replace(/__angle$|__detail$/, '');
+  markScenesStaleByEntity(entityName);
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+  if (typeof renderCreateSceneCards === 'function') renderCreateSceneCards();
+}
+window.revertBibleCell = revertBibleCell;
+// ─── End Phase 8 ───────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 9 (whole-bible regen + mass-stale) ───────────
+//
+// Discard the current bible's IDB images, run generateBible() fresh, and
+// mark every generated scene as stale. Used after template change or user
+// "Regen all" request.
+async function regenBibleWhole(opts) {
+  const cs = window.createJobState || {};
+  const oldBible = cs.bible;
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+
+  // Best-effort cleanup of old IDB keys
+  if (oldBible && idbAvail) {
+    try {
+      const keysToDelete = [];
+      (oldBible.pages || []).forEach(p => {
+        if (p.gridImageId)        keysToDelete.push(p.gridImageId);
+        if (p.gridImageDisplayId) keysToDelete.push(p.gridImageDisplayId);
+        (p.slots || []).forEach(s => {
+          if (s.cellImageId) keysToDelete.push(s.cellImageId);
+          (s.versions || []).forEach(v => { if (v.cellImageId) keysToDelete.push(v.cellImageId); });
+        });
+      });
+      for (const k of keysToDelete) {
+        try { await window.castIdb.del(k); } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('[Bible] Cleanup of old bible IDB keys failed (non-fatal):', e.message);
+    }
+  }
+
+  // Discard old state and regenerate
+  cs.bible = null;
+  cs.templateLocked = false;
+  cs.templateLockedAt = null;
+  await window.generateBible({
+    onProgress: (m) => {
+      console.log('[Bible regen]', m);
+      if (typeof updateCreateAgentTask === 'function') {
+        updateCreateAgentTask('storyboard', 'bible', 'running', m);
+      }
+    },
+  });
+
+  // Mark every generated scene as stale (mass propagation)
+  if (Array.isArray(createScenes)) {
+    createScenes.forEach(s => {
+      if (s.imgDataUrl || (s.storyboardInstances && s.storyboardInstances.some(sb =>
+        (sb.imageInstances || []).some(i => i.imgDataUrl)))) {
+        s.bibleStale = true;
+      }
+    });
+  }
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+  if (typeof renderCreateSceneCards === 'function') renderCreateSceneCards();
+}
+window.regenBibleWhole = regenBibleWhole;
+// ─── End Phase 9 ───────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 10 (add character to existing bible) ─────────
+//
+// Path A — spare/extra slot exists: repurpose it via single-cell regen ($0.04).
+// Path B — bible is full: surface modal with three options (replace lighting,
+//          add second page, cancel).
+async function addEntityToBible(entityName) {
+  const cs = window.createJobState || {};
+  const bible = cs.bible;
+  if (!bible || bible.status !== 'ready') {
+    // No bible yet — bible will pick up the new entity at first generation
+    return { action: 'no-bible' };
+  }
+  // Skip if entity is already represented
+  const lc = String(entityName).toLowerCase();
+  if (Object.keys(bible.cellsByName || {}).some(k => k.toLowerCase() === lc)) {
+    return { action: 'already-present' };
+  }
+
+  // Find spare → extra → utility (lighting → hero) slot. Palette is never
+  // auto-replaced.
+  const replaceOrder = ['spare', 'extra', 'lighting', 'hero'];
+  let target = null;
+  for (const tier of replaceOrder) {
+    for (const page of bible.pages) {
+      for (const slot of (page.slots || [])) {
+        if (target) break;
+        if (tier === 'spare'    && slot.priority === 'spare') target = { page, slot };
+        if (tier === 'extra'    && slot.priority === 'extra') target = { page, slot };
+        if (tier === 'lighting' && slot.priority === 'utility' && slot.name === 'lighting') target = { page, slot };
+        if (tier === 'hero'     && slot.priority === 'utility' && slot.name === 'hero')     target = { page, slot };
+      }
+      if (target) break;
+    }
+    if (target) break;
+  }
+
+  if (target) {
+    // Path A — repurpose the slot
+    const isUtilityLoss = (target.slot.priority === 'utility');
+    if (isUtilityLoss) {
+      const lossName = target.slot.name;
+      const ok = window.confirm(
+        `Adding [${entityName}] to the bible requires repurposing the ` +
+        `"${lossName}" reference cell. ${lossName} refs will no longer ` +
+        `be available in scene generation, but palette and other anchors ` +
+        `remain. Cost: $0.04. Continue?`
+      );
+      if (!ok) return { action: 'cancelled' };
+    }
+    // Mutate slot to entity slot for this name
+    target.slot.priority = 'entity';
+    target.slot.locked = true;
+    target.slot.name = entityName;
+    target.slot.baseEntityName = null;
+    target.slot.angleVariation = null;
+    target.slot.versions = [];
+    // Run cell regen for this slot — uses bible-as-ref, ~$0.04
+    await window.regenBibleCell(target.page.pageIdx, target.slot.idx, { allowPalette: false });
+    // Re-index cellsByName
+    bible.cellsByName = window.castBuildBibleCellsByName(bible);
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+    if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+    return { action: 'reused-slot', slot: target.slot };
+  }
+
+  // Path B — bible is full, ask user
+  const choice = window.prompt(
+    `The visual bible has no spare cells. Choose how to add [${entityName}]:\n\n` +
+    `  1. Replace the "lighting" cell (it's currently used as a utility ref)\n` +
+    `  2. Add a second bible page ($0.13 — keeps existing cells intact)\n` +
+    `  Cancel — leave bible unchanged; [${entityName}] will appear by name only.\n\n` +
+    `Enter 1, 2, or anything else to cancel:`
+  );
+  if (choice === '1') {
+    // Force-replace lighting cell — even if utility tier filter said "none"
+    for (const page of bible.pages) {
+      const ls = (page.slots || []).find(s => s.priority === 'utility' && s.name === 'lighting');
+      if (ls) {
+        ls.priority = 'entity';
+        ls.locked = true;
+        ls.name = entityName;
+        ls.versions = [];
+        await window.regenBibleCell(page.pageIdx, ls.idx);
+        bible.cellsByName = window.castBuildBibleCellsByName(bible);
+        if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+        return { action: 'replaced-lighting' };
+      }
+    }
+    return { action: 'no-lighting-cell' };
+  }
+  if (choice === '2') {
+    // Add a second page using the current spec rules but only including
+    // overflow entities. Since we already have pages[], we just need to add
+    // pages[bible.pages.length] using a fresh spec build.
+    return await _bibleAddPage(entityName);
+  }
+  return { action: 'cancelled' };
+}
+
+async function _bibleAddPage(newEntityName) {
+  const cs = window.createJobState || {};
+  const bible = cs.bible;
+  if (!bible) throw new Error('No bible to extend');
+  const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+  if (!key) throw new Error('Gemini API key required');
+  // Build a single page of slots that includes the new entity + extras of
+  // existing entities. Doesn't duplicate utility cells (palette/lighting/hero).
+  const existingEntityNames = (bible.pages[0].slots || [])
+    .filter(s => s.priority === 'entity')
+    .map(s => (s.baseEntityName || s.name).replace(/__angle$|__detail$/, ''));
+  const uniqExisting = Array.from(new Set(existingEntityNames));
+  const newSlots = [];
+  newSlots.push({ idx: 0, name: newEntityName, priority: 'entity', locked: true, cellImageId: null, versions: [] });
+  // Fill remaining 8 with extras of existing entities + spares
+  for (let i = 1, k = 0; i < 9; i++, k++) {
+    const baseName = uniqExisting[k % uniqExisting.length];
+    const angle = ['close-up', '¾ profile', 'wide alt-angle'][Math.floor(k / Math.max(1, uniqExisting.length)) % 3];
+    if (baseName) {
+      newSlots.push({ idx: i, name: `extra-${baseName}-${k}`, priority: 'extra', locked: false, cellImageId: null, versions: [], baseEntityName: baseName, angleVariation: angle });
+    } else {
+      newSlots.push({ idx: i, name: `spare-${i}`, priority: 'spare', locked: false, cellImageId: null, versions: [] });
+    }
+  }
+  const pageIdx = bible.pages.length;
+  const newPage = { pageIdx, gridImageId: null, gridImageDisplayId: null, slots: newSlots };
+
+  // Generate the new page via grid call (similar to generateBible's loop)
+  const prompts = window.castBuildBiblePrompts(newPage);
+  const refParts = await window.castBuildBibleRefParts(newPage);
+  const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  const formatHint = 'square format (1:1 aspect ratio)';
+  let gridDataUrl;
+  try {
+    const models = ['gemini-3-pro-image-preview', 'gemini-3-flash-image-preview', 'gemini-2.5-flash-image'];
+    let lastErr = null;
+    for (const m of models) {
+      try { gridDataUrl = await generateGridImage(prompts, key, sp, m, formatHint, { refParts }); break; }
+      catch (e) { lastErr = e; }
+    }
+    if (!gridDataUrl) throw lastErr || new Error('Add-page grid call failed');
+  } catch (e) {
+    throw e;
+  }
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+  const grid2kKey = window.bibleIdbKey(bible.id, 'grid2k', pageIdx);
+  if (idbAvail) await window.castIdb.put(grid2kKey, gridDataUrl);
+  newPage.gridImageId = grid2kKey;
+  const cells2k = await cropGridCells(gridDataUrl, 3, 3, 9);
+  for (let i = 0; i < 9; i++) {
+    const cellKey = window.bibleIdbKey(bible.id, 'cell2k', pageIdx, i);
+    if (idbAvail) await window.castIdb.put(cellKey, cells2k[i]);
+    newSlots[i].cellImageId = cellKey;
+    newSlots[i].versions = [{ cellImageId: cellKey, generatedAt: new Date().toISOString(), prompt: prompts[i] }];
+  }
+  bible.pages.push(newPage);
+  bible.cellsByName = window.castBuildBibleCellsByName(bible);
+  if (typeof trackCost === 'function') trackCost('imagen-3-pro', 1);
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  if (typeof window.renderBibleNode === 'function') window.renderBibleNode();
+  return { action: 'added-page', pageIdx };
+}
+window.addEntityToBible = addEntityToBible;
+// ─── End Phase 10 ──────────────────────────────────────────────────────
+
+// ─── Visual Bible — Phase 11 (first-batch-as-style-anchor helper) ──────
+//
+// Downsample a grid dataURL to ≤ maxDim pixels on the longer side and pack
+// it as refParts ([{inlineData}, {text}]) ready to prepend to subsequent
+// grid calls. Returns null on failure (caller treats as non-fatal).
+async function _bibleDownsampleAsRefPart(gridDataUrl, maxDim) {
+  if (!gridDataUrl) return null;
+  const downsampled = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const longer = Math.max(img.naturalWidth, img.naturalHeight);
+      const scale = Math.min(1, maxDim / Math.max(1, longer));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('downsample failed'));
+    img.src = gridDataUrl;
+  });
+  const m = downsampled.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return null;
+  return [
+    { inlineData: { mimeType: m[1], data: m[2] } },
+    { text: 'Reference: this is the first batch of scenes from this project. Match its overall color grade, lighting, mood, and rendering style across all subsequent batches so the look stays continuous.' },
+  ];
+}
+window._bibleDownsampleAsRefPart = _bibleDownsampleAsRefPart;
+// ─── End Phase 11 ──────────────────────────────────────────────────────
 
 // ── Lyria 3 BGM Generation ──
 
@@ -2820,10 +3535,34 @@ async function generateSceneImage(idx) {
     }
     // Collect reference image parts for API call
     const refParts = hasRefs ? getSceneRefImageParts(scene) : [];
+    // Bible refs (Phase 6) — layered on top of legacy refParts. Capped at 4
+    // total inline images per call. Legacy refs go first; bible cells fill
+    // remaining slots, prioritized by mode (see castBuildSceneBibleRefParts).
+    let bibleRefRes = null;
+    if (typeof window.castBuildSceneBibleRefParts === 'function') {
+      try {
+        const remainingCap = Math.max(0, 4 - Math.floor(refParts.length / 2));
+        if (remainingCap > 0) {
+          bibleRefRes = await window.castBuildSceneBibleRefParts(scene, { maxRefs: remainingCap });
+          if (bibleRefRes && bibleRefRes.parts && bibleRefRes.parts.length) {
+            refParts.push(...bibleRefRes.parts);
+          }
+          // Tag scene with bible binding metadata for staleness detection
+          if (bibleRefRes && window.createJobState && window.createJobState.bible) {
+            scene.bibleRefIds = (bibleRefRes.usedNames || []).slice();
+            scene.bibleVersionUsed = window.createJobState.bible.id + '@' + (window.createJobState.bible.generatedAt || '');
+            scene.bibleStale = false;
+          }
+        }
+      } catch (e) {
+        console.warn('[Bible] Per-scene ref binding failed (non-fatal):', e.message);
+      }
+    }
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
     // Try image models in fallback order
     const models = getImageModels();
     let lastError = null;
+    let bibleRefAttemptDropped = false;
     for (const model of models) {
       try {
         if (model.startsWith('imagen-')) {
@@ -2835,6 +3574,19 @@ async function generateSceneImage(idx) {
       } catch(e) {
         lastError = e;
         if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+        // EC-44: on hard failure with refs, retry without bible refs once
+        if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
+          bibleRefAttemptDropped = true;
+          opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
+          try {
+            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+            console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
+            break;
+          } catch (e2) {
+            lastError = e2;
+            continue;
+          }
+        }
         throw e;
       }
     }
@@ -3081,6 +3833,10 @@ async function runImageGeneration(scenesToGen) {
 
   // ── Grid Batches ──
   let imgOffset = 0;
+  // Phase 11 — first-batch-as-style-anchor. Stash batch 1's full grid image
+  // (downsampled to ~1024px) and prepend it as the first ref in batches 2+
+  // so style/grade propagates across batches.
+  let firstBatchAnchorPart = null;
   for (let b = 0; b < gridBatches.length; b++) {
     if (!await checkPause(`${gridBatches.length - b} batch(es) + ${individualScenes.length} individual remaining.`)) break;
 
@@ -3100,6 +3856,28 @@ async function runImageGeneration(scenesToGen) {
       ? `${createStylePrompt}. ${centerInstruction}`
       : centerInstruction;
 
+    // Phase 6 — bible refs at batch granularity (union of all bracket tokens
+    // in this batch, capped at 4). Threaded into generateGridImage via extras.
+    let batchBibleRefRes = null;
+    if (typeof window.castBuildBatchBibleRefParts === 'function') {
+      try {
+        // Reserve 1 slot for the first-batch anchor on batches 2+
+        const cap = (b > 0 && firstBatchAnchorPart) ? 3 : 4;
+        batchBibleRefRes = await window.castBuildBatchBibleRefParts(batch, { maxRefs: cap });
+      } catch (e) {
+        console.warn('[Bible] batch ref binding failed (non-fatal):', e.message);
+      }
+    }
+    const allRefParts = [];
+    // Phase 11 — anchor first (slot 0) for batches 2+
+    if (b > 0 && firstBatchAnchorPart) {
+      allRefParts.push(...firstBatchAnchorPart);
+    }
+    if (batchBibleRefRes && batchBibleRefRes.parts && batchBibleRefRes.parts.length) {
+      allRefParts.push(...batchBibleRefRes.parts);
+    }
+    const gridExtras = allRefParts.length ? { refParts: allRefParts } : undefined;
+
     let gridDataUrl = null;
     let gridError = null;
 
@@ -3110,16 +3888,40 @@ async function runImageGeneration(scenesToGen) {
       { model: 'gemini-2.5-flash-image', costKey: 'imageGen' },
     ];
 
+    let gridBibleDropped = false;
     for (const { model, costKey } of gridModels) {
       try {
-        gridDataUrl = await generateGridImage(prompts, key, styleWithHint, model, formatHint);
+        gridDataUrl = await generateGridImage(prompts, key, styleWithHint, model, formatHint, gridBibleDropped ? undefined : gridExtras);
         trackCost(costKey, 1);
-        console.log(`[Grid] batch ${b + 1} generated with ${model || 'gemini-3-pro-image-preview'}`);
+        console.log(`[Grid] batch ${b + 1} generated with ${model || 'gemini-3-pro-image-preview'}${gridBibleDropped ? ' (without bible refs)' : ''}`);
         break;
       } catch (e) {
         gridError = e;
         console.warn(`[Grid] ${model || 'pro'} failed:`, e.message);
+        // EC-44: if we still have bible refs attached and the model errored,
+        // try the same model once more without refs before falling through.
+        if (!gridBibleDropped && gridExtras) {
+          gridBibleDropped = true;
+          try {
+            gridDataUrl = await generateGridImage(prompts, key, styleWithHint, model, formatHint);
+            trackCost(costKey, 1);
+            console.log(`[Grid] batch ${b + 1} succeeded after dropping bible refs`);
+            break;
+          } catch (e2) {
+            gridError = e2;
+            console.warn(`[Grid] ${model || 'pro'} failed without bible refs too:`, e2.message);
+          }
+        }
       }
+    }
+    // Tag the batch's scenes with bible binding metadata
+    if (gridDataUrl && batchBibleRefRes && window.createJobState && window.createJobState.bible && !gridBibleDropped) {
+      const ver = window.createJobState.bible.id + '@' + (window.createJobState.bible.generatedAt || '');
+      batch.forEach(scene => {
+        scene.bibleRefIds = (batchBibleRefRes.usedNames || []).slice();
+        scene.bibleVersionUsed = ver;
+        scene.bibleStale = false;
+      });
     }
 
     if (gridDataUrl) {
@@ -3137,6 +3939,15 @@ async function runImageGeneration(scenesToGen) {
           _genDone++;
           if (typeof fillTheaterCell === 'function') fillTheaterCell(idx, resized, scenesToGen.indexOf(scene));
           _updateGenCounter();
+        }
+        // Phase 11 — stash batch-1 anchor for batches 2+
+        if (b === 0 && gridBatches.length > 1) {
+          try {
+            firstBatchAnchorPart = await _bibleDownsampleAsRefPart(gridDataUrl, 1024);
+            console.log('[Grid] Stashed batch-1 anchor for cross-batch consistency');
+          } catch (e) {
+            console.warn('[Grid] Failed to stash batch-1 anchor (non-fatal):', e.message);
+          }
         }
       } catch (cropErr) {
         console.error('[Grid] Crop/resize failed, falling back to individual:', cropErr);
@@ -3492,7 +4303,7 @@ btnCreatePause.addEventListener('click', () => {
   }
 });
 
-function launchImageAgent() {
+async function launchImageAgent() {
   if (!createScenes || createScenes.length === 0) return;
   // Mount the canvas immediately as the workspace. Scene nodes appear with
   // image placeholders; placeholders fill in as runImageGeneration completes
@@ -3514,6 +4325,20 @@ function launchImageAgent() {
   if (generateRunning) return;
   const allDone = createScenes.every(s => s.imgDataUrl);
   if (allDone) return;
+
+  // ── Bible gate (Phase 4) ─────────────────────────────────────────────
+  // For film/brand projects with ≥1 locked entity, the visual bible MUST
+  // exist before scene generation runs. If missing or stale, run it first.
+  try {
+    if (typeof window.ensureBibleBeforeImageGen === 'function') {
+      const ok = await window.ensureBibleBeforeImageGen();
+      if (!ok) return;   // user cancelled at the modal
+    }
+  } catch (e) {
+    alert('Visual bible failed to generate: ' + (e.message || e) + '\n\nPlease retry from the cast panel before continuing.');
+    return;
+  }
+
   runImageGeneration([...createScenes]);
 }
 

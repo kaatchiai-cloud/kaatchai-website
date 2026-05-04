@@ -3366,11 +3366,46 @@ async function reelRunImageGeneration(scenesToGen) {
       return s.prompt || s.text || 'A cinematic scene';
     });
     const key = getReelApiKey();
+    // Phase 12 — autopilot bible gate. No-op when bibleApplies() is false
+    // (the common case for autopilot runs without entity locks). When the
+    // user has locked entities via the cast panel, this ensures the bible
+    // is generated before the autopilot grid call.
+    try {
+      if (typeof window.ensureBibleBeforeImageGen === 'function') {
+        const ok = await window.ensureBibleBeforeImageGen();
+        if (!ok) {
+          updateReelAgentTask('image', 'generate', 'error', 'Bible gate cancelled');
+          reelGenImagesRunning = false;
+          if (btnGenImages) btnGenImages.disabled = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[Autopilot] Bible gate failed:', e.message);
+      updateReelAgentTask('image', 'generate', 'error', 'Bible failed: ' + (e.message || e));
+      reelGenImagesRunning = false;
+      if (btnGenImages) btnGenImages.disabled = false;
+      return;
+    }
+    // Build bible refs for the autopilot grid (best-effort; no-op when no bible)
+    let _autopilotGridExtras;
+    try {
+      if (typeof window.castBuildBatchBibleRefParts === 'function') {
+        const res = await window.castBuildBatchBibleRefParts(scenesToGen, { maxRefs: 4 });
+        if (res && res.parts && res.parts.length) {
+          _autopilotGridExtras = { refParts: res.parts };
+          updateReelAgentTask('image', 'generate', 'running',
+            `Generating ${total} images with ${res.usedNames.length} bible refs…`);
+        }
+      }
+    } catch (e) {
+      console.warn('[Autopilot] Bible ref binding failed (non-fatal):', e.message);
+    }
     try {
       if (labelEl) labelEl.textContent = `Generating ${total} images in grid mode...`;
       if (barEl) barEl.style.width = '30%';
-      updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
-      const gridDataUrl = await generateGridImage(prompts, key, stylePrompt, undefined, 'portrait format (9:16 aspect ratio)');
+      if (!_autopilotGridExtras) updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
+      const gridDataUrl = await generateGridImage(prompts, key, stylePrompt, undefined, 'portrait format (9:16 aspect ratio)', _autopilotGridExtras);
       if (barEl) barEl.style.width = '50%';
       updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
       updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
@@ -3401,7 +3436,7 @@ async function reelRunImageGeneration(scenesToGen) {
       try {
         // Fallback 1: gemini-3.1-flash-image-preview at 2K → upscale 2K→4K
         updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
-        const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview', 'portrait format (9:16 aspect ratio)');
+        const fbGrid = await generateGridImage(prompts, key, stylePrompt, 'gemini-3.1-flash-image-preview', 'portrait format (9:16 aspect ratio)', _autopilotGridExtras);
         updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
         updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
         const fbCells = await reelUpscaleAndCrop(fbGrid, 2, 3, 3, total, barEl, labelEl, '3.1 Flash 2K');
@@ -3426,7 +3461,7 @@ async function reelRunImageGeneration(scenesToGen) {
         try {
           // Fallback 2: gemini-2.5-flash-image at 1K → upscale 1K→2K
           updateReelAgentTask('image', 'generate', 'running', `Generating ${total} images…`);
-          const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image', 'portrait format (9:16 aspect ratio)');
+          const fbGrid2 = await generateGridImage(prompts, key, stylePrompt, 'gemini-2.5-flash-image', 'portrait format (9:16 aspect ratio)', _autopilotGridExtras);
           updateReelAgentTask('image', 'generate', 'done', `${total} images generated`);
           updateReelAgentTask('image', 'upscale', 'running', 'Upscaling images…');
           const fbCells2 = await reelUpscaleAndCrop(fbGrid2, 2, 3, 3, total, barEl, labelEl, '2.5 Flash 1K');

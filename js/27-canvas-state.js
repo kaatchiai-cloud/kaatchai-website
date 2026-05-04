@@ -61,6 +61,10 @@ function migrateScene(s, defaults) {
       if (!v.role) v.role = 'broll';
     });
     if (!s.frontRole) s.frontRole = 'broll';
+    // Bible-binding fields (Phase 1 — defaults only; populated at gen time)
+    if (!Array.isArray(s.bibleRefIds)) s.bibleRefIds = [];
+    if (typeof s.bibleVersionUsed === 'undefined') s.bibleVersionUsed = null;
+    if (typeof s.bibleStale === 'undefined') s.bibleStale = false;
     return s;
   }
 
