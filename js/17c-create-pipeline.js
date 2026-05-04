@@ -1209,9 +1209,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
 
       const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
+      const _dlgSuffix  = (typeof window.castBuildDialogueAndFramingHint === 'function') ? window.castBuildDialogueAndFramingHint() : { promptHint: '', schemaFieldList: '' };
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}${_dlgSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}${_dlgSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -1227,6 +1228,9 @@ btnCreateTranscribe.addEventListener('click', async () => {
                 segments[idx].sceneDescription = d.sceneDescription || '';
                 if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
                 if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+                // Phase 4 — dialogue + framing
+                if (d.dialogue !== undefined) segments[idx].dialogue = d.dialogue || null;
+                if (typeof d.framing === 'string') segments[idx].framing = d.framing;
               }
             });
           }
@@ -1237,6 +1241,36 @@ btnCreateTranscribe.addEventListener('click', async () => {
       segments.forEach(s => {
         if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`;
       });
+      // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+      if (typeof window.castEnforceCutOnSpeaker === 'function') {
+        segments = window.castEnforceCutOnSpeaker(segments);
+      }
+      if (typeof window.castApplyFramingDerived === 'function') {
+        window.castApplyFramingDerived(segments);
+      }
+      // Phase 5 — multi-voice TTS — only when ≥1 segment has a real speaker.
+      // Replaces the single-voice TTS audio with per-line voices, updates
+      // segment timing to match actual TTS durations, and writes speaker
+      // turn metadata used by lip sync.
+      if (typeof window.castShouldUseMultiVoice === 'function' && window.castShouldUseMultiVoice(segments)) {
+        try {
+          updateCreateAgentTask('storyboard', 'multivoice', 'running', 'Generating per-character voices…');
+          const mv = await window.castGenerateMultiVoiceAudio(segments, {
+            onProgress: (m) => updateCreateAgentTask('storyboard', 'multivoice', 'running', m),
+          });
+          if (mv && mv.combinedAudioBuffer) {
+            createAudioBuffer = mv.combinedAudioBuffer;
+            createOriginalBuffer = mv.combinedAudioBuffer;
+            window._createSpeakerTurns = mv.speakerTurns;
+            updateCreateAgentTask('storyboard', 'multivoice', 'done',
+              `${mv.speakerTurns.length} voice line(s) · ${(mv.totalDurationMs / 1000).toFixed(1)}s`);
+            console.log('[Voice] multi-voice audio assembled:', mv.totalDurationMs, 'ms,', mv.speakerTurns.length, 'turns');
+          }
+        } catch (e) {
+          console.warn('[Voice] multi-voice generation failed; falling back to single-voice audio:', e.message);
+          updateCreateAgentTask('storyboard', 'multivoice', 'error', 'Multi-voice failed — using single-voice audio');
+        }
+      }
 
     } else {
       // ── Voice/Podcast mode: audio transcription ──
@@ -1263,7 +1297,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
         const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
         const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
         const descResp = await callGeminiAPI(['gemini-2.5-flash'], {
-          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
+          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}${_dlgSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}${_dlgSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
         }, key);
         const descText = descResp.candidates?.[0]?.content?.parts?.[0]?.text;
         if (descText) {
@@ -1282,6 +1316,13 @@ btnCreateTranscribe.addEventListener('click', async () => {
           } catch (e) { console.warn('Could not parse scene descriptions:', e); }
         }
         segments.forEach(s => { if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`; });
+        // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+        if (typeof window.castEnforceCutOnSpeaker === 'function') {
+          segments = window.castEnforceCutOnSpeaker(segments);
+        }
+        if (typeof window.castApplyFramingDerived === 'function') {
+          window.castApplyFramingDerived(segments);
+        }
         if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
         // Skip the bundled-audio path below
       } else {

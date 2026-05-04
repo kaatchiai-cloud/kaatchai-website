@@ -23724,7 +23724,163 @@ function saveElevenLabsKey(inputId, btn) {
   const orig = btn.textContent;
   btn.textContent = '✓';
   setTimeout(() => { btn.textContent = orig; }, 1500);
+  // Voice plan Phase 3 — fetch voice catalog now that the key is set
+  if (typeof window.elevenlabsRefreshVoiceCatalog === 'function') {
+    window.elevenlabsRefreshVoiceCatalog();
+  }
 }
+
+// ─── ElevenLabs voice catalog + TTS (voice-and-lipsync-plan Phase 3) ────
+// Fetch /v1/voices once when the key is set, cache per-session in
+// VOICE_CATALOG.elevenlabs and persist to IDB so a refresh doesn't re-call.
+async function elevenlabsFetchVoices(apiKey) {
+  if (!apiKey) return [];
+  const resp = await fetch('https://api.elevenlabs.io/v1/voices', {
+    headers: { 'xi-api-key': apiKey },
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`ElevenLabs voices fetch failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  return (data.voices || []).map(v => ({
+    id: v.voice_id,
+    name: v.name,
+    gender: (v.labels && v.labels.gender) || 'neutral',
+    tag: (v.labels && (v.labels.description || v.labels.accent || v.labels.use_case || v.labels.age)) || '',
+    previewUrl: v.preview_url || null,
+  }));
+}
+
+// Refresh the voice catalog after a key change. Updates VOICE_CATALOG and
+// flips voiceConfig.elevenlabsKeyConfigured. Re-renders cast rows so the
+// provider toggle becomes enabled.
+window.elevenlabsRefreshVoiceCatalog = async function () {
+  const key = getElevenLabsKey();
+  if (!window.VOICE_CATALOG) {
+    window.VOICE_CATALOG = { gemini: [], elevenlabs: [] };
+  }
+  if (!key) {
+    window.VOICE_CATALOG.elevenlabs = [];
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = false;
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+    return;
+  }
+  try {
+    const voices = await elevenlabsFetchVoices(key);
+    window.VOICE_CATALOG.elevenlabs = voices;
+    if (typeof window._ensureVoiceConfig === 'function') window._ensureVoiceConfig();
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = voices.length > 0;
+    }
+    if (typeof window.castIdb !== 'undefined' && window.castIdb && window.castIdb.put) {
+      try { await window.castIdb.put('elevenlabs_voice_catalog', JSON.stringify(voices)); } catch (_) {}
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  } catch (e) {
+    console.warn('[ElevenLabs] voice catalog refresh failed:', e.message);
+    window.VOICE_CATALOG.elevenlabs = [];
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = false;
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+  }
+};
+
+// Hydrate from IDB cache on page load (avoids hitting /v1/voices on every refresh).
+(async function initElevenLabsCatalogFromCache() {
+  if (!window.VOICE_CATALOG) window.VOICE_CATALOG = { gemini: [], elevenlabs: [] };
+  if (!getElevenLabsKey()) return;
+  if (typeof window.castIdb === 'undefined' || !window.castIdb || !window.castIdb.get) {
+    // castIdb wires on DOMContentLoaded; defer
+    setTimeout(initElevenLabsCatalogFromCache, 500);
+    return;
+  }
+  try {
+    const cached = await window.castIdb.get('elevenlabs_voice_catalog');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length) {
+        window.VOICE_CATALOG.elevenlabs = parsed;
+        if (window.createJobState) {
+          if (typeof window._ensureVoiceConfig === 'function') window._ensureVoiceConfig();
+          if (window.createJobState.voiceConfig) {
+            window.createJobState.voiceConfig.elevenlabsKeyConfigured = true;
+          }
+        }
+        if (typeof window.castRenderRows === 'function') window.castRenderRows();
+      }
+    }
+  } catch (_) {}
+  // Background refresh (non-blocking, picks up new voices)
+  if (typeof window.elevenlabsRefreshVoiceCatalog === 'function') {
+    window.elevenlabsRefreshVoiceCatalog();
+  }
+})();
+
+// ElevenLabs TTS — used by the multi-voice TTS pipeline (Phase 5) and by
+// sample playback when previewUrl is missing.
+async function generateTTSElevenLabs(text, voiceId, apiKey) {
+  if (!apiKey) throw new Error('ElevenLabs API key required');
+  const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg',
+    },
+    body: JSON.stringify({
+      text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`ElevenLabs TTS (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const arrayBuffer = await resp.arrayBuffer();
+  const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+  const dataUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('blob read failed'));
+    r.readAsDataURL(blob);
+  });
+  // Decode for duration metadata (best-effort)
+  let durationMs = 0;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    durationMs = audioBuffer.duration * 1000;
+    try { ctx.close(); } catch (_) {}
+  } catch (_) {}
+  // Cost tracking: ~$0.30 per 1K chars on most plans
+  if (typeof trackCost === 'function') {
+    const usd = ((text || '').length / 1000) * 0.30;
+    trackCost('elevenlabsTts', usd);
+  }
+  return { dataUrl, durationMs, charCount: (text || '').length };
+}
+window.generateTTSElevenLabs = generateTTSElevenLabs;
+
+// Sample playback for an ElevenLabs voice. Prefer previewUrl (free, static),
+// fall back to a live TTS call. Returns a data URL or blob URL string.
+window.elevenlabsGenerateSample = async function (voiceId) {
+  const voice = (window.VOICE_CATALOG && window.VOICE_CATALOG.elevenlabs || []).find(v => v.id === voiceId);
+  if (voice && voice.previewUrl) {
+    // Static preview from ElevenLabs CDN — cors-friendly
+    return voice.previewUrl;
+  }
+  const key = getElevenLabsKey();
+  if (!key) throw new Error('ElevenLabs API key required');
+  const sample = await generateTTSElevenLabs(`Hello, I'm ${voice ? voice.name : 'this voice'}.`, voiceId, key);
+  return sample.dataUrl;
+};
+// ─── End ElevenLabs voice integration ──────────────────────────────────
 
 // Pre-fill ElevenLabs key inputs from localStorage on load
 (function initElevenLabsKeyInputs() {
@@ -27653,6 +27809,358 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     };
   };
 
+  // Phase 4 — dialogue + framing hints for the storyboard agent.
+  // Returns { promptHint, schemaFieldList } extending the storyboard call so
+  // each segment carries dialogue (speaker + text + isVoiceOver) and framing
+  // (one of 9 enum values). Only emitted for film / brand projects where at
+  // least one cast member is locked. Narration-only projects skip — the
+  // existing narrator suffix already handles them.
+  window.castBuildDialogueAndFramingHint = function () {
+    const t = window.createJobState && window.createJobState.videoType;
+    if (t !== 'film' && t !== 'brand') return { promptHint: '', schemaFieldList: '' };
+    const chars = (window.createJobState.characters || []).filter(c => c.locked);
+    const hasProduct   = !!(window.createJobState.product   && window.createJobState.product.locked);
+    const hasPresenter = !!(window.createJobState.presenter && window.createJobState.presenter.locked);
+    if (!chars.length && !hasProduct && !hasPresenter) return { promptHint: '', schemaFieldList: '' };
+    const speakerNames = chars.map(c => c.name);
+    if (hasPresenter) speakerNames.push(window.createJobState.presenter.name);
+    speakerNames.push('narrator');
+    return {
+      promptHint:
+        '\n\nDIALOGUE & FRAMING:\n' +
+        'For each segment, ALSO emit:\n' +
+        '  - dialogue: object — extract any quoted speech or "Speaker: line" prefix.\n' +
+        '      Shape: { "speakerName": one of [' + speakerNames.map(n => `"${n}"`).join(', ') + '] | null,\n' +
+        '              "text": "the spoken words only, no stage directions",\n' +
+        '              "isVoiceOver": boolean }.\n' +
+        '      Set dialogue=null when the segment is pure narration / description.\n' +
+        '      If multiple speakers appear in one segment, return ONLY the first speaker\'s line\n' +
+        '      and add a "additionalTurns" array of additional {speakerName, text} entries.\n' +
+        '  - framing: one of "frontal-close-up" | "frontal-medium" | "three-quarter" |\n' +
+        '              "over-shoulder-front" | "over-shoulder-back" | "profile" |\n' +
+        '              "back-of-head" | "wide-establishing" | "extreme-wide".\n\n' +
+        'RULES:\n' +
+        ' - When a segment contains dialogue spoken by a visible cast member, prefer\n' +
+        '   "frontal-close-up" or "three-quarter" framing so the speaker\'s mouth is on camera.\n' +
+        ' - When framing is "back-of-head", "profile", "wide-establishing", or "extreme-wide",\n' +
+        '   set dialogue.isVoiceOver = true (audio plays as voice-over, no mouth animation).\n' +
+        ' - NEVER place two characters in a single "frontal-close-up" of one speaking. If the\n' +
+        '   script has alternating dialogue, place each speaker in a separate segment using\n' +
+        '   their own "frontal-close-up" (cut-on-speaker rule).\n',
+      schemaFieldList:
+        ', "dialogue": null, "framing": "frontal-medium"',
+    };
+  };
+
+  // Phase 4 — cut-on-speaker enforcer. Post-process storyboard segments to
+  // split any segment that has additionalTurns into per-speaker segments.
+  // Each generated split inherits the parent timing proportionally.
+  window.castEnforceCutOnSpeaker = function (segments) {
+    if (!Array.isArray(segments)) return segments;
+    const out = [];
+    for (const seg of segments) {
+      const dlg = seg && seg.dialogue;
+      const extra = dlg && Array.isArray(dlg.additionalTurns) ? dlg.additionalTurns : null;
+      if (!extra || !extra.length) {
+        out.push(seg);
+        continue;
+      }
+      // Allocate timing across (1 + extra.length) turns evenly within the segment
+      const turns = [{ speakerName: dlg.speakerName, text: dlg.text }].concat(extra);
+      const start = (typeof seg.startTime === 'number') ? seg.startTime : 0;
+      const end   = (typeof seg.endTime   === 'number') ? seg.endTime   : (start + 1);
+      const span  = Math.max(0.001, end - start);
+      const per   = span / turns.length;
+      for (let i = 0; i < turns.length; i++) {
+        const t = turns[i];
+        const tStart = start + per * i;
+        const tEnd   = start + per * (i + 1);
+        const cloned = Object.assign({}, seg, {
+          startTime: tStart,
+          endTime: tEnd,
+          dialogue: {
+            speakerName: t.speakerName || null,
+            text: t.text || '',
+            isVoiceOver: false,
+            additionalTurns: undefined,
+          },
+          framing: 'frontal-close-up',
+          _cutFromSpeakerSplit: true,
+        });
+        delete cloned.dialogue.additionalTurns;
+        out.push(cloned);
+      }
+    }
+    return out;
+  };
+
+  // Phase 4 — derive speakerVisible from framing. Voice-over framings make the
+  // speaker's mouth not on-camera, so lip sync must be skipped for those.
+  window.castDeriveSpeakerVisible = function (framing) {
+    if (!framing) return false;
+    return ['frontal-close-up', 'frontal-medium', 'three-quarter', 'over-shoulder-front'].includes(framing);
+  };
+
+  // Phase 6 — framing-aware Kling motion prompt augmenter.
+  // Maps the storyboard agent's framing enum to a deterministic Kling prompt
+  // suffix that nails camera angle + mouth visibility constraints. Used to
+  // build the i2v motion prompt for any scene that has dialogue.
+  const FRAMING_PROMPTS = {
+    'frontal-close-up':
+      'Tight medium close-up. {speaker} faces the camera directly throughout the shot. Mouth clearly visible at all times. Eye contact with camera. {speaker} is speaking — natural conversational mouth movement, lips opening and closing. No head turns away from camera.',
+    'frontal-medium':
+      'Frontal medium shot, waist-up. {speaker} faces the camera, mouth visible. {speaker} is speaking — natural mouth movement. Slight body shift allowed; head stays toward camera.',
+    'three-quarter':
+      '¾ angle medium shot. {speaker} angled approximately 30° off-axis, mouth still clearly visible to camera. {speaker} is speaking — mouth opens and closes naturally. Head stays at this angle; no full turn away.',
+    'over-shoulder-front':
+      'Over-the-shoulder shot from {listener}\'s perspective looking at {speaker}. {speaker} faces the camera, mouth visible past listener\'s shoulder. {listener} is in soft foreground, not speaking.',
+    'over-shoulder-back':
+      'Over-the-shoulder shot from behind {speaker}. Back/side of head visible. Voice-over framing — no mouth animation expected.',
+    'profile':
+      'Side profile of {speaker}. Mouth partially visible. Voice-over framing — no mouth animation.',
+    'back-of-head':
+      'Camera behind {speaker}; only the back of the head is visible. Voice-over framing — no mouth animation.',
+    'wide-establishing':
+      'Wide establishing shot of the scene. Characters small in frame. Voice-over framing — characters\' mouths are not the focus.',
+    'extreme-wide':
+      'Extreme wide / aerial / landscape shot. Characters tiny or absent.',
+  };
+  window.FRAMING_PROMPTS = FRAMING_PROMPTS;
+
+  // Build the motion-prompt suffix for a scene given its framing + dialogue.
+  // Returns an empty string when framing isn't set (caller continues with
+  // whatever default motion prompt it had).
+  window.castBuildFramingMotionPrompt = function (scene) {
+    if (!scene || !scene.framing) return '';
+    const tmpl = FRAMING_PROMPTS[scene.framing];
+    if (!tmpl) return '';
+    const speaker = (scene.dialogue && scene.dialogue.speakerName) || 'the speaker';
+    // Heuristic listener: any other locked character not the speaker
+    let listener = 'the other character';
+    const cs = window.createJobState || {};
+    const others = (cs.characters || []).filter(c => c.locked && c.name !== speaker);
+    if (others.length) listener = others[0].name;
+    return tmpl.replace(/\{speaker\}/g, speaker).replace(/\{listener\}/g, listener);
+  };
+
+  // Phase 5 — multi-voice TTS pipeline.
+  //
+  // resolveVoiceForSpeaker: lookup chain — explicit character voice → name match
+  // → narrator → project fallback.
+  function castResolveVoiceForSpeaker(speakerCharacterId, speakerName) {
+    const cs = window.createJobState || {};
+    const cfg = (typeof window._ensureVoiceConfig === 'function') ? window._ensureVoiceConfig() : null;
+    const fallback = (cfg && cfg.fallbackVoice) || { provider: 'gemini', voiceId: 'Kore', voiceName: 'Kore' };
+    if (speakerCharacterId === 'narrator' || (speakerName && speakerName.toLowerCase() === 'narrator')) {
+      return (cs.narrator && cs.narrator.voice) || fallback;
+    }
+    if (speakerCharacterId) {
+      const all = [
+        ...(cs.characters || []),
+        cs.presenter, cs.setting, cs.product,
+      ].filter(Boolean);
+      const found = all.find(x => x.id === speakerCharacterId);
+      if (found && found.voice) return found.voice;
+    }
+    if (speakerName) {
+      const lc = String(speakerName).toLowerCase();
+      const all = [
+        ...(cs.characters || []),
+        cs.presenter, cs.setting,
+      ].filter(Boolean);
+      const found = all.find(x => x.locked && (x.name || '').toLowerCase() === lc);
+      if (found && found.voice) return found.voice;
+    }
+    if (cs.narrator && cs.narrator.voice) return cs.narrator.voice;
+    return fallback;
+  }
+  window.castResolveVoiceForSpeaker = castResolveVoiceForSpeaker;
+
+  // Generate one TTS call for a given voice. Returns { audioBuffer, durationMs }.
+  // Routes to Gemini or ElevenLabs based on voice.provider.
+  async function castGenerateLineTTS(text, voice) {
+    if (!text || !voice) return null;
+    if (voice.provider === 'gemini') {
+      const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+      if (!key) throw new Error('Gemini key required');
+      if (typeof generateTTSGemini !== 'function') throw new Error('generateTTSGemini not available');
+      const result = await generateTTSGemini(text, voice.voiceId, key);
+      const decoded = await decodeBase64Audio(result.base64, result.mimeType);
+      return { audioBuffer: decoded.audioBuffer, durationMs: decoded.audioBuffer.duration * 1000 };
+    }
+    if (voice.provider === 'elevenlabs') {
+      if (typeof window.generateTTSElevenLabs !== 'function') throw new Error('ElevenLabs TTS not available');
+      const key = (typeof getElevenLabsKey === 'function') ? getElevenLabsKey() : null;
+      if (!key) throw new Error('ElevenLabs key required');
+      const result = await window.generateTTSElevenLabs(text, voice.voiceId, key);
+      // dataUrl → AudioBuffer
+      const m = result.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) throw new Error('Invalid ElevenLabs TTS dataUrl');
+      const decoded = await decodeBase64Audio(m[2], m[1]);
+      return { audioBuffer: decoded.audioBuffer, durationMs: decoded.audioBuffer.duration * 1000 };
+    }
+    throw new Error('Unknown TTS provider: ' + voice.provider);
+  }
+  window.castGenerateLineTTS = castGenerateLineTTS;
+
+  // Detect whether this project should run the multi-voice pipeline.
+  // Multi-voice activates only when ≥1 segment has an explicit non-narrator
+  // speaker. Narrator-only projects keep their existing single-voice path.
+  function castShouldUseMultiVoice(segments) {
+    if (!Array.isArray(segments)) return false;
+    return segments.some(s =>
+      s && s.dialogue && s.dialogue.speakerCharacterId &&
+      s.dialogue.speakerCharacterId !== 'narrator'
+    );
+  }
+  window.castShouldUseMultiVoice = castShouldUseMultiVoice;
+
+  // Per-line TTS generation across all segments. Returns:
+  //   {
+  //     combinedAudioBuffer: AudioBuffer,
+  //     totalDurationMs: number,
+  //     speakerTurns: [{ speakerCharacterId, voiceId, startMs, endMs, segmentIndex }],
+  //     perSegmentDurationsMs: number[]
+  //   }
+  // Falls back gracefully on per-line failures (uses 1s silence placeholder
+  // for that segment, surfaces a warning).
+  async function castGenerateMultiVoiceAudio(segments, opts) {
+    opts = opts || {};
+    const sampleRate = 24000;
+    const cutBeatMs = (typeof opts.cutBeatMs === 'number') ? opts.cutBeatMs : 200;
+    const onProgress = opts.onProgress || function () {};
+
+    // Step 1 — generate each segment's audio in series (rate-limit-safe).
+    // Could be parallelized at 5 concurrent later; series is correct for v1.
+    const segmentAudios = [];
+    let lastSpeakerId = null;
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg) { segmentAudios.push(null); continue; }
+      const dlg = seg.dialogue;
+      const speakerId = dlg && dlg.speakerCharacterId || 'narrator';
+      const speakerName = dlg && dlg.speakerName || 'narrator';
+      const text = (dlg && dlg.text) || seg.text || '';
+      if (!text || !text.trim()) { segmentAudios.push(null); continue; }
+      const voice = castResolveVoiceForSpeaker(speakerId, speakerName);
+      onProgress(`Voice ${i + 1}/${segments.length} — ${speakerName} (${voice.voiceName || voice.voiceId})…`);
+      try {
+        const result = await castGenerateLineTTS(text, voice);
+        segmentAudios.push({
+          segmentIndex: i,
+          audioBuffer: result.audioBuffer,
+          durationMs: result.durationMs,
+          speakerCharacterId: speakerId,
+          speakerName,
+          voiceId: voice.voiceId,
+          provider: voice.provider,
+          // 200ms cut-beat between consecutive different speakers; 0 between same speaker
+          cutBeatBeforeMs: (lastSpeakerId !== null && lastSpeakerId !== speakerId) ? cutBeatMs : 0,
+        });
+        lastSpeakerId = speakerId;
+      } catch (e) {
+        console.warn(`[Voice] line ${i + 1} TTS failed:`, e.message);
+        // 1s silence placeholder
+        const silence = (typeof audioContext !== 'undefined' && audioContext)
+          ? audioContext.createBuffer(1, sampleRate, sampleRate)
+          : null;
+        segmentAudios.push(silence ? {
+          segmentIndex: i,
+          audioBuffer: silence,
+          durationMs: 1000,
+          speakerCharacterId: speakerId,
+          speakerName,
+          voiceId: voice.voiceId,
+          provider: voice.provider,
+          cutBeatBeforeMs: 0,
+          error: e.message,
+        } : null);
+      }
+    }
+
+    // Step 2 — assemble combined buffer with cut-beat silences
+    const ctx = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : null;
+    if (!ctx) throw new Error('No AudioContext available');
+    const totalSamples = segmentAudios.reduce((sum, sa) => {
+      if (!sa) return sum;
+      return sum + Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate) + sa.audioBuffer.length;
+    }, 0);
+    const combined = ctx.createBuffer(1, totalSamples, sampleRate);
+    const channel = combined.getChannelData(0);
+    const speakerTurns = [];
+    let cursorSamples = 0;
+    let cursorMs = 0;
+    for (const sa of segmentAudios) {
+      if (!sa) continue;
+      // Cut-beat silence (channel already zero)
+      const beatSamples = Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate);
+      cursorSamples += beatSamples;
+      cursorMs += sa.cutBeatBeforeMs;
+      // Copy line audio
+      const src = sa.audioBuffer.getChannelData(0);
+      channel.set(src, cursorSamples);
+      const startMs = cursorMs;
+      const endMs   = cursorMs + sa.durationMs;
+      speakerTurns.push({
+        segmentIndex: sa.segmentIndex,
+        speakerCharacterId: sa.speakerCharacterId,
+        speakerName: sa.speakerName,
+        voiceId: sa.voiceId,
+        provider: sa.provider,
+        startMs,
+        endMs,
+      });
+      // Update segment's start/end timestamps to reflect actual TTS timing
+      const seg = segments[sa.segmentIndex];
+      if (seg) {
+        seg.startTime = startMs / 1000;
+        seg.endTime   = endMs / 1000;
+        seg.dialogue = seg.dialogue || {};
+        seg.dialogue.actualStartMs = startMs;
+        seg.dialogue.actualEndMs = endMs;
+      }
+      cursorSamples += sa.audioBuffer.length;
+      cursorMs = endMs;
+    }
+    return {
+      combinedAudioBuffer: combined,
+      totalDurationMs: cursorMs,
+      speakerTurns,
+      perSegmentDurationsMs: segmentAudios.map(sa => sa ? sa.durationMs : 0),
+    };
+  }
+  window.castGenerateMultiVoiceAudio = castGenerateMultiVoiceAudio;
+
+  // Phase 4 — apply derived speakerVisible + force isVoiceOver=true for
+  // voice-over framings. Mutates segments in place.
+  window.castApplyFramingDerived = function (segments) {
+    if (!Array.isArray(segments)) return segments;
+    for (const seg of segments) {
+      if (!seg) continue;
+      const visible = window.castDeriveSpeakerVisible(seg.framing);
+      seg.speakerVisible = visible;
+      if (!visible && seg.dialogue) {
+        seg.dialogue.isVoiceOver = true;
+      }
+      // Resolve speakerCharacterId from speakerName (case-insensitive)
+      if (seg.dialogue && seg.dialogue.speakerName) {
+        const lc = String(seg.dialogue.speakerName).toLowerCase();
+        if (lc === 'narrator') {
+          seg.dialogue.speakerCharacterId = 'narrator';
+        } else {
+          const cs = window.createJobState || {};
+          const all = [
+            ...(cs.characters || []),
+            cs.presenter, cs.setting,
+          ].filter(Boolean);
+          const found = all.find(x => x.locked && (x.name || '').toLowerCase() === lc);
+          seg.dialogue.speakerCharacterId = found ? found.id : null;
+        }
+      }
+    }
+    return segments;
+  };
+
   // Build the storyboard preamble injected into Gemini prompts.
   window.castBuildStoryboardPreamble = function () {
     const t = (window.createJobState && window.createJobState.videoType) || null;
@@ -30272,9 +30780,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
 
       const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
       const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
+      const _dlgSuffix  = (typeof window.castBuildDialogueAndFramingHint === 'function') ? window.castBuildDialogueAndFramingHint() : { promptHint: '', schemaFieldList: '' };
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}${_dlgSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}${_dlgSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -30290,6 +30799,9 @@ btnCreateTranscribe.addEventListener('click', async () => {
                 segments[idx].sceneDescription = d.sceneDescription || '';
                 if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
                 if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+                // Phase 4 — dialogue + framing
+                if (d.dialogue !== undefined) segments[idx].dialogue = d.dialogue || null;
+                if (typeof d.framing === 'string') segments[idx].framing = d.framing;
               }
             });
           }
@@ -30300,6 +30812,36 @@ btnCreateTranscribe.addEventListener('click', async () => {
       segments.forEach(s => {
         if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`;
       });
+      // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+      if (typeof window.castEnforceCutOnSpeaker === 'function') {
+        segments = window.castEnforceCutOnSpeaker(segments);
+      }
+      if (typeof window.castApplyFramingDerived === 'function') {
+        window.castApplyFramingDerived(segments);
+      }
+      // Phase 5 — multi-voice TTS — only when ≥1 segment has a real speaker.
+      // Replaces the single-voice TTS audio with per-line voices, updates
+      // segment timing to match actual TTS durations, and writes speaker
+      // turn metadata used by lip sync.
+      if (typeof window.castShouldUseMultiVoice === 'function' && window.castShouldUseMultiVoice(segments)) {
+        try {
+          updateCreateAgentTask('storyboard', 'multivoice', 'running', 'Generating per-character voices…');
+          const mv = await window.castGenerateMultiVoiceAudio(segments, {
+            onProgress: (m) => updateCreateAgentTask('storyboard', 'multivoice', 'running', m),
+          });
+          if (mv && mv.combinedAudioBuffer) {
+            createAudioBuffer = mv.combinedAudioBuffer;
+            createOriginalBuffer = mv.combinedAudioBuffer;
+            window._createSpeakerTurns = mv.speakerTurns;
+            updateCreateAgentTask('storyboard', 'multivoice', 'done',
+              `${mv.speakerTurns.length} voice line(s) · ${(mv.totalDurationMs / 1000).toFixed(1)}s`);
+            console.log('[Voice] multi-voice audio assembled:', mv.totalDurationMs, 'ms,', mv.speakerTurns.length, 'turns');
+          }
+        } catch (e) {
+          console.warn('[Voice] multi-voice generation failed; falling back to single-voice audio:', e.message);
+          updateCreateAgentTask('storyboard', 'multivoice', 'error', 'Multi-voice failed — using single-voice audio');
+        }
+      }
 
     } else {
       // ── Voice/Podcast mode: audio transcription ──
@@ -30326,7 +30868,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
         const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
         const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
         const descResp = await callGeminiAPI(['gemini-2.5-flash'], {
-          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
+          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}${_dlgSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}${_dlgSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
         }, key);
         const descText = descResp.candidates?.[0]?.content?.parts?.[0]?.text;
         if (descText) {
@@ -30345,6 +30887,13 @@ btnCreateTranscribe.addEventListener('click', async () => {
           } catch (e) { console.warn('Could not parse scene descriptions:', e); }
         }
         segments.forEach(s => { if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`; });
+        // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+        if (typeof window.castEnforceCutOnSpeaker === 'function') {
+          segments = window.castEnforceCutOnSpeaker(segments);
+        }
+        if (typeof window.castApplyFramingDerived === 'function') {
+          window.castApplyFramingDerived(segments);
+        }
         if (typeof renderGhostStoryboard === 'function') renderGhostStoryboard(segments);
         // Skip the bundled-audio path below
       } else {
@@ -41070,9 +41619,17 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
   const clipPlan = buildClipPlan(scene.duration || 5);
   // Prefer the per-instance motionPrompt when supplied (canvas variant tune);
   // fall back to scene.prompt + cinematic suffix for the legacy code path.
-  const motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
+  let motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
     ? scene.motionPrompt.trim()
     : ((scene.prompt || 'A cinematic scene') + ' Smooth cinematic motion, high quality, consistent style.');
+  // Phase 6 — append framing-aware suffix when the storyboard agent set a
+  // framing on this scene (dialogue scenes mostly). Locks camera angle +
+  // mouth visibility expectations so Kling produces the right shot for the
+  // speaker's line.
+  if (typeof window.castBuildFramingMotionPrompt === 'function') {
+    const framingSuffix = window.castBuildFramingMotionPrompt(scene);
+    if (framingSuffix) motionPrompt = motionPrompt + ' ' + framingSuffix;
+  }
 
   onProgress?.(null, totalScenes, `Submitting scene ${sceneIdx + 1}…`);
 

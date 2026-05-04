@@ -580,7 +580,163 @@ function saveElevenLabsKey(inputId, btn) {
   const orig = btn.textContent;
   btn.textContent = '✓';
   setTimeout(() => { btn.textContent = orig; }, 1500);
+  // Voice plan Phase 3 — fetch voice catalog now that the key is set
+  if (typeof window.elevenlabsRefreshVoiceCatalog === 'function') {
+    window.elevenlabsRefreshVoiceCatalog();
+  }
 }
+
+// ─── ElevenLabs voice catalog + TTS (voice-and-lipsync-plan Phase 3) ────
+// Fetch /v1/voices once when the key is set, cache per-session in
+// VOICE_CATALOG.elevenlabs and persist to IDB so a refresh doesn't re-call.
+async function elevenlabsFetchVoices(apiKey) {
+  if (!apiKey) return [];
+  const resp = await fetch('https://api.elevenlabs.io/v1/voices', {
+    headers: { 'xi-api-key': apiKey },
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`ElevenLabs voices fetch failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  return (data.voices || []).map(v => ({
+    id: v.voice_id,
+    name: v.name,
+    gender: (v.labels && v.labels.gender) || 'neutral',
+    tag: (v.labels && (v.labels.description || v.labels.accent || v.labels.use_case || v.labels.age)) || '',
+    previewUrl: v.preview_url || null,
+  }));
+}
+
+// Refresh the voice catalog after a key change. Updates VOICE_CATALOG and
+// flips voiceConfig.elevenlabsKeyConfigured. Re-renders cast rows so the
+// provider toggle becomes enabled.
+window.elevenlabsRefreshVoiceCatalog = async function () {
+  const key = getElevenLabsKey();
+  if (!window.VOICE_CATALOG) {
+    window.VOICE_CATALOG = { gemini: [], elevenlabs: [] };
+  }
+  if (!key) {
+    window.VOICE_CATALOG.elevenlabs = [];
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = false;
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+    return;
+  }
+  try {
+    const voices = await elevenlabsFetchVoices(key);
+    window.VOICE_CATALOG.elevenlabs = voices;
+    if (typeof window._ensureVoiceConfig === 'function') window._ensureVoiceConfig();
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = voices.length > 0;
+    }
+    if (typeof window.castIdb !== 'undefined' && window.castIdb && window.castIdb.put) {
+      try { await window.castIdb.put('elevenlabs_voice_catalog', JSON.stringify(voices)); } catch (_) {}
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  } catch (e) {
+    console.warn('[ElevenLabs] voice catalog refresh failed:', e.message);
+    window.VOICE_CATALOG.elevenlabs = [];
+    if (window.createJobState && window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig.elevenlabsKeyConfigured = false;
+    }
+    if (typeof window.castRenderRows === 'function') window.castRenderRows();
+  }
+};
+
+// Hydrate from IDB cache on page load (avoids hitting /v1/voices on every refresh).
+(async function initElevenLabsCatalogFromCache() {
+  if (!window.VOICE_CATALOG) window.VOICE_CATALOG = { gemini: [], elevenlabs: [] };
+  if (!getElevenLabsKey()) return;
+  if (typeof window.castIdb === 'undefined' || !window.castIdb || !window.castIdb.get) {
+    // castIdb wires on DOMContentLoaded; defer
+    setTimeout(initElevenLabsCatalogFromCache, 500);
+    return;
+  }
+  try {
+    const cached = await window.castIdb.get('elevenlabs_voice_catalog');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length) {
+        window.VOICE_CATALOG.elevenlabs = parsed;
+        if (window.createJobState) {
+          if (typeof window._ensureVoiceConfig === 'function') window._ensureVoiceConfig();
+          if (window.createJobState.voiceConfig) {
+            window.createJobState.voiceConfig.elevenlabsKeyConfigured = true;
+          }
+        }
+        if (typeof window.castRenderRows === 'function') window.castRenderRows();
+      }
+    }
+  } catch (_) {}
+  // Background refresh (non-blocking, picks up new voices)
+  if (typeof window.elevenlabsRefreshVoiceCatalog === 'function') {
+    window.elevenlabsRefreshVoiceCatalog();
+  }
+})();
+
+// ElevenLabs TTS — used by the multi-voice TTS pipeline (Phase 5) and by
+// sample playback when previewUrl is missing.
+async function generateTTSElevenLabs(text, voiceId, apiKey) {
+  if (!apiKey) throw new Error('ElevenLabs API key required');
+  const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg',
+    },
+    body: JSON.stringify({
+      text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`ElevenLabs TTS (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const arrayBuffer = await resp.arrayBuffer();
+  const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+  const dataUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('blob read failed'));
+    r.readAsDataURL(blob);
+  });
+  // Decode for duration metadata (best-effort)
+  let durationMs = 0;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    durationMs = audioBuffer.duration * 1000;
+    try { ctx.close(); } catch (_) {}
+  } catch (_) {}
+  // Cost tracking: ~$0.30 per 1K chars on most plans
+  if (typeof trackCost === 'function') {
+    const usd = ((text || '').length / 1000) * 0.30;
+    trackCost('elevenlabsTts', usd);
+  }
+  return { dataUrl, durationMs, charCount: (text || '').length };
+}
+window.generateTTSElevenLabs = generateTTSElevenLabs;
+
+// Sample playback for an ElevenLabs voice. Prefer previewUrl (free, static),
+// fall back to a live TTS call. Returns a data URL or blob URL string.
+window.elevenlabsGenerateSample = async function (voiceId) {
+  const voice = (window.VOICE_CATALOG && window.VOICE_CATALOG.elevenlabs || []).find(v => v.id === voiceId);
+  if (voice && voice.previewUrl) {
+    // Static preview from ElevenLabs CDN — cors-friendly
+    return voice.previewUrl;
+  }
+  const key = getElevenLabsKey();
+  if (!key) throw new Error('ElevenLabs API key required');
+  const sample = await generateTTSElevenLabs(`Hello, I'm ${voice ? voice.name : 'this voice'}.`, voiceId, key);
+  return sample.dataUrl;
+};
+// ─── End ElevenLabs voice integration ──────────────────────────────────
 
 // Pre-fill ElevenLabs key inputs from localStorage on load
 (function initElevenLabsKeyInputs() {

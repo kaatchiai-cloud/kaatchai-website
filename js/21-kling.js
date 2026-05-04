@@ -176,9 +176,17 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
   const clipPlan = buildClipPlan(scene.duration || 5);
   // Prefer the per-instance motionPrompt when supplied (canvas variant tune);
   // fall back to scene.prompt + cinematic suffix for the legacy code path.
-  const motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
+  let motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
     ? scene.motionPrompt.trim()
     : ((scene.prompt || 'A cinematic scene') + ' Smooth cinematic motion, high quality, consistent style.');
+  // Phase 6 — append framing-aware suffix when the storyboard agent set a
+  // framing on this scene (dialogue scenes mostly). Locks camera angle +
+  // mouth visibility expectations so Kling produces the right shot for the
+  // speaker's line.
+  if (typeof window.castBuildFramingMotionPrompt === 'function') {
+    const framingSuffix = window.castBuildFramingMotionPrompt(scene);
+    if (framingSuffix) motionPrompt = motionPrompt + ' ' + framingSuffix;
+  }
 
   onProgress?.(null, totalScenes, `Submitting scene ${sceneIdx + 1}…`);
 

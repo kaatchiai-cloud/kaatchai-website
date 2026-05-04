@@ -2897,6 +2897,358 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     };
   };
 
+  // Phase 4 — dialogue + framing hints for the storyboard agent.
+  // Returns { promptHint, schemaFieldList } extending the storyboard call so
+  // each segment carries dialogue (speaker + text + isVoiceOver) and framing
+  // (one of 9 enum values). Only emitted for film / brand projects where at
+  // least one cast member is locked. Narration-only projects skip — the
+  // existing narrator suffix already handles them.
+  window.castBuildDialogueAndFramingHint = function () {
+    const t = window.createJobState && window.createJobState.videoType;
+    if (t !== 'film' && t !== 'brand') return { promptHint: '', schemaFieldList: '' };
+    const chars = (window.createJobState.characters || []).filter(c => c.locked);
+    const hasProduct   = !!(window.createJobState.product   && window.createJobState.product.locked);
+    const hasPresenter = !!(window.createJobState.presenter && window.createJobState.presenter.locked);
+    if (!chars.length && !hasProduct && !hasPresenter) return { promptHint: '', schemaFieldList: '' };
+    const speakerNames = chars.map(c => c.name);
+    if (hasPresenter) speakerNames.push(window.createJobState.presenter.name);
+    speakerNames.push('narrator');
+    return {
+      promptHint:
+        '\n\nDIALOGUE & FRAMING:\n' +
+        'For each segment, ALSO emit:\n' +
+        '  - dialogue: object — extract any quoted speech or "Speaker: line" prefix.\n' +
+        '      Shape: { "speakerName": one of [' + speakerNames.map(n => `"${n}"`).join(', ') + '] | null,\n' +
+        '              "text": "the spoken words only, no stage directions",\n' +
+        '              "isVoiceOver": boolean }.\n' +
+        '      Set dialogue=null when the segment is pure narration / description.\n' +
+        '      If multiple speakers appear in one segment, return ONLY the first speaker\'s line\n' +
+        '      and add a "additionalTurns" array of additional {speakerName, text} entries.\n' +
+        '  - framing: one of "frontal-close-up" | "frontal-medium" | "three-quarter" |\n' +
+        '              "over-shoulder-front" | "over-shoulder-back" | "profile" |\n' +
+        '              "back-of-head" | "wide-establishing" | "extreme-wide".\n\n' +
+        'RULES:\n' +
+        ' - When a segment contains dialogue spoken by a visible cast member, prefer\n' +
+        '   "frontal-close-up" or "three-quarter" framing so the speaker\'s mouth is on camera.\n' +
+        ' - When framing is "back-of-head", "profile", "wide-establishing", or "extreme-wide",\n' +
+        '   set dialogue.isVoiceOver = true (audio plays as voice-over, no mouth animation).\n' +
+        ' - NEVER place two characters in a single "frontal-close-up" of one speaking. If the\n' +
+        '   script has alternating dialogue, place each speaker in a separate segment using\n' +
+        '   their own "frontal-close-up" (cut-on-speaker rule).\n',
+      schemaFieldList:
+        ', "dialogue": null, "framing": "frontal-medium"',
+    };
+  };
+
+  // Phase 4 — cut-on-speaker enforcer. Post-process storyboard segments to
+  // split any segment that has additionalTurns into per-speaker segments.
+  // Each generated split inherits the parent timing proportionally.
+  window.castEnforceCutOnSpeaker = function (segments) {
+    if (!Array.isArray(segments)) return segments;
+    const out = [];
+    for (const seg of segments) {
+      const dlg = seg && seg.dialogue;
+      const extra = dlg && Array.isArray(dlg.additionalTurns) ? dlg.additionalTurns : null;
+      if (!extra || !extra.length) {
+        out.push(seg);
+        continue;
+      }
+      // Allocate timing across (1 + extra.length) turns evenly within the segment
+      const turns = [{ speakerName: dlg.speakerName, text: dlg.text }].concat(extra);
+      const start = (typeof seg.startTime === 'number') ? seg.startTime : 0;
+      const end   = (typeof seg.endTime   === 'number') ? seg.endTime   : (start + 1);
+      const span  = Math.max(0.001, end - start);
+      const per   = span / turns.length;
+      for (let i = 0; i < turns.length; i++) {
+        const t = turns[i];
+        const tStart = start + per * i;
+        const tEnd   = start + per * (i + 1);
+        const cloned = Object.assign({}, seg, {
+          startTime: tStart,
+          endTime: tEnd,
+          dialogue: {
+            speakerName: t.speakerName || null,
+            text: t.text || '',
+            isVoiceOver: false,
+            additionalTurns: undefined,
+          },
+          framing: 'frontal-close-up',
+          _cutFromSpeakerSplit: true,
+        });
+        delete cloned.dialogue.additionalTurns;
+        out.push(cloned);
+      }
+    }
+    return out;
+  };
+
+  // Phase 4 — derive speakerVisible from framing. Voice-over framings make the
+  // speaker's mouth not on-camera, so lip sync must be skipped for those.
+  window.castDeriveSpeakerVisible = function (framing) {
+    if (!framing) return false;
+    return ['frontal-close-up', 'frontal-medium', 'three-quarter', 'over-shoulder-front'].includes(framing);
+  };
+
+  // Phase 6 — framing-aware Kling motion prompt augmenter.
+  // Maps the storyboard agent's framing enum to a deterministic Kling prompt
+  // suffix that nails camera angle + mouth visibility constraints. Used to
+  // build the i2v motion prompt for any scene that has dialogue.
+  const FRAMING_PROMPTS = {
+    'frontal-close-up':
+      'Tight medium close-up. {speaker} faces the camera directly throughout the shot. Mouth clearly visible at all times. Eye contact with camera. {speaker} is speaking — natural conversational mouth movement, lips opening and closing. No head turns away from camera.',
+    'frontal-medium':
+      'Frontal medium shot, waist-up. {speaker} faces the camera, mouth visible. {speaker} is speaking — natural mouth movement. Slight body shift allowed; head stays toward camera.',
+    'three-quarter':
+      '¾ angle medium shot. {speaker} angled approximately 30° off-axis, mouth still clearly visible to camera. {speaker} is speaking — mouth opens and closes naturally. Head stays at this angle; no full turn away.',
+    'over-shoulder-front':
+      'Over-the-shoulder shot from {listener}\'s perspective looking at {speaker}. {speaker} faces the camera, mouth visible past listener\'s shoulder. {listener} is in soft foreground, not speaking.',
+    'over-shoulder-back':
+      'Over-the-shoulder shot from behind {speaker}. Back/side of head visible. Voice-over framing — no mouth animation expected.',
+    'profile':
+      'Side profile of {speaker}. Mouth partially visible. Voice-over framing — no mouth animation.',
+    'back-of-head':
+      'Camera behind {speaker}; only the back of the head is visible. Voice-over framing — no mouth animation.',
+    'wide-establishing':
+      'Wide establishing shot of the scene. Characters small in frame. Voice-over framing — characters\' mouths are not the focus.',
+    'extreme-wide':
+      'Extreme wide / aerial / landscape shot. Characters tiny or absent.',
+  };
+  window.FRAMING_PROMPTS = FRAMING_PROMPTS;
+
+  // Build the motion-prompt suffix for a scene given its framing + dialogue.
+  // Returns an empty string when framing isn't set (caller continues with
+  // whatever default motion prompt it had).
+  window.castBuildFramingMotionPrompt = function (scene) {
+    if (!scene || !scene.framing) return '';
+    const tmpl = FRAMING_PROMPTS[scene.framing];
+    if (!tmpl) return '';
+    const speaker = (scene.dialogue && scene.dialogue.speakerName) || 'the speaker';
+    // Heuristic listener: any other locked character not the speaker
+    let listener = 'the other character';
+    const cs = window.createJobState || {};
+    const others = (cs.characters || []).filter(c => c.locked && c.name !== speaker);
+    if (others.length) listener = others[0].name;
+    return tmpl.replace(/\{speaker\}/g, speaker).replace(/\{listener\}/g, listener);
+  };
+
+  // Phase 5 — multi-voice TTS pipeline.
+  //
+  // resolveVoiceForSpeaker: lookup chain — explicit character voice → name match
+  // → narrator → project fallback.
+  function castResolveVoiceForSpeaker(speakerCharacterId, speakerName) {
+    const cs = window.createJobState || {};
+    const cfg = (typeof window._ensureVoiceConfig === 'function') ? window._ensureVoiceConfig() : null;
+    const fallback = (cfg && cfg.fallbackVoice) || { provider: 'gemini', voiceId: 'Kore', voiceName: 'Kore' };
+    if (speakerCharacterId === 'narrator' || (speakerName && speakerName.toLowerCase() === 'narrator')) {
+      return (cs.narrator && cs.narrator.voice) || fallback;
+    }
+    if (speakerCharacterId) {
+      const all = [
+        ...(cs.characters || []),
+        cs.presenter, cs.setting, cs.product,
+      ].filter(Boolean);
+      const found = all.find(x => x.id === speakerCharacterId);
+      if (found && found.voice) return found.voice;
+    }
+    if (speakerName) {
+      const lc = String(speakerName).toLowerCase();
+      const all = [
+        ...(cs.characters || []),
+        cs.presenter, cs.setting,
+      ].filter(Boolean);
+      const found = all.find(x => x.locked && (x.name || '').toLowerCase() === lc);
+      if (found && found.voice) return found.voice;
+    }
+    if (cs.narrator && cs.narrator.voice) return cs.narrator.voice;
+    return fallback;
+  }
+  window.castResolveVoiceForSpeaker = castResolveVoiceForSpeaker;
+
+  // Generate one TTS call for a given voice. Returns { audioBuffer, durationMs }.
+  // Routes to Gemini or ElevenLabs based on voice.provider.
+  async function castGenerateLineTTS(text, voice) {
+    if (!text || !voice) return null;
+    if (voice.provider === 'gemini') {
+      const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+      if (!key) throw new Error('Gemini key required');
+      if (typeof generateTTSGemini !== 'function') throw new Error('generateTTSGemini not available');
+      const result = await generateTTSGemini(text, voice.voiceId, key);
+      const decoded = await decodeBase64Audio(result.base64, result.mimeType);
+      return { audioBuffer: decoded.audioBuffer, durationMs: decoded.audioBuffer.duration * 1000 };
+    }
+    if (voice.provider === 'elevenlabs') {
+      if (typeof window.generateTTSElevenLabs !== 'function') throw new Error('ElevenLabs TTS not available');
+      const key = (typeof getElevenLabsKey === 'function') ? getElevenLabsKey() : null;
+      if (!key) throw new Error('ElevenLabs key required');
+      const result = await window.generateTTSElevenLabs(text, voice.voiceId, key);
+      // dataUrl → AudioBuffer
+      const m = result.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) throw new Error('Invalid ElevenLabs TTS dataUrl');
+      const decoded = await decodeBase64Audio(m[2], m[1]);
+      return { audioBuffer: decoded.audioBuffer, durationMs: decoded.audioBuffer.duration * 1000 };
+    }
+    throw new Error('Unknown TTS provider: ' + voice.provider);
+  }
+  window.castGenerateLineTTS = castGenerateLineTTS;
+
+  // Detect whether this project should run the multi-voice pipeline.
+  // Multi-voice activates only when ≥1 segment has an explicit non-narrator
+  // speaker. Narrator-only projects keep their existing single-voice path.
+  function castShouldUseMultiVoice(segments) {
+    if (!Array.isArray(segments)) return false;
+    return segments.some(s =>
+      s && s.dialogue && s.dialogue.speakerCharacterId &&
+      s.dialogue.speakerCharacterId !== 'narrator'
+    );
+  }
+  window.castShouldUseMultiVoice = castShouldUseMultiVoice;
+
+  // Per-line TTS generation across all segments. Returns:
+  //   {
+  //     combinedAudioBuffer: AudioBuffer,
+  //     totalDurationMs: number,
+  //     speakerTurns: [{ speakerCharacterId, voiceId, startMs, endMs, segmentIndex }],
+  //     perSegmentDurationsMs: number[]
+  //   }
+  // Falls back gracefully on per-line failures (uses 1s silence placeholder
+  // for that segment, surfaces a warning).
+  async function castGenerateMultiVoiceAudio(segments, opts) {
+    opts = opts || {};
+    const sampleRate = 24000;
+    const cutBeatMs = (typeof opts.cutBeatMs === 'number') ? opts.cutBeatMs : 200;
+    const onProgress = opts.onProgress || function () {};
+
+    // Step 1 — generate each segment's audio in series (rate-limit-safe).
+    // Could be parallelized at 5 concurrent later; series is correct for v1.
+    const segmentAudios = [];
+    let lastSpeakerId = null;
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg) { segmentAudios.push(null); continue; }
+      const dlg = seg.dialogue;
+      const speakerId = dlg && dlg.speakerCharacterId || 'narrator';
+      const speakerName = dlg && dlg.speakerName || 'narrator';
+      const text = (dlg && dlg.text) || seg.text || '';
+      if (!text || !text.trim()) { segmentAudios.push(null); continue; }
+      const voice = castResolveVoiceForSpeaker(speakerId, speakerName);
+      onProgress(`Voice ${i + 1}/${segments.length} — ${speakerName} (${voice.voiceName || voice.voiceId})…`);
+      try {
+        const result = await castGenerateLineTTS(text, voice);
+        segmentAudios.push({
+          segmentIndex: i,
+          audioBuffer: result.audioBuffer,
+          durationMs: result.durationMs,
+          speakerCharacterId: speakerId,
+          speakerName,
+          voiceId: voice.voiceId,
+          provider: voice.provider,
+          // 200ms cut-beat between consecutive different speakers; 0 between same speaker
+          cutBeatBeforeMs: (lastSpeakerId !== null && lastSpeakerId !== speakerId) ? cutBeatMs : 0,
+        });
+        lastSpeakerId = speakerId;
+      } catch (e) {
+        console.warn(`[Voice] line ${i + 1} TTS failed:`, e.message);
+        // 1s silence placeholder
+        const silence = (typeof audioContext !== 'undefined' && audioContext)
+          ? audioContext.createBuffer(1, sampleRate, sampleRate)
+          : null;
+        segmentAudios.push(silence ? {
+          segmentIndex: i,
+          audioBuffer: silence,
+          durationMs: 1000,
+          speakerCharacterId: speakerId,
+          speakerName,
+          voiceId: voice.voiceId,
+          provider: voice.provider,
+          cutBeatBeforeMs: 0,
+          error: e.message,
+        } : null);
+      }
+    }
+
+    // Step 2 — assemble combined buffer with cut-beat silences
+    const ctx = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : null;
+    if (!ctx) throw new Error('No AudioContext available');
+    const totalSamples = segmentAudios.reduce((sum, sa) => {
+      if (!sa) return sum;
+      return sum + Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate) + sa.audioBuffer.length;
+    }, 0);
+    const combined = ctx.createBuffer(1, totalSamples, sampleRate);
+    const channel = combined.getChannelData(0);
+    const speakerTurns = [];
+    let cursorSamples = 0;
+    let cursorMs = 0;
+    for (const sa of segmentAudios) {
+      if (!sa) continue;
+      // Cut-beat silence (channel already zero)
+      const beatSamples = Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate);
+      cursorSamples += beatSamples;
+      cursorMs += sa.cutBeatBeforeMs;
+      // Copy line audio
+      const src = sa.audioBuffer.getChannelData(0);
+      channel.set(src, cursorSamples);
+      const startMs = cursorMs;
+      const endMs   = cursorMs + sa.durationMs;
+      speakerTurns.push({
+        segmentIndex: sa.segmentIndex,
+        speakerCharacterId: sa.speakerCharacterId,
+        speakerName: sa.speakerName,
+        voiceId: sa.voiceId,
+        provider: sa.provider,
+        startMs,
+        endMs,
+      });
+      // Update segment's start/end timestamps to reflect actual TTS timing
+      const seg = segments[sa.segmentIndex];
+      if (seg) {
+        seg.startTime = startMs / 1000;
+        seg.endTime   = endMs / 1000;
+        seg.dialogue = seg.dialogue || {};
+        seg.dialogue.actualStartMs = startMs;
+        seg.dialogue.actualEndMs = endMs;
+      }
+      cursorSamples += sa.audioBuffer.length;
+      cursorMs = endMs;
+    }
+    return {
+      combinedAudioBuffer: combined,
+      totalDurationMs: cursorMs,
+      speakerTurns,
+      perSegmentDurationsMs: segmentAudios.map(sa => sa ? sa.durationMs : 0),
+    };
+  }
+  window.castGenerateMultiVoiceAudio = castGenerateMultiVoiceAudio;
+
+  // Phase 4 — apply derived speakerVisible + force isVoiceOver=true for
+  // voice-over framings. Mutates segments in place.
+  window.castApplyFramingDerived = function (segments) {
+    if (!Array.isArray(segments)) return segments;
+    for (const seg of segments) {
+      if (!seg) continue;
+      const visible = window.castDeriveSpeakerVisible(seg.framing);
+      seg.speakerVisible = visible;
+      if (!visible && seg.dialogue) {
+        seg.dialogue.isVoiceOver = true;
+      }
+      // Resolve speakerCharacterId from speakerName (case-insensitive)
+      if (seg.dialogue && seg.dialogue.speakerName) {
+        const lc = String(seg.dialogue.speakerName).toLowerCase();
+        if (lc === 'narrator') {
+          seg.dialogue.speakerCharacterId = 'narrator';
+        } else {
+          const cs = window.createJobState || {};
+          const all = [
+            ...(cs.characters || []),
+            cs.presenter, cs.setting,
+          ].filter(Boolean);
+          const found = all.find(x => x.locked && (x.name || '').toLowerCase() === lc);
+          seg.dialogue.speakerCharacterId = found ? found.id : null;
+        }
+      }
+    }
+    return segments;
+  };
+
   // Build the storyboard preamble injected into Gemini prompts.
   window.castBuildStoryboardPreamble = function () {
     const t = (window.createJobState && window.createJobState.videoType) || null;
