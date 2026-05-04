@@ -504,7 +504,8 @@ function buildSBNode(scene, sbIdx) {
         '<span class="cg-val"></span>' +
         '<button type="button" class="cg-arr cg-arr-r" aria-label="increase">▶</button>' +
       '</div>' +
-    '</div>';
+    '</div>' +
+    '<div class="cg-voice-chip" data-role="voice-chip" hidden></div>';
   node.appendChild(body);
 
   return node;
@@ -553,6 +554,62 @@ function updateSBNode(node, scene, sb, sceneIdx) {
   if (dur) dur.textContent = (typeof scene.duration === 'number' ? scene.duration.toFixed(1) : '6.0') + 's';
   const sty = node.querySelector('.cg-stepper[data-field="style"] .cg-val');
   if (sty) sty.textContent = (window.createStylePreset || 'preset');
+
+  // Voice chip — read-only display of speaker + voice for dialogue scenes.
+  // Click deep-links to cast panel (voice editing happens there per plan §17).
+  // Lip sync status (Tier 1 / Tier 2 / failed / stale) surfaces as a small
+  // badge inside the chip.
+  const voiceChip = node.querySelector('[data-role="voice-chip"]');
+  if (voiceChip) {
+    const dlg = scene.dialogue;
+    const ls = scene.lipSync;
+    const showChip = !!(dlg && dlg.speakerCharacterId && dlg.speakerCharacterId !== 'narrator');
+    if (!showChip) {
+      voiceChip.hidden = true;
+      voiceChip.innerHTML = '';
+    } else {
+      const cs = window.createJobState || {};
+      const all = [
+        ...(cs.characters || []),
+        cs.presenter, cs.setting,
+      ].filter(Boolean);
+      const speaker = all.find(c => c.id === dlg.speakerCharacterId);
+      const voiceName = speaker && speaker.voice && speaker.voice.voiceName
+        ? speaker.voice.voiceName
+        : (speaker && speaker.voice && speaker.voice.voiceId ? speaker.voice.voiceId : '—');
+      const speakerName = (speaker && speaker.name) || dlg.speakerName || 'speaker';
+      // Lip sync status badge
+      let badge = '';
+      if (ls) {
+        if (ls.tier === 'kling' && ls.status === 'ready') {
+          badge = '<span class="cg-voice-badge cg-voice-badge-ok" title="AI sync ready">✓ AI</span>';
+        } else if (ls.tier === 'stori' && ls.status === 'ready') {
+          badge = '<span class="cg-voice-badge cg-voice-badge-ok" title="Stori sync ready">✓ Stori</span>';
+        } else if (ls.tier === 'failed' || ls.status === 'error') {
+          badge = '<span class="cg-voice-badge cg-voice-badge-err" title="' + (ls.lastError || 'sync failed') + '">⚠ failed</span>';
+        } else if (ls.status === 'stale') {
+          badge = '<span class="cg-voice-badge cg-voice-badge-stale" title="audio changed since last sync">⚠ stale</span>';
+        } else if (ls.status === 'syncing' || ls.status === 'pending') {
+          badge = '<span class="cg-voice-badge cg-voice-badge-busy">⏳ syncing</span>';
+        }
+      }
+      const voiceOver = (dlg && dlg.isVoiceOver) || (scene.speakerVisible === false);
+      const voSuffix = voiceOver ? ' · voice-over' : '';
+      const html =
+        '<span class="cg-voice-icon">🎙️</span>' +
+        '<span class="cg-voice-text">' +
+          '<strong>' + speakerName.replace(/</g, '&lt;') + '</strong> · ' +
+          voiceName.replace(/</g, '&lt;') + voSuffix +
+        '</span>' +
+        badge +
+        '<button type="button" class="cg-voice-edit" data-action="edit-voice-in-cast" data-character-id="' + dlg.speakerCharacterId + '" title="Edit voice in cast panel">↗</button>';
+      if (voiceChip.dataset._sig !== html) {
+        voiceChip.innerHTML = html;
+        voiceChip.dataset._sig = html;
+      }
+      voiceChip.hidden = false;
+    }
+  }
 
   // Selection
   if (g.selectedIds.has(sb.id)) node.classList.add('cg-node-selected');
@@ -3546,6 +3603,36 @@ window.renderBibleNode = function () {
   if (!g) return;
   renderBibleNode();
 };
+
+// Voice chip — deep-link to cast panel for the speaker character.
+// Idempotent — registers once on first canvas mount.
+let _voiceChipDeepLinkWired = false;
+function wireVoiceChipDeepLink() {
+  if (_voiceChipDeepLinkWired) return;
+  _voiceChipDeepLinkWired = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest && e.target.closest('button[data-action="edit-voice-in-cast"]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const charId = btn.dataset.characterId;
+    if (!charId) return;
+    // Try to scroll to + flash the cast row for this character
+    const row = document.querySelector(`#cast-char-rows .cast-row[data-id="${charId}"]`)
+             || document.querySelector(`#cast-loc-rows .cast-row[data-id="${charId}"]`);
+    if (row) {
+      try {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('cast-row-highlighted');
+        setTimeout(() => row.classList.remove('cast-row-highlighted'), 2000);
+      } catch (_) {}
+    } else {
+      // Cast panel not visible — surface a hint
+      console.log('[Voice] Open the cast panel to edit voice for character', charId);
+    }
+  });
+}
+wireVoiceChipDeepLink();
 
 window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   mount,

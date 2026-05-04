@@ -3658,6 +3658,187 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
 window.prepareLipSyncForExport = prepareLipSyncForExport;
 // ─── End Lip sync Phase 7c (orchestrator) ──────────────────────────────
 
+// ─── Lip sync — Phase 8: Tier 2 (Kling LipSync via fal.ai) ─────────────
+//
+// Premium tier: send (video_url + audio_url) to Kling LipSync, replace the
+// raw Kling clip with the synced version. Photoreal-leaning — best on
+// realistic templates, fall back to Tier 1 on stylized.
+//
+// fal.ai endpoint: fal-ai/kling-video/lipsync/audio-to-video
+// Pricing: ~$0.014/sec billed in 5-sec increments → $0.07 minimum.
+// Constraints: video 2-10s 720p-1080p, audio MP3/WAV ≤5MB ≤60s.
+function getFalApiKey() {
+  return localStorage.getItem('stori_fal_api_key') || '';
+}
+window.getFalApiKey = getFalApiKey;
+
+async function _falQueueSubmit(endpoint, body, falKey) {
+  const resp = await fetch(`https://queue.fal.run/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`fal.ai submit failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  return resp.json();
+}
+
+async function _falPollUntilDone(statusUrl, falKey, maxWaitMs) {
+  const deadline = Date.now() + (maxWaitMs || 180000);
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 3000));
+    const resp = await fetch(statusUrl, {
+      headers: { 'Authorization': `Key ${falKey}` },
+    });
+    if (!resp.ok) {
+      const err = await resp.text().catch(() => '');
+      throw new Error(`fal.ai poll failed (${resp.status}): ${err.slice(0, 200)}`);
+    }
+    const data = await resp.json();
+    if (data.status === 'COMPLETED') return data;
+    if (data.status === 'FAILED' || data.status === 'CANCELED') {
+      throw new Error(`fal.ai job ${data.status}: ${(data.logs || []).join(' ').slice(0, 200)}`);
+    }
+    // IN_PROGRESS / IN_QUEUE — keep polling
+  }
+  throw new Error('fal.ai poll timed out (>180s)');
+}
+
+async function _falFetchResult(responseUrl, falKey) {
+  const resp = await fetch(responseUrl, {
+    headers: { 'Authorization': `Key ${falKey}` },
+  });
+  if (!resp.ok) throw new Error(`fal.ai result fetch failed: ${resp.status}`);
+  return resp.json();
+}
+
+// Kling LipSync the URL of a single video clip + audio file. Returns the
+// URL of the synced video (fal CDN). Caller is responsible for downloading
+// + storing locally / in R2 as needed.
+//
+// videoUrl + audioUrl must both be HTTP(S) URLs reachable by fal.ai. For
+// browser-side usage with local blobs, the caller should upload to a host
+// first (R2 / signed URL service). Phase 9 server migration handles this
+// properly — for v1 client-side, the function expects already-hosted URLs.
+async function klingLipSyncCall(videoUrl, audioUrl, opts) {
+  const falKey = getFalApiKey();
+  if (!falKey) throw new Error('fal.ai API key required (BYOK in keys panel)');
+  if (!videoUrl || !audioUrl) throw new Error('Both video_url and audio_url required');
+  const onProgress = (opts && opts.onProgress) || function () {};
+
+  onProgress('Submitting to Kling LipSync…');
+  const submission = await _falQueueSubmit(
+    'fal-ai/kling-video/lipsync/audio-to-video',
+    { video_url: videoUrl, audio_url: audioUrl },
+    falKey
+  );
+  if (!submission.status_url || !submission.response_url) {
+    throw new Error('fal.ai response missing status_url / response_url');
+  }
+  onProgress('Waiting for Kling LipSync to complete (10-30s)…');
+  await _falPollUntilDone(submission.status_url, falKey, 180000);
+  const result = await _falFetchResult(submission.response_url, falKey);
+  if (!result || !result.video || !result.video.url) {
+    throw new Error('Kling LipSync returned no video URL');
+  }
+  return result.video.url;
+}
+window.klingLipSyncCall = klingLipSyncCall;
+
+// Per-scene Tier 2 sync — uploads not required when running server-side
+// (Phase 9). For v1 client-side, expects scene.videoUrl to be reachable
+// (e.g., a Kling CDN URL the model downloaded earlier). audioUrl handling
+// requires a transient host — flagged as v1 limitation in plan §10.2.
+async function syncSceneWithKlingLipSync(scene, audioBuffer, opts) {
+  if (!scene) throw new Error('Scene required');
+  const dlg = scene.dialogue;
+  if (!dlg || dlg.isVoiceOver || !dlg.speakerCharacterId || dlg.speakerCharacterId === 'narrator') {
+    return { skipped: true, reason: 'no on-camera dialogue' };
+  }
+  if (scene.speakerVisible === false) {
+    return { skipped: true, reason: 'voice-over framing' };
+  }
+  if (!scene.videoUrl) {
+    return { skipped: true, reason: 'no video clip URL' };
+  }
+  // v1 client-side limitation: we need a publicly-reachable audio URL.
+  // The plan §10.2 acknowledges this — full server-side handling lands
+  // when R2 + Cloudflare Containers come online (Phase 9).
+  const audioUrl = scene._audioUrl;   // populated by caller / server worker
+  if (!audioUrl) {
+    return { skipped: true, reason: 'no audio URL (Phase 9 server-side handles upload)' };
+  }
+  const onProgress = (opts && opts.onProgress) || function () {};
+  try {
+    const syncedUrl = await klingLipSyncCall(scene.videoUrl, audioUrl, { onProgress });
+    scene.lipSync = scene.lipSync || {};
+    scene.lipSync.tier = 'kling';
+    scene.lipSync.status = 'ready';
+    scene.lipSync.syncedClipUrl = syncedUrl;
+    if (typeof trackCost === 'function') {
+      // Approx cost = $0.014 × duration, rounded up to 5-sec increment
+      const dur = scene.duration || 5;
+      const billedSec = Math.max(5, Math.ceil(dur / 5) * 5);
+      trackCost('klingLipsync', billedSec * 0.014);
+    }
+    return { ok: true, syncedUrl };
+  } catch (e) {
+    console.warn(`[KlingLipSync] scene ${scene.id || ''} failed:`, e.message);
+    scene.lipSync = scene.lipSync || {};
+    scene.lipSync.tier = 'failed';
+    scene.lipSync.status = 'error';
+    scene.lipSync.lastError = e.message;
+    return { ok: false, error: e.message };
+  }
+}
+window.syncSceneWithKlingLipSync = syncSceneWithKlingLipSync;
+
+// Tier 2 batch orchestrator — same shape as prepareLipSyncForExport but
+// routes through Kling LipSync. Falls back to Tier 1 silently per-scene
+// on Kling LipSync errors (per plan EC-K01).
+async function prepareLipSyncTier2(scenes, audioBuffer, opts) {
+  opts = opts || {};
+  const onProgress = opts.onProgress || function () {};
+  const falKey = getFalApiKey();
+  if (!falKey) {
+    onProgress('No fal.ai key — falling back to Tier 1 for all scenes');
+    return prepareLipSyncForExport(scenes, audioBuffer, opts);
+  }
+  let synced = 0, fallback = 0, skipped = 0;
+  for (let i = 0; i < scenes.length; i++) {
+    const scene = scenes[i];
+    if (!scene) continue;
+    onProgress(`Scene ${i + 1}/${scenes.length} — Kling LipSync…`);
+    const result = await syncSceneWithKlingLipSync(scene, audioBuffer, {
+      onProgress: (m) => onProgress(`Scene ${i + 1}: ${m}`),
+    });
+    if (result.skipped) {
+      skipped++;
+      continue;
+    }
+    if (result.ok) {
+      synced++;
+      continue;
+    }
+    // EC-K01 — silent fall-back to Tier 1 for this scene
+    onProgress(`Scene ${i + 1}: AI sync failed, falling back to Stori sync`);
+    try {
+      // Re-run Tier 1 just for this scene (orchestrator handles single-scene)
+      await prepareLipSyncForExport([scene], audioBuffer, {
+        onProgress: (m) => onProgress(`Scene ${i + 1} (Tier 1 fallback): ${m}`),
+      });
+      fallback++;
+    } catch (e) {
+      console.warn(`[Tier 2 → Tier 1 fallback] scene ${i + 1} failed:`, e.message);
+    }
+  }
+  return { synced, fallback, skipped };
+}
+window.prepareLipSyncTier2 = prepareLipSyncTier2;
+// ─── End Lip sync Phase 8 ──────────────────────────────────────────────
+
 // ── Lyria 3 BGM Generation ──
 
 async function generateLyriaBgm(key, textContext, imageDataUrls = []) {

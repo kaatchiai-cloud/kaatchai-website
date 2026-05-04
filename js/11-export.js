@@ -213,9 +213,11 @@
                 ctx.drawImage(nEl, (ew - ndw) / 2, (eh - ndh) / 2, ndw, ndh);
               }
             }
-            // Lip sync — Tier 1 (Stori sync) sprite overlay on the active
-            // B-roll clip. Only paints when prepareLipSyncForExport has run
-            // for the active scene; otherwise no-op (existing behavior).
+            // Lip sync overlay logic. Tier 1 (Stori sync) paints sprite at
+            // mouth location each frame. Tier 2 (Kling LipSync) is handled
+            // upstream — the active clip's videoEl already points to the
+            // synced URL when prepareLipSyncTier2 succeeded, so no per-tick
+            // work is needed for that tier.
             if (typeof window.LipSync !== 'undefined' && newIdx >= 0 && newNarrIdx < 0) {
               const activeClip = videoTimelineItems[newIdx];
               const sceneIdx = activeClip && (activeClip.sceneIdx != null ? activeClip.sceneIdx : -1);
