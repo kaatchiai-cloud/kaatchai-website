@@ -1548,6 +1548,29 @@ Return ONLY the rewritten prose. No commentary, no markdown, no quotation marks 
 // Expose to other modules
 window.generateAppearanceSheet = generateAppearanceSheet;
 window.generateRepresentativeImage = generateRepresentativeImage;
+
+// Compose a narrator-setup composite: narrator portrait inserted into a chosen set.
+// Used as the start frame for talking-head narrator clips so every narrator chunk
+// shares the same place. Requires a locked narrator with representativeImageDataUrl.
+async function composeNarratorSetup(narrator, setPrompt, geminiKey) {
+  if (!narrator || !narrator.representativeImageDataUrl) {
+    throw new Error('Narrator portrait must be locked first');
+  }
+  if (!setPrompt || !setPrompt.trim()) {
+    throw new Error('Set description required');
+  }
+  const m = narrator.representativeImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!m) throw new Error('Narrator portrait data URL malformed');
+  const stylePrefix = (typeof castStylePrefix === 'function') ? castStylePrefix() : '';
+  const subjectClause = `Talking-head shot of ${narrator.name || 'the narrator'}, head and shoulders, eyes meeting camera. ${narrator.appearanceSheet || narrator.userDescription || ''}`;
+  const prompt = `${stylePrefix}. ${subjectClause}. Set: ${setPrompt.trim()}. Match the reference image's face, build, and likeness exactly. Re-render in the target style with the narrator placed in the described set.`;
+  const refParts = [
+    { inlineData: { mimeType: m[1], data: m[2] } },
+    { text: 'Reference image: match this person\'s face, build, and likeness exactly when composing them into the new set.' }
+  ];
+  return await generateImageGeminiFlash(prompt, geminiKey, { width: 1024, height: 768, refParts });
+}
+window.composeNarratorSetup = composeNarratorSetup;
 window.autoCaptionFromImage = autoCaptionFromImage;
 window.castStylePrefix = castStylePrefix;
 window.detectRefsFromScript = detectRefsFromScript;

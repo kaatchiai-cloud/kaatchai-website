@@ -109,6 +109,135 @@ function renderVideoTimeline() {
     }
     updateVideoBlockStyle(block, item);
   }
+
+  // Mirror render the narrator overlay lane and the FRONT cuts row.
+  renderNarratorTimeline();
+  renderCutsRow();
+}
+
+// ── Narrator overlay timeline (talking-head only) ──
+const narratorDropZone = $('narrator-drop-zone');
+const narratorTimelineContainer = $('narrator-timeline-container');
+const narratorCountEl = $('narrator-count');
+const narratorBlockElements = new Map();
+
+function renderNarratorTimeline() {
+  if (!narratorDropZone || !narratorTimelineContainer) return;
+  const items = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
+  const visible = items.length > 0;
+  const lbl = $('narrator-section-label');
+  if (lbl) lbl.style.display = visible ? '' : 'none';
+  narratorDropZone.style.display = visible ? '' : 'none';
+  narratorDropZone.classList.toggle('empty', items.length === 0);
+  if (narratorCountEl) narratorCountEl.textContent = items.length > 0 ? `${items.length} clip${items.length !== 1 ? 's' : ''}` : '0 clips';
+  // Remove orphans
+  const currentIds = new Set(items.map(v => v.id));
+  for (const [id, el] of narratorBlockElements) {
+    if (!currentIds.has(id)) { el.remove(); narratorBlockElements.delete(id); }
+  }
+  // Create or update narrator blocks (re-uses video block style; minimal narrator badge)
+  for (const item of items) {
+    let block = narratorBlockElements.get(item.id);
+    if (!block) {
+      block = document.createElement('div');
+      block.className = 'video-block narrator-block';
+      block.dataset.id = item.id;
+      const img = document.createElement('img');
+      img.src = item.imgSrc || '';
+      block.appendChild(img);
+      const badge = document.createElement('div');
+      badge.className = 'video-badge';
+      badge.textContent = '🎙';
+      block.appendChild(badge);
+      const durLabel = document.createElement('div');
+      durLabel.className = 'duration-label';
+      block.appendChild(durLabel);
+      narratorTimelineContainer.appendChild(block);
+      narratorBlockElements.set(item.id, block);
+      block._durLabel = durLabel;
+    }
+    block.style.left  = secToPx(item.startTime) + 'px';
+    block.style.width = Math.max(durToPx(item.duration), 24) + 'px';
+    if (block._durLabel) block._durLabel.textContent = `${item.duration.toFixed(1)}s · ${fmtShort(item.startTime)}–${fmtShort(item.startTime + item.duration)}`;
+  }
+}
+
+function renderCutsRow() {
+  const sect = $('cuts-section');
+  const row = $('cuts-row');
+  if (!sect || !row) return;
+  const narrItems = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
+  if (!narrItems.length) { sect.style.display = 'none'; return; }
+  sect.style.display = '';
+  // Build cuts cells from videoTimelineItems (B-roll baseline). Mark N where a narrator item overlaps.
+  row.innerHTML = '';
+  const narrStarts = new Set(narrItems.map(n => Math.round(n.startTime * 10)));
+  for (const v of (typeof videoTimelineItems !== 'undefined' ? videoTimelineItems : [])) {
+    const cell = document.createElement('span');
+    cell.className = 'cuts-cell';
+    const startKey = Math.round(v.startTime * 10);
+    const isNarr = narrStarts.has(startKey);
+    cell.textContent = isNarr ? 'N' : 'B';
+    cell.dataset.narr = isNarr ? '1' : '0';
+    cell.dataset.startKey = String(startKey);
+    cell.dataset.sceneIdx = String(v.sceneIdx ?? -1);
+    cell.style.left = secToPx(v.startTime) + 'px';
+    cell.style.width = Math.max(durToPx(v.duration), 24) + 'px';
+    row.appendChild(cell);
+  }
+}
+
+// Click on a cuts-cell flips that scene's front. If flipping to narrator and no
+// narrator clip exists, prompt to round-trip back to canvas to generate one.
+const _cutsRowEl = $('cuts-row');
+if (_cutsRowEl) {
+  _cutsRowEl.addEventListener('click', (e) => {
+    const cell = e.target.closest('.cuts-cell');
+    if (!cell) return;
+    const startKey = +cell.dataset.startKey;
+    const idx = (typeof videoTimelineItems !== 'undefined' ? videoTimelineItems : []).findIndex(v => Math.round(v.startTime * 10) === startKey);
+    if (idx < 0) return;
+    const v = videoTimelineItems[idx];
+    const narrIdx = (typeof narratorTimelineItems !== 'undefined' ? narratorTimelineItems : []).findIndex(n => Math.round(n.startTime * 10) === startKey);
+    if (narrIdx >= 0) {
+      // Currently narrator → flip to broll
+      narratorTimelineItems.splice(narrIdx, 1);
+    } else {
+      // Currently broll → check if a narrator clip exists for this scene back in createScenes
+      const sceneIdx = v.sceneIdx;
+      const scene = (typeof createScenes !== 'undefined' && createScenes) ? createScenes[sceneIdx] : null;
+      const narrV = scene && (scene.videoInstances || []).find(vi => vi.role === 'narrator');
+      const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+      if (!narrUrl) {
+        if (typeof setStatus === 'function') setStatus('No narrator clip for this scene. Edit cuts in Canvas to generate one.');
+        return;
+      }
+      const narrEl = document.createElement('video');
+      narrEl.src = narrUrl;
+      narrEl.muted = true;
+      narrEl.preload = 'auto';
+      narrEl.playsInline = true;
+      narratorTimelineItems.push({
+        id: nextNarratorTimelineId++,
+        sceneIdx,
+        videoInstanceId: narrV.id,
+        sourceImageInstanceId: 'cg-narrator-setup',
+        videoEl: narrEl,
+        videoSrc: narrUrl,
+        videoDuration: narrV.clips[0].clipDuration || v.duration,
+        inPoint: 0,
+        outPoint: narrV.clips[0].clipDuration || v.duration,
+        startTime: v.startTime,
+        duration: v.duration,
+        lane: 'narrator',
+        imgSrc: v.imgSrc,
+        imgEl: v.imgEl,
+      });
+      // Sync scene.frontRole back to canvas state
+      if (scene) scene.frontRole = 'narrator';
+    }
+    renderVideoTimeline();
+  });
 }
 
 // Selection

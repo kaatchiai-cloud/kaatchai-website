@@ -132,8 +132,11 @@
 
         // Animated mode: pre-seek and start first clip before recording
         let exportActiveClipIdx = -1;
+        let exportActiveNarrIdx = -1;
+        const _narrItems = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
         if (isAnimatedExport) {
           videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+          _narrItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
           const firstClip = videoTimelineItems[0];
           if (firstClip && firstClip.videoEl) {
             firstClip.videoEl.currentTime = firstClip.inPoint || 0;
@@ -176,8 +179,21 @@
                 setTimeout(() => { nc.videoEl.play().catch(() => {}); }, 400);
               }
             }
+            // Narrator lane resolve (mirror of the B-roll block above)
+            const newNarrIdx = _narrItems.findIndex(c => elapsed >= c.startTime && elapsed < c.startTime + c.duration);
+            if (newNarrIdx !== exportActiveNarrIdx) {
+              if (exportActiveNarrIdx >= 0 && _narrItems[exportActiveNarrIdx]) _narrItems[exportActiveNarrIdx].videoEl.pause();
+              exportActiveNarrIdx = newNarrIdx;
+              if (newNarrIdx >= 0) {
+                const nn = _narrItems[newNarrIdx];
+                nn.videoEl.currentTime = (nn.inPoint || 0) + 0.5;
+                nn.videoEl.onseeked = () => { nn.videoEl.onseeked = null; nn.videoEl.play().catch(() => {}); };
+                setTimeout(() => { nn.videoEl.play().catch(() => {}); }, 400);
+              }
+            }
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, ew, eh);
+            // Baseline: B-roll (always plays)
             if (newIdx >= 0 && videoTimelineItems[newIdx].videoEl) {
               const vEl = videoTimelineItems[newIdx].videoEl;
               const vw = vEl.videoWidth || ew, vh = vEl.videoHeight || eh;
@@ -185,6 +201,16 @@
                 const sc = Math.max(ew / vw, eh / vh);
                 const dw = vw * sc, dh = vh * sc;
                 ctx.drawImage(vEl, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
+              }
+            }
+            // Overlay: narrator (covers B-roll for this chunk when present)
+            if (newNarrIdx >= 0 && _narrItems[newNarrIdx].videoEl) {
+              const nEl = _narrItems[newNarrIdx].videoEl;
+              const nw = nEl.videoWidth || ew, nh = nEl.videoHeight || eh;
+              if (nw && nh) {
+                const nsc = Math.max(ew / nw, eh / nh);
+                const ndw = nw * nsc, ndh = nh * nsc;
+                ctx.drawImage(nEl, (ew - ndw) / 2, (eh - ndh) / 2, ndw, ndh);
               }
             }
           } else {
@@ -210,7 +236,10 @@
             stopped = true;
             timerWorker.postMessage('stop');
             timerWorker.terminate();
-            if (isAnimatedExport) videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+            if (isAnimatedExport) {
+              videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+              _narrItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+            }
             recorder.stop();
           }
         };

@@ -6193,6 +6193,227 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
   color: var(--lp-accent2, oklch(55% 0.18 340));
 }
 
+/* Editor narrator lane + cuts row (talking-head only) */
+#narrator-timeline-container {
+  position: relative;
+  height: 60px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+#narrator-playhead-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--red);
+  pointer-events: none;
+  z-index: 5;
+}
+.narrator-block {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #d97706, #92580a);
+  border: 1px solid #f0931f;
+  overflow: hidden;
+}
+.narrator-block img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+.narrator-block .video-badge,
+.narrator-block .duration-label {
+  position: absolute;
+  font-size: 10px;
+}
+.narrator-block .video-badge { top: 2px; left: 4px; color: white; }
+.narrator-block .duration-label { bottom: 2px; left: 4px; color: rgba(255,255,255,0.85); }
+
+#cuts-section { margin-top: 6px; }
+.cuts-section-head { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+#cuts-row {
+  position: relative;
+  height: 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.cuts-cell {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cuts-cell[data-narr="1"] { background: #d97706; }
+.cuts-cell[data-narr="0"] { background: #2d6cdf; }
+.cuts-cell:hover { outline: 1px solid white; }
+
+/* Cut plan bar (Step 7 — talking-head only) */
+#create-page .create-cut-plan {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 6%, var(--bg-elevated, var(--lp-card-bg)));
+  border: 1px solid color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 30%, var(--border, var(--lp-card-bdr)));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#create-page .create-cut-plan-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+#create-page .create-cut-plan-title { font-size: 13px; font-weight: 600; }
+#create-page .create-cut-plan-summary { font-size: 11px; color: var(--text-secondary, var(--lp-dim)); }
+#create-page .create-cut-plan-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+#create-page .create-cut-plan-cost {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+}
+
+/* Dual-pane scene cells (talking-head Step 7) */
+#create-page .scene-card--dual { padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+#create-page .scene-cell-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+#create-page .scene-cell-num { font-weight: 600; }
+#create-page .scene-cell-ai {
+  font-size: 10px;
+  color: var(--text-muted, var(--lp-faint));
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 12%, transparent);
+}
+#create-page .scene-cell-front {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary, var(--lp-dim));
+}
+#create-page .scene-cell-front label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+#create-page .scene-cell-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+#create-page .scene-cell-pane {
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg-card, var(--lp-card-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#create-page .scene-cell-pane--front {
+  border-color: var(--lp-accent, oklch(56% 0.18 230));
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 35%, transparent);
+}
+#create-page .scene-cell-pane--under { opacity: 0.65; }
+#create-page .scene-cell-pane-label { font-size: 10px; color: var(--text-secondary, var(--lp-dim)); }
+#create-page .scene-cell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 10px;
+}
+#create-page .scene-cell-tone { color: var(--text-muted, var(--lp-faint)); margin-left: auto; }
+#create-page .scene-cell-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 11px;
+  padding: 6px;
+  text-align: center;
+}
+
+/* Narrator setup section (talking-head only) */
+#create-page .narrator-setup-section {
+  margin-top: 12px;
+  padding: 12px;
+  border-top: 1px dashed color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#create-page .narrator-setup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+#create-page .narrator-setup-icon { font-size: 14px; }
+#create-page .narrator-setup-title { font-weight: 600; }
+#create-page .narrator-setup-sub { color: var(--text-muted, var(--lp-faint)); font-size: 10px; }
+#create-page .narrator-setup-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#create-page .narrator-setup-presets .btn-xs {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+#create-page #narrator-setup-prompt {
+  width: 100%;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--lp-card-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  color: var(--text, var(--lp-text));
+  resize: vertical;
+}
+#create-page .narrator-setup-actions {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+#create-page .narrator-setup-thumb-wrap {
+  width: 96px;
+  height: 72px;
+  flex-shrink: 0;
+}
+#create-page .narrator-setup-thumb {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  background: var(--bg-card, var(--lp-card-bg));
+  overflow: hidden;
+}
+#create-page .narrator-setup-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
 /* G7 — dismiss-detection button */
 #create-page .cast-dismiss-btn {
   background: transparent;

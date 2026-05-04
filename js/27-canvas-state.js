@@ -58,7 +58,9 @@ function migrateScene(s, defaults) {
     s.videoInstances.forEach(v => {
       v.clips = v.clips || [];
       if (typeof v.isRenderActive === 'undefined') v.isRenderActive = !!v.isActive;
+      if (!v.role) v.role = 'broll';
     });
+    if (!s.frontRole) s.frontRole = 'broll';
     return s;
   }
 
@@ -100,9 +102,12 @@ function migrateScene(s, defaults) {
     taskId: null,
     isActive: true,
     isRenderActive: true,
+    role: 'broll',
     canvasPosition: null,
     createdAt: Date.now(),
   }] : [];
+
+  if (!s.frontRole) s.frontRole = 'broll';
 
   return s;
 }
@@ -343,6 +348,38 @@ function addVideoInstance(scene, sourceImgId, opts) {
     taskId: null,
     isActive: false,
     isRenderActive: false,
+    role: opts.role || 'broll',
+    canvasPosition: null,
+    createdAt: Date.now(),
+  };
+  scene.videoInstances.push(v);
+  return v;
+}
+
+// Talking-head: ensure each scene has a narrator-role videoInstance whose source
+// is the locked narrator setup composite. Idempotent — safe to call multiple times.
+function ensureNarratorVideoInstance(scene) {
+  if (!scene) return null;
+  scene.videoInstances = scene.videoInstances || [];
+  const existing = scene.videoInstances.find(v => v.role === 'narrator');
+  if (existing) return existing;
+  const setup = window.createJobState && window.createJobState.narratorSetup;
+  if (!setup || !setup.locked || !setup.imageDataUrl) return null;
+  const id = nextInstanceId('vid', scene.id, scene.videoInstances);
+  const perf = scene.performance || { tone: 'matter-of-fact', gesture: 'neutral' };
+  const motionPrompt = `Talking-head shot: locked framing, head and shoulders, eyes meeting camera. Delivery: ${perf.tone}. Gesture register: ${perf.gesture}. Subtle natural motion only — blinks, micro head turns, gentle gesture at chest height. Mouth movement matches natural speech rhythm. No camera moves. Studio backdrop unchanged.`;
+  const v = {
+    id,
+    sourceImageInstanceId: 'cg-narrator-setup',
+    motionPrompt,
+    duration: scene.duration,
+    clips: [],
+    status: 'pending',
+    error: null,
+    taskId: null,
+    isActive: false,
+    isRenderActive: true,
+    role: 'narrator',
     canvasPosition: null,
     createdAt: Date.now(),
   };
@@ -565,6 +602,7 @@ window.CanvasState = {
   addImageInstance,
   deleteImageInstance,
   addVideoInstance,
+  ensureNarratorVideoInstance,
   deleteVideoInstance,
   validateGates,
   listImagesAwaitingVideo,

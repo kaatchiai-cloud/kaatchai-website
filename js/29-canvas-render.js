@@ -49,6 +49,8 @@ const FINAL_W     = 720;
 const FINAL_H     = 820;
 const LAUNCH_W    = 200;
 const LAUNCH_H    = 110;
+const NSETUP_W    = 320;
+const NSETUP_H    = 360;
 
 // Layout grid (X positions). 260px gap. NODE_W=520, LAUNCH_W=200, BGM/SUB/FINAL_W=720.
 const COL_SB         = 80;
@@ -57,6 +59,7 @@ const COL_LAUNCH     = 1640;   // 860 + 520 + 260
 const COL_VID        = 2100;   // 1640 + 200 + 260
 const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
 const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
+const COL_NSETUP     = -440;   // free-floating, left of bands (NSETUP_W=320 → bg ends at -120)
 
 // Spacing
 const ROW_GAP   = 60;
@@ -415,6 +418,7 @@ function findInstance(id) {
   if (id === 'cg-bgm') return { type: 'bgm' };
   if (id === 'cg-sub') return { type: 'sub' };
   if (id === 'cg-final') return { type: 'final' };
+  if (id === 'cg-narrator-setup') return { type: 'narratorSetup' };
   return null;
 }
 
@@ -1057,6 +1061,55 @@ function renderSubtitleNode() {
   g.nodeEls.delete('cg-sub');
 }
 
+function renderNarratorSetupNode() {
+  const setup = window.createJobState && window.createJobState.narratorSetup;
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const showNode = !!(narrator && narrator.locked && narrator.onScreenStyle === 'talking-head' && setup);
+  if (!showNode) {
+    if (g.narratorSetupEl && g.narratorSetupEl.parentNode) g.narratorSetupEl.parentNode.removeChild(g.narratorSetupEl);
+    g.narratorSetupEl = null;
+    g.nodeEls.delete('cg-narrator-setup');
+    return;
+  }
+  const sig = (setup.imageDataUrl ? 'img' : 'noimg') + '|' + (setup.locked ? 'lock' : 'open') + '|' + ((setup.prompt || '').length);
+  const promptShort = (setup.prompt || '').trim().slice(0, 90);
+  const bodyHtml =
+    '<div class="cg-nsetup-body">' +
+      '<div class="cg-nsetup-thumb">' +
+        (setup.imageDataUrl
+          ? `<img src="${setup.imageDataUrl}" alt="narrator setup">`
+          : '<div class="cg-nsetup-thumb-empty">no setup composed</div>') +
+      '</div>' +
+      '<div class="cg-nsetup-meta">' +
+        '<span class="cg-nsetup-state">' + (setup.locked ? '🔒 Locked' : (setup.imageDataUrl ? 'Preview' : 'Empty')) + '</span>' +
+        (promptShort ? `<span class="cg-nsetup-prompt">${promptShort.replace(/</g, '&lt;')}</span>` : '<span class="cg-nsetup-prompt cg-nsetup-prompt--empty">No prompt yet</span>') +
+      '</div>' +
+    '</div>';
+  if (!g.narratorSetupEl || !g.narratorSetupEl.isConnected) {
+    const node = buildSimpleNode('cg-node--nsetup', 'image', '🎬 Narrator Setup', {
+      w: NSETUP_W,
+      h: NSETUP_H,
+      hasIn: false,
+      hasOut: true,
+      bodyHtml,
+    });
+    node.dataset.id = 'cg-narrator-setup';
+    node.dataset.type = 'narratorSetup';
+    node.dataset.sig = sig;
+    g.graphLayerEl.appendChild(node);
+    g.nodeEls.set('cg-narrator-setup', { el: node, type: 'narratorSetup' });
+    g.narratorSetupEl = node;
+  } else if (g.narratorSetupEl.dataset.sig !== sig) {
+    const body = g.narratorSetupEl.querySelector('.cg-node-body');
+    if (body) body.innerHTML = bodyHtml;
+    g.narratorSetupEl.dataset.sig = sig;
+  }
+  if (!setup.canvasPosition) {
+    setup.canvasPosition = { x: COL_NSETUP, y: (g.chromeMidY || TOP_PAD) - NSETUP_H / 2 };
+  }
+  placeNode(g.narratorSetupEl, setup.canvasPosition.x, setup.canvasPosition.y);
+}
+
 function renderFinalNode() {
   let entry = g.nodeEls.get('cg-final');
   if (!entry) {
@@ -1144,6 +1197,7 @@ function renderAll() {
   renderLaunchNode();
   renderBgmNode();
   renderSubtitleNode();
+  renderNarratorSetupNode();
   renderFinalNode();
   redrawCurves();
   cgUpdateSelToolbar();
@@ -1161,6 +1215,11 @@ function nodeRect(id) {
   if (id === 'cg-launch' && g.launchEl) {
     const pos = window.createLaunchAgentPosition || { x: COL_LAUNCH, y: (g.chromeMidY || TOP_PAD) - LAUNCH_H / 2 };
     return { x: pos.x, y: pos.y, w: LAUNCH_W, h: LAUNCH_H };
+  }
+  if (id === 'cg-narrator-setup' && g.narratorSetupEl) {
+    const setup = window.createJobState && window.createJobState.narratorSetup;
+    const pos = (setup && setup.canvasPosition) || { x: COL_NSETUP, y: (g.chromeMidY || TOP_PAD) - NSETUP_H / 2 };
+    return { x: pos.x, y: pos.y, w: NSETUP_W, h: NSETUP_H };
   }
   if (id === 'cg-final' && g.finalEl) {
     const colFinalFb = (g.mode === 'animated') ? COL_FINAL_ANIM : COL_FINAL_ILL;
@@ -1356,6 +1415,10 @@ function fitToView() {
     const p = window.createFinalRenderPosition;
     if (p) addBox(p.x, p.y, FINAL_W, FINAL_H);
   }
+  if (g.narratorSetupEl) {
+    const p = window.createJobState?.narratorSetup?.canvasPosition;
+    if (p) addBox(p.x, p.y, NSETUP_W, NSETUP_H);
+  }
 
   if (!isFinite(minX)) return; // nothing to fit
 
@@ -1426,6 +1489,7 @@ function attachEvents() {
           else if (inst.type === 'vid') pos = inst.vid.canvasPosition;
           else if (inst.type === 'launch') pos = window.createLaunchAgentPosition;
           else if (inst.type === 'final') pos = window.createFinalRenderPosition;
+          else if (inst.type === 'narratorSetup') pos = window.createJobState?.narratorSetup?.canvasPosition || null;
         }
         g.dragStartPos = pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 };
         // ensure selection
@@ -1478,6 +1542,13 @@ function attachEvents() {
         else if (inst.type === 'vid') pos = inst.vid.canvasPosition = inst.vid.canvasPosition || { x: 0, y: 0 };
         else if (inst.type === 'launch') pos = window.createLaunchAgentPosition = window.createLaunchAgentPosition || { x: 0, y: 0 };
         else if (inst.type === 'final') pos = window.createFinalRenderPosition = window.createFinalRenderPosition || { x: 0, y: 0 };
+        else if (inst.type === 'narratorSetup') {
+          const ns = window.createJobState?.narratorSetup;
+          if (ns) {
+            ns.canvasPosition = ns.canvasPosition || { x: 0, y: 0 };
+            pos = ns.canvasPosition;
+          }
+        }
       }
       if (pos) {
         pos.x = g.dragStartPos.x + dx;

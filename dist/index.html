@@ -6222,6 +6222,227 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
   color: var(--lp-accent2, oklch(55% 0.18 340));
 }
 
+/* Editor narrator lane + cuts row (talking-head only) */
+#narrator-timeline-container {
+  position: relative;
+  height: 60px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+#narrator-playhead-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--red);
+  pointer-events: none;
+  z-index: 5;
+}
+.narrator-block {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #d97706, #92580a);
+  border: 1px solid #f0931f;
+  overflow: hidden;
+}
+.narrator-block img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+.narrator-block .video-badge,
+.narrator-block .duration-label {
+  position: absolute;
+  font-size: 10px;
+}
+.narrator-block .video-badge { top: 2px; left: 4px; color: white; }
+.narrator-block .duration-label { bottom: 2px; left: 4px; color: rgba(255,255,255,0.85); }
+
+#cuts-section { margin-top: 6px; }
+.cuts-section-head { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+#cuts-row {
+  position: relative;
+  height: 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.cuts-cell {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cuts-cell[data-narr="1"] { background: #d97706; }
+.cuts-cell[data-narr="0"] { background: #2d6cdf; }
+.cuts-cell:hover { outline: 1px solid white; }
+
+/* Cut plan bar (Step 7 — talking-head only) */
+#create-page .create-cut-plan {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 6%, var(--bg-elevated, var(--lp-card-bg)));
+  border: 1px solid color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 30%, var(--border, var(--lp-card-bdr)));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#create-page .create-cut-plan-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+#create-page .create-cut-plan-title { font-size: 13px; font-weight: 600; }
+#create-page .create-cut-plan-summary { font-size: 11px; color: var(--text-secondary, var(--lp-dim)); }
+#create-page .create-cut-plan-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+#create-page .create-cut-plan-cost {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+}
+
+/* Dual-pane scene cells (talking-head Step 7) */
+#create-page .scene-card--dual { padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+#create-page .scene-cell-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+#create-page .scene-cell-num { font-weight: 600; }
+#create-page .scene-cell-ai {
+  font-size: 10px;
+  color: var(--text-muted, var(--lp-faint));
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 12%, transparent);
+}
+#create-page .scene-cell-front {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary, var(--lp-dim));
+}
+#create-page .scene-cell-front label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+#create-page .scene-cell-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+#create-page .scene-cell-pane {
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg-card, var(--lp-card-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#create-page .scene-cell-pane--front {
+  border-color: var(--lp-accent, oklch(56% 0.18 230));
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 35%, transparent);
+}
+#create-page .scene-cell-pane--under { opacity: 0.65; }
+#create-page .scene-cell-pane-label { font-size: 10px; color: var(--text-secondary, var(--lp-dim)); }
+#create-page .scene-cell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 10px;
+}
+#create-page .scene-cell-tone { color: var(--text-muted, var(--lp-faint)); margin-left: auto; }
+#create-page .scene-cell-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 11px;
+  padding: 6px;
+  text-align: center;
+}
+
+/* Narrator setup section (talking-head only) */
+#create-page .narrator-setup-section {
+  margin-top: 12px;
+  padding: 12px;
+  border-top: 1px dashed color-mix(in oklch, var(--lp-accent2, oklch(55% 0.18 340)) 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#create-page .narrator-setup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+#create-page .narrator-setup-icon { font-size: 14px; }
+#create-page .narrator-setup-title { font-weight: 600; }
+#create-page .narrator-setup-sub { color: var(--text-muted, var(--lp-faint)); font-size: 10px; }
+#create-page .narrator-setup-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#create-page .narrator-setup-presets .btn-xs {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+#create-page #narrator-setup-prompt {
+  width: 100%;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--lp-card-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  color: var(--text, var(--lp-text));
+  resize: vertical;
+}
+#create-page .narrator-setup-actions {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+#create-page .narrator-setup-thumb-wrap {
+  width: 96px;
+  height: 72px;
+  flex-shrink: 0;
+}
+#create-page .narrator-setup-thumb {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  background: var(--bg-card, var(--lp-card-bg));
+  overflow: hidden;
+}
+#create-page .narrator-setup-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
 /* G7 — dismiss-detection button */
 #create-page .cast-dismiss-btn {
   background: transparent;
@@ -7293,6 +7514,54 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 
 #create-canvas-step .cg-node--launch {
   width: 200px;
+}
+
+#create-canvas-step .cg-node--nsetup {
+  width: 320px;
+}
+#create-canvas-step .cg-nsetup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+}
+#create-canvas-step .cg-nsetup-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--bg-card, var(--lp-card-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-canvas-step .cg-nsetup-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#create-canvas-step .cg-nsetup-thumb-empty {
+  font-size: 14px;
+  color: var(--text-muted, var(--lp-faint));
+}
+#create-canvas-step .cg-nsetup-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#create-canvas-step .cg-nsetup-state {
+  font-size: 13px;
+  font-weight: 600;
+}
+#create-canvas-step .cg-nsetup-prompt {
+  font-size: 12px;
+  color: var(--text-secondary, var(--lp-dim));
+  line-height: 1.4;
+}
+#create-canvas-step .cg-nsetup-prompt--empty {
+  color: var(--text-muted, var(--lp-faint));
+  font-style: italic;
 }
 
 #create-canvas-step .cg-launch-body {
@@ -10950,6 +11219,32 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
           <button id="btn-narrator-generate" class="btn-md primary" disabled>✨ Generate narrator</button>
           <span id="narrator-action-hint" class="text-sm text-muted">Fill name and description to enable.</span>
         </div>
+        <!-- Narrator Setup — talking-head only: where the narrator is talking from -->
+        <div id="narrator-setup-section" class="narrator-setup-section" style="display:none;">
+          <div class="narrator-setup-head">
+            <span class="narrator-setup-icon">🎬</span>
+            <span class="narrator-setup-title">Narrator setup</span>
+            <span class="narrator-setup-sub">where the narrator is talking from</span>
+          </div>
+          <div class="narrator-setup-presets">
+            <button class="btn-xs" data-narrator-setup-preset="Studio desk, neutral backdrop, soft three-point key light, eye-level framing.">Studio desk</button>
+            <button class="btn-xs" data-narrator-setup-preset="Modern kitchen counter with natural daylight from a window, eye-level framing.">Kitchen counter</button>
+            <button class="btn-xs" data-narrator-setup-preset="Outdoor park bench, soft golden-hour daylight, blurred greenery behind, eye-level framing.">Outdoor park</button>
+            <button class="btn-xs" data-narrator-setup-preset="Abstract gradient backdrop, soft colored ambient light, neutral chest-up framing.">Abstract gradient</button>
+          </div>
+          <textarea id="narrator-setup-prompt" rows="2" placeholder="Describe the set: where they sit/stand, what's behind them, the lighting…"></textarea>
+          <div class="narrator-setup-actions">
+            <div class="narrator-setup-thumb-wrap">
+              <div id="narrator-setup-thumb" class="narrator-setup-thumb"><span class="text-xs text-muted">no setup yet</span></div>
+            </div>
+            <div class="narrator-setup-btns">
+              <button id="btn-narrator-setup-compose" class="btn-md primary" disabled>✨ Compose setup</button>
+              <button id="btn-narrator-setup-lock" class="btn-md" style="display:none;">🔒 Lock setup</button>
+              <button id="btn-narrator-setup-unlock" class="btn-md" style="display:none;">🔓 Unlock</button>
+              <span id="narrator-setup-hint" class="text-sm text-muted">Lock the narrator portrait first.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Characters & Locations Setup (Film mode) -->
@@ -11195,6 +11490,24 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
     <!-- Step 8: Animated Videos (animated mode only, legacy fallback) -->
     <div class="create-step" id="create-video-step" style="display:none;">
       <div class="agent-step-header"><span class="agent-step-icon">7</span><span class="agent-step-name">Animate Scenes</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <!-- Talking-head dual-track cut plan + bulk presets (visible only when narrator is talking-head) -->
+      <div id="create-cut-plan" class="create-cut-plan" style="display:none;">
+        <div class="create-cut-plan-head">
+          <span class="create-cut-plan-title">Cut plan</span>
+          <span id="create-cut-plan-summary" class="create-cut-plan-summary"></span>
+        </div>
+        <div class="create-cut-plan-bulk">
+          <span class="text-xs text-muted">Bulk:</span>
+          <button class="btn-xs" data-cut-preset="none">None</button>
+          <button class="btn-xs" data-cut-preset="open-close">Open + Close</button>
+          <button class="btn-xs" data-cut-preset="open">Open</button>
+          <button class="btn-xs" data-cut-preset="close">Close</button>
+          <button class="btn-xs" data-cut-preset="middle">Middle</button>
+          <button class="btn-xs" data-cut-preset="all">All</button>
+          <button class="btn-xs" data-cut-preset="ai">AI suggested</button>
+        </div>
+        <div id="create-cut-plan-cost" class="create-cut-plan-cost"></div>
+      </div>
       <div class="create-row flex-wrap gap-md">
         <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
       </div>
@@ -12733,7 +13046,7 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
     </div>
 
     <!-- Video Timeline -->
-    <div class="section-label mt-md">
+    <div class="section-label mt-md" id="video-section-label">
       Video Timeline
       <span class="badge" id="video-count">0 videos</span>
       <button id="btn-add-videos" class="btn-sm">🎬 Add Video</button>
@@ -12742,6 +13055,23 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
       <div id="video-timeline-container">
         <div id="video-playhead-line"></div>
       </div>
+    </div>
+
+    <!-- Narrator overlay timeline (talking-head only) -->
+    <div class="section-label mt-md" id="narrator-section-label" style="display:none;">
+      Video Timeline · Narrator
+      <span class="badge" id="narrator-count">0 clips</span>
+    </div>
+    <div id="narrator-drop-zone" class="empty" style="display:none;">
+      <div id="narrator-timeline-container">
+        <div id="narrator-playhead-line"></div>
+      </div>
+    </div>
+
+    <!-- Cuts row (talking-head only) — shows which lane is on top per chunk -->
+    <div id="cuts-section" class="cuts-section" style="display:none;">
+      <div class="section-label cuts-section-head">FRONT cuts (click chunk to flip)</div>
+      <div id="cuts-row"></div>
     </div>
 
     <!-- Subtitle Timeline -->
@@ -14151,6 +14481,11 @@ let pipShadow = true;
 let videoTimelineItems = [];
 let nextVideoTimelineId = 1;
 let selectedVideoIds = new Set();
+// Narrator overlay track (talking-head only). Sparse: only chunks where
+// scene.frontRole === 'narrator' and a narrator clip exists. Same item shape
+// as videoTimelineItems with `lane: 'narrator'`.
+let narratorTimelineItems = [];
+let nextNarratorTimelineId = 1;
 let bgVideoMode = 'images-only'; // images-only | video-only | video-images | video-pip | video-pip-transition
 let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds
@@ -16724,7 +17059,9 @@ function migrateScene(s, defaults) {
     s.videoInstances.forEach(v => {
       v.clips = v.clips || [];
       if (typeof v.isRenderActive === 'undefined') v.isRenderActive = !!v.isActive;
+      if (!v.role) v.role = 'broll';
     });
+    if (!s.frontRole) s.frontRole = 'broll';
     return s;
   }
 
@@ -16766,9 +17103,12 @@ function migrateScene(s, defaults) {
     taskId: null,
     isActive: true,
     isRenderActive: true,
+    role: 'broll',
     canvasPosition: null,
     createdAt: Date.now(),
   }] : [];
+
+  if (!s.frontRole) s.frontRole = 'broll';
 
   return s;
 }
@@ -17009,6 +17349,38 @@ function addVideoInstance(scene, sourceImgId, opts) {
     taskId: null,
     isActive: false,
     isRenderActive: false,
+    role: opts.role || 'broll',
+    canvasPosition: null,
+    createdAt: Date.now(),
+  };
+  scene.videoInstances.push(v);
+  return v;
+}
+
+// Talking-head: ensure each scene has a narrator-role videoInstance whose source
+// is the locked narrator setup composite. Idempotent — safe to call multiple times.
+function ensureNarratorVideoInstance(scene) {
+  if (!scene) return null;
+  scene.videoInstances = scene.videoInstances || [];
+  const existing = scene.videoInstances.find(v => v.role === 'narrator');
+  if (existing) return existing;
+  const setup = window.createJobState && window.createJobState.narratorSetup;
+  if (!setup || !setup.locked || !setup.imageDataUrl) return null;
+  const id = nextInstanceId('vid', scene.id, scene.videoInstances);
+  const perf = scene.performance || { tone: 'matter-of-fact', gesture: 'neutral' };
+  const motionPrompt = `Talking-head shot: locked framing, head and shoulders, eyes meeting camera. Delivery: ${perf.tone}. Gesture register: ${perf.gesture}. Subtle natural motion only — blinks, micro head turns, gentle gesture at chest height. Mouth movement matches natural speech rhythm. No camera moves. Studio backdrop unchanged.`;
+  const v = {
+    id,
+    sourceImageInstanceId: 'cg-narrator-setup',
+    motionPrompt,
+    duration: scene.duration,
+    clips: [],
+    status: 'pending',
+    error: null,
+    taskId: null,
+    isActive: false,
+    isRenderActive: true,
+    role: 'narrator',
     canvasPosition: null,
     createdAt: Date.now(),
   };
@@ -17231,6 +17603,7 @@ window.CanvasState = {
   addImageInstance,
   deleteImageInstance,
   addVideoInstance,
+  ensureNarratorVideoInstance,
   deleteVideoInstance,
   validateGates,
   listImagesAwaitingVideo,
@@ -18257,6 +18630,135 @@ function renderVideoTimeline() {
     }
     updateVideoBlockStyle(block, item);
   }
+
+  // Mirror render the narrator overlay lane and the FRONT cuts row.
+  renderNarratorTimeline();
+  renderCutsRow();
+}
+
+// ── Narrator overlay timeline (talking-head only) ──
+const narratorDropZone = $('narrator-drop-zone');
+const narratorTimelineContainer = $('narrator-timeline-container');
+const narratorCountEl = $('narrator-count');
+const narratorBlockElements = new Map();
+
+function renderNarratorTimeline() {
+  if (!narratorDropZone || !narratorTimelineContainer) return;
+  const items = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
+  const visible = items.length > 0;
+  const lbl = $('narrator-section-label');
+  if (lbl) lbl.style.display = visible ? '' : 'none';
+  narratorDropZone.style.display = visible ? '' : 'none';
+  narratorDropZone.classList.toggle('empty', items.length === 0);
+  if (narratorCountEl) narratorCountEl.textContent = items.length > 0 ? `${items.length} clip${items.length !== 1 ? 's' : ''}` : '0 clips';
+  // Remove orphans
+  const currentIds = new Set(items.map(v => v.id));
+  for (const [id, el] of narratorBlockElements) {
+    if (!currentIds.has(id)) { el.remove(); narratorBlockElements.delete(id); }
+  }
+  // Create or update narrator blocks (re-uses video block style; minimal narrator badge)
+  for (const item of items) {
+    let block = narratorBlockElements.get(item.id);
+    if (!block) {
+      block = document.createElement('div');
+      block.className = 'video-block narrator-block';
+      block.dataset.id = item.id;
+      const img = document.createElement('img');
+      img.src = item.imgSrc || '';
+      block.appendChild(img);
+      const badge = document.createElement('div');
+      badge.className = 'video-badge';
+      badge.textContent = '🎙';
+      block.appendChild(badge);
+      const durLabel = document.createElement('div');
+      durLabel.className = 'duration-label';
+      block.appendChild(durLabel);
+      narratorTimelineContainer.appendChild(block);
+      narratorBlockElements.set(item.id, block);
+      block._durLabel = durLabel;
+    }
+    block.style.left  = secToPx(item.startTime) + 'px';
+    block.style.width = Math.max(durToPx(item.duration), 24) + 'px';
+    if (block._durLabel) block._durLabel.textContent = `${item.duration.toFixed(1)}s · ${fmtShort(item.startTime)}–${fmtShort(item.startTime + item.duration)}`;
+  }
+}
+
+function renderCutsRow() {
+  const sect = $('cuts-section');
+  const row = $('cuts-row');
+  if (!sect || !row) return;
+  const narrItems = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
+  if (!narrItems.length) { sect.style.display = 'none'; return; }
+  sect.style.display = '';
+  // Build cuts cells from videoTimelineItems (B-roll baseline). Mark N where a narrator item overlaps.
+  row.innerHTML = '';
+  const narrStarts = new Set(narrItems.map(n => Math.round(n.startTime * 10)));
+  for (const v of (typeof videoTimelineItems !== 'undefined' ? videoTimelineItems : [])) {
+    const cell = document.createElement('span');
+    cell.className = 'cuts-cell';
+    const startKey = Math.round(v.startTime * 10);
+    const isNarr = narrStarts.has(startKey);
+    cell.textContent = isNarr ? 'N' : 'B';
+    cell.dataset.narr = isNarr ? '1' : '0';
+    cell.dataset.startKey = String(startKey);
+    cell.dataset.sceneIdx = String(v.sceneIdx ?? -1);
+    cell.style.left = secToPx(v.startTime) + 'px';
+    cell.style.width = Math.max(durToPx(v.duration), 24) + 'px';
+    row.appendChild(cell);
+  }
+}
+
+// Click on a cuts-cell flips that scene's front. If flipping to narrator and no
+// narrator clip exists, prompt to round-trip back to canvas to generate one.
+const _cutsRowEl = $('cuts-row');
+if (_cutsRowEl) {
+  _cutsRowEl.addEventListener('click', (e) => {
+    const cell = e.target.closest('.cuts-cell');
+    if (!cell) return;
+    const startKey = +cell.dataset.startKey;
+    const idx = (typeof videoTimelineItems !== 'undefined' ? videoTimelineItems : []).findIndex(v => Math.round(v.startTime * 10) === startKey);
+    if (idx < 0) return;
+    const v = videoTimelineItems[idx];
+    const narrIdx = (typeof narratorTimelineItems !== 'undefined' ? narratorTimelineItems : []).findIndex(n => Math.round(n.startTime * 10) === startKey);
+    if (narrIdx >= 0) {
+      // Currently narrator → flip to broll
+      narratorTimelineItems.splice(narrIdx, 1);
+    } else {
+      // Currently broll → check if a narrator clip exists for this scene back in createScenes
+      const sceneIdx = v.sceneIdx;
+      const scene = (typeof createScenes !== 'undefined' && createScenes) ? createScenes[sceneIdx] : null;
+      const narrV = scene && (scene.videoInstances || []).find(vi => vi.role === 'narrator');
+      const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+      if (!narrUrl) {
+        if (typeof setStatus === 'function') setStatus('No narrator clip for this scene. Edit cuts in Canvas to generate one.');
+        return;
+      }
+      const narrEl = document.createElement('video');
+      narrEl.src = narrUrl;
+      narrEl.muted = true;
+      narrEl.preload = 'auto';
+      narrEl.playsInline = true;
+      narratorTimelineItems.push({
+        id: nextNarratorTimelineId++,
+        sceneIdx,
+        videoInstanceId: narrV.id,
+        sourceImageInstanceId: 'cg-narrator-setup',
+        videoEl: narrEl,
+        videoSrc: narrUrl,
+        videoDuration: narrV.clips[0].clipDuration || v.duration,
+        inPoint: 0,
+        outPoint: narrV.clips[0].clipDuration || v.duration,
+        startTime: v.startTime,
+        duration: v.duration,
+        lane: 'narrator',
+        imgSrc: v.imgSrc,
+        imgEl: v.imgEl,
+      });
+      // Sync scene.frontRole back to canvas state
+      if (scene) scene.frontRole = 'narrator';
+    }
+    renderVideoTimeline();
+  });
 }
 
 // Selection
@@ -21216,8 +21718,11 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
 
         // Animated mode: pre-seek and start first clip before recording
         let exportActiveClipIdx = -1;
+        let exportActiveNarrIdx = -1;
+        const _narrItems = (typeof narratorTimelineItems !== 'undefined') ? narratorTimelineItems : [];
         if (isAnimatedExport) {
           videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+          _narrItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
           const firstClip = videoTimelineItems[0];
           if (firstClip && firstClip.videoEl) {
             firstClip.videoEl.currentTime = firstClip.inPoint || 0;
@@ -21260,8 +21765,21 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
                 setTimeout(() => { nc.videoEl.play().catch(() => {}); }, 400);
               }
             }
+            // Narrator lane resolve (mirror of the B-roll block above)
+            const newNarrIdx = _narrItems.findIndex(c => elapsed >= c.startTime && elapsed < c.startTime + c.duration);
+            if (newNarrIdx !== exportActiveNarrIdx) {
+              if (exportActiveNarrIdx >= 0 && _narrItems[exportActiveNarrIdx]) _narrItems[exportActiveNarrIdx].videoEl.pause();
+              exportActiveNarrIdx = newNarrIdx;
+              if (newNarrIdx >= 0) {
+                const nn = _narrItems[newNarrIdx];
+                nn.videoEl.currentTime = (nn.inPoint || 0) + 0.5;
+                nn.videoEl.onseeked = () => { nn.videoEl.onseeked = null; nn.videoEl.play().catch(() => {}); };
+                setTimeout(() => { nn.videoEl.play().catch(() => {}); }, 400);
+              }
+            }
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, ew, eh);
+            // Baseline: B-roll (always plays)
             if (newIdx >= 0 && videoTimelineItems[newIdx].videoEl) {
               const vEl = videoTimelineItems[newIdx].videoEl;
               const vw = vEl.videoWidth || ew, vh = vEl.videoHeight || eh;
@@ -21269,6 +21787,16 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
                 const sc = Math.max(ew / vw, eh / vh);
                 const dw = vw * sc, dh = vh * sc;
                 ctx.drawImage(vEl, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
+              }
+            }
+            // Overlay: narrator (covers B-roll for this chunk when present)
+            if (newNarrIdx >= 0 && _narrItems[newNarrIdx].videoEl) {
+              const nEl = _narrItems[newNarrIdx].videoEl;
+              const nw = nEl.videoWidth || ew, nh = nEl.videoHeight || eh;
+              if (nw && nh) {
+                const nsc = Math.max(ew / nw, eh / nh);
+                const ndw = nw * nsc, ndh = nh * nsc;
+                ctx.drawImage(nEl, (ew - ndw) / 2, (eh - ndh) / 2, ndw, ndh);
               }
             }
           } else {
@@ -21294,7 +21822,10 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
             stopped = true;
             timerWorker.postMessage('stop');
             timerWorker.terminate();
-            if (isAnimatedExport) videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+            if (isAnimatedExport) {
+              videoTimelineItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+              _narrItems.forEach(c => { try { c.videoEl.pause(); } catch(e) {} });
+            }
             recorder.stop();
           }
         };
@@ -23920,6 +24451,29 @@ Return ONLY the rewritten prose. No commentary, no markdown, no quotation marks 
 // Expose to other modules
 window.generateAppearanceSheet = generateAppearanceSheet;
 window.generateRepresentativeImage = generateRepresentativeImage;
+
+// Compose a narrator-setup composite: narrator portrait inserted into a chosen set.
+// Used as the start frame for talking-head narrator clips so every narrator chunk
+// shares the same place. Requires a locked narrator with representativeImageDataUrl.
+async function composeNarratorSetup(narrator, setPrompt, geminiKey) {
+  if (!narrator || !narrator.representativeImageDataUrl) {
+    throw new Error('Narrator portrait must be locked first');
+  }
+  if (!setPrompt || !setPrompt.trim()) {
+    throw new Error('Set description required');
+  }
+  const m = narrator.representativeImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!m) throw new Error('Narrator portrait data URL malformed');
+  const stylePrefix = (typeof castStylePrefix === 'function') ? castStylePrefix() : '';
+  const subjectClause = `Talking-head shot of ${narrator.name || 'the narrator'}, head and shoulders, eyes meeting camera. ${narrator.appearanceSheet || narrator.userDescription || ''}`;
+  const prompt = `${stylePrefix}. ${subjectClause}. Set: ${setPrompt.trim()}. Match the reference image's face, build, and likeness exactly. Re-render in the target style with the narrator placed in the described set.`;
+  const refParts = [
+    { inlineData: { mimeType: m[1], data: m[2] } },
+    { text: 'Reference image: match this person\'s face, build, and likeness exactly when composing them into the new set.' }
+  ];
+  return await generateImageGeminiFlash(prompt, geminiKey, { width: 1024, height: 768, refParts });
+}
+window.composeNarratorSetup = composeNarratorSetup;
 window.autoCaptionFromImage = autoCaptionFromImage;
 window.castStylePrefix = castStylePrefix;
 window.detectRefsFromScript = detectRefsFromScript;
@@ -24353,6 +24907,7 @@ function getSceneRefImageParts(scene) {
           window.createJobState.product = null;
           window.createJobState.presenter = null;
           window.createJobState.setting = null;
+          window.createJobState.narratorSetup = null;
         }
         window.createJobState.videoTypeLocked = false;
         // Keep videoType so the picker can highlight it
@@ -25349,6 +25904,12 @@ function getSceneRefImageParts(scene) {
     if (state.presenter) cs.presenter = _rehydrate(state.presenter);
     if (state.setting)   cs.setting   = _rehydrate(state.setting);
     if (state.narrator)  cs.narrator  = _rehydrate(state.narrator);
+    if (state.narratorSetup) cs.narratorSetup = {
+      prompt: state.narratorSetup.prompt || '',
+      imageDataUrl: null,           // hydrated from IDB asynchronously in a later step
+      locked: !!state.narratorSetup.locked,
+      canvasPosition: state.narratorSetup.canvasPosition || null,
+    };
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
     if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
@@ -25936,6 +26497,7 @@ function getSceneRefImageParts(scene) {
       _updateNarratorGenerateButton();
     }
     _wireNarratorRow();
+    _renderNarratorSetup();
   }
 
   function _wireNarratorRow() {
@@ -25953,6 +26515,8 @@ function getSceneRefImageParts(scene) {
     slot.querySelectorAll('input[name="narrator-style"]').forEach(r => {
       r.addEventListener('change', () => {
         n.onScreenStyle = r.value;
+        // Setup composite is only meaningful for talking-head; clear it on switch
+        if (r.value !== 'talking-head') window.createJobState.narratorSetup = null;
         _renderNarratorSlot();
       });
     });
@@ -25974,6 +26538,7 @@ function getSceneRefImageParts(scene) {
             if (!confirm('Remove the locked narrator? Characters will resume speaking their own lines.')) return;
           }
           window.createJobState.narrator = null;
+          window.createJobState.narratorSetup = null;
           _renderNarratorSlot();
           _showMutexHints();
           if (typeof updateCreateButtons === 'function') updateCreateButtons();
@@ -26131,8 +26696,137 @@ function getSceneRefImageParts(scene) {
     });
   }
 
+  // ── Narrator setup (talking-head): composite of portrait inserted into a chosen set ──
+  function _renderNarratorSetup() {
+    const sect = document.getElementById('narrator-setup-section');
+    if (!sect) return;
+    const n = window.createJobState.narrator;
+    const showSetup = !!(n && n.locked && n.onScreenStyle === 'talking-head' && n.representativeImageDataUrl);
+    sect.style.display = showSetup ? '' : 'none';
+    if (!showSetup) return;
+    if (!window.createJobState.narratorSetup) {
+      window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null };
+    }
+    const setup = window.createJobState.narratorSetup;
+    const promptEl = document.getElementById('narrator-setup-prompt');
+    const thumb    = document.getElementById('narrator-setup-thumb');
+    const composeBtn = document.getElementById('btn-narrator-setup-compose');
+    const lockBtn    = document.getElementById('btn-narrator-setup-lock');
+    const unlockBtn  = document.getElementById('btn-narrator-setup-unlock');
+    const hint       = document.getElementById('narrator-setup-hint');
+    if (promptEl && promptEl.value !== (setup.prompt || '')) promptEl.value = setup.prompt || '';
+    if (promptEl) promptEl.disabled = !!setup.locked;
+    if (thumb) {
+      if (setup.imageDataUrl) {
+        thumb.innerHTML = `<img src="${setup.imageDataUrl}" alt="narrator setup" style="width:100%;height:100%;object-fit:cover;border-radius:6px;cursor:pointer;" data-narrator-setup-preview="1">`;
+      } else if (setup._composing) {
+        thumb.innerHTML = '<span class="text-xs text-muted">composing…</span>';
+      } else {
+        thumb.innerHTML = '<span class="text-xs text-muted">no setup yet</span>';
+      }
+    }
+    if (composeBtn) {
+      const can = !setup.locked && (setup.prompt || '').trim().length >= 5 && !setup._composing;
+      composeBtn.disabled = !can;
+      composeBtn.textContent = setup.imageDataUrl ? '🔄 Recompose' : '✨ Compose setup';
+    }
+    if (lockBtn)   lockBtn.style.display   = (setup.imageDataUrl && !setup.locked) ? '' : 'none';
+    if (unlockBtn) unlockBtn.style.display = setup.locked ? '' : 'none';
+    if (hint) {
+      if (setup.locked) hint.textContent = '🔒 Setup locked. Used as start frame for every narrator clip.';
+      else if (setup._composing) hint.textContent = 'Composing the narrator into the set…';
+      else if (setup.imageDataUrl) hint.textContent = 'Preview ready. Lock to use as start frame.';
+      else if ((setup.prompt || '').trim().length < 5) hint.textContent = 'Describe the set (or pick a preset).';
+      else hint.textContent = 'Click Compose to place the narrator into the set.';
+    }
+  }
+
+  function _wireNarratorSetupStatic() {
+    const sect = document.getElementById('narrator-setup-section');
+    if (!sect || sect._wired) return;
+    sect._wired = true;
+    const promptEl = document.getElementById('narrator-setup-prompt');
+    if (promptEl) {
+      promptEl.addEventListener('input', () => {
+        const setup = window.createJobState.narratorSetup
+          || (window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null });
+        if (setup.locked) return;
+        setup.prompt = promptEl.value;
+        _renderNarratorSetup();
+      });
+    }
+    sect.querySelectorAll('button[data-narrator-setup-preset]').forEach(b => {
+      b.addEventListener('click', () => {
+        const setup = window.createJobState.narratorSetup
+          || (window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null });
+        if (setup.locked) return;
+        setup.prompt = b.dataset.narratorSetupPreset;
+        _renderNarratorSetup();
+      });
+    });
+    sect.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t && t.dataset && t.dataset.narratorSetupPreview && window._castOpenImagePreview) {
+        const setup = window.createJobState.narratorSetup;
+        if (setup && setup.imageDataUrl) window._castOpenImagePreview(setup.imageDataUrl, 'Narrator setup');
+      }
+    });
+    const composeBtn = document.getElementById('btn-narrator-setup-compose');
+    if (composeBtn) composeBtn.addEventListener('click', _narratorSetupCompose);
+    const lockBtn = document.getElementById('btn-narrator-setup-lock');
+    if (lockBtn)   lockBtn.addEventListener('click', _narratorSetupLock);
+    const unlockBtn = document.getElementById('btn-narrator-setup-unlock');
+    if (unlockBtn) unlockBtn.addEventListener('click', _narratorSetupUnlock);
+  }
+
+  async function _narratorSetupCompose() {
+    const n = window.createJobState.narrator;
+    const setup = window.createJobState.narratorSetup;
+    if (!n || !setup || setup.locked) return;
+    const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+    if (!key) { alert('Gemini API key required'); return; }
+    setup._composing = true;
+    _renderNarratorSetup();
+    try {
+      const url = await window.composeNarratorSetup(n, setup.prompt, key);
+      setup.imageDataUrl = url;
+    } catch (e) {
+      alert('Compose failed: ' + (e.message || e));
+    } finally {
+      setup._composing = false;
+      _renderNarratorSetup();
+      _refreshCanvasNarratorSetup();
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+    }
+  }
+
+  function _narratorSetupLock() {
+    const setup = window.createJobState.narratorSetup;
+    if (!setup || !setup.imageDataUrl) return;
+    setup.locked = true;
+    _renderNarratorSetup();
+    _refreshCanvasNarratorSetup();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _narratorSetupUnlock() {
+    const setup = window.createJobState.narratorSetup;
+    if (!setup) return;
+    setup.locked = false;
+    _renderNarratorSetup();
+    _refreshCanvasNarratorSetup();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _refreshCanvasNarratorSetup() {
+    if (window.CanvasGraph && typeof window.CanvasGraph.refresh === 'function') {
+      try { window.CanvasGraph.refresh(); } catch (_) {}
+    }
+  }
+
   // Public — re-render entry point
-  window.narratorRenderSlot = _renderNarratorSlot;
+  window.narratorRenderSlot = function () { _renderNarratorSlot(); _renderNarratorSetup(); };
+  window.narratorRenderSetup = _renderNarratorSetup;
   window.narratorIsActive = function () {
     return !!(window.createJobState.narrator && window.createJobState.narrator.locked);
   };
@@ -26186,6 +26880,7 @@ function getSceneRefImageParts(scene) {
       });
     }
     _wireNarratorUpload();
+    _wireNarratorSetupStatic();
   }
 
   if (document.readyState === 'loading') {
@@ -26221,6 +26916,20 @@ function getSceneRefImageParts(scene) {
       if (l) { locationIds.push(l.id); }
     }
     return { tokens: unique, characterIds, locationIds, hasProduct, hasPresenter, hasSetting };
+  };
+
+  // Talking-head narrator: ask the storyboard agent to flag chunks that should
+  // cut to the narrator on camera, plus a delivery cue for the narrator clip.
+  window.castBuildNarratorAgentSuffix = function () {
+    const n = window.createJobState && window.createJobState.narrator;
+    const isTalking = !!(n && n.locked && n.onScreenStyle === 'talking-head');
+    if (!isTalking) return { promptHint: '', schemaFieldList: '' };
+    return {
+      promptHint:
+        '\n\nTALKING-HEAD NARRATOR MODE: This video has a talking-head narrator. For each segment, ALSO indicate whether it should cut to the narrator on camera (suggestNarrator=true) or stay on B-roll (suggestNarrator=false). Defaults: openers, closers, direct-address ("you", "imagine"), questions, and emphatic statements should be narrator. Most middle segments stay B-roll. Aim for 15-25% narrator coverage. Also pick a delivery cue per segment: tone (warm|serious|excited|matter-of-fact|playful|concerned) and gesture (neutral|explanatory|emphatic).',
+      schemaFieldList:
+        ', "suggestNarrator": false, "performance": {"tone": "matter-of-fact", "gesture": "neutral"}',
+    };
   };
 
   // Build the storyboard preamble injected into Gemini prompts.
@@ -28284,6 +28993,12 @@ function autoSaveCreateState() {
       presenter: window.createJobState?.presenter ? _castSerializeItem(window.createJobState.presenter) : null,
       setting:   window.createJobState?.setting   ? _castSerializeItem(window.createJobState.setting)   : null,
       narrator:  window.createJobState?.narrator  ? Object.assign(_castSerializeItem(window.createJobState.narrator), { onScreenStyle: window.createJobState.narrator.onScreenStyle || 'voice-only' }) : null,
+      narratorSetup: window.createJobState?.narratorSetup ? {
+        prompt: window.createJobState.narratorSetup.prompt || '',
+        // imageDataUrl skipped from localStorage; will move to IDB in a later step
+        locked: !!window.createJobState.narratorSetup.locked,
+        canvasPosition: window.createJobState.narratorSetup.canvasPosition || null,
+      } : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
@@ -28423,9 +29138,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
       const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
+      const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -28437,7 +29153,11 @@ btnCreateTranscribe.addEventListener('click', async () => {
           if (Array.isArray(descriptions)) {
             descriptions.forEach(d => {
               const idx = d.segmentIndex ?? descriptions.indexOf(d);
-              if (segments[idx]) segments[idx].sceneDescription = d.sceneDescription || '';
+              if (segments[idx]) {
+                segments[idx].sceneDescription = d.sceneDescription || '';
+                if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
+                if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+              }
             });
           }
         } catch (e) {
@@ -28470,9 +29190,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
         // Scene-description-only call with character preamble — same prompt as text mode
         updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
         const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
+        const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
         const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
         const descResp = await callGeminiAPI(['gemini-2.5-flash'], {
-          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
+          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
         }, key);
         const descText = descResp.candidates?.[0]?.content?.parts?.[0]?.text;
         if (descText) {
@@ -28481,7 +29202,11 @@ btnCreateTranscribe.addEventListener('click', async () => {
             if (Array.isArray(descriptions)) {
               descriptions.forEach(d => {
                 const idx = d.segmentIndex ?? descriptions.indexOf(d);
-                if (segments[idx]) segments[idx].sceneDescription = d.sceneDescription || '';
+                if (segments[idx]) {
+                  segments[idx].sceneDescription = d.sceneDescription || '';
+                  if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
+                  if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+                }
               });
             }
           } catch (e) { console.warn('Could not parse scene descriptions:', e); }
@@ -28696,6 +29421,8 @@ Important:
       // Podcast mode: show chapter step, don't build scenes yet (handled by updateStepStates)
     } else {
       // Audio/Text mode: build scenes directly from segments (existing flow)
+      const narrTalking = !!(window.createJobState?.narrator && window.createJobState.narrator.locked
+        && window.createJobState.narrator.onScreenStyle === 'talking-head');
       createScenes = segments.map(s => ({
         prompt: s.sceneDescription,
         startTime: s.startTime,
@@ -28708,6 +29435,10 @@ Important:
         refCharacters: [],
         refEnvironment: -1,
         promptDirty: false,
+        // Talking-head dual-track fields. Defaults are safe for non-talking-head projects.
+        suggestNarrator: narrTalking ? !!s.suggestNarrator : false,
+        performance: narrTalking ? (s.performance || { tone: 'matter-of-fact', gesture: 'neutral' }) : null,
+        frontRole: (narrTalking && s.suggestNarrator) ? 'narrator' : 'broll',
       }));
       // Auto-assign refs from bracket tokens in prompts
       if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
@@ -30481,40 +31212,152 @@ async function runImageGeneration(scenesToGen) {
 
 // ── Animated Video Cards ──
 
+function _isTalkingHeadProject() {
+  const n = window.createJobState && window.createJobState.narrator;
+  return !!(n && n.locked && n.onScreenStyle === 'talking-head');
+}
+
+function _narratorClipForScene(scene) {
+  if (!scene || !scene.videoInstances) return null;
+  return scene.videoInstances.find(v => v.role === 'narrator') || null;
+}
+
+function _renderCutPlanBar() {
+  const bar = $('create-cut-plan');
+  if (!bar) return;
+  if (!_isTalkingHeadProject() || !createScenes || !createScenes.length) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
+  const total = createScenes.length;
+  const narrCount = createScenes.filter(s => s.frontRole === 'narrator').length;
+  const summary = $('create-cut-plan-summary');
+  if (summary) summary.textContent = `${total} scenes · narrator on ${narrCount}`;
+  const cost = $('create-cut-plan-cost');
+  if (cost) cost.textContent = `Cost preview: ${total} B-roll + ${narrCount} narrator = ${total + narrCount} clips`;
+}
+
+function _wireCutPlanBarOnce() {
+  const bar = $('create-cut-plan');
+  if (!bar || bar._wired) return;
+  bar._wired = true;
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-cut-preset]');
+    if (!btn) return;
+    const preset = btn.dataset.cutPreset;
+    if (!createScenes || !createScenes.length) return;
+    const last = createScenes.length - 1;
+    createScenes.forEach((s, i) => {
+      let role = 'broll';
+      if (preset === 'all') role = 'narrator';
+      else if (preset === 'open-close') role = (i === 0 || i === last) ? 'narrator' : 'broll';
+      else if (preset === 'open') role = (i === 0) ? 'narrator' : 'broll';
+      else if (preset === 'close') role = (i === last) ? 'narrator' : 'broll';
+      else if (preset === 'middle') role = (i > 0 && i < last) ? 'narrator' : 'broll';
+      else if (preset === 'ai') role = s.suggestNarrator ? 'narrator' : 'broll';
+      else if (preset === 'none') role = 'broll';
+      s.frontRole = role;
+    });
+    _renderCutPlanBar();
+    renderCreateVideoCards();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  });
+}
+
 function renderCreateVideoCards() {
   const grid = $('create-video-grid');
   if (!grid || !createScenes) return;
   const { ratio } = getSelectedImageSize();
+  const dual = _isTalkingHeadProject();
   grid.innerHTML = '';
   createScenes.forEach((scene, idx) => {
     const card = document.createElement('div');
-    card.className = 'scene-card';
+    card.className = 'scene-card' + (dual ? ' scene-card--dual' : '');
     card.id = `create-video-card-${idx}`;
     const hasVideo = !!scene.videoUrl;
-    card.innerHTML = `
-      <div class="scene-card-img" id="create-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111; position:relative;">
-        ${hasVideo
-          ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
-          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;padding:6px;text-align:center;">${scene.videoError ? 'Animation failed — click Regen' : (scene.status === 'error' ? 'Image failed — click Regen' : 'No video')}</div>`}
-      </div>
-      <div style="padding:6px 8px;">
-        <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
-          <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
-          <button class="btn-xs" onclick="createVideoPause(${idx})">⏸</button>
-          <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
-          <span id="create-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+    if (!dual) {
+      card.innerHTML = `
+        <div class="scene-card-img" id="create-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111; position:relative;">
+          ${hasVideo
+            ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;padding:6px;text-align:center;">${scene.videoError ? 'Animation failed — click Regen' : (scene.status === 'error' ? 'Image failed — click Regen' : 'No video')}</div>`}
         </div>
-        <input type="range" id="create-video-seek-${idx}" min="0" max="1000" value="0"
-          style="width:100%; margin-bottom:4px; cursor:pointer;"
-          oninput="createVideoSeek(${idx}, this.value)">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
-          <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+        <div style="padding:6px 8px;">
+          <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
+            <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
+            <button class="btn-xs" onclick="createVideoPause(${idx})">⏸</button>
+            <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
+            <span id="create-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+          </div>
+          <input type="range" id="create-video-seek-${idx}" min="0" max="1000" value="0"
+            style="width:100%; margin-bottom:4px; cursor:pointer;"
+            oninput="createVideoSeek(${idx}, this.value)">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
+            <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+          </div>
+        </div>`;
+    } else {
+      const narrV = _narratorClipForScene(scene);
+      const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+      const isNarrFront = scene.frontRole === 'narrator';
+      const ai = !!scene.suggestNarrator;
+      card.innerHTML = `
+        <div class="scene-cell-head">
+          <span class="scene-cell-num">Scene ${idx + 1}</span>
+          ${ai ? '<span class="scene-cell-ai">AI: narrator</span>' : '<span class="scene-cell-ai">AI: broll</span>'}
+          <span class="scene-cell-front">FRONT:
+            <label><input type="radio" name="front-${idx}" value="broll" ${!isNarrFront ? 'checked' : ''} data-scene-front="${idx}"> B-roll</label>
+            <label><input type="radio" name="front-${idx}" value="narrator" ${isNarrFront ? 'checked' : ''} data-scene-front="${idx}"> Narrator</label>
+          </span>
         </div>
-      </div>`;
+        <div class="scene-cell-body">
+          <div class="scene-cell-pane ${!isNarrFront ? 'scene-cell-pane--front' : 'scene-cell-pane--under'}">
+            <div class="scene-cell-pane-label">B-roll ${!isNarrFront ? '★ ON SCREEN' : '(under)'}</div>
+            <div class="scene-card-img" style="aspect-ratio:${ratio}; background:#111;">
+              ${hasVideo
+                ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+                : `<div class="scene-cell-empty">${scene.videoError ? 'Animation failed' : (scene.status === 'error' ? 'Image failed' : 'No video')}</div>`}
+            </div>
+            <div class="scene-cell-controls">
+              <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
+              <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
+              <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+            </div>
+          </div>
+          <div class="scene-cell-pane ${isNarrFront ? 'scene-cell-pane--front' : 'scene-cell-pane--under'}">
+            <div class="scene-cell-pane-label">Narrator ${isNarrFront ? '★ ON SCREEN' : (narrUrl ? '(under)' : '(not generated)')}</div>
+            <div class="scene-card-img" style="aspect-ratio:${ratio}; background:#0a0a14;">
+              ${narrUrl
+                ? `<video id="create-narr-el-${idx}" src="${narrUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+                : `<div class="scene-cell-empty">${isNarrFront ? 'Pick generate to compose this narrator clip' : 'Not generated'}</div>`}
+            </div>
+            <div class="scene-cell-controls">
+              ${narrUrl
+                ? `<button class="btn-xs" onclick="createNarrPlay(${idx})">▶</button><button class="btn-xs" onclick="createNarrStop(${idx})">⏹</button><button class="btn-xs danger" onclick="regenSceneNarrator(${idx})">🔄 Regen</button>`
+                : `<button class="btn-xs primary" onclick="generateSceneNarrator(${idx})">+ Generate narrator</button>`}
+              ${narrV && narrV.motionPrompt ? `<span class="scene-cell-tone">${(scene.performance?.tone || 'matter-of-fact')} · ${(scene.performance?.gesture || 'neutral')}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
     grid.appendChild(card);
     if (hasVideo) wireCreateVideoCard(idx);
+    if (dual) {
+      card.querySelectorAll('input[data-scene-front]').forEach(r => {
+        r.addEventListener('change', () => {
+          const i = +r.dataset.sceneFront;
+          createScenes[i].frontRole = r.value;
+          _renderCutPlanBar();
+          renderCreateVideoCards();
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        });
+      });
+    }
   });
+  _renderCutPlanBar();
+  _wireCutPlanBarOnce();
   const regenAllBtn = $('btn-create-regen-all-videos');
   if (regenAllBtn) {
     regenAllBtn.onclick = async () => {
@@ -30523,6 +31366,28 @@ function renderCreateVideoCards() {
     };
   }
 }
+
+window.createNarrPlay = function (idx) {
+  const v = document.getElementById(`create-narr-el-${idx}`); if (v) v.play().catch(() => {});
+};
+window.createNarrStop = function (idx) {
+  const v = document.getElementById(`create-narr-el-${idx}`); if (v) { v.pause(); v.currentTime = 0; }
+};
+window.generateSceneNarrator = async function (idx) {
+  const scene = createScenes[idx];
+  if (!scene) return;
+  scene.frontRole = 'narrator';
+  await _generateNarratorClipsIfNeeded();
+  renderCreateVideoCards();
+};
+window.regenSceneNarrator = async function (idx) {
+  const scene = createScenes[idx];
+  if (!scene) return;
+  const v = _narratorClipForScene(scene);
+  if (v) { v.clips = []; v.status = 'pending'; }
+  await _generateNarratorClipsIfNeeded();
+  renderCreateVideoCards();
+};
 
 function wireCreateVideoCard(idx) {
   const videoEl = $(`create-video-el-${idx}`);
@@ -30741,7 +31606,11 @@ window.cgLaunchVideoAgent = async function () {
   await Promise.all(toAnimate.map(async scene => {
     const sceneIdx = createScenes.indexOf(scene);
     const vids = scene.videoInstances || [];
-    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    // Pick the B-roll video instance (role 'broll' or unset). Narrator clips are
+    // generated via _generateNarratorClips below and never via animateScenes.
+    const vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
+             || vids.find(v => v.role !== 'narrator')
+             || vids[0];
     if (vid) {
       const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
       scene.motionPrompt = parts.join('. ') || scene.prompt || '';
@@ -30755,10 +31624,59 @@ window.cgLaunchVideoAgent = async function () {
       console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
     }
   }));
+  // Talking-head dual-track: also generate narrator clips for chunks where
+  // frontRole === 'narrator', using the locked narrator setup as the start frame.
+  await _generateNarratorClipsIfNeeded();
   // Populate the legacy video grid step
   if (typeof renderCreateVideoGrid === 'function') renderCreateVideoGrid();
   if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
 };
+
+// Talking-head dual-track: per scene with frontRole === 'narrator', generate a
+// Kling i2v clip from the locked narrator setup composite. Stored as a narrator-
+// role videoInstance on the scene; B-roll videoInstance remains untouched.
+async function _generateNarratorClipsIfNeeded() {
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const setup    = window.createJobState && window.createJobState.narratorSetup;
+  if (!narrator || !narrator.locked) return;
+  if (narrator.onScreenStyle !== 'talking-head') return;
+  if (!setup || !setup.locked || !setup.imageDataUrl) return;
+  if (!createScenes || !createScenes.length) return;
+  if (typeof submitKlingI2V !== 'function' || typeof pollKlingTask !== 'function') {
+    console.warn('[narrator] Kling helpers unavailable; skipping narrator clips');
+    return;
+  }
+  const targets = createScenes.filter(s => s.frontRole === 'narrator');
+  if (!targets.length) return;
+  for (const scene of targets) {
+    const sceneIdx = createScenes.indexOf(scene);
+    let v = (scene.videoInstances || []).find(vi => vi.role === 'narrator');
+    if (!v && typeof CanvasState !== 'undefined' && typeof CanvasState.ensureNarratorVideoInstance === 'function') {
+      v = CanvasState.ensureNarratorVideoInstance(scene);
+    }
+    if (!v) continue;
+    if (v.clips && v.clips.length && v.status === 'done') continue;        // already generated
+    v.status = 'generating';
+    try {
+      const dur = Math.max(5, Math.min(10, Math.round(scene.duration || 5)));
+      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '');
+      const videoUrl = await pollKlingTask(taskId);
+      if (videoUrl) {
+        v.clips = [{ url: videoUrl, clipDuration: dur }];
+        v.status = 'done';
+        v.taskId = taskId;
+      } else {
+        v.status = 'error';
+        v.error = 'No video URL returned';
+      }
+    } catch (e) {
+      console.warn('[narrator clip] scene', sceneIdx, 'failed:', e.message);
+      v.status = 'error';
+      v.error = e.message || String(e);
+    }
+  }
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+}
 
 if (typeof window !== 'undefined') {
   window.openCanvasPanel = openCanvasPanel;
@@ -31318,8 +32236,12 @@ function updateSubtitlePreviewCount() {
 function renderPrimaryAudioCard() {
   const container = $('language-primary');
   if (!container || !createAudioBuffer) return;
-  const label = createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio';
-  const flag = createInputMode === 'text' ? '🇺🇸' : '🎙️';
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const isNarratorLocked = !!(narrator && narrator.locked);
+  const label = isNarratorLocked
+    ? `Narrator (${createInputMode === 'text' ? 'Generated TTS' : 'Original Audio'})`
+    : (createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio');
+  const flag = '🎙️';
   container.innerHTML = `
     <div class="language-card done">
       <span class="lang-name">${flag} ${label}</span>
@@ -31603,6 +32525,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   currentBuffer = createAudioBuffer;
   photoItems = [];
   videoTimelineItems = [];
+  narratorTimelineItems = [];
   blockElements.clear();
   if (typeof videoBlockElements !== 'undefined' && videoBlockElements.clear) videoBlockElements.clear();
   timelineContainer.querySelectorAll('.photo-block').forEach(el => el.remove());
@@ -31633,6 +32556,32 @@ btnCreateSendEditor.addEventListener('click', async () => {
     const vidId = activeVid?.id || null;
     const sourceImgId = activeVid?.sourceImageInstanceId || imgId;
 
+    // Narrator overlay clip — only if this scene's frontRole is 'narrator' and a narrator clip exists.
+    const narrV = (scene.videoInstances || []).find(v => v.role === 'narrator');
+    const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+    if (scene.frontRole === 'narrator' && narrUrl) {
+      const narrEl = document.createElement('video');
+      narrEl.src = narrUrl;
+      narrEl.muted = true;
+      narrEl.preload = 'auto';
+      narrEl.playsInline = true;
+      narratorTimelineItems.push({
+        id: nextNarratorTimelineId++,
+        sceneIdx,
+        videoInstanceId: narrV.id,
+        sourceImageInstanceId: 'cg-narrator-setup',
+        videoEl: narrEl,
+        videoSrc: narrUrl,
+        videoDuration: narrV.clips[0].clipDuration || scene.duration,
+        inPoint: 0,
+        outPoint: narrV.clips[0].clipDuration || scene.duration,
+        startTime: scene.startTime,
+        duration: scene.duration,
+        lane: 'narrator',
+        imgSrc: scene.imgDataUrl,
+        imgEl: img,
+      });
+    }
     if (createVideoMode === 'animated' && (scene.videoUrl || (scene.videoClips && scene.videoClips.length > 0))) {
       const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.duration }];
       let clipStart = scene.startTime;
@@ -44144,6 +45093,8 @@ const FINAL_W     = 720;
 const FINAL_H     = 820;
 const LAUNCH_W    = 200;
 const LAUNCH_H    = 110;
+const NSETUP_W    = 320;
+const NSETUP_H    = 360;
 
 // Layout grid (X positions). 260px gap. NODE_W=520, LAUNCH_W=200, BGM/SUB/FINAL_W=720.
 const COL_SB         = 80;
@@ -44152,6 +45103,7 @@ const COL_LAUNCH     = 1640;   // 860 + 520 + 260
 const COL_VID        = 2100;   // 1640 + 200 + 260
 const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
 const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
+const COL_NSETUP     = -440;   // free-floating, left of bands (NSETUP_W=320 → bg ends at -120)
 
 // Spacing
 const ROW_GAP   = 60;
@@ -44510,6 +45462,7 @@ function findInstance(id) {
   if (id === 'cg-bgm') return { type: 'bgm' };
   if (id === 'cg-sub') return { type: 'sub' };
   if (id === 'cg-final') return { type: 'final' };
+  if (id === 'cg-narrator-setup') return { type: 'narratorSetup' };
   return null;
 }
 
@@ -45152,6 +46105,55 @@ function renderSubtitleNode() {
   g.nodeEls.delete('cg-sub');
 }
 
+function renderNarratorSetupNode() {
+  const setup = window.createJobState && window.createJobState.narratorSetup;
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const showNode = !!(narrator && narrator.locked && narrator.onScreenStyle === 'talking-head' && setup);
+  if (!showNode) {
+    if (g.narratorSetupEl && g.narratorSetupEl.parentNode) g.narratorSetupEl.parentNode.removeChild(g.narratorSetupEl);
+    g.narratorSetupEl = null;
+    g.nodeEls.delete('cg-narrator-setup');
+    return;
+  }
+  const sig = (setup.imageDataUrl ? 'img' : 'noimg') + '|' + (setup.locked ? 'lock' : 'open') + '|' + ((setup.prompt || '').length);
+  const promptShort = (setup.prompt || '').trim().slice(0, 90);
+  const bodyHtml =
+    '<div class="cg-nsetup-body">' +
+      '<div class="cg-nsetup-thumb">' +
+        (setup.imageDataUrl
+          ? `<img src="${setup.imageDataUrl}" alt="narrator setup">`
+          : '<div class="cg-nsetup-thumb-empty">no setup composed</div>') +
+      '</div>' +
+      '<div class="cg-nsetup-meta">' +
+        '<span class="cg-nsetup-state">' + (setup.locked ? '🔒 Locked' : (setup.imageDataUrl ? 'Preview' : 'Empty')) + '</span>' +
+        (promptShort ? `<span class="cg-nsetup-prompt">${promptShort.replace(/</g, '&lt;')}</span>` : '<span class="cg-nsetup-prompt cg-nsetup-prompt--empty">No prompt yet</span>') +
+      '</div>' +
+    '</div>';
+  if (!g.narratorSetupEl || !g.narratorSetupEl.isConnected) {
+    const node = buildSimpleNode('cg-node--nsetup', 'image', '🎬 Narrator Setup', {
+      w: NSETUP_W,
+      h: NSETUP_H,
+      hasIn: false,
+      hasOut: true,
+      bodyHtml,
+    });
+    node.dataset.id = 'cg-narrator-setup';
+    node.dataset.type = 'narratorSetup';
+    node.dataset.sig = sig;
+    g.graphLayerEl.appendChild(node);
+    g.nodeEls.set('cg-narrator-setup', { el: node, type: 'narratorSetup' });
+    g.narratorSetupEl = node;
+  } else if (g.narratorSetupEl.dataset.sig !== sig) {
+    const body = g.narratorSetupEl.querySelector('.cg-node-body');
+    if (body) body.innerHTML = bodyHtml;
+    g.narratorSetupEl.dataset.sig = sig;
+  }
+  if (!setup.canvasPosition) {
+    setup.canvasPosition = { x: COL_NSETUP, y: (g.chromeMidY || TOP_PAD) - NSETUP_H / 2 };
+  }
+  placeNode(g.narratorSetupEl, setup.canvasPosition.x, setup.canvasPosition.y);
+}
+
 function renderFinalNode() {
   let entry = g.nodeEls.get('cg-final');
   if (!entry) {
@@ -45239,6 +46241,7 @@ function renderAll() {
   renderLaunchNode();
   renderBgmNode();
   renderSubtitleNode();
+  renderNarratorSetupNode();
   renderFinalNode();
   redrawCurves();
   cgUpdateSelToolbar();
@@ -45256,6 +46259,11 @@ function nodeRect(id) {
   if (id === 'cg-launch' && g.launchEl) {
     const pos = window.createLaunchAgentPosition || { x: COL_LAUNCH, y: (g.chromeMidY || TOP_PAD) - LAUNCH_H / 2 };
     return { x: pos.x, y: pos.y, w: LAUNCH_W, h: LAUNCH_H };
+  }
+  if (id === 'cg-narrator-setup' && g.narratorSetupEl) {
+    const setup = window.createJobState && window.createJobState.narratorSetup;
+    const pos = (setup && setup.canvasPosition) || { x: COL_NSETUP, y: (g.chromeMidY || TOP_PAD) - NSETUP_H / 2 };
+    return { x: pos.x, y: pos.y, w: NSETUP_W, h: NSETUP_H };
   }
   if (id === 'cg-final' && g.finalEl) {
     const colFinalFb = (g.mode === 'animated') ? COL_FINAL_ANIM : COL_FINAL_ILL;
@@ -45451,6 +46459,10 @@ function fitToView() {
     const p = window.createFinalRenderPosition;
     if (p) addBox(p.x, p.y, FINAL_W, FINAL_H);
   }
+  if (g.narratorSetupEl) {
+    const p = window.createJobState?.narratorSetup?.canvasPosition;
+    if (p) addBox(p.x, p.y, NSETUP_W, NSETUP_H);
+  }
 
   if (!isFinite(minX)) return; // nothing to fit
 
@@ -45521,6 +46533,7 @@ function attachEvents() {
           else if (inst.type === 'vid') pos = inst.vid.canvasPosition;
           else if (inst.type === 'launch') pos = window.createLaunchAgentPosition;
           else if (inst.type === 'final') pos = window.createFinalRenderPosition;
+          else if (inst.type === 'narratorSetup') pos = window.createJobState?.narratorSetup?.canvasPosition || null;
         }
         g.dragStartPos = pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 };
         // ensure selection
@@ -45573,6 +46586,13 @@ function attachEvents() {
         else if (inst.type === 'vid') pos = inst.vid.canvasPosition = inst.vid.canvasPosition || { x: 0, y: 0 };
         else if (inst.type === 'launch') pos = window.createLaunchAgentPosition = window.createLaunchAgentPosition || { x: 0, y: 0 };
         else if (inst.type === 'final') pos = window.createFinalRenderPosition = window.createFinalRenderPosition || { x: 0, y: 0 };
+        else if (inst.type === 'narratorSetup') {
+          const ns = window.createJobState?.narratorSetup;
+          if (ns) {
+            ns.canvasPosition = ns.canvasPosition || { x: 0, y: 0 };
+            pos = ns.canvasPosition;
+          }
+        }
       }
       if (pos) {
         pos.x = g.dragStartPos.x + dx;

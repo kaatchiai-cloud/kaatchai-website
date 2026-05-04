@@ -423,6 +423,7 @@ function getSceneRefImageParts(scene) {
           window.createJobState.product = null;
           window.createJobState.presenter = null;
           window.createJobState.setting = null;
+          window.createJobState.narratorSetup = null;
         }
         window.createJobState.videoTypeLocked = false;
         // Keep videoType so the picker can highlight it
@@ -1419,6 +1420,12 @@ function getSceneRefImageParts(scene) {
     if (state.presenter) cs.presenter = _rehydrate(state.presenter);
     if (state.setting)   cs.setting   = _rehydrate(state.setting);
     if (state.narrator)  cs.narrator  = _rehydrate(state.narrator);
+    if (state.narratorSetup) cs.narratorSetup = {
+      prompt: state.narratorSetup.prompt || '',
+      imageDataUrl: null,           // hydrated from IDB asynchronously in a later step
+      locked: !!state.narratorSetup.locked,
+      canvasPosition: state.narratorSetup.canvasPosition || null,
+    };
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
     if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
@@ -2006,6 +2013,7 @@ function getSceneRefImageParts(scene) {
       _updateNarratorGenerateButton();
     }
     _wireNarratorRow();
+    _renderNarratorSetup();
   }
 
   function _wireNarratorRow() {
@@ -2023,6 +2031,8 @@ function getSceneRefImageParts(scene) {
     slot.querySelectorAll('input[name="narrator-style"]').forEach(r => {
       r.addEventListener('change', () => {
         n.onScreenStyle = r.value;
+        // Setup composite is only meaningful for talking-head; clear it on switch
+        if (r.value !== 'talking-head') window.createJobState.narratorSetup = null;
         _renderNarratorSlot();
       });
     });
@@ -2044,6 +2054,7 @@ function getSceneRefImageParts(scene) {
             if (!confirm('Remove the locked narrator? Characters will resume speaking their own lines.')) return;
           }
           window.createJobState.narrator = null;
+          window.createJobState.narratorSetup = null;
           _renderNarratorSlot();
           _showMutexHints();
           if (typeof updateCreateButtons === 'function') updateCreateButtons();
@@ -2201,8 +2212,137 @@ function getSceneRefImageParts(scene) {
     });
   }
 
+  // ── Narrator setup (talking-head): composite of portrait inserted into a chosen set ──
+  function _renderNarratorSetup() {
+    const sect = document.getElementById('narrator-setup-section');
+    if (!sect) return;
+    const n = window.createJobState.narrator;
+    const showSetup = !!(n && n.locked && n.onScreenStyle === 'talking-head' && n.representativeImageDataUrl);
+    sect.style.display = showSetup ? '' : 'none';
+    if (!showSetup) return;
+    if (!window.createJobState.narratorSetup) {
+      window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null };
+    }
+    const setup = window.createJobState.narratorSetup;
+    const promptEl = document.getElementById('narrator-setup-prompt');
+    const thumb    = document.getElementById('narrator-setup-thumb');
+    const composeBtn = document.getElementById('btn-narrator-setup-compose');
+    const lockBtn    = document.getElementById('btn-narrator-setup-lock');
+    const unlockBtn  = document.getElementById('btn-narrator-setup-unlock');
+    const hint       = document.getElementById('narrator-setup-hint');
+    if (promptEl && promptEl.value !== (setup.prompt || '')) promptEl.value = setup.prompt || '';
+    if (promptEl) promptEl.disabled = !!setup.locked;
+    if (thumb) {
+      if (setup.imageDataUrl) {
+        thumb.innerHTML = `<img src="${setup.imageDataUrl}" alt="narrator setup" style="width:100%;height:100%;object-fit:cover;border-radius:6px;cursor:pointer;" data-narrator-setup-preview="1">`;
+      } else if (setup._composing) {
+        thumb.innerHTML = '<span class="text-xs text-muted">composing…</span>';
+      } else {
+        thumb.innerHTML = '<span class="text-xs text-muted">no setup yet</span>';
+      }
+    }
+    if (composeBtn) {
+      const can = !setup.locked && (setup.prompt || '').trim().length >= 5 && !setup._composing;
+      composeBtn.disabled = !can;
+      composeBtn.textContent = setup.imageDataUrl ? '🔄 Recompose' : '✨ Compose setup';
+    }
+    if (lockBtn)   lockBtn.style.display   = (setup.imageDataUrl && !setup.locked) ? '' : 'none';
+    if (unlockBtn) unlockBtn.style.display = setup.locked ? '' : 'none';
+    if (hint) {
+      if (setup.locked) hint.textContent = '🔒 Setup locked. Used as start frame for every narrator clip.';
+      else if (setup._composing) hint.textContent = 'Composing the narrator into the set…';
+      else if (setup.imageDataUrl) hint.textContent = 'Preview ready. Lock to use as start frame.';
+      else if ((setup.prompt || '').trim().length < 5) hint.textContent = 'Describe the set (or pick a preset).';
+      else hint.textContent = 'Click Compose to place the narrator into the set.';
+    }
+  }
+
+  function _wireNarratorSetupStatic() {
+    const sect = document.getElementById('narrator-setup-section');
+    if (!sect || sect._wired) return;
+    sect._wired = true;
+    const promptEl = document.getElementById('narrator-setup-prompt');
+    if (promptEl) {
+      promptEl.addEventListener('input', () => {
+        const setup = window.createJobState.narratorSetup
+          || (window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null });
+        if (setup.locked) return;
+        setup.prompt = promptEl.value;
+        _renderNarratorSetup();
+      });
+    }
+    sect.querySelectorAll('button[data-narrator-setup-preset]').forEach(b => {
+      b.addEventListener('click', () => {
+        const setup = window.createJobState.narratorSetup
+          || (window.createJobState.narratorSetup = { prompt: '', imageDataUrl: null, locked: false, canvasPosition: null });
+        if (setup.locked) return;
+        setup.prompt = b.dataset.narratorSetupPreset;
+        _renderNarratorSetup();
+      });
+    });
+    sect.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t && t.dataset && t.dataset.narratorSetupPreview && window._castOpenImagePreview) {
+        const setup = window.createJobState.narratorSetup;
+        if (setup && setup.imageDataUrl) window._castOpenImagePreview(setup.imageDataUrl, 'Narrator setup');
+      }
+    });
+    const composeBtn = document.getElementById('btn-narrator-setup-compose');
+    if (composeBtn) composeBtn.addEventListener('click', _narratorSetupCompose);
+    const lockBtn = document.getElementById('btn-narrator-setup-lock');
+    if (lockBtn)   lockBtn.addEventListener('click', _narratorSetupLock);
+    const unlockBtn = document.getElementById('btn-narrator-setup-unlock');
+    if (unlockBtn) unlockBtn.addEventListener('click', _narratorSetupUnlock);
+  }
+
+  async function _narratorSetupCompose() {
+    const n = window.createJobState.narrator;
+    const setup = window.createJobState.narratorSetup;
+    if (!n || !setup || setup.locked) return;
+    const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+    if (!key) { alert('Gemini API key required'); return; }
+    setup._composing = true;
+    _renderNarratorSetup();
+    try {
+      const url = await window.composeNarratorSetup(n, setup.prompt, key);
+      setup.imageDataUrl = url;
+    } catch (e) {
+      alert('Compose failed: ' + (e.message || e));
+    } finally {
+      setup._composing = false;
+      _renderNarratorSetup();
+      _refreshCanvasNarratorSetup();
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+    }
+  }
+
+  function _narratorSetupLock() {
+    const setup = window.createJobState.narratorSetup;
+    if (!setup || !setup.imageDataUrl) return;
+    setup.locked = true;
+    _renderNarratorSetup();
+    _refreshCanvasNarratorSetup();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _narratorSetupUnlock() {
+    const setup = window.createJobState.narratorSetup;
+    if (!setup) return;
+    setup.locked = false;
+    _renderNarratorSetup();
+    _refreshCanvasNarratorSetup();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _refreshCanvasNarratorSetup() {
+    if (window.CanvasGraph && typeof window.CanvasGraph.refresh === 'function') {
+      try { window.CanvasGraph.refresh(); } catch (_) {}
+    }
+  }
+
   // Public — re-render entry point
-  window.narratorRenderSlot = _renderNarratorSlot;
+  window.narratorRenderSlot = function () { _renderNarratorSlot(); _renderNarratorSetup(); };
+  window.narratorRenderSetup = _renderNarratorSetup;
   window.narratorIsActive = function () {
     return !!(window.createJobState.narrator && window.createJobState.narrator.locked);
   };
@@ -2256,6 +2396,7 @@ function getSceneRefImageParts(scene) {
       });
     }
     _wireNarratorUpload();
+    _wireNarratorSetupStatic();
   }
 
   if (document.readyState === 'loading') {
@@ -2291,6 +2432,20 @@ function getSceneRefImageParts(scene) {
       if (l) { locationIds.push(l.id); }
     }
     return { tokens: unique, characterIds, locationIds, hasProduct, hasPresenter, hasSetting };
+  };
+
+  // Talking-head narrator: ask the storyboard agent to flag chunks that should
+  // cut to the narrator on camera, plus a delivery cue for the narrator clip.
+  window.castBuildNarratorAgentSuffix = function () {
+    const n = window.createJobState && window.createJobState.narrator;
+    const isTalking = !!(n && n.locked && n.onScreenStyle === 'talking-head');
+    if (!isTalking) return { promptHint: '', schemaFieldList: '' };
+    return {
+      promptHint:
+        '\n\nTALKING-HEAD NARRATOR MODE: This video has a talking-head narrator. For each segment, ALSO indicate whether it should cut to the narrator on camera (suggestNarrator=true) or stay on B-roll (suggestNarrator=false). Defaults: openers, closers, direct-address ("you", "imagine"), questions, and emphatic statements should be narrator. Most middle segments stay B-roll. Aim for 15-25% narrator coverage. Also pick a delivery cue per segment: tone (warm|serious|excited|matter-of-fact|playful|concerned) and gesture (neutral|explanatory|emphatic).',
+      schemaFieldList:
+        ', "suggestNarrator": false, "performance": {"tone": "matter-of-fact", "gesture": "neutral"}',
+    };
   };
 
   // Build the storyboard preamble injected into Gemini prompts.

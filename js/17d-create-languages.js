@@ -430,8 +430,12 @@ function updateSubtitlePreviewCount() {
 function renderPrimaryAudioCard() {
   const container = $('language-primary');
   if (!container || !createAudioBuffer) return;
-  const label = createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio';
-  const flag = createInputMode === 'text' ? '🇺🇸' : '🎙️';
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const isNarratorLocked = !!(narrator && narrator.locked);
+  const label = isNarratorLocked
+    ? `Narrator (${createInputMode === 'text' ? 'Generated TTS' : 'Original Audio'})`
+    : (createInputMode === 'text' ? 'English (Generated TTS)' : 'Original Audio');
+  const flag = '🎙️';
   container.innerHTML = `
     <div class="language-card done">
       <span class="lang-name">${flag} ${label}</span>
@@ -715,6 +719,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
   currentBuffer = createAudioBuffer;
   photoItems = [];
   videoTimelineItems = [];
+  narratorTimelineItems = [];
   blockElements.clear();
   if (typeof videoBlockElements !== 'undefined' && videoBlockElements.clear) videoBlockElements.clear();
   timelineContainer.querySelectorAll('.photo-block').forEach(el => el.remove());
@@ -745,6 +750,32 @@ btnCreateSendEditor.addEventListener('click', async () => {
     const vidId = activeVid?.id || null;
     const sourceImgId = activeVid?.sourceImageInstanceId || imgId;
 
+    // Narrator overlay clip — only if this scene's frontRole is 'narrator' and a narrator clip exists.
+    const narrV = (scene.videoInstances || []).find(v => v.role === 'narrator');
+    const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+    if (scene.frontRole === 'narrator' && narrUrl) {
+      const narrEl = document.createElement('video');
+      narrEl.src = narrUrl;
+      narrEl.muted = true;
+      narrEl.preload = 'auto';
+      narrEl.playsInline = true;
+      narratorTimelineItems.push({
+        id: nextNarratorTimelineId++,
+        sceneIdx,
+        videoInstanceId: narrV.id,
+        sourceImageInstanceId: 'cg-narrator-setup',
+        videoEl: narrEl,
+        videoSrc: narrUrl,
+        videoDuration: narrV.clips[0].clipDuration || scene.duration,
+        inPoint: 0,
+        outPoint: narrV.clips[0].clipDuration || scene.duration,
+        startTime: scene.startTime,
+        duration: scene.duration,
+        lane: 'narrator',
+        imgSrc: scene.imgDataUrl,
+        imgEl: img,
+      });
+    }
     if (createVideoMode === 'animated' && (scene.videoUrl || (scene.videoClips && scene.videoClips.length > 0))) {
       const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.duration }];
       let clipStart = scene.startTime;

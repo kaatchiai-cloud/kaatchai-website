@@ -55,6 +55,11 @@ let pipShadow = true;
 let videoTimelineItems = [];
 let nextVideoTimelineId = 1;
 let selectedVideoIds = new Set();
+// Narrator overlay track (talking-head only). Sparse: only chunks where
+// scene.frontRole === 'narrator' and a narrator clip exists. Same item shape
+// as videoTimelineItems with `lane: 'narrator'`.
+let narratorTimelineItems = [];
+let nextNarratorTimelineId = 1;
 let bgVideoMode = 'images-only'; // images-only | video-only | video-images | video-pip | video-pip-transition
 let pipTransType = 'shrink';     // shrink | slide | fade | zoom
 let pipTransDur = 0.5;           // seconds

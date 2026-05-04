@@ -1020,6 +1020,12 @@ function autoSaveCreateState() {
       presenter: window.createJobState?.presenter ? _castSerializeItem(window.createJobState.presenter) : null,
       setting:   window.createJobState?.setting   ? _castSerializeItem(window.createJobState.setting)   : null,
       narrator:  window.createJobState?.narrator  ? Object.assign(_castSerializeItem(window.createJobState.narrator), { onScreenStyle: window.createJobState.narrator.onScreenStyle || 'voice-only' }) : null,
+      narratorSetup: window.createJobState?.narratorSetup ? {
+        prompt: window.createJobState.narratorSetup.prompt || '',
+        // imageDataUrl skipped from localStorage; will move to IDB in a later step
+        locked: !!window.createJobState.narratorSetup.locked,
+        canvasPosition: window.createJobState.narratorSetup.canvasPosition || null,
+      } : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
@@ -1159,9 +1165,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
       const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
 
       const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
+      const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
       const resp = await callGeminiAPI(['gemini-2.5-flash'], {
         contents: [{
-          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
+          parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }]
         }]
       }, key);
 
@@ -1173,7 +1180,11 @@ btnCreateTranscribe.addEventListener('click', async () => {
           if (Array.isArray(descriptions)) {
             descriptions.forEach(d => {
               const idx = d.segmentIndex ?? descriptions.indexOf(d);
-              if (segments[idx]) segments[idx].sceneDescription = d.sceneDescription || '';
+              if (segments[idx]) {
+                segments[idx].sceneDescription = d.sceneDescription || '';
+                if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
+                if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+              }
             });
           }
         } catch (e) {
@@ -1206,9 +1217,10 @@ btnCreateTranscribe.addEventListener('click', async () => {
         // Scene-description-only call with character preamble — same prompt as text mode
         updateCreateAgentTask('storyboard', 'prompts', 'running', 'Writing scene descriptions…');
         const _castPreamble = (typeof window.castBuildStoryboardPreamble === 'function') ? window.castBuildStoryboardPreamble() : '';
+        const _narrSuffix = (typeof window.castBuildNarratorAgentSuffix === 'function') ? window.castBuildNarratorAgentSuffix() : { promptHint: '', schemaFieldList: '' };
         const segTexts = segments.map((s, i) => `Segment ${i+1} [${s.startTime.toFixed(1)}s – ${s.endTime.toFixed(1)}s]: "${s.text}"`).join('\n');
         const descResp = await callGeminiAPI(['gemini-2.5-flash'], {
-          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
+          contents: [{ parts: [{ text: `${_castPreamble}Given these text segments from a script, generate a vivid visual scene description for each segment.${createVideoMode === 'animated' ? `\n\nIMPORTANT — ANIMATED VIDEO MODE: These will be used for AI video animation (Kling), NOT static images. Each description MUST describe cinematic MOTION:\n- Start with camera direction: pan left/right, zoom in/out, tracking shot, aerial view, dolly forward, tilt up/down.\n- Describe visible subject ACTION: walking, turning, flowing, dissolving, emerging, transforming.\n- Include environmental motion: wind in hair/trees, flowing water, drifting clouds, swirling particles, flickering light.\n- One continuous motion per scene — no cuts within a scene.` : ' Each description should be suitable for AI image generation.'}${_narrSuffix.promptHint}\n\n${segTexts}\n\nReturn ONLY a valid JSON array with no markdown formatting:\n[{"segmentIndex": 0, "sceneDescription": "A detailed visual description: subject, style, mood, colors, composition, camera direction and motion"${_narrSuffix.schemaFieldList}}]\n\nImportant: sceneDescription should describe what should be SEEN, not just what is said. Make it artistic and visually compelling. One entry per segment, in order.` }] }]
         }, key);
         const descText = descResp.candidates?.[0]?.content?.parts?.[0]?.text;
         if (descText) {
@@ -1217,7 +1229,11 @@ btnCreateTranscribe.addEventListener('click', async () => {
             if (Array.isArray(descriptions)) {
               descriptions.forEach(d => {
                 const idx = d.segmentIndex ?? descriptions.indexOf(d);
-                if (segments[idx]) segments[idx].sceneDescription = d.sceneDescription || '';
+                if (segments[idx]) {
+                  segments[idx].sceneDescription = d.sceneDescription || '';
+                  if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
+                  if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
+                }
               });
             }
           } catch (e) { console.warn('Could not parse scene descriptions:', e); }
@@ -1432,6 +1448,8 @@ Important:
       // Podcast mode: show chapter step, don't build scenes yet (handled by updateStepStates)
     } else {
       // Audio/Text mode: build scenes directly from segments (existing flow)
+      const narrTalking = !!(window.createJobState?.narrator && window.createJobState.narrator.locked
+        && window.createJobState.narrator.onScreenStyle === 'talking-head');
       createScenes = segments.map(s => ({
         prompt: s.sceneDescription,
         startTime: s.startTime,
@@ -1444,6 +1462,10 @@ Important:
         refCharacters: [],
         refEnvironment: -1,
         promptDirty: false,
+        // Talking-head dual-track fields. Defaults are safe for non-talking-head projects.
+        suggestNarrator: narrTalking ? !!s.suggestNarrator : false,
+        performance: narrTalking ? (s.performance || { tone: 'matter-of-fact', gesture: 'neutral' }) : null,
+        frontRole: (narrTalking && s.suggestNarrator) ? 'narrator' : 'broll',
       }));
       // Auto-assign refs from bracket tokens in prompts
       if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
@@ -3217,40 +3239,152 @@ async function runImageGeneration(scenesToGen) {
 
 // ── Animated Video Cards ──
 
+function _isTalkingHeadProject() {
+  const n = window.createJobState && window.createJobState.narrator;
+  return !!(n && n.locked && n.onScreenStyle === 'talking-head');
+}
+
+function _narratorClipForScene(scene) {
+  if (!scene || !scene.videoInstances) return null;
+  return scene.videoInstances.find(v => v.role === 'narrator') || null;
+}
+
+function _renderCutPlanBar() {
+  const bar = $('create-cut-plan');
+  if (!bar) return;
+  if (!_isTalkingHeadProject() || !createScenes || !createScenes.length) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
+  const total = createScenes.length;
+  const narrCount = createScenes.filter(s => s.frontRole === 'narrator').length;
+  const summary = $('create-cut-plan-summary');
+  if (summary) summary.textContent = `${total} scenes · narrator on ${narrCount}`;
+  const cost = $('create-cut-plan-cost');
+  if (cost) cost.textContent = `Cost preview: ${total} B-roll + ${narrCount} narrator = ${total + narrCount} clips`;
+}
+
+function _wireCutPlanBarOnce() {
+  const bar = $('create-cut-plan');
+  if (!bar || bar._wired) return;
+  bar._wired = true;
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-cut-preset]');
+    if (!btn) return;
+    const preset = btn.dataset.cutPreset;
+    if (!createScenes || !createScenes.length) return;
+    const last = createScenes.length - 1;
+    createScenes.forEach((s, i) => {
+      let role = 'broll';
+      if (preset === 'all') role = 'narrator';
+      else if (preset === 'open-close') role = (i === 0 || i === last) ? 'narrator' : 'broll';
+      else if (preset === 'open') role = (i === 0) ? 'narrator' : 'broll';
+      else if (preset === 'close') role = (i === last) ? 'narrator' : 'broll';
+      else if (preset === 'middle') role = (i > 0 && i < last) ? 'narrator' : 'broll';
+      else if (preset === 'ai') role = s.suggestNarrator ? 'narrator' : 'broll';
+      else if (preset === 'none') role = 'broll';
+      s.frontRole = role;
+    });
+    _renderCutPlanBar();
+    renderCreateVideoCards();
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  });
+}
+
 function renderCreateVideoCards() {
   const grid = $('create-video-grid');
   if (!grid || !createScenes) return;
   const { ratio } = getSelectedImageSize();
+  const dual = _isTalkingHeadProject();
   grid.innerHTML = '';
   createScenes.forEach((scene, idx) => {
     const card = document.createElement('div');
-    card.className = 'scene-card';
+    card.className = 'scene-card' + (dual ? ' scene-card--dual' : '');
     card.id = `create-video-card-${idx}`;
     const hasVideo = !!scene.videoUrl;
-    card.innerHTML = `
-      <div class="scene-card-img" id="create-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111; position:relative;">
-        ${hasVideo
-          ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
-          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;padding:6px;text-align:center;">${scene.videoError ? 'Animation failed — click Regen' : (scene.status === 'error' ? 'Image failed — click Regen' : 'No video')}</div>`}
-      </div>
-      <div style="padding:6px 8px;">
-        <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
-          <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
-          <button class="btn-xs" onclick="createVideoPause(${idx})">⏸</button>
-          <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
-          <span id="create-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+    if (!dual) {
+      card.innerHTML = `
+        <div class="scene-card-img" id="create-video-img-${idx}" style="aspect-ratio:${ratio}; background:#111; position:relative;">
+          ${hasVideo
+            ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#e44;font-size:0.72rem;padding:6px;text-align:center;">${scene.videoError ? 'Animation failed — click Regen' : (scene.status === 'error' ? 'Image failed — click Regen' : 'No video')}</div>`}
         </div>
-        <input type="range" id="create-video-seek-${idx}" min="0" max="1000" value="0"
-          style="width:100%; margin-bottom:4px; cursor:pointer;"
-          oninput="createVideoSeek(${idx}, this.value)">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
-          <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+        <div style="padding:6px 8px;">
+          <div style="display:flex; gap:4px; align-items:center; margin-bottom:4px;">
+            <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
+            <button class="btn-xs" onclick="createVideoPause(${idx})">⏸</button>
+            <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
+            <span id="create-video-time-${idx}" style="font-size:0.65rem; color:#aaa; margin-left:4px;">0:00</span>
+          </div>
+          <input type="range" id="create-video-seek-${idx}" min="0" max="1000" value="0"
+            style="width:100%; margin-bottom:4px; cursor:pointer;"
+            oninput="createVideoSeek(${idx}, this.value)">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.68rem; color:#888;">Scene ${idx + 1}</span>
+            <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+          </div>
+        </div>`;
+    } else {
+      const narrV = _narratorClipForScene(scene);
+      const narrUrl = narrV && narrV.clips && narrV.clips[0] && narrV.clips[0].url;
+      const isNarrFront = scene.frontRole === 'narrator';
+      const ai = !!scene.suggestNarrator;
+      card.innerHTML = `
+        <div class="scene-cell-head">
+          <span class="scene-cell-num">Scene ${idx + 1}</span>
+          ${ai ? '<span class="scene-cell-ai">AI: narrator</span>' : '<span class="scene-cell-ai">AI: broll</span>'}
+          <span class="scene-cell-front">FRONT:
+            <label><input type="radio" name="front-${idx}" value="broll" ${!isNarrFront ? 'checked' : ''} data-scene-front="${idx}"> B-roll</label>
+            <label><input type="radio" name="front-${idx}" value="narrator" ${isNarrFront ? 'checked' : ''} data-scene-front="${idx}"> Narrator</label>
+          </span>
         </div>
-      </div>`;
+        <div class="scene-cell-body">
+          <div class="scene-cell-pane ${!isNarrFront ? 'scene-cell-pane--front' : 'scene-cell-pane--under'}">
+            <div class="scene-cell-pane-label">B-roll ${!isNarrFront ? '★ ON SCREEN' : '(under)'}</div>
+            <div class="scene-card-img" style="aspect-ratio:${ratio}; background:#111;">
+              ${hasVideo
+                ? `<video id="create-video-el-${idx}" src="${scene.videoUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+                : `<div class="scene-cell-empty">${scene.videoError ? 'Animation failed' : (scene.status === 'error' ? 'Image failed' : 'No video')}</div>`}
+            </div>
+            <div class="scene-cell-controls">
+              <button class="btn-xs" onclick="createVideoPlay(${idx})">▶</button>
+              <button class="btn-xs" onclick="createVideoStop(${idx})">⏹</button>
+              <button class="btn-xs danger" onclick="regenSceneImageAndVideo(${idx})">🔄 Regen</button>
+            </div>
+          </div>
+          <div class="scene-cell-pane ${isNarrFront ? 'scene-cell-pane--front' : 'scene-cell-pane--under'}">
+            <div class="scene-cell-pane-label">Narrator ${isNarrFront ? '★ ON SCREEN' : (narrUrl ? '(under)' : '(not generated)')}</div>
+            <div class="scene-card-img" style="aspect-ratio:${ratio}; background:#0a0a14;">
+              ${narrUrl
+                ? `<video id="create-narr-el-${idx}" src="${narrUrl}" style="width:100%;height:100%;object-fit:cover;" muted playsinline preload="metadata"></video>`
+                : `<div class="scene-cell-empty">${isNarrFront ? 'Pick generate to compose this narrator clip' : 'Not generated'}</div>`}
+            </div>
+            <div class="scene-cell-controls">
+              ${narrUrl
+                ? `<button class="btn-xs" onclick="createNarrPlay(${idx})">▶</button><button class="btn-xs" onclick="createNarrStop(${idx})">⏹</button><button class="btn-xs danger" onclick="regenSceneNarrator(${idx})">🔄 Regen</button>`
+                : `<button class="btn-xs primary" onclick="generateSceneNarrator(${idx})">+ Generate narrator</button>`}
+              ${narrV && narrV.motionPrompt ? `<span class="scene-cell-tone">${(scene.performance?.tone || 'matter-of-fact')} · ${(scene.performance?.gesture || 'neutral')}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
     grid.appendChild(card);
     if (hasVideo) wireCreateVideoCard(idx);
+    if (dual) {
+      card.querySelectorAll('input[data-scene-front]').forEach(r => {
+        r.addEventListener('change', () => {
+          const i = +r.dataset.sceneFront;
+          createScenes[i].frontRole = r.value;
+          _renderCutPlanBar();
+          renderCreateVideoCards();
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        });
+      });
+    }
   });
+  _renderCutPlanBar();
+  _wireCutPlanBarOnce();
   const regenAllBtn = $('btn-create-regen-all-videos');
   if (regenAllBtn) {
     regenAllBtn.onclick = async () => {
@@ -3259,6 +3393,28 @@ function renderCreateVideoCards() {
     };
   }
 }
+
+window.createNarrPlay = function (idx) {
+  const v = document.getElementById(`create-narr-el-${idx}`); if (v) v.play().catch(() => {});
+};
+window.createNarrStop = function (idx) {
+  const v = document.getElementById(`create-narr-el-${idx}`); if (v) { v.pause(); v.currentTime = 0; }
+};
+window.generateSceneNarrator = async function (idx) {
+  const scene = createScenes[idx];
+  if (!scene) return;
+  scene.frontRole = 'narrator';
+  await _generateNarratorClipsIfNeeded();
+  renderCreateVideoCards();
+};
+window.regenSceneNarrator = async function (idx) {
+  const scene = createScenes[idx];
+  if (!scene) return;
+  const v = _narratorClipForScene(scene);
+  if (v) { v.clips = []; v.status = 'pending'; }
+  await _generateNarratorClipsIfNeeded();
+  renderCreateVideoCards();
+};
 
 function wireCreateVideoCard(idx) {
   const videoEl = $(`create-video-el-${idx}`);
@@ -3477,7 +3633,11 @@ window.cgLaunchVideoAgent = async function () {
   await Promise.all(toAnimate.map(async scene => {
     const sceneIdx = createScenes.indexOf(scene);
     const vids = scene.videoInstances || [];
-    const vid = vids.find(v => v.isRenderActive) || vids[0];
+    // Pick the B-roll video instance (role 'broll' or unset). Narrator clips are
+    // generated via _generateNarratorClips below and never via animateScenes.
+    const vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
+             || vids.find(v => v.role !== 'narrator')
+             || vids[0];
     if (vid) {
       const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
       scene.motionPrompt = parts.join('. ') || scene.prompt || '';
@@ -3491,10 +3651,59 @@ window.cgLaunchVideoAgent = async function () {
       console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
     }
   }));
+  // Talking-head dual-track: also generate narrator clips for chunks where
+  // frontRole === 'narrator', using the locked narrator setup as the start frame.
+  await _generateNarratorClipsIfNeeded();
   // Populate the legacy video grid step
   if (typeof renderCreateVideoGrid === 'function') renderCreateVideoGrid();
   if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
 };
+
+// Talking-head dual-track: per scene with frontRole === 'narrator', generate a
+// Kling i2v clip from the locked narrator setup composite. Stored as a narrator-
+// role videoInstance on the scene; B-roll videoInstance remains untouched.
+async function _generateNarratorClipsIfNeeded() {
+  const narrator = window.createJobState && window.createJobState.narrator;
+  const setup    = window.createJobState && window.createJobState.narratorSetup;
+  if (!narrator || !narrator.locked) return;
+  if (narrator.onScreenStyle !== 'talking-head') return;
+  if (!setup || !setup.locked || !setup.imageDataUrl) return;
+  if (!createScenes || !createScenes.length) return;
+  if (typeof submitKlingI2V !== 'function' || typeof pollKlingTask !== 'function') {
+    console.warn('[narrator] Kling helpers unavailable; skipping narrator clips');
+    return;
+  }
+  const targets = createScenes.filter(s => s.frontRole === 'narrator');
+  if (!targets.length) return;
+  for (const scene of targets) {
+    const sceneIdx = createScenes.indexOf(scene);
+    let v = (scene.videoInstances || []).find(vi => vi.role === 'narrator');
+    if (!v && typeof CanvasState !== 'undefined' && typeof CanvasState.ensureNarratorVideoInstance === 'function') {
+      v = CanvasState.ensureNarratorVideoInstance(scene);
+    }
+    if (!v) continue;
+    if (v.clips && v.clips.length && v.status === 'done') continue;        // already generated
+    v.status = 'generating';
+    try {
+      const dur = Math.max(5, Math.min(10, Math.round(scene.duration || 5)));
+      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '');
+      const videoUrl = await pollKlingTask(taskId);
+      if (videoUrl) {
+        v.clips = [{ url: videoUrl, clipDuration: dur }];
+        v.status = 'done';
+        v.taskId = taskId;
+      } else {
+        v.status = 'error';
+        v.error = 'No video URL returned';
+      }
+    } catch (e) {
+      console.warn('[narrator clip] scene', sceneIdx, 'failed:', e.message);
+      v.status = 'error';
+      v.error = e.message || String(e);
+    }
+  }
+  if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+}
 
 if (typeof window !== 'undefined') {
   window.openCanvasPanel = openCanvasPanel;

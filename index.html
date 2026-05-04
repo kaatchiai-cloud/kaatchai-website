@@ -2452,6 +2452,32 @@ body:has(#drop-zone:not(.hidden)) {
           <button id="btn-narrator-generate" class="btn-md primary" disabled>✨ Generate narrator</button>
           <span id="narrator-action-hint" class="text-sm text-muted">Fill name and description to enable.</span>
         </div>
+        <!-- Narrator Setup — talking-head only: where the narrator is talking from -->
+        <div id="narrator-setup-section" class="narrator-setup-section" style="display:none;">
+          <div class="narrator-setup-head">
+            <span class="narrator-setup-icon">🎬</span>
+            <span class="narrator-setup-title">Narrator setup</span>
+            <span class="narrator-setup-sub">where the narrator is talking from</span>
+          </div>
+          <div class="narrator-setup-presets">
+            <button class="btn-xs" data-narrator-setup-preset="Studio desk, neutral backdrop, soft three-point key light, eye-level framing.">Studio desk</button>
+            <button class="btn-xs" data-narrator-setup-preset="Modern kitchen counter with natural daylight from a window, eye-level framing.">Kitchen counter</button>
+            <button class="btn-xs" data-narrator-setup-preset="Outdoor park bench, soft golden-hour daylight, blurred greenery behind, eye-level framing.">Outdoor park</button>
+            <button class="btn-xs" data-narrator-setup-preset="Abstract gradient backdrop, soft colored ambient light, neutral chest-up framing.">Abstract gradient</button>
+          </div>
+          <textarea id="narrator-setup-prompt" rows="2" placeholder="Describe the set: where they sit/stand, what's behind them, the lighting…"></textarea>
+          <div class="narrator-setup-actions">
+            <div class="narrator-setup-thumb-wrap">
+              <div id="narrator-setup-thumb" class="narrator-setup-thumb"><span class="text-xs text-muted">no setup yet</span></div>
+            </div>
+            <div class="narrator-setup-btns">
+              <button id="btn-narrator-setup-compose" class="btn-md primary" disabled>✨ Compose setup</button>
+              <button id="btn-narrator-setup-lock" class="btn-md" style="display:none;">🔒 Lock setup</button>
+              <button id="btn-narrator-setup-unlock" class="btn-md" style="display:none;">🔓 Unlock</button>
+              <span id="narrator-setup-hint" class="text-sm text-muted">Lock the narrator portrait first.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Characters & Locations Setup (Film mode) -->
@@ -2697,6 +2723,24 @@ body:has(#drop-zone:not(.hidden)) {
     <!-- Step 8: Animated Videos (animated mode only, legacy fallback) -->
     <div class="create-step" id="create-video-step" style="display:none;">
       <div class="agent-step-header"><span class="agent-step-icon">7</span><span class="agent-step-name">Animate Scenes</span><span class="agent-step-status-badge waiting">Waiting</span></div>
+      <!-- Talking-head dual-track cut plan + bulk presets (visible only when narrator is talking-head) -->
+      <div id="create-cut-plan" class="create-cut-plan" style="display:none;">
+        <div class="create-cut-plan-head">
+          <span class="create-cut-plan-title">Cut plan</span>
+          <span id="create-cut-plan-summary" class="create-cut-plan-summary"></span>
+        </div>
+        <div class="create-cut-plan-bulk">
+          <span class="text-xs text-muted">Bulk:</span>
+          <button class="btn-xs" data-cut-preset="none">None</button>
+          <button class="btn-xs" data-cut-preset="open-close">Open + Close</button>
+          <button class="btn-xs" data-cut-preset="open">Open</button>
+          <button class="btn-xs" data-cut-preset="close">Close</button>
+          <button class="btn-xs" data-cut-preset="middle">Middle</button>
+          <button class="btn-xs" data-cut-preset="all">All</button>
+          <button class="btn-xs" data-cut-preset="ai">AI suggested</button>
+        </div>
+        <div id="create-cut-plan-cost" class="create-cut-plan-cost"></div>
+      </div>
       <div class="create-row flex-wrap gap-md">
         <button id="btn-create-regen-all-videos" class="btn-md">🔄 Regenerate All Failed</button>
       </div>
@@ -4235,7 +4279,7 @@ body:has(#drop-zone:not(.hidden)) {
     </div>
 
     <!-- Video Timeline -->
-    <div class="section-label mt-md">
+    <div class="section-label mt-md" id="video-section-label">
       Video Timeline
       <span class="badge" id="video-count">0 videos</span>
       <button id="btn-add-videos" class="btn-sm">🎬 Add Video</button>
@@ -4244,6 +4288,23 @@ body:has(#drop-zone:not(.hidden)) {
       <div id="video-timeline-container">
         <div id="video-playhead-line"></div>
       </div>
+    </div>
+
+    <!-- Narrator overlay timeline (talking-head only) -->
+    <div class="section-label mt-md" id="narrator-section-label" style="display:none;">
+      Video Timeline · Narrator
+      <span class="badge" id="narrator-count">0 clips</span>
+    </div>
+    <div id="narrator-drop-zone" class="empty" style="display:none;">
+      <div id="narrator-timeline-container">
+        <div id="narrator-playhead-line"></div>
+      </div>
+    </div>
+
+    <!-- Cuts row (talking-head only) — shows which lane is on top per chunk -->
+    <div id="cuts-section" class="cuts-section" style="display:none;">
+      <div class="section-label cuts-section-head">FRONT cuts (click chunk to flip)</div>
+      <div id="cuts-row"></div>
     </div>
 
     <!-- Subtitle Timeline -->
