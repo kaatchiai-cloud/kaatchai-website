@@ -3412,6 +3412,252 @@ async function _bibleDownsampleAsRefPart(gridDataUrl, maxDim) {
 window._bibleDownsampleAsRefPart = _bibleDownsampleAsRefPart;
 // ─── End Phase 11 ──────────────────────────────────────────────────────
 
+// ─── Lip sync — Phase 7b: mouth sprite generation per character ────────
+//
+// Three sprite variants per character per template (closed / half / open).
+// Generated lazily on first dialogue scene featuring that character via
+// Gemini single-image edits using the character's representative portrait
+// (or bible cell when available) as ref. Cached in IDB.
+//
+// IDB key: mouthsprite_<charId>_<templateId>_<closed|half|open>
+async function castGenerateMouthSpritesForCharacter(character, opts) {
+  if (!character) throw new Error('Character required');
+  const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+  if (!key) throw new Error('Gemini key required');
+  const tplId = (typeof selectedTemplate !== 'undefined' && selectedTemplate)
+    ? (selectedTemplate.id || selectedTemplate) : 'default';
+  const portrait = character.representativeImageDataUrl || character.uploadedImageDataUrl;
+  if (!portrait || !portrait.startsWith('data:')) {
+    throw new Error('Character portrait missing — generate appearance first');
+  }
+  const portraitMatch = portrait.match(/^data:([^;]+);base64,(.+)$/);
+  if (!portraitMatch) throw new Error('Portrait dataURL invalid');
+  const refParts = [
+    { inlineData: { mimeType: portraitMatch[1], data: portraitMatch[2] } },
+    { text: `Reference: this is ${character.name}'s canonical appearance. Match every facial feature, build, attire, hair, color, and rendering style exactly.` },
+  ];
+
+  const stylePrefix = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  const styPrefix = stylePrefix ? `Style: ${stylePrefix}. ` : '';
+  const variants = [
+    { suffix: 'closed', tail: 'Lips fully closed, neutral relaxed expression, no teeth visible. Calm face, eyes engaged with camera.' },
+    { suffix: 'half',   tail: 'Lips slightly parted, mouth in mid-position as if mid-syllable, hint of teeth. Natural speaking rhythm.' },
+    { suffix: 'open',   tail: 'Mouth open as if pronouncing a vowel, top and bottom teeth slightly visible, jaw lowered naturally.' },
+  ];
+
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+  const sprites = {};
+  for (const v of variants) {
+    const idbKey = `mouthsprite_${character.id}_${tplId}_${v.suffix}`;
+    // Skip generation if cached
+    if (idbAvail) {
+      try {
+        const cached = await window.castIdb.get(idbKey);
+        if (cached) { sprites[v.suffix] = cached; continue; }
+      } catch (_) {}
+    }
+    const prompt = `${styPrefix}Portrait of ${character.name}, frontal close-up, head and shoulders visible. ${v.tail} Plain neutral background. Same camera angle and same lighting as the reference image. No text, no caption.`;
+    let dataUrl;
+    try {
+      dataUrl = await generateImageGeminiFlash(prompt, key, {
+        width: 768, height: 768, refParts,
+      }, 'gemini-3-flash-image-preview');
+    } catch (e) {
+      // Fallback through chain
+      try {
+        dataUrl = await generateImageGeminiFlash(prompt, key, { width: 768, height: 768, refParts });
+      } catch (e2) {
+        console.warn(`[LipSync] mouth sprite ${v.suffix} for ${character.name} failed:`, e2.message);
+        continue;
+      }
+    }
+    if (!dataUrl) continue;
+    if (idbAvail) { try { await window.castIdb.put(idbKey, dataUrl); } catch (_) {} }
+    sprites[v.suffix] = dataUrl;
+    if (typeof trackCost === 'function') trackCost('imageGen', 1);
+  }
+  return sprites;
+}
+
+// Lookup or lazy-generate mouth sprites for a character. Returns
+// { closed, half, open } as data URLs (or null entries on failure).
+async function castGetOrGenerateMouthSprites(character) {
+  if (!character) return null;
+  const tplId = (typeof selectedTemplate !== 'undefined' && selectedTemplate)
+    ? (selectedTemplate.id || selectedTemplate) : 'default';
+  const idbAvail = window.castIdb && window.castIdb.available && window.castIdb.available();
+  const sprites = {};
+  let allCached = true;
+  for (const k of ['closed', 'half', 'open']) {
+    const idbKey = `mouthsprite_${character.id}_${tplId}_${k}`;
+    if (idbAvail) {
+      try {
+        const cached = await window.castIdb.get(idbKey);
+        if (cached) { sprites[k] = cached; continue; }
+      } catch (_) {}
+    }
+    allCached = false;
+  }
+  if (allCached) return sprites;
+  // Generate missing
+  return await castGenerateMouthSpritesForCharacter(character);
+}
+
+window.castGenerateMouthSpritesForCharacter = castGenerateMouthSpritesForCharacter;
+window.castGetOrGenerateMouthSprites = castGetOrGenerateMouthSprites;
+// ─── End Lip sync Phase 7b ─────────────────────────────────────────────
+
+// ─── Lip sync — Phase 7c: pre-export preparation orchestrator ──────────
+//
+// For every scene with on-camera dialogue (speakerVisible !== false and
+// not isVoiceOver), runs MediaPipe face detection on the scene's video
+// clip, builds overlay JSON, and ensures speaker mouth sprites exist.
+// Stores results on scene.lipSync for the export tick to consume.
+//
+// Audio buffer drives sprite openness (amplitude envelope).
+// Returns: { ready: int, skipped: int, failed: int, totalMs: number }
+async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
+  opts = opts || {};
+  const onProgress = opts.onProgress || function () {};
+  const tier = (window.createJobState && window.createJobState.lipSyncTier) || 'stori';
+  if (tier !== 'stori') {
+    onProgress('Tier 2 (Kling LipSync) handled per-clip by Phase 8 worker');
+    return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
+  }
+  if (typeof window.LipSync === 'undefined' || !window.LipSync.loadFaceLandmarker) {
+    throw new Error('LipSync engine not loaded (js/30-lipsync.js missing)');
+  }
+  const speakerTurns = (window._createSpeakerTurns || []).slice();
+  if (!speakerTurns.length) {
+    onProgress('No multi-voice speaker turns — Stori sync has nothing to attach to');
+    return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
+  }
+
+  // Pre-load MediaPipe (slow first call only — cached after)
+  onProgress('Loading MediaPipe (one-time, ~10MB)…');
+  await window.LipSync.loadFaceLandmarker();
+
+  const t0 = performance.now();
+  let ready = 0, skipped = 0, failed = 0;
+
+  for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
+    const scene = scenes[sIdx];
+    if (!scene) continue;
+    const dlg = scene.dialogue;
+    const isVO = dlg && dlg.isVoiceOver;
+    const speakerVisible = scene.speakerVisible !== false;
+    if (!dlg || !dlg.speakerCharacterId || dlg.speakerCharacterId === 'narrator' || isVO || !speakerVisible) {
+      skipped++;
+      scene.lipSync = scene.lipSync || {};
+      scene.lipSync.tier = isVO ? 'none' : (scene.lipSync.tier || 'none');
+      scene.lipSync.status = 'ready';
+      continue;
+    }
+
+    // Locate this scene's speaker turns (subset of global speakerTurns
+    // that fall within scene's time window). Lip sync only cares about turns
+    // within this clip's local time, so rebase to clip-local milliseconds.
+    const clipStartMs = (scene.startTime || 0) * 1000;
+    const clipEndMs   = (scene.endTime   || (scene.startTime + scene.duration || 0)) * 1000;
+    const localTurns = speakerTurns
+      .filter(t => t.endMs > clipStartMs && t.startMs < clipEndMs)
+      .map(t => ({
+        speakerCharacterId: t.speakerCharacterId,
+        speakerName: t.speakerName,
+        voiceId: t.voiceId,
+        startMs: Math.max(0, t.startMs - clipStartMs),
+        endMs: Math.min(clipEndMs - clipStartMs, t.endMs - clipStartMs),
+      }));
+    if (!localTurns.length) {
+      skipped++;
+      scene.lipSync = { tier: 'none', status: 'ready' };
+      continue;
+    }
+
+    // Resolve speaker character to look up sprites
+    const cs = window.createJobState || {};
+    const all = [
+      ...(cs.characters || []),
+      cs.presenter, cs.setting,
+    ].filter(Boolean);
+    const speaker = all.find(c => c.id === dlg.speakerCharacterId);
+    if (!speaker) {
+      console.warn(`[LipSync] scene ${sIdx + 1}: speaker ${dlg.speakerCharacterId} not in cast`);
+      failed++;
+      continue;
+    }
+
+    // Build a temporary <video> for face detection
+    if (!scene.videoUrl && !(scene.videoClips && scene.videoClips.length)) {
+      console.warn(`[LipSync] scene ${sIdx + 1}: no video clip — skipping detection`);
+      skipped++;
+      scene.lipSync = { tier: 'none', status: 'ready' };
+      continue;
+    }
+    const videoSrc = scene.videoUrl || (scene.videoClips && scene.videoClips[0] && scene.videoClips[0].url);
+    onProgress(`Scene ${sIdx + 1}/${scenes.length} — detecting ${speaker.name}'s face…`);
+    let detection;
+    try {
+      const v = document.createElement('video');
+      v.muted = true;
+      v.crossOrigin = 'anonymous';
+      v.src = videoSrc;
+      await new Promise((resolve, reject) => {
+        v.onloadedmetadata = resolve;
+        v.onerror = () => reject(new Error('video load failed'));
+        setTimeout(() => reject(new Error('video metadata timeout')), 10000);
+      });
+      detection = await window.LipSync.detectFacesInClip(v, {
+        fps: 15,   // Down-sample to 15fps to halve compute (sprite cadence is fine at 15fps)
+        onProgress: (f, total) => onProgress(`Scene ${sIdx + 1}: detecting frame ${f}/${total}…`),
+      });
+    } catch (e) {
+      console.warn(`[LipSync] scene ${sIdx + 1} detection failed:`, e.message);
+      scene.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+      failed++;
+      continue;
+    }
+
+    // Sprites — lazy generate
+    onProgress(`Scene ${sIdx + 1}: ensuring ${speaker.name}'s mouth sprites…`);
+    let spriteUrls;
+    try {
+      spriteUrls = await castGetOrGenerateMouthSprites(speaker);
+    } catch (e) {
+      console.warn(`[LipSync] sprite gen for ${speaker.name} failed:`, e.message);
+      scene.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+      failed++;
+      continue;
+    }
+
+    // Build overlay JSON
+    const overlayJson = window.LipSync.buildOverlayInstructions(detection, localTurns, audioBuffer);
+
+    // Hydrate sprites to <img> for fast canvas drawImage
+    const sprites = {
+      closed: window.LipSync.spriteFromDataUrl(spriteUrls.closed),
+      half:   window.LipSync.spriteFromDataUrl(spriteUrls.half),
+      open:   window.LipSync.spriteFromDataUrl(spriteUrls.open),
+    };
+
+    scene.lipSync = {
+      tier: 'stori',
+      status: 'ready',
+      overlayInstructions: overlayJson,
+      sprites,
+      speakerCharacterId: speaker.id,
+      speakerName: speaker.name,
+    };
+    ready++;
+  }
+
+  const totalMs = Math.round(performance.now() - t0);
+  onProgress(`Lip sync ready: ${ready} scene(s), ${skipped} skipped, ${failed} failed (${(totalMs/1000).toFixed(1)}s)`);
+  return { ready, skipped, failed, totalMs };
+}
+window.prepareLipSyncForExport = prepareLipSyncForExport;
+// ─── End Lip sync Phase 7c (orchestrator) ──────────────────────────────
+
 // ── Lyria 3 BGM Generation ──
 
 async function generateLyriaBgm(key, textContext, imageDataUrls = []) {

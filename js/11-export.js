@@ -213,6 +213,21 @@
                 ctx.drawImage(nEl, (ew - ndw) / 2, (eh - ndh) / 2, ndw, ndh);
               }
             }
+            // Lip sync — Tier 1 (Stori sync) sprite overlay on the active
+            // B-roll clip. Only paints when prepareLipSyncForExport has run
+            // for the active scene; otherwise no-op (existing behavior).
+            if (typeof window.LipSync !== 'undefined' && newIdx >= 0 && newNarrIdx < 0) {
+              const activeClip = videoTimelineItems[newIdx];
+              const sceneIdx = activeClip && (activeClip.sceneIdx != null ? activeClip.sceneIdx : -1);
+              const scene = (sceneIdx >= 0 && typeof createScenes !== 'undefined') ? createScenes[sceneIdx] : null;
+              const ls = scene && scene.lipSync;
+              if (ls && ls.tier === 'stori' && ls.overlayInstructions && ls.sprites) {
+                const localT = elapsed - activeClip.startTime;
+                try {
+                  window.LipSync.composeMouthSprite(ctx, localT, ew, eh, ls.overlayInstructions, ls.sprites);
+                } catch (_) {}
+              }
+            }
           } else {
             const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
             if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
