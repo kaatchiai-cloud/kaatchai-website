@@ -990,6 +990,16 @@ function _castSerializeItem(item) {
     needsRegen: !!item.needsRegen,
     createdAt: item.createdAt || null,
     lockedAt: item.lockedAt || null,
+    // Phase 1 — voice properties
+    gender: item.gender || null,
+    voice: item.voice ? {
+      provider: item.voice.provider || 'gemini',
+      voiceId: item.voice.voiceId || null,
+      voiceName: item.voice.voiceName || null,
+      speakingRate: item.voice.speakingRate || 1.0,
+      pitch: item.voice.pitch || 0,
+    } : null,
+    voiceLockedAt: item.voiceLockedAt || null,
   };
 }
 
@@ -1053,6 +1063,12 @@ function autoSaveCreateState() {
       } : null,
       templateLocked: !!(window.createJobState?.templateLocked),
       templateLockedAt: window.createJobState?.templateLockedAt || null,
+      // Phase 1 — project-level voice config
+      voiceConfig: window.createJobState?.voiceConfig ? {
+        fallbackVoice: window.createJobState.voiceConfig.fallbackVoice || null,
+        defaultsByGender: window.createJobState.voiceConfig.defaultsByGender || null,
+        elevenlabsKeyConfigured: !!window.createJobState.voiceConfig.elevenlabsKeyConfigured,
+      } : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),

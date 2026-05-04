@@ -5710,6 +5710,90 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
   background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 6%, transparent);
 }
 #create-page .cast-row-sheet strong { color: var(--text-primary, var(--lp-text)); }
+
+/* Voice strip — character row voice picker (Phase 1, voice-and-lipsync-plan §6) */
+#create-page .cast-voice-strip {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: inherit;
+}
+#create-page .cast-voice-provider {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px;
+  background: color-mix(in oklch, var(--text, var(--lp-text)) 6%, transparent);
+  border-radius: 999px;
+  width: fit-content;
+}
+#create-page .cast-voice-provider-btn {
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary, var(--lp-dim));
+  cursor: pointer;
+}
+#create-page .cast-voice-provider-btn.active {
+  background: var(--accent, var(--lp-accent));
+  color: var(--bg-primary, var(--lp-bg));
+}
+#create-page .cast-voice-provider-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#create-page .cast-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#create-page .cast-voice-label {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  font-weight: 500;
+}
+#create-page .cast-voice-gender,
+#create-page .cast-voice-id {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 4px;
+  background: var(--bg-card, var(--lp-card));
+  color: var(--text, var(--lp-text));
+  cursor: pointer;
+}
+#create-page .cast-voice-gender { min-width: 100px; }
+#create-page .cast-voice-id     { min-width: 200px; flex: 1; }
+#create-page .cast-voice-gender:hover,
+#create-page .cast-voice-id:hover {
+  border-color: var(--accent, var(--lp-accent));
+}
+#create-page .cast-voice-play {
+  font-size: 13px;
+  font-family: inherit;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 4px;
+  background: var(--bg-card, var(--lp-card));
+  color: var(--text, var(--lp-text));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-page .cast-voice-play:hover {
+  border-color: var(--accent, var(--lp-accent));
+  color: var(--accent, var(--lp-accent));
+}
+
 #create-page .cast-row-actions {
   display: flex;
   flex-direction: column;
@@ -25469,6 +25553,176 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     _idbDelete('lib_' + libraryId + '_logo');
   }
 
+  // ─── Voice catalog + voice helpers (Phase 1 of voice-and-lipsync-plan) ───
+  // Hardcoded Gemini voice catalog. ElevenLabs voices populated dynamically
+  // when a key is configured (see Phase 3).
+  if (!window.VOICE_CATALOG) {
+    window.VOICE_CATALOG = {
+      gemini: [
+        { id: 'Aoede',  name: 'Aoede',  gender: 'female',  tag: 'warm, conversational' },
+        { id: 'Charon', name: 'Charon', gender: 'male',    tag: 'deep, authoritative' },
+        { id: 'Kore',   name: 'Kore',   gender: 'neutral', tag: 'mid-range, neutral' },
+        { id: 'Puck',   name: 'Puck',   gender: 'male',    tag: 'playful, mid-pitch' },
+        { id: 'Fenrir', name: 'Fenrir', gender: 'male',    tag: 'gruff, weighty' },
+        { id: 'Leda',   name: 'Leda',   gender: 'female',  tag: 'bright, youthful' },
+        { id: 'Orus',   name: 'Orus',   gender: 'male',    tag: 'measured, professional' },
+        { id: 'Zephyr', name: 'Zephyr', gender: 'neutral', tag: 'breezy, light' },
+      ],
+      elevenlabs: [],
+    };
+  }
+
+  // Project-level voice config defaults — initialized once per project.
+  function _ensureVoiceConfig() {
+    if (!window.createJobState) window.createJobState = {};
+    if (!window.createJobState.voiceConfig) {
+      window.createJobState.voiceConfig = {
+        fallbackVoice: { provider: 'gemini', voiceId: 'Kore', voiceName: 'Kore' },
+        defaultsByGender: {
+          male:    { provider: 'gemini', voiceId: 'Charon', voiceName: 'Charon' },
+          female:  { provider: 'gemini', voiceId: 'Aoede',  voiceName: 'Aoede'  },
+          neutral: { provider: 'gemini', voiceId: 'Kore',   voiceName: 'Kore'   },
+        },
+        elevenlabsKeyConfigured: false,
+      };
+    }
+    return window.createJobState.voiceConfig;
+  }
+  window._ensureVoiceConfig = _ensureVoiceConfig;
+
+  // Auto-assign default voice + gender for an entity that doesn't have one.
+  function castAssignDefaultVoice(item, gender) {
+    if (!item) return;
+    const cfg = _ensureVoiceConfig();
+    item.gender = gender || item.gender || 'neutral';
+    if (!item.voice) {
+      const def = cfg.defaultsByGender[item.gender] || cfg.fallbackVoice;
+      item.voice = {
+        provider: def.provider,
+        voiceId: def.voiceId,
+        voiceName: def.voiceName,
+        speakingRate: 1.0,
+        pitch: 0,
+      };
+    }
+  }
+  window.castAssignDefaultVoice = castAssignDefaultVoice;
+
+  // Lookup a voice in the catalog by (provider, voiceId).
+  function castFindVoiceInCatalog(provider, voiceId) {
+    const list = (window.VOICE_CATALOG && window.VOICE_CATALOG[provider]) || [];
+    return list.find(v => v.id === voiceId) || null;
+  }
+  window.castFindVoiceInCatalog = castFindVoiceInCatalog;
+
+  // Gender inference from name + appearance (Gemini call). Fire-and-forget;
+  // returns 'neutral' if anything goes wrong. Called when a character is
+  // created without an explicit gender.
+  async function castInferGenderFromName(name, appearanceSheet) {
+    try {
+      const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+      if (!key) return 'neutral';
+      if (typeof callGeminiAPI !== 'function') return 'neutral';
+      const resp = await callGeminiAPI(['gemini-2.5-flash'], {
+        contents: [{ parts: [{ text:
+          `Given a character name and appearance description, return a single word: "male", "female", or "neutral".\n\n` +
+          `Name: ${name || '(unknown)'}\nDescription: ${(appearanceSheet || '').slice(0, 300)}\n\nAnswer:`
+        }] }]
+      }, key);
+      const ans = (resp && resp.candidates && resp.candidates[0] && resp.candidates[0].content
+                   && resp.candidates[0].content.parts && resp.candidates[0].content.parts[0]
+                   && resp.candidates[0].content.parts[0].text || '').trim().toLowerCase();
+      if (ans.startsWith('male'))   return 'male';
+      if (ans.startsWith('female')) return 'female';
+      return 'neutral';
+    } catch (e) {
+      console.warn('[Voice] gender inference failed:', e.message);
+      return 'neutral';
+    }
+  }
+  window.castInferGenderFromName = castInferGenderFromName;
+
+  // Sample playback — single audio element pool; only one sample audible
+  // at a time across the whole panel. Cached samples in IDB.
+  if (!window._castSampleAudio) {
+    window._castSampleAudio = null;
+    window._castSampleAudioBtn = null;
+  }
+  async function castPlayVoiceSample(provider, voiceId, btnEl) {
+    if (!provider || !voiceId) return;
+    // Stop any sample currently playing
+    if (window._castSampleAudio) {
+      try { window._castSampleAudio.pause(); window._castSampleAudio.currentTime = 0; } catch (_) {}
+      if (window._castSampleAudioBtn && window._castSampleAudioBtn !== btnEl) {
+        window._castSampleAudioBtn.textContent = '▶';
+      }
+      // Same button clicked again → toggle off
+      if (window._castSampleAudioBtn === btnEl) {
+        window._castSampleAudio = null;
+        window._castSampleAudioBtn = null;
+        if (btnEl) btnEl.textContent = '▶';
+        return;
+      }
+    }
+    const cacheKey = `voicesample_${provider}_${voiceId}`;
+    let url = null;
+    if (IDB_AVAILABLE) {
+      try { url = await _idbGet(cacheKey); } catch (_) {}
+    }
+    if (!url) {
+      if (btnEl) btnEl.textContent = '⋯';
+      try {
+        if (provider === 'gemini') {
+          const sentence = `Hello, I'm ${voiceId}. This is how I sound in your story.`;
+          const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+          if (!key) { if (btnEl) btnEl.textContent = '▶'; alert('Gemini API key required for voice sample'); return; }
+          if (typeof generateTTSGemini !== 'function') { if (btnEl) btnEl.textContent = '▶'; return; }
+          const result = await generateTTSGemini(sentence, voiceId, key);
+          // generateTTSGemini returns { base64, mimeType }
+          url = `data:${result.mimeType};base64,${result.base64}`;
+        } else if (provider === 'elevenlabs') {
+          if (typeof window.elevenlabsGenerateSample !== 'function') {
+            if (btnEl) btnEl.textContent = '▶';
+            alert('ElevenLabs voice playback not yet wired');
+            return;
+          }
+          url = await window.elevenlabsGenerateSample(voiceId);
+        } else {
+          if (btnEl) btnEl.textContent = '▶';
+          return;
+        }
+        if (IDB_AVAILABLE && url) { try { await _idbPut(cacheKey, url); } catch (_) {} }
+      } catch (e) {
+        console.warn('[Voice] sample generation failed:', e.message);
+        if (btnEl) btnEl.textContent = '▶';
+        return;
+      }
+    }
+    if (!url) { if (btnEl) btnEl.textContent = '▶'; return; }
+    const audio = new Audio(url);
+    window._castSampleAudio = audio;
+    window._castSampleAudioBtn = btnEl;
+    if (btnEl) btnEl.textContent = '⏸';
+    audio.onended = () => {
+      if (window._castSampleAudioBtn === btnEl && btnEl) btnEl.textContent = '▶';
+      if (window._castSampleAudio === audio) {
+        window._castSampleAudio = null;
+        window._castSampleAudioBtn = null;
+      }
+    };
+    audio.onerror = () => {
+      if (btnEl) btnEl.textContent = '▶';
+      window._castSampleAudio = null;
+      window._castSampleAudioBtn = null;
+    };
+    try { await audio.play(); } catch (e) {
+      console.warn('[Voice] playback failed:', e.message);
+      if (btnEl) btnEl.textContent = '▶';
+    }
+  }
+  window.castPlayVoiceSample = castPlayVoiceSample;
+  // ─── End voice helpers ────────────────────────────────────────────────
+
   window._castPersistImages = _castPersistImages;
   window._castHydrateImages = _castHydrateImages;
   window._castDeleteImages = _castDeleteImages;
@@ -25639,6 +25893,51 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
 
   // Render a single character/location row card.
+  // Voice strip — emitted only for characters / presenter / setting (entities
+  // that can speak). Locations don't get a voice. Type 'character' renders.
+  function _renderVoiceStrip(item, type) {
+    if (type !== 'character') return '';
+    castAssignDefaultVoice(item, item.gender);  // ensure defaults present
+    const gender = item.gender || 'neutral';
+    const voice = item.voice || {};
+    const provider = voice.provider || 'gemini';
+    const voiceId = voice.voiceId || 'Kore';
+    const cfg = _ensureVoiceConfig();
+    const elevenlabsAvailable = !!cfg.elevenlabsKeyConfigured && (window.VOICE_CATALOG.elevenlabs || []).length > 0;
+
+    const genderOpts = [
+      { v: 'male',    label: '♂ Male' },
+      { v: 'female',  label: '♀ Female' },
+      { v: 'neutral', label: '⚧ Neutral' },
+    ].map(o => `<option value="${o.v}"${gender === o.v ? ' selected' : ''}>${o.label}</option>`).join('');
+
+    // Build voice options: gender-matched first, then "Other voices"
+    const list = (window.VOICE_CATALOG[provider] || []);
+    const matched = list.filter(v => v.gender === gender);
+    const others  = list.filter(v => v.gender !== gender);
+    const optStr = (v) => `<option value="${v.id}"${voiceId === v.id ? ' selected' : ''}>${escapeHtml(v.name)} — ${escapeHtml(v.tag)}</option>`;
+    const voiceOpts =
+      (matched.length ? `<optgroup label="Recommended for ${gender}">${matched.map(optStr).join('')}</optgroup>` : '') +
+      (others.length ? `<optgroup label="Other voices">${others.map(optStr).join('')}</optgroup>` : '');
+
+    const providerToggle =
+      `<div class="cast-voice-provider">` +
+        `<button type="button" class="cast-voice-provider-btn${provider === 'gemini' ? ' active' : ''}" data-action="voice-provider" data-provider="gemini">Gemini</button>` +
+        `<button type="button" class="cast-voice-provider-btn${provider === 'elevenlabs' ? ' active' : ''}${elevenlabsAvailable ? '' : ' disabled'}" data-action="voice-provider" data-provider="elevenlabs"${elevenlabsAvailable ? '' : ' title="Configure ElevenLabs API key in voice settings"'}>ElevenLabs${elevenlabsAvailable ? '' : ' 🔒'}</button>` +
+      `</div>`;
+
+    return `<div class="cast-voice-strip" data-voice-strip="1">
+      ${providerToggle}
+      <div class="cast-voice-controls">
+        <label class="cast-voice-label">Gender:</label>
+        <select class="cast-voice-gender" data-action="voice-gender">${genderOpts}</select>
+        <label class="cast-voice-label">Voice:</label>
+        <select class="cast-voice-id" data-action="voice-id">${voiceOpts}</select>
+        <button type="button" class="cast-voice-play" data-action="voice-play" aria-label="Play voice sample">▶</button>
+      </div>
+    </div>`;
+  }
+
   function _renderRowCard(item, type) {
     const isChar = type === 'character';
     const isLocked = !!item.locked;
@@ -25651,6 +25950,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         <div class="cast-row-meta">
           <div class="cast-row-name">${escapeHtml(item.name)} <span class="cast-row-locked-badge">🔒 Locked</span></div>
           <div class="cast-row-sub">${isChar ? (item.ageRange ? item.ageRange + ' · ' : '') : ''}${escapeHtml((item.appearanceSheet || '').slice(0, 80))}${(item.appearanceSheet || '').length > 80 ? '…' : ''}</div>
+          ${_renderVoiceStrip(item, type)}
         </div>
         <div class="cast-row-actions">
           <button class="btn-xs cast-unlock-btn" data-action="unlock">🔓 Unlock</button>
@@ -25673,6 +25973,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         <input type="text" class="cast-row-name-input" placeholder="${isChar ? 'Character name (e.g. Maya)' : 'Location name (e.g. Kitchen)'}" value="${escapeHtml(item.name)}" data-field="name">
         <textarea class="cast-row-desc-input" rows="2" placeholder="${isChar ? 'Description (e.g. 8 yrs old, curly black hair, red dress)' : 'Description (e.g. 1970s kitchen, yellow walls, vintage stove)'}" data-field="userDescription">${escapeHtml(item.userDescription || '')}</textarea>
         ${hasSheet ? `<div class="cast-row-sheet"><strong>Appearance:</strong> ${escapeHtml(item.appearanceSheet)}</div>` : ''}
+        ${_renderVoiceStrip(item, type)}
         ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate image to lock</div>' : ''}
       </div>
       <div class="cast-row-actions">
@@ -25726,7 +26027,64 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         });
       });
 
+      // Voice strip — gender + voice + sample play (characters only)
+      const genderSel = rowEl.querySelector('select[data-action="voice-gender"]');
+      if (genderSel) {
+        genderSel.addEventListener('change', () => {
+          item.gender = genderSel.value;
+          // Auto-update voice to gender-default when user changes gender
+          const cfg = _ensureVoiceConfig();
+          const def = cfg.defaultsByGender[item.gender] || cfg.fallbackVoice;
+          item.voice = Object.assign({}, item.voice, {
+            provider: def.provider, voiceId: def.voiceId, voiceName: def.voiceName,
+          });
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+          renderCastRows();
+        });
+      }
+      const voiceSel = rowEl.querySelector('select[data-action="voice-id"]');
+      if (voiceSel) {
+        voiceSel.addEventListener('change', () => {
+          if (!item.voice) castAssignDefaultVoice(item, item.gender);
+          item.voice.voiceId = voiceSel.value;
+          const cat = castFindVoiceInCatalog(item.voice.provider, voiceSel.value);
+          item.voice.voiceName = cat ? cat.name : voiceSel.value;
+          item.voiceLockedAt = new Date().toISOString();
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        });
+      }
+      rowEl.querySelectorAll('button[data-action="voice-provider"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (btn.classList.contains('disabled')) return;
+          const provider = btn.dataset.provider;
+          if (!item.voice) castAssignDefaultVoice(item, item.gender);
+          if (item.voice.provider === provider) return;
+          item.voice.provider = provider;
+          // Pick first matched-gender voice from new provider catalog
+          const list = (window.VOICE_CATALOG[provider] || []);
+          const matched = list.find(v => v.gender === (item.gender || 'neutral')) || list[0];
+          if (matched) {
+            item.voice.voiceId = matched.id;
+            item.voice.voiceName = matched.name;
+          }
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+          renderCastRows();
+        });
+      });
+      const playBtn = rowEl.querySelector('button[data-action="voice-play"]');
+      if (playBtn) {
+        playBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!item.voice) return;
+          castPlayVoiceSample(item.voice.provider, item.voice.voiceId, playBtn);
+        });
+      }
+
       rowEl.querySelectorAll('button[data-action]').forEach(btn => {
+        const a = btn.dataset.action;
+        // Skip voice-strip actions — already wired above
+        if (a === 'voice-gender' || a === 'voice-id' || a === 'voice-provider' || a === 'voice-play') return;
         btn.addEventListener('click', () => {
           const action = btn.dataset.action;
           if (action === 'upload') {
@@ -25868,6 +26226,18 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       item.distinctiveTraits = sheet.distinctiveTraits || [];
       item.ageRange = sheet.ageRange || '';
       item.build = sheet.build || '';
+      // Phase 1 — voice: infer gender for characters and assign default voice.
+      // Locations don't get a voice. Fire-and-forget — non-blocking.
+      if (type === 'character' && !item.gender) {
+        castInferGenderFromName(item.name, item.appearanceSheet).then(g => {
+          if (item.gender) return;  // user may have set it manually meanwhile
+          castAssignDefaultVoice(item, g);
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+          renderCastRows();
+        });
+      } else if (type === 'character') {
+        castAssignDefaultVoice(item, item.gender);
+      }
       // Step 2: representative image
       const imgUrl = await window.generateRepresentativeImage(item, type, key);
       item.representativeImageDataUrl = imgUrl;
@@ -26257,6 +26627,10 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     }
     cs.templateLocked   = !!state.templateLocked;
     cs.templateLockedAt = state.templateLockedAt || null;
+    // Phase 1 — voice config restore
+    if (state.voiceConfig) {
+      cs.voiceConfig = state.voiceConfig;
+    }
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
     if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
@@ -29679,6 +30053,16 @@ function _castSerializeItem(item) {
     needsRegen: !!item.needsRegen,
     createdAt: item.createdAt || null,
     lockedAt: item.lockedAt || null,
+    // Phase 1 — voice properties
+    gender: item.gender || null,
+    voice: item.voice ? {
+      provider: item.voice.provider || 'gemini',
+      voiceId: item.voice.voiceId || null,
+      voiceName: item.voice.voiceName || null,
+      speakingRate: item.voice.speakingRate || 1.0,
+      pitch: item.voice.pitch || 0,
+    } : null,
+    voiceLockedAt: item.voiceLockedAt || null,
   };
 }
 
@@ -29742,6 +30126,12 @@ function autoSaveCreateState() {
       } : null,
       templateLocked: !!(window.createJobState?.templateLocked),
       templateLockedAt: window.createJobState?.templateLockedAt || null,
+      // Phase 1 — project-level voice config
+      voiceConfig: window.createJobState?.voiceConfig ? {
+        fallbackVoice: window.createJobState.voiceConfig.fallbackVoice || null,
+        defaultsByGender: window.createJobState.voiceConfig.defaultsByGender || null,
+        elevenlabsKeyConfigured: !!window.createJobState.voiceConfig.elevenlabsKeyConfigured,
+      } : null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),

@@ -5681,6 +5681,90 @@ body:has(#photopilot-page.visible) .lp-nav { display: none !important; }
   background: color-mix(in oklch, var(--lp-accent, oklch(56% 0.18 230)) 6%, transparent);
 }
 #create-page .cast-row-sheet strong { color: var(--text-primary, var(--lp-text)); }
+
+/* Voice strip — character row voice picker (Phase 1, voice-and-lipsync-plan §6) */
+#create-page .cast-voice-strip {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: inherit;
+}
+#create-page .cast-voice-provider {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px;
+  background: color-mix(in oklch, var(--text, var(--lp-text)) 6%, transparent);
+  border-radius: 999px;
+  width: fit-content;
+}
+#create-page .cast-voice-provider-btn {
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary, var(--lp-dim));
+  cursor: pointer;
+}
+#create-page .cast-voice-provider-btn.active {
+  background: var(--accent, var(--lp-accent));
+  color: var(--bg-primary, var(--lp-bg));
+}
+#create-page .cast-voice-provider-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#create-page .cast-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#create-page .cast-voice-label {
+  font-size: 11px;
+  color: var(--text-muted, var(--lp-faint));
+  font-weight: 500;
+}
+#create-page .cast-voice-gender,
+#create-page .cast-voice-id {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 4px;
+  background: var(--bg-card, var(--lp-card));
+  color: var(--text, var(--lp-text));
+  cursor: pointer;
+}
+#create-page .cast-voice-gender { min-width: 100px; }
+#create-page .cast-voice-id     { min-width: 200px; flex: 1; }
+#create-page .cast-voice-gender:hover,
+#create-page .cast-voice-id:hover {
+  border-color: var(--accent, var(--lp-accent));
+}
+#create-page .cast-voice-play {
+  font-size: 13px;
+  font-family: inherit;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 4px;
+  background: var(--bg-card, var(--lp-card));
+  color: var(--text, var(--lp-text));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#create-page .cast-voice-play:hover {
+  border-color: var(--accent, var(--lp-accent));
+  color: var(--accent, var(--lp-accent));
+}
+
 #create-page .cast-row-actions {
   display: flex;
   flex-direction: column;
