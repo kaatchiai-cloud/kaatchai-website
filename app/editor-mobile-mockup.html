@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Editor – Mobile UI (Mode-Aware)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+    background: #0a0a0f; color: #e4e4e7;
+    min-height: 100vh; max-width: 430px; margin: 0 auto;
+    overflow-x: hidden; display: flex; flex-direction: column;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: #111118;
+    border-bottom: 1px solid #1e1e2a;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-back { font-size: 22px; color: #a78bfa; background: none; border: none; cursor: pointer; }
+  .topbar-title { font-size: 14px; font-weight: 600; color: #fff; flex: 1; }
+  .topbar-btn {
+    font-size: 11px; padding: 5px 12px; border-radius: 8px;
+    border: none; font-weight: 600; cursor: pointer;
+  }
+  .topbar-btn.secondary { background: #1e1e2a; color: #e4e4e7; }
+  .topbar-btn.primary { background: #7c3aed; color: #fff; }
+
+  /* ── Mode toggle (Illustrated / Animated) ── */
+  .mode-bar {
+    display: flex; gap: 0; margin: 0; background: #0d0d14;
+    border-bottom: 1px solid #1e1e2a;
+  }
+  .mode-btn {
+    flex: 1; padding: 8px 0; text-align: center; font-size: 12px; font-weight: 600;
+    background: transparent; color: #71717a; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all .2s;
+  }
+  .mode-btn.active { color: #a78bfa; border-bottom-color: #7c3aed; }
+
+  /* ── Preview canvas ── */
+  .preview-section { background: #000; position: relative; }
+  .preview-canvas {
+    width: 100%; aspect-ratio: 16/9; background: #0f0f1a;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .preview-placeholder {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 6px;
+  }
+  .preview-placeholder-text { font-size: 12px; color: #71717a; }
+  .preview-play {
+    position: absolute; width: 48px; height: 48px; border-radius: 50%;
+    background: #000a; backdrop-filter: blur(8px); border: 2px solid #fff4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #fff; cursor: pointer;
+  }
+  .preview-time {
+    position: absolute; bottom: 8px; right: 10px;
+    font-size: 11px; color: #fffc; background: #000a;
+    padding: 2px 8px; border-radius: 4px; font-variant-numeric: tabular-nums;
+  }
+  .preview-subtitle {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; font-weight: 700; color: #fff;
+    text-shadow: 0 1px 4px #000, 0 0 8px #000;
+    background: #00000066; padding: 3px 12px; border-radius: 6px;
+    white-space: nowrap;
+  }
+  .preview-fullscreen {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 16px; color: #fffa; background: #000a;
+    width: 30px; height: 30px; border-radius: 6px; border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .preview-mode-badge {
+    position: absolute; top: 8px; left: 10px;
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px;
+    background: #7c3aed; color: #fff;
+  }
+
+  /* ── Playback controls ── */
+  .playback-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; background: #111118;
+  }
+  .play-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #7c3aed; border: none; color: #fff;
+    font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .scrubber { flex: 1; height: 4px; background: #1e1e2a; border-radius: 2px; position: relative; }
+  .scrubber-fill { position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: #7c3aed; border-radius: 2px; }
+  .scrubber-handle {
+    position: absolute; top: -4px; left: 35%; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; transform: translateX(-50%);
+  }
+  .time-label { font-size: 11px; color: #71717a; font-variant-numeric: tabular-nums; }
+
+  /* ── Timeline minimap ── */
+  .timeline-mini {
+    display: flex; gap: 2px; padding: 6px 14px; background: #0d0d14;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .timeline-mini::-webkit-scrollbar { display: none; }
+  .tl-thumb {
+    width: 44px; height: 26px; border-radius: 4px; flex-shrink: 0;
+    border: 2px solid transparent; cursor: pointer; overflow: hidden;
+    position: relative;
+  }
+  .tl-thumb.active { border-color: #7c3aed; }
+  .tl-thumb-inner { width: 100%; height: 100%; border-radius: 2px; }
+  .tl-thumb-dur {
+    position: absolute; bottom: 1px; right: 2px;
+    font-size: 7px; color: #fff; background: #0008; padding: 0 3px; border-radius: 2px;
+  }
+  .tl-thumb-type {
+    position: absolute; top: 1px; left: 2px;
+    font-size: 7px; color: #fff; background: #7c3aed; padding: 0 3px; border-radius: 2px;
+    font-weight: 700;
+  }
+
+  /* ── Section tabs ── */
+  .section-tabs {
+    display: flex; overflow-x: auto; gap: 0;
+    border-bottom: 1px solid #1e1e2a; background: #111118;
+    -webkit-overflow-scrolling: touch;
+  }
+  .section-tabs::-webkit-scrollbar { display: none; }
+  .sec-tab {
+    padding: 10px 16px; white-space: nowrap; font-size: 12px; font-weight: 600;
+    color: #71717a; background: none; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all .2s;
+    flex-shrink: 0;
+  }
+  .sec-tab.active { color: #e4e4e7; border-bottom-color: #7c3aed; }
+
+  /* ── Panels ── */
+  .panel-area { flex: 1; overflow-y: auto; padding-bottom: 70px; }
+  .panel { display: none; padding: 12px 14px; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 13px; font-weight: 700; color: #e4e4e7; margin-bottom: 10px; }
+  .panel-subtitle { font-size: 11px; color: #71717a; margin-bottom: 8px; }
+
+  /* ── Generic helpers ── */
+  .prop-group { margin-bottom: 14px; }
+  .prop-label { font-size: 10px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .prop-row { display: flex; gap: 8px; align-items: center; }
+  .prop-input {
+    flex: 1; padding: 7px 10px; border-radius: 8px;
+    background: #0a0a0f; border: 1px solid #1e1e2a;
+    color: #e4e4e7; font-size: 12px;
+  }
+  .prop-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .prop-chip {
+    padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    background: #1e1e2a; color: #a1a1aa; border: 1px solid transparent; cursor: pointer;
+  }
+  .prop-chip.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+  .action-btn {
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; text-align: center;
+    background: #1e1e2a; color: #a1a1aa; border: none; cursor: pointer;
+  }
+  .action-btn.primary { background: #7c3aed; color: #fff; }
+  .dur-slider {
+    flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px;
+    background: #1e1e2a; outline: none;
+  }
+  .dur-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: #7c3aed; cursor: pointer;
+  }
+  .dur-val { font-size: 12px; color: #a1a1aa; min-width: 36px; text-align: right; }
+
+  /* ═══════════════════════════════════════
+     ANIMATED MODE — Clips panel
+     ═══════════════════════════════════════ */
+  .clip-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .clip-card {
+    background: #1a1a24; border-radius: 12px; overflow: hidden;
+    border: 1px solid #1e1e2a; cursor: pointer;
+  }
+  .clip-card.selected { border-color: #7c3aed; }
+
+  .clip-main {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    background: #0f0f1a; overflow: hidden;
+  }
+  .clip-main-inner {
+    width: 100%; height: 100%;
+  }
+  .clip-play-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .clip-play-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #000a; backdrop-filter: blur(6px); border: 2px solid #fff3;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px;
+  }
+  .clip-scene-label {
+    position: absolute; top: 6px; left: 8px;
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 5px;
+    background: #7c3aed; color: #fff;
+  }
+  .clip-duration {
+    position: absolute; bottom: 6px; right: 8px;
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 5px;
+    background: #000a; color: #fff; backdrop-filter: blur(4px);
+  }
+  .clip-model-label {
+    position: absolute; top: 6px; right: 8px;
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    background: #2563eb; color: #fff;
+  }
+
+  /* Source photo reference */
+  .clip-ref {
+    position: absolute; bottom: 6px; left: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .clip-ref-thumb {
+    width: 28px; height: 42px; border-radius: 4px; overflow: hidden;
+    border: 1.5px solid #fff4;
+  }
+  .clip-ref-thumb-inner { width: 100%; height: 100%; }
+  .clip-ref-label { font-size: 9px; color: #fff9; }
+
+  .clip-footer {
+    padding: 8px 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .clip-footer-title { font-size: 12px; font-weight: 600; color: #e4e4e7; flex: 1; }
+  .clip-footer-status { font-size: 10px; font-weight: 600; }
+  .clip-footer-status.done { color: #34d399; }
+  .clip-footer-status.gen { color: #fbbf24; }
+
+  /* Trim controls */
+  .trim-row {
+    padding: 0 10px 10px; display: flex; gap: 8px; align-items: center;
+  }
+  .trim-label { font-size: 10px; color: #71717a; }
+  .trim-input {
+    width: 52px; padding: 4px 6px; border-radius: 6px;
+    background: #0a0a0f; border: 1px solid #1e1e2a;
+    color: #e4e4e7; font-size: 11px; text-align: center;
+  }
+  .trim-bar {
+    flex: 1; height: 20px; background: #0a0a0f; border-radius: 6px;
+    position: relative; overflow: hidden; border: 1px solid #1e1e2a;
+  }
+  .trim-fill {
+    position: absolute; top: 0; left: 10%; width: 80%; height: 100%;
+    background: #7c3aed33; border-left: 2px solid #7c3aed; border-right: 2px solid #7c3aed;
+  }
+
+  /* ═══════════════════════════════════════
+     ILLUSTRATED MODE — Photos panel
+     ═══════════════════════════════════════ */
+  .photo-strip {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .photo-strip::-webkit-scrollbar { display: none; }
+  .photo-item {
+    flex-shrink: 0; width: 90px; border-radius: 10px; overflow: hidden;
+    border: 2px solid #1e1e2a; cursor: pointer; position: relative;
+  }
+  .photo-item.selected { border-color: #7c3aed; }
+  .photo-item-img { width: 100%; aspect-ratio: 9/16; }
+  .photo-item-meta {
+    padding: 4px 6px; background: #111118; font-size: 9px; color: #71717a;
+    display: flex; justify-content: space-between;
+  }
+
+  /* ═══════════════════════════════════════
+     Transitions, Motion, Text, Subtitles,
+     Audio, PiP, Language, Export panels
+     ═══════════════════════════════════════ */
+  .trans-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .trans-item {
+    aspect-ratio: 1; border-radius: 10px; background: #1a1a24;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; cursor: pointer; border: 2px solid transparent; font-size: 18px;
+  }
+  .trans-item.active { border-color: #7c3aed; background: #7c3aed15; }
+  .trans-label { font-size: 9px; color: #71717a; }
+
+  .motion-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .motion-item {
+    aspect-ratio: 1; border-radius: 10px; background: #1a1a24;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; cursor: pointer; border: 2px solid transparent; font-size: 18px;
+  }
+  .motion-item.active { border-color: #059669; background: #05966915; }
+  .motion-label { font-size: 9px; color: #71717a; }
+
+  .text-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .text-item-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: #1a1a24; border-radius: 10px;
+    border: 1px solid #1e1e2a; cursor: pointer;
+  }
+  .text-item-card.selected { border-color: #7c3aed; }
+  .text-preview { font-size: 14px; font-weight: 700; color: #fff; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .text-time { font-size: 10px; color: #71717a; }
+  .text-delete { font-size: 14px; color: #ef4444; background: none; border: none; cursor: pointer; }
+
+  .text-props { background: #0d0d14; border-radius: 10px; padding: 12px; }
+  .font-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .font-chip {
+    padding: 4px 10px; border-radius: 6px; font-size: 11px;
+    background: #1e1e2a; color: #a1a1aa; cursor: pointer; border: 1px solid transparent;
+  }
+  .font-chip.active { border-color: #7c3aed; color: #a78bfa; }
+  .color-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .color-swatch { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #333; cursor: pointer; }
+  .color-label { font-size: 11px; color: #71717a; }
+  .position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100px; }
+  .pos-dot { width: 100%; aspect-ratio: 1; border-radius: 6px; background: #1e1e2a; cursor: pointer; border: 1px solid transparent; }
+  .pos-dot.active { background: #7c3aed; border-color: #a78bfa; }
+  .anim-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  .sub-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #1e1e2a; }
+  .sub-time { font-size: 10px; color: #7c3aed; min-width: 50px; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .sub-text { font-size: 12px; color: #e4e4e7; line-height: 1.5; flex: 1; }
+  .sub-edit-btn { font-size: 10px; color: #71717a; background: none; border: none; cursor: pointer; padding-top: 2px; }
+  .sub-style-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid #1e1e2a; }
+
+  .waveform {
+    width: 100%; height: 60px; background: #0a0a0f; border-radius: 10px;
+    border: 1px solid #1e1e2a; position: relative; overflow: hidden; margin-bottom: 10px;
+  }
+  .waveform-bars { display: flex; align-items: center; justify-content: center; height: 100%; gap: 1.5px; padding: 0 10px; }
+  .wf-bar { width: 2px; border-radius: 1px; background: #7c3aed; }
+  .waveform-cursor { position: absolute; top: 0; left: 35%; width: 2px; height: 100%; background: #fff; }
+  .bgm-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: #1a1a24; border-radius: 10px;
+    border: 1px solid #1e1e2a; margin-bottom: 8px;
+  }
+  .bgm-icon { font-size: 20px; }
+  .bgm-info { flex: 1; }
+  .bgm-name { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+  .bgm-meta { font-size: 10px; color: #71717a; }
+  .bgm-remove { font-size: 11px; color: #ef4444; background: none; border: none; cursor: pointer; }
+  .volume-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .vol-icon { font-size: 14px; color: #71717a; }
+
+  .pip-preview { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 3px solid #7c3aed; margin: 0 auto 10px; }
+  .pip-preview-inner { width: 100%; height: 100%; background: linear-gradient(135deg, #2d1b42, #462046); }
+  .pip-position-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+  .pip-pos-btn {
+    padding: 8px 0; border-radius: 8px; font-size: 10px; text-align: center;
+    background: #1e1e2a; color: #a1a1aa; border: 1px solid transparent; cursor: pointer;
+  }
+  .pip-pos-btn.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+  .pip-shape-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .pip-shape {
+    flex: 1; padding: 8px 0; text-align: center; border-radius: 8px;
+    background: #1e1e2a; color: #a1a1aa; border: 1px solid transparent; cursor: pointer; font-size: 11px;
+  }
+  .pip-shape.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+
+  .lang-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .lang-chip {
+    padding: 6px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+    background: #1e1e2a; color: #a1a1aa; border: 1px solid transparent; cursor: pointer;
+  }
+  .lang-chip.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+  .lang-add { background: none; border: 1px dashed #71717a44; color: #71717a; }
+  .lang-status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: #1a1a24; border-radius: 10px; font-size: 12px; color: #a1a1aa;
+  }
+  .lang-status-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .lang-status-dot.done { background: #34d399; }
+  .lang-status-dot.gen { background: #fbbf24; animation: pulse 1.5s infinite; }
+
+  .export-card {
+    background: #1a1a24; border-radius: 12px; padding: 14px; margin-bottom: 10px;
+    border: 1px solid #1e1e2a;
+  }
+  .export-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .export-label { font-size: 12px; color: #71717a; }
+  .export-value { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+  .quality-row { display: flex; gap: 6px; margin: 10px 0; }
+  .quality-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px; text-align: center;
+    background: #1e1e2a; color: #a1a1aa; border: 1px solid transparent; cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .quality-btn.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+  .fps-row { display: flex; gap: 6px; }
+  .fps-btn {
+    padding: 8px 14px; border-radius: 8px; background: #1e1e2a; color: #a1a1aa;
+    border: 1px solid transparent; cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .fps-btn.active { background: #7c3aed22; color: #a78bfa; border-color: #7c3aed; }
+  .export-big-btn {
+    width: 100%; padding: 14px 0; border-radius: 12px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff; font-size: 15px; font-weight: 700; border: none; cursor: pointer; margin-top: 10px;
+  }
+  .export-progress { width: 100%; height: 6px; border-radius: 3px; background: #1e1e2a; overflow: hidden; margin-top: 10px; }
+  .export-progress-fill {
+    height: 100%; width: 45%; border-radius: 3px;
+    background: linear-gradient(90deg, #7c3aed, #a855f7);
+    animation: progress-pulse 2s ease-in-out infinite;
+  }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    padding: 8px 14px; padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: #111118ee; backdrop-filter: blur(12px);
+    border-top: 1px solid #1e1e2a; display: flex; gap: 6px;
+  }
+  .bottom-action {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    font-size: 12px; font-weight: 700; text-align: center; border: none; cursor: pointer;
+  }
+  .bottom-action.undo { background: #1e1e2a; color: #a1a1aa; }
+  .bottom-action.redo { background: #1e1e2a; color: #a1a1aa; }
+  .bottom-action.save { background: #059669; color: #fff; }
+  .bottom-action.export { background: #7c3aed; color: #fff; }
+
+  /* Hidden helper */
+  .hidden { display: none !important; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  @keyframes progress-pulse { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <button class="topbar-back">‹</button>
+  <span class="topbar-title">My Reel — Editor</span>
+  <button class="topbar-btn secondary">Undo</button>
+  <button class="topbar-btn primary">Export</button>
+</div>
+
+<!-- Mode toggle -->
+<div class="mode-bar">
+  <button class="mode-btn" onclick="setEditorMode('illustrated')">Illustrated</button>
+  <button class="mode-btn active" onclick="setEditorMode('animated')">Animated</button>
+</div>
+
+<!-- Preview -->
+<div class="preview-section">
+  <div class="preview-canvas">
+    <div class="preview-placeholder">
+      <div style="font-size:40px;">🎬</div>
+      <div class="preview-placeholder-text">Preview</div>
+    </div>
+    <div class="preview-play">▶</div>
+    <div class="preview-subtitle">A lone figure walks through the rain</div>
+    <div class="preview-time">00:15 / 00:45</div>
+    <span class="preview-mode-badge" id="preview-badge">Animated</span>
+    <button class="preview-fullscreen">⛶</button>
+  </div>
+</div>
+
+<!-- Playback -->
+<div class="playback-bar">
+  <button class="play-btn">▶</button>
+  <div class="scrubber"><div class="scrubber-fill"></div><div class="scrubber-handle"></div></div>
+  <span class="time-label">0:15 / 0:45</span>
+</div>
+
+<!-- Timeline minimap -->
+<div class="timeline-mini" id="minimap-animated">
+  <div class="tl-thumb active"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#1a1a2e,#16213e);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#2d1b42,#1a1a2e);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#0f3460,#1a1a2e);"></div><span class="tl-thumb-type">VID</span><span class="tl-thumb-dur">5s</span></div>
+</div>
+<div class="timeline-mini hidden" id="minimap-illustrated">
+  <div class="tl-thumb active"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">5s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">8s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">6s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#1a1a2e,#16213e);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">7s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#2d1b42,#1a1a2e);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">10s</span></div>
+  <div class="tl-thumb"><div class="tl-thumb-inner" style="background:linear-gradient(135deg,#0f3460,#1a1a2e);"></div><span class="tl-thumb-type">IMG</span><span class="tl-thumb-dur">9s</span></div>
+</div>
+
+<!-- Section tabs — Animated mode (no Motion tab) -->
+<div class="section-tabs" id="tabs-animated">
+  <button class="sec-tab active" onclick="switchPanel(this, 'clips')">Clips</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'transitions')">Transitions</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'text')">Text</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'subtitles')">Subtitles</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'audio')">Audio</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'pip')">PiP</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'language')">Language</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'export')">Export</button>
+</div>
+
+<!-- Section tabs — Illustrated mode (has Motion, has Photos) -->
+<div class="section-tabs hidden" id="tabs-illustrated">
+  <button class="sec-tab active" onclick="switchPanel(this, 'photos')">Photos</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'transitions')">Transitions</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'motion')">Motion</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'text')">Text</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'subtitles')">Subtitles</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'audio')">Audio</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'pip')">PiP</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'language')">Language</button>
+  <button class="sec-tab" onclick="switchPanel(this, 'export')">Export</button>
+</div>
+
+<!-- Panel area -->
+<div class="panel-area">
+
+  <!-- ═══ ANIMATED: Clips panel ═══ -->
+  <div class="panel active" id="panel-clips">
+    <div class="panel-title">Video Clips</div>
+    <div class="panel-subtitle">Generated video clips — final output</div>
+
+    <div class="clip-list">
+      <!-- Clip 1: Done -->
+      <div class="clip-card selected">
+        <div class="clip-main">
+          <div class="clip-main-inner" style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);"></div>
+          <div class="clip-play-overlay"><div class="clip-play-btn">▶</div></div>
+          <span class="clip-scene-label">Scene 1</span>
+          <span class="clip-model-label">Kling 2.5</span>
+          <span class="clip-duration">5.0s</span>
+          <div class="clip-ref">
+            <div class="clip-ref-thumb"><div class="clip-ref-thumb-inner" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div></div>
+            <span class="clip-ref-label">Source</span>
+          </div>
+        </div>
+        <div class="clip-footer">
+          <span class="clip-footer-title">Hook — Opening shot</span>
+          <span class="clip-footer-status done">Ready</span>
+        </div>
+        <div class="trim-row">
+          <span class="trim-label">In</span>
+          <input class="trim-input" value="0:00">
+          <div class="trim-bar"><div class="trim-fill"></div></div>
+          <input class="trim-input" value="5:00">
+          <span class="trim-label">Out</span>
+        </div>
+      </div>
+
+      <!-- Clip 2: Done -->
+      <div class="clip-card">
+        <div class="clip-main">
+          <div class="clip-main-inner" style="background:linear-gradient(135deg,#2d1b42 0%,#462046 50%,#1a1a2e 100%);"></div>
+          <div class="clip-play-overlay"><div class="clip-play-btn">▶</div></div>
+          <span class="clip-scene-label">Scene 2</span>
+          <span class="clip-model-label">Kling 2.5</span>
+          <span class="clip-duration">5.0s</span>
+          <div class="clip-ref">
+            <div class="clip-ref-thumb"><div class="clip-ref-thumb-inner" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div></div>
+            <span class="clip-ref-label">Source</span>
+          </div>
+        </div>
+        <div class="clip-footer">
+          <span class="clip-footer-title">Problem — The message</span>
+          <span class="clip-footer-status done">Ready</span>
+        </div>
+      </div>
+
+      <!-- Clip 3: Generating -->
+      <div class="clip-card">
+        <div class="clip-main">
+          <div class="clip-main-inner" style="background:linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%);opacity:.5;"></div>
+          <div class="clip-play-overlay">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <div style="width:28px;height:28px;border:3px solid #fbbf24;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+              <span style="font-size:11px;color:#fbbf24;font-weight:600;">Generating...</span>
+            </div>
+          </div>
+          <span class="clip-scene-label">Scene 3</span>
+          <span class="clip-model-label">Veo3</span>
+          <div class="clip-ref">
+            <div class="clip-ref-thumb"><div class="clip-ref-thumb-inner" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div></div>
+            <span class="clip-ref-label">Source</span>
+          </div>
+        </div>
+        <div class="clip-footer">
+          <span class="clip-footer-title">Reveal — The decision</span>
+          <span class="clip-footer-status gen">Generating</span>
+        </div>
+      </div>
+
+      <!-- Clip 4: Pending -->
+      <div class="clip-card" style="opacity:.5;">
+        <div class="clip-main" style="height:60px;">
+          <div class="clip-main-inner" style="background:#1a1a24;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:11px;color:#71717a;">Waiting for video generation...</span>
+          </div>
+          <span class="clip-scene-label" style="background:#71717a;">Scene 4</span>
+        </div>
+        <div class="clip-footer">
+          <span class="clip-footer-title">Proof — The journey</span>
+          <span class="clip-footer-status" style="color:#71717a;">Pending</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ILLUSTRATED: Photos panel ═══ -->
+  <div class="panel" id="panel-photos">
+    <div class="panel-title">Photo Timeline</div>
+    <div class="panel-subtitle">Images with Ken Burns motion — final output</div>
+    <div class="photo-strip">
+      <div class="photo-item selected">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div>
+        <div class="photo-item-meta"><span>0:00</span><span>5s</span></div>
+      </div>
+      <div class="photo-item">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div>
+        <div class="photo-item-meta"><span>0:05</span><span>8s</span></div>
+      </div>
+      <div class="photo-item">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div>
+        <div class="photo-item-meta"><span>0:13</span><span>6s</span></div>
+      </div>
+      <div class="photo-item">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#1a1a2e,#16213e);"></div>
+        <div class="photo-item-meta"><span>0:19</span><span>7s</span></div>
+      </div>
+      <div class="photo-item">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#2d1b42,#1a1a2e);"></div>
+        <div class="photo-item-meta"><span>0:26</span><span>10s</span></div>
+      </div>
+      <div class="photo-item">
+        <div class="photo-item-img" style="background:linear-gradient(135deg,#0f3460,#1a1a2e);"></div>
+        <div class="photo-item-meta"><span>0:36</span><span>9s</span></div>
+      </div>
+    </div>
+    <div class="prop-group" style="margin-top:12px;">
+      <div class="prop-label">Selected: Scene 1 — Hook</div>
+      <div class="prop-row" style="margin-bottom:8px;">
+        <span style="font-size:11px;color:#71717a;width:60px;">Start</span>
+        <input class="prop-input" value="0:00" style="max-width:80px;">
+        <span style="font-size:11px;color:#71717a;width:60px;margin-left:8px;">Duration</span>
+        <input class="prop-input" value="5.0s" style="max-width:80px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Transitions ═══ -->
+  <div class="panel" id="panel-transitions">
+    <div class="panel-title">Transitions</div>
+    <div class="panel-subtitle">Applied between scenes</div>
+    <div class="trans-grid">
+      <div class="trans-item"><span>✂</span><span class="trans-label">Cut</span></div>
+      <div class="trans-item active"><span>🌫</span><span class="trans-label">Fade</span></div>
+      <div class="trans-item"><span>✦</span><span class="trans-label">Cross</span></div>
+      <div class="trans-item"><span>💨</span><span class="trans-label">Whip</span></div>
+      <div class="trans-item"><span>🔍</span><span class="trans-label">Zoom</span></div>
+      <div class="trans-item"><span>🔄</span><span class="trans-label">Rotate</span></div>
+      <div class="trans-item"><span>🌀</span><span class="trans-label">Iris</span></div>
+      <div class="trans-item"><span>▶</span><span class="trans-label">Wipe</span></div>
+      <div class="trans-item"><span>⬜</span><span class="trans-label">Split</span></div>
+      <div class="trans-item"><span>💫</span><span class="trans-label">Dissolve</span></div>
+      <div class="trans-item"><span>🌟</span><span class="trans-label">Flash</span></div>
+      <div class="trans-item"><span>📺</span><span class="trans-label">Glitch</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+      <span style="font-size:11px;color:#71717a;">Duration</span>
+      <input type="range" class="dur-slider" min="0.1" max="2" step="0.1" value="0.5">
+      <span class="dur-val">0.5s</span>
+    </div>
+  </div>
+
+  <!-- ═══ Motion (Illustrated only) ═══ -->
+  <div class="panel" id="panel-motion">
+    <div class="panel-title">Motion Effects</div>
+    <div class="panel-subtitle">Ken Burns & pan effects per scene</div>
+    <div class="motion-grid">
+      <div class="motion-item"><span>⊘</span><span class="motion-label">None</span></div>
+      <div class="motion-item active"><span>🔎</span><span class="motion-label">Ken Burns</span></div>
+      <div class="motion-item"><span>🔍+</span><span class="motion-label">Zoom In</span></div>
+      <div class="motion-item"><span>🔍-</span><span class="motion-label">Zoom Out</span></div>
+      <div class="motion-item"><span>←</span><span class="motion-label">Pan Left</span></div>
+      <div class="motion-item"><span>→</span><span class="motion-label">Pan Right</span></div>
+      <div class="motion-item"><span>↑</span><span class="motion-label">Pan Up</span></div>
+      <div class="motion-item"><span>↓</span><span class="motion-label">Pan Down</span></div>
+    </div>
+  </div>
+
+  <!-- ═══ Text ═══ -->
+  <div class="panel" id="panel-text">
+    <div class="panel-title">Text Overlays</div>
+    <div class="text-items">
+      <div class="text-item-card selected">
+        <div class="text-preview">HOOK: Watch this</div>
+        <span class="text-time">0:00–0:03</span>
+        <button class="text-delete">✕</button>
+      </div>
+      <div class="text-item-card">
+        <div class="text-preview">Subscribe for more</div>
+        <span class="text-time">0:40–0:45</span>
+        <button class="text-delete">✕</button>
+      </div>
+    </div>
+    <button class="action-btn primary" style="width:100%;margin-bottom:14px;">+ Add Text</button>
+    <div class="text-props">
+      <div class="prop-label">Text Properties</div>
+      <input class="prop-input" value="HOOK: Watch this" style="width:100%;margin-bottom:8px;">
+      <div class="prop-label" style="margin-top:8px;">Font</div>
+      <div class="font-row">
+        <span class="font-chip active">Poppins</span>
+        <span class="font-chip">Montserrat</span>
+        <span class="font-chip">Inter</span>
+        <span class="font-chip">Noto Tamil</span>
+      </div>
+      <div class="prop-row" style="margin-bottom:8px;">
+        <span style="font-size:11px;color:#71717a;">Size</span>
+        <input type="range" class="dur-slider" min="12" max="96" value="36" style="flex:1;">
+        <span class="dur-val">36px</span>
+      </div>
+      <div class="prop-label">Colors</div>
+      <div class="color-row">
+        <div class="color-swatch" style="background:#ffffff;"></div><span class="color-label">Text</span>
+        <div class="color-swatch" style="background:#000000;"></div><span class="color-label">Stroke</span>
+        <div class="color-swatch" style="background:#00000066;"></div><span class="color-label">BG</span>
+      </div>
+      <div class="prop-row">
+        <div>
+          <div class="prop-label">Position</div>
+          <div class="position-grid">
+            <div class="pos-dot"></div><div class="pos-dot"></div><div class="pos-dot"></div>
+            <div class="pos-dot"></div><div class="pos-dot active"></div><div class="pos-dot"></div>
+            <div class="pos-dot"></div><div class="pos-dot"></div><div class="pos-dot"></div>
+          </div>
+        </div>
+        <div style="flex:1;margin-left:16px;">
+          <div class="prop-label">Animation</div>
+          <div class="anim-row">
+            <span class="prop-chip active">Fade</span>
+            <span class="prop-chip">Slide Up</span>
+            <span class="prop-chip">Scale</span>
+            <span class="prop-chip">Typewriter</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Subtitles ═══ -->
+  <div class="panel" id="panel-subtitles">
+    <div class="panel-title">Subtitles</div>
+    <div class="sub-style-row">
+      <div class="prop-label" style="margin:0;">Style</div>
+      <span class="prop-chip active" style="margin-left:auto;">Word-by-word</span>
+      <span class="prop-chip">Line</span>
+      <span class="prop-chip">Karaoke</span>
+    </div>
+    <div class="color-row" style="margin-bottom:10px;">
+      <div class="color-swatch" style="background:#ffffff;"></div><span class="color-label">Text</span>
+      <div class="color-swatch" style="background:#000000;"></div><span class="color-label">Outline</span>
+      <div class="color-swatch" style="background:#7c3aed;"></div><span class="color-label">Accent</span>
+    </div>
+    <div class="sub-item"><span class="sub-time">0:00</span><span class="sub-text">A lone figure walks through the neon-lit rain</span><button class="sub-edit-btn">✎</button></div>
+    <div class="sub-item"><span class="sub-time">0:05</span><span class="sub-text">A crumpled letter in trembling hands reveals the truth</span><button class="sub-edit-btn">✎</button></div>
+    <div class="sub-item"><span class="sub-time">0:13</span><span class="sub-text">Standing at the crossroads, the choice is clear</span><button class="sub-edit-btn">✎</button></div>
+    <div class="sub-item"><span class="sub-time">0:19</span><span class="sub-text">Footsteps echo through changing landscapes</span><button class="sub-edit-btn">✎</button></div>
+    <div class="sub-item"><span class="sub-time">0:26</span><span class="sub-text">Two silhouettes finally meet under the bridge at dawn</span><button class="sub-edit-btn">✎</button></div>
+    <div class="sub-item"><span class="sub-time">0:36</span><span class="sub-text">Every step forward is a step toward yourself</span><button class="sub-edit-btn">✎</button></div>
+  </div>
+
+  <!-- ═══ Audio ═══ -->
+  <div class="panel" id="panel-audio">
+    <div class="panel-title">Audio</div>
+    <div class="prop-label">Voiceover Waveform</div>
+    <div class="waveform"><div class="waveform-bars" id="wf-bars"></div><div class="waveform-cursor"></div></div>
+    <div class="prop-label" style="margin-top:14px;">Background Music</div>
+    <div class="bgm-card">
+      <span class="bgm-icon">🎵</span>
+      <div class="bgm-info"><div class="bgm-name">Cinematic Ambient Loop</div><div class="bgm-meta">2:15 · uploaded</div></div>
+      <button class="bgm-remove">✕</button>
+    </div>
+    <div class="volume-row">
+      <span class="vol-icon">🔊</span><span style="font-size:11px;color:#71717a;">BGM Vol</span>
+      <input type="range" class="dur-slider" min="0" max="100" value="30" style="flex:1;">
+      <span class="dur-val">30%</span>
+    </div>
+    <div class="volume-row" style="margin-top:6px;">
+      <span class="vol-icon">🎙</span><span style="font-size:11px;color:#71717a;">Voice Vol</span>
+      <input type="range" class="dur-slider" min="0" max="100" value="85" style="flex:1;">
+      <span class="dur-val">85%</span>
+    </div>
+    <div style="margin-top:10px;">
+      <span class="prop-chip">Loop ✓</span>
+      <span class="prop-chip" style="margin-left:4px;">Import BGM</span>
+    </div>
+  </div>
+
+  <!-- ═══ PiP ═══ -->
+  <div class="panel" id="panel-pip">
+    <div class="panel-title">Picture-in-Picture</div>
+    <div class="pip-preview"><div class="pip-preview-inner"></div></div>
+    <button class="action-btn primary" style="width:100%;margin-bottom:14px;">+ Add PiP Clip</button>
+    <div class="prop-label">Position</div>
+    <div class="pip-position-grid">
+      <div class="pip-pos-btn">Top-L</div><div class="pip-pos-btn active">Top-R</div>
+      <div class="pip-pos-btn">Bot-L</div><div class="pip-pos-btn">Bot-R</div>
+    </div>
+    <div class="prop-label">Shape</div>
+    <div class="pip-shape-row">
+      <div class="pip-shape active">Circle</div><div class="pip-shape">Rounded</div><div class="pip-shape">Rectangle</div>
+    </div>
+    <div class="prop-label">Size</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <input type="range" class="dur-slider" min="10" max="50" value="25"><span class="dur-val">25%</span>
+    </div>
+    <div class="prop-label" style="margin-top:10px;">Border</div>
+    <div class="color-row">
+      <div class="color-swatch" style="background:#7c3aed;"></div><span class="color-label">Color</span>
+      <input type="range" class="dur-slider" min="0" max="6" value="3" style="flex:1;"><span class="dur-val">3px</span>
+    </div>
+  </div>
+
+  <!-- ═══ Language ═══ -->
+  <div class="panel" id="panel-language">
+    <div class="panel-title">Language Tracks</div>
+    <div class="lang-chips">
+      <span class="lang-chip active">English (Original)</span>
+      <span class="lang-chip">Tamil</span>
+      <span class="lang-chip">Hindi</span>
+      <span class="lang-chip lang-add">+ Add</span>
+    </div>
+    <div class="prop-label">Track Status</div>
+    <div class="lang-status" style="margin-bottom:6px;"><span class="lang-status-dot done"></span><span style="flex:1;">English — Original audio</span><span style="font-size:10px;color:#34d399;">Ready</span></div>
+    <div class="lang-status" style="margin-bottom:6px;"><span class="lang-status-dot done"></span><span style="flex:1;">Tamil — Gemini TTS</span><span style="font-size:10px;color:#34d399;">Ready</span></div>
+    <div class="lang-status"><span class="lang-status-dot gen"></span><span style="flex:1;">Hindi — Generating...</span><span style="font-size:10px;color:#fbbf24;">42%</span></div>
+  </div>
+
+  <!-- ═══ Export ═══ -->
+  <div class="panel" id="panel-export">
+    <div class="panel-title">Export</div>
+    <div class="export-card">
+      <div class="export-row"><span class="export-label">Resolution</span><span class="export-value">1080 × 1920</span></div>
+      <div class="export-row"><span class="export-label">Duration</span><span class="export-value">0:45</span></div>
+      <div class="export-row"><span class="export-label">Scenes</span><span class="export-value">6</span></div>
+      <div class="export-row"><span class="export-label">Language</span><span class="export-value">English</span></div>
+      <div class="export-row"><span class="export-label">Mode</span><span class="export-value" id="export-mode-label">Animated</span></div>
+    </div>
+    <div class="prop-label">Quality</div>
+    <div class="quality-row">
+      <div class="quality-btn">Fast</div><div class="quality-btn active">Balanced</div><div class="quality-btn">High</div>
+    </div>
+    <div class="prop-label">Frame Rate</div>
+    <div class="fps-row">
+      <span class="fps-btn">24</span><span class="fps-btn active">30</span><span class="fps-btn">60</span>
+    </div>
+    <button class="export-big-btn">Export Video</button>
+    <div style="text-align:center;margin-top:12px;">
+      <div style="font-size:11px;color:#71717a;">Rendering frames... 45%</div>
+      <div class="export-progress"><div class="export-progress-fill"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+  <button class="bottom-action undo">Undo</button>
+  <button class="bottom-action redo">Redo</button>
+  <button class="bottom-action save">Save</button>
+  <button class="bottom-action export">Export</button>
+</div>
+
+<script>
+// Waveform
+const wfBars = document.getElementById('wf-bars');
+for (let i = 0; i < 120; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'wf-bar';
+  bar.style.height = (8 + Math.random() * 40) + 'px';
+  bar.style.opacity = i / 120 < 0.35 ? '1' : '0.4';
+  wfBars.appendChild(bar);
+}
+
+let currentMode = 'animated';
+
+function switchPanel(btn, id) {
+  // Clear active on the CURRENT visible tab bar
+  const tabBar = currentMode === 'animated'
+    ? document.getElementById('tabs-animated')
+    : document.getElementById('tabs-illustrated');
+  tabBar.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+function setEditorMode(mode) {
+  currentMode = mode;
+  // Mode bar
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.mode-btn[onclick="setEditorMode('${mode}')"]`).classList.add('active');
+
+  // Tab bars
+  document.getElementById('tabs-animated').classList.toggle('hidden', mode !== 'animated');
+  document.getElementById('tabs-illustrated').classList.toggle('hidden', mode !== 'illustrated');
+
+  // Minimaps
+  document.getElementById('minimap-animated').classList.toggle('hidden', mode !== 'animated');
+  document.getElementById('minimap-illustrated').classList.toggle('hidden', mode !== 'illustrated');
+
+  // Show first panel for this mode
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if (mode === 'animated') {
+    document.getElementById('panel-clips').classList.add('active');
+    document.getElementById('tabs-animated').querySelector('.sec-tab').classList.add('active');
+  } else {
+    document.getElementById('panel-photos').classList.add('active');
+    document.getElementById('tabs-illustrated').querySelector('.sec-tab').classList.add('active');
+  }
+
+  // Badge
+  document.getElementById('preview-badge').textContent = mode === 'animated' ? 'Animated' : 'Illustrated';
+  document.getElementById('export-mode-label').textContent = mode === 'animated' ? 'Animated' : 'Illustrated';
+}
+</script>
+</body>
+</html>

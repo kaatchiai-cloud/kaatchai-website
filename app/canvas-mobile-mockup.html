@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Canvas – Mobile Card UI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+    background: #0a0a0f;
+    color: #e4e4e7;
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: #111118;
+    border-bottom: 1px solid #1e1e2a;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-back { font-size: 22px; color: #a78bfa; background: none; border: none; cursor: pointer; }
+  .topbar-title { font-size: 15px; font-weight: 600; color: #fff; }
+  .topbar-mode {
+    font-size: 11px; padding: 4px 10px; border-radius: 12px;
+    background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44;
+  }
+
+  /* ── Mode toggle ── */
+  .mode-bar {
+    display: flex; gap: 0; margin: 12px 16px; border-radius: 10px;
+    overflow: hidden; border: 1px solid #1e1e2a;
+  }
+  .mode-btn {
+    flex: 1; padding: 8px 0; text-align: center; font-size: 12px; font-weight: 600;
+    background: #111118; color: #71717a; border: none; cursor: pointer; transition: all .2s;
+  }
+  .mode-btn.active { background: #7c3aed; color: #fff; }
+
+  /* ── Section cards ── */
+  .sections { padding: 8px 16px 100px; }
+
+  .section-card {
+    background: #111118;
+    border: 1px solid #1e1e2a;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .section-card.expanded { border-color: #7c3aed55; }
+
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+  }
+  .section-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: #7c3aed22; color: #a78bfa;
+    flex-shrink: 0;
+  }
+  .section-info { flex: 1; min-width: 0; }
+  .section-title { font-size: 13px; font-weight: 600; color: #e4e4e7; }
+  .section-sub { font-size: 11px; color: #71717a; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .section-badges { display: flex; gap: 4px; flex-shrink: 0; }
+  .badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 6px; font-weight: 600;
+  }
+  .badge-img { background: #05966922; color: #34d399; }
+  .badge-vid { background: #2563eb22; color: #60a5fa; }
+  .badge-done { background: #059669; color: #fff; }
+  .badge-pending { background: #71717a33; color: #71717a; }
+
+  .chevron {
+    font-size: 14px; color: #71717a; transition: transform .2s;
+    flex-shrink: 0;
+  }
+  .section-card.expanded .chevron { transform: rotate(90deg); }
+
+  /* ── Expanded content ── */
+  .section-body {
+    max-height: 0; overflow: hidden; transition: max-height .3s ease;
+  }
+  .section-card.expanded .section-body { max-height: 1200px; }
+
+  .section-inner { padding: 0 14px 14px; }
+
+  /* ── Tabs inside section ── */
+  .inner-tabs {
+    display: flex; gap: 0; margin-bottom: 10px; border-radius: 8px;
+    overflow: hidden; border: 1px solid #1e1e2a;
+  }
+  .inner-tab {
+    flex: 1; padding: 6px 0; text-align: center; font-size: 11px; font-weight: 600;
+    background: #0a0a0f; color: #71717a; border: none; cursor: pointer; transition: all .2s;
+  }
+  .inner-tab.active { background: #1e1e2a; color: #e4e4e7; }
+
+  /* ── Storyboard panel ── */
+  .sb-panel {}
+  .sb-prompt {
+    background: #0a0a0f; border: 1px solid #1e1e2a; border-radius: 10px;
+    padding: 10px 12px; font-size: 12px; color: #a1a1aa; line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .sb-prompt-label { font-size: 10px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+
+  /* Storyboard variant tabs */
+  .sb-tabs {
+    display: flex; gap: 6px; margin-bottom: 8px;
+  }
+  .sb-tab {
+    width: 28px; height: 28px; border-radius: 8px; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    background: #1e1e2a; color: #71717a; border: 1px solid transparent; cursor: pointer;
+  }
+  .sb-tab.active { background: #7c3aed33; color: #a78bfa; border-color: #7c3aed; }
+  .sb-tab-add { background: none; border: 1px dashed #71717a44; color: #71717a; }
+
+  /* ── Image grid ── */
+  .img-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+  }
+  .img-card {
+    position: relative; border-radius: 10px; overflow: hidden;
+    border: 2px solid transparent; cursor: pointer;
+    aspect-ratio: 9/16; background: #1a1a24;
+  }
+  .img-card img { width: 100%; height: 100%; object-fit: cover; }
+  .img-card.render-active { border-color: #f59e0b; }
+  .img-card.video-active { border-color: #7c3aed; }
+
+  .img-badge {
+    position: absolute; top: 6px; right: 6px;
+    font-size: 12px; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; background: #000a; backdrop-filter: blur(4px);
+  }
+  .img-status {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 4px 8px; font-size: 10px; font-weight: 600;
+    background: linear-gradient(transparent, #000c);
+    text-align: center;
+  }
+  .img-status.done { color: #34d399; }
+  .img-status.generating { color: #fbbf24; }
+
+  .img-actions {
+    display: flex; gap: 6px; margin-top: 2px;
+  }
+  .img-action-btn {
+    flex: 1; padding: 7px 0; border-radius: 8px;
+    font-size: 11px; font-weight: 600; text-align: center;
+    background: #1e1e2a; color: #a1a1aa; border: none; cursor: pointer;
+  }
+  .img-action-btn.primary { background: #7c3aed; color: #fff; }
+
+  /* ── Video panel ── */
+  .vid-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+  }
+  .vid-card {
+    position: relative; border-radius: 10px; overflow: hidden;
+    border: 2px solid transparent; cursor: pointer;
+    aspect-ratio: 9/16; background: #1a1a24;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vid-card.render-active { border-color: #f59e0b; }
+  .vid-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+  .vid-play {
+    position: absolute; width: 36px; height: 36px; border-radius: 50%;
+    background: #000a; backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .vid-status {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 4px 8px; font-size: 10px; font-weight: 600;
+    background: linear-gradient(transparent, #000c);
+    text-align: center; color: #34d399;
+  }
+  .vid-label {
+    position: absolute; top: 6px; left: 6px;
+    font-size: 10px; padding: 2px 7px; border-radius: 5px;
+    background: #2563eb; color: #fff; font-weight: 600;
+  }
+
+  /* ── Bottom action bar ── */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: #111118ee; backdrop-filter: blur(12px);
+    border-top: 1px solid #1e1e2a;
+    display: flex; gap: 8px;
+  }
+  .bottom-btn {
+    flex: 1; padding: 12px 0; border-radius: 12px;
+    font-size: 13px; font-weight: 700; text-align: center;
+    border: none; cursor: pointer;
+  }
+  .bottom-btn.secondary { background: #1e1e2a; color: #e4e4e7; }
+  .bottom-btn.primary { background: #7c3aed; color: #fff; }
+
+  /* ── Progress summary ── */
+  .progress-strip {
+    display: flex; gap: 4px; padding: 10px 16px;
+  }
+  .progress-dot {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: #1e1e2a;
+  }
+  .progress-dot.done { background: #059669; }
+  .progress-dot.active { background: #7c3aed; }
+  .progress-dot.pending { background: #1e1e2a; }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display: flex; gap: 12px; padding: 8px 16px; align-items: center;
+  }
+  .summary-stat {
+    font-size: 11px; color: #71717a;
+  }
+  .summary-stat span { color: #e4e4e7; font-weight: 700; }
+
+  /* placeholder images */
+  .placeholder {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #71717a; font-size: 24px;
+  }
+  .placeholder2 {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d1b42 50%, #462046 100%);
+  }
+  .placeholder3 {
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <button class="topbar-back">‹</button>
+  <span class="topbar-title">Canvas</span>
+  <span class="topbar-mode">Animated</span>
+</div>
+
+<!-- Mode toggle: Illustrated / Animated -->
+<div class="mode-bar">
+  <button class="mode-btn" onclick="setMode(this)">Illustrated</button>
+  <button class="mode-btn active" onclick="setMode(this)">Animated</button>
+</div>
+
+<!-- Progress dots -->
+<div class="progress-strip">
+  <div class="progress-dot done"></div>
+  <div class="progress-dot done"></div>
+  <div class="progress-dot active"></div>
+  <div class="progress-dot pending"></div>
+  <div class="progress-dot pending"></div>
+  <div class="progress-dot pending"></div>
+</div>
+
+<!-- Summary -->
+<div class="summary-bar">
+  <div class="summary-stat"><span>6</span> scenes</div>
+  <div class="summary-stat"><span>8</span> images</div>
+  <div class="summary-stat"><span>3</span> videos</div>
+  <div class="summary-stat" style="margin-left:auto; color:#34d399;"><span>45s</span> est.</div>
+</div>
+
+<!-- Section Cards -->
+<div class="sections">
+
+  <!-- Section 1: Expanded -->
+  <div class="section-card expanded" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-info">
+        <div class="section-title">Hook — Opening shot</div>
+        <div class="section-sub">A lone figure walks through neon-lit rain...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-img">2</span>
+        <span class="badge badge-vid">1</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body">
+      <div class="section-inner">
+
+        <!-- Inner tabs: Storyboard / Images / Videos -->
+        <div class="inner-tabs">
+          <button class="inner-tab active" onclick="switchTab(event, this, 0)">Storyboard</button>
+          <button class="inner-tab" onclick="switchTab(event, this, 1)">Images</button>
+          <button class="inner-tab" onclick="switchTab(event, this, 2)">Videos</button>
+        </div>
+
+        <!-- Tab 0: Storyboard -->
+        <div class="tab-content tab-0">
+          <div class="sb-tabs">
+            <div class="sb-tab active">A</div>
+            <div class="sb-tab">B</div>
+            <div class="sb-tab sb-tab-add">+</div>
+          </div>
+          <div class="sb-prompt-label">Prompt</div>
+          <div class="sb-prompt">
+            A lone figure in a dark trench coat walks through a rain-soaked alley. Neon signs reflect off wet cobblestones. Shot from behind, cinematic 9:16, moody blue-purple color grade.
+          </div>
+          <div class="img-actions">
+            <button class="img-action-btn">Edit prompt</button>
+            <button class="img-action-btn primary">Generate images</button>
+          </div>
+        </div>
+
+        <!-- Tab 1: Images (hidden by default) -->
+        <div class="tab-content tab-1" style="display:none;">
+          <div class="img-grid">
+            <div class="img-card render-active">
+              <div class="placeholder"></div>
+              <span class="img-badge">🎯</span>
+              <div class="img-status done">Render active</div>
+            </div>
+            <div class="img-card video-active">
+              <div class="placeholder placeholder2"></div>
+              <span class="img-badge">⭐</span>
+              <div class="img-status done">Video-gen</div>
+            </div>
+          </div>
+          <div class="img-actions">
+            <button class="img-action-btn">Regenerate</button>
+            <button class="img-action-btn">Add variant</button>
+            <button class="img-action-btn primary">Set active</button>
+          </div>
+        </div>
+
+        <!-- Tab 2: Videos (hidden by default) -->
+        <div class="tab-content tab-2" style="display:none;">
+          <div class="vid-grid">
+            <div class="vid-card render-active">
+              <div class="placeholder placeholder3"></div>
+              <span class="vid-play">▶</span>
+              <span class="vid-label">Kling 2.5</span>
+              <div class="vid-status">🎯 Render active · 5s</div>
+            </div>
+          </div>
+          <div class="img-actions">
+            <button class="img-action-btn">Re-generate</button>
+            <button class="img-action-btn primary">Launch video</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Collapsed -->
+  <div class="section-card" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-info">
+        <div class="section-title">Problem — The message</div>
+        <div class="section-sub">Close-up of a crumpled letter in trembling hands...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-img">3</span>
+        <span class="badge badge-vid">1</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body">
+      <div class="section-inner">
+        <div class="inner-tabs">
+          <button class="inner-tab active" onclick="switchTab(event, this, 0)">Storyboard</button>
+          <button class="inner-tab" onclick="switchTab(event, this, 1)">Images</button>
+          <button class="inner-tab" onclick="switchTab(event, this, 2)">Videos</button>
+        </div>
+        <div class="tab-content tab-0">
+          <div class="sb-tabs">
+            <div class="sb-tab active">A</div>
+            <div class="sb-tab sb-tab-add">+</div>
+          </div>
+          <div class="sb-prompt-label">Prompt</div>
+          <div class="sb-prompt">
+            Extreme close-up of weathered hands holding a crumpled letter. Shallow depth of field, warm lamplight from the left. Cinematic 9:16, film grain texture.
+          </div>
+          <div class="img-actions">
+            <button class="img-action-btn">Edit prompt</button>
+            <button class="img-action-btn primary">Generate images</button>
+          </div>
+        </div>
+        <div class="tab-content tab-1" style="display:none;">
+          <div class="img-grid">
+            <div class="img-card render-active">
+              <div class="placeholder placeholder2"></div>
+              <span class="img-badge">🎯</span>
+              <div class="img-status done">Render active</div>
+            </div>
+            <div class="img-card">
+              <div class="placeholder placeholder3"></div>
+              <div class="img-status done">Variant</div>
+            </div>
+            <div class="img-card video-active">
+              <div class="placeholder"></div>
+              <span class="img-badge">⭐</span>
+              <div class="img-status done">Video-gen</div>
+            </div>
+          </div>
+          <div class="img-actions">
+            <button class="img-action-btn">Regenerate</button>
+            <button class="img-action-btn primary">Set active</button>
+          </div>
+        </div>
+        <div class="tab-content tab-2" style="display:none;">
+          <div class="vid-grid">
+            <div class="vid-card render-active">
+              <div class="placeholder"></div>
+              <span class="vid-play">▶</span>
+              <span class="vid-label">Kling 2.5</span>
+              <div class="vid-status">🎯 Render active · 5s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Collapsed, generating -->
+  <div class="section-card" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-info">
+        <div class="section-title">Reveal — The decision</div>
+        <div class="section-sub">Wide shot: figure standing at a crossroads...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-pending">generating</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body">
+      <div class="section-inner">
+        <div class="inner-tabs">
+          <button class="inner-tab" onclick="switchTab(event, this, 0)">Storyboard</button>
+          <button class="inner-tab active" onclick="switchTab(event, this, 1)">Images</button>
+          <button class="inner-tab" onclick="switchTab(event, this, 2)">Videos</button>
+        </div>
+        <div class="tab-content tab-0" style="display:none;">
+          <div class="sb-prompt-label">Prompt</div>
+          <div class="sb-prompt">Wide shot of a figure at a rain-soaked crossroads under a single streetlight. Two paths diverge into darkness. Cinematic, high contrast.</div>
+        </div>
+        <div class="tab-content tab-1">
+          <div class="img-grid">
+            <div class="img-card" style="border-color:#fbbf2444;">
+              <div class="placeholder placeholder3" style="position:relative;">
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                  <div style="width:24px;height:24px;border:3px solid #fbbf24;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+                  <div style="font-size:10px;color:#fbbf24;margin-top:6px;">Generating...</div>
+                </div>
+              </div>
+            </div>
+            <div class="img-card" style="border-color:#fbbf2444;">
+              <div class="placeholder" style="position:relative;">
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                  <div style="width:24px;height:24px;border:3px solid #fbbf24;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;animation-delay:.3s;"></div>
+                  <div style="font-size:10px;color:#fbbf24;margin-top:6px;">Queued</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-content tab-2" style="display:none;">
+          <div style="text-align:center;color:#71717a;font-size:12px;padding:20px 0;">No videos yet — generate images first</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4-6: Collapsed minimal -->
+  <div class="section-card" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-info">
+        <div class="section-title">Proof — The journey</div>
+        <div class="section-sub">Montage of footsteps through changing landscapes...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-img">2</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body"><div class="section-inner">
+      <div style="text-align:center;color:#71717a;font-size:12px;padding:12px 0;">Tap to expand</div>
+    </div></div>
+  </div>
+
+  <div class="section-card" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-info">
+        <div class="section-title">Climax — The reunion</div>
+        <div class="section-sub">Two silhouettes meet under a bridge at dawn...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-pending">pending</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body"><div class="section-inner">
+      <div style="text-align:center;color:#71717a;font-size:12px;padding:12px 0;">Tap to expand</div>
+    </div></div>
+  </div>
+
+  <div class="section-card" onclick="toggleSection(event, this)">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-info">
+        <div class="section-title">CTA — Final message</div>
+        <div class="section-sub">Text overlay fades in over sunrise horizon...</div>
+      </div>
+      <div class="section-badges">
+        <span class="badge badge-pending">pending</span>
+      </div>
+      <span class="chevron">›</span>
+    </div>
+    <div class="section-body"><div class="section-inner">
+      <div style="text-align:center;color:#71717a;font-size:12px;padding:12px 0;">Tap to expand</div>
+    </div></div>
+  </div>
+
+</div>
+
+<!-- Bottom action bar -->
+<div class="bottom-bar">
+  <button class="bottom-btn secondary">Back to Reel</button>
+  <button class="bottom-btn secondary">Send to Editor</button>
+  <button class="bottom-btn primary">Export</button>
+</div>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+function toggleSection(e, card) {
+  if (e.target.closest('.inner-tab, .inner-tabs, .img-action-btn, .sb-tab, .img-card, .vid-card')) return;
+  card.classList.toggle('expanded');
+}
+
+function switchTab(e, btn, idx) {
+  e.stopPropagation();
+  const card = btn.closest('.section-inner');
+  card.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  card.querySelectorAll('.tab-content').forEach((t, i) => {
+    t.style.display = i === idx ? '' : 'none';
+  });
+}
+
+function setMode(btn) {
+  btn.parentElement.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

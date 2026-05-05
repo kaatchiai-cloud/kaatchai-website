@@ -2,3 +2,12 @@
 
 # Pre-ship audit working docs — timestamped plan files, kept locally only
 pre-ship-audit-*.md
+
+# Flutter app build artifacts
+app/build/
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/.pub/
+app/pubspec.lock
