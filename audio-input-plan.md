@@ -162,13 +162,17 @@ window.createJobState.inputDoc = {
   diarizationResult: {
     speakers: [
       { id: 'speaker_0', wordCount: 152, totalSec: 38.4, firstWordTime: 0.5,
-        sampleClipUrl: '<blob URL of 3s sample for the mapping UI>' },
+        sampleClipIdbKey: 'speaker_sample_speaker_0' },   // IDB key (data URL persists across reload)
+                                                          // Per audit fix B4 — was blob URL, didn't survive reload
       { id: 'speaker_1', wordCount: 89,  totalSec: 22.1, firstWordTime: 4.2,
-        sampleClipUrl: '<...>' },
+        sampleClipIdbKey: 'speaker_sample_speaker_1' },
       // ...
     ],
     alignedWords: [<existing Scribe word output with speaker_id added>],
     unmappedSpeakers: ['speaker_3', 'speaker_4'],   // populated when count > cast + 5 cap
+    confidence: 0.85,                               // diarization quality score (per audit fix B1)
+                                                    // computed from: avg segment length, switch frequency,
+                                                    // single-word-segment ratio, label stability
   },
 
   // Speaker mapping (set during Stage 4)
@@ -190,31 +194,50 @@ window.createJobState.inputDoc = {
 };
 ```
 
-### 6.2 Per-scene parsed structure (same as text input path)
+### 6.2 Unified parsed-structure schema (per audit fix A2)
+
+The `parsed` schema is **a single supertype** consumed identically by storyboard agent / multi-voice TTS / audio rehearsal regardless of input source. Text input (input-formats-plan §5.2) and audio input (this plan) both produce instances of this schema. Fields not relevant to a given source are explicitly `null` rather than `undefined`.
 
 ```js
 window.createJobState.inputDoc.parsed = {
-  sceneHeadings: null,                    // audio doesn't have explicit scene headings — agent infers
-  sceneBreaks: null,                      // agent infers scene boundaries from transcript
+  sceneHeadings: null | [<inferred>],     // null for prose; null for audio when Stage 5 inference (§9.1a) is skipped or fails;
+                                          // populated for screenplay (deterministic from INT./EXT. headings) AND for audio
+                                          // when Stage 5 setting-inference succeeds (audit fix B2 — gives image gen visual context)
+  sceneBreaks: null,                      // screenplay-only; null for prose AND audio (storyboard agent infers downstream)
   dialogueLines: [
     {
+      // Universal fields (always present, both input sources):
       speakerName: 'Maya',
       speakerCharacterId: 'char_maya',
       text: 'I really wish you\'d follow through on things.',
-      performanceCue: null,               // audio-input mode A doesn't have textual cues
-      mood: 'angry',                      // populated only in mode B (audio tone analysis)
-      moodConfidence: 0.7,                // mode B only; mode A: n/a
-      speakerConfidence: 1.0,             // 1.0 after user-mapping; 0.0 if speaker still unmapped
-      sourceMode: 'audio-input',          // distinguishes from TTS-generated turns
-      audioSegmentStart: 0.5,             // mode A only — slice offset in master buffer
-      audioSegmentEnd: 3.7,
-      isVoiceOver: false,
+      speakerConfidence: 1.0,
+      mood: 'matter-of-fact',             // ALWAYS populated. Mode A defaults to 'matter-of-fact'
+                                          // (audio mood not regen-able); Mode B uses tone-detection result;
+                                          // text input uses AI-classify or default.
+      moodConfidence: null,               // null = no inference attempted (Mode A). Mode B / text input: 0.0-1.0.
+      isVoiceOver: false,                 // dynamically computed: true when speakerCharacterId === 'narrator';
+                                          // see §9.1 (Mode A) and §9.2 (Mode B) computation sites
+      sourceMode: 'text-input' | 'audio-input',   // distinguishes provenance
+      muted: false,                       // audio-rehearsal-plan compat
+      regenCount: 0,
+      regenLockToken: null,
+
+      // Text-input-only fields (null for audio input):
+      performanceCue: null,               // raw parenthetical text from screenplay; null for audio
+      sourceLineNum: null,                // source-text line number; null for audio
+      isExtraSpeaker: false,              // derived from speakerMap.source === 'ai-suggested-accepted'
+
+      // Audio-input-only fields (null for text input):
+      audioSegmentStartMs: null,          // slice offset in master buffer (Mode A only); null for text input + Mode B
+      audioSegmentEndMs: null,
     },
   ],
-  actionLines: [],                        // audio doesn't produce action lines — storyboard agent generates from transcript
+  actionLines: [],                        // populated by text input parser; audio input uses Stage 5 setting-inference (§9.4)
   detectedSpeakers: [<reflected from speakerMap>],
 };
 ```
+
+**Schema divergence elimination:** every consumer reads from this single schema. Audio input sets text-only fields to null; text input sets audio-only fields to null. No `undefined` values. `moodConfidence` is always a number or explicit null — never undefined.
 
 ### 6.3 Speaker mapping persistence
 
@@ -225,9 +248,60 @@ window.createJobState.inputDoc.parsed = {
 
 If user starts a new project, the map clears with the rest of `inputDoc`.
 
-## 7. AI-suggested extras flow (load-bearing rule)
+### 6.4 Canonical-source rule + sync function (per audit fix A4)
 
-This is the rule that persists across ALL input formats (text + audio) per the locked decision in #14 of the conversation thread.
+`aiSuggestedExtras` is the canonical source for AI-suggested character metadata. `speakerMap` is a derived view re-built from `aiSuggestedExtras` after any mutation. Direction of data flow: extras → speakerMap, never reverse.
+
+```js
+function syncSpeakerMap(inputDoc) {
+  // Re-derive speakerMap entries for AI-suggested AND user-created extras based
+  // on current state. Direct user-mapped entries (source === 'user-mapped') are
+  // untouched — they point to existing locked cast and don't go through extras.
+  //
+  // The aiSuggestedExtras array is the canonical source for BOTH:
+  //   - AI-suggested extras the user accepted (source: 'ai-suggested-accepted')
+  //   - User-created characters added via "+ Create new character" UI (source: 'user-created')
+  // Both flows write to aiSuggestedExtras with userAccepted: true on creation.
+  for (const extra of inputDoc.aiSuggestedExtras) {
+    if (!extra.userAccepted) {
+      // Rejected — remove from speakerMap (lines fall through to narrator)
+      delete inputDoc.speakerMap[extra.sourceSpeakerId];
+    } else {
+      // Accepted (either AI-suggested or user-created) — ensure speakerMap reflects current characterId
+      inputDoc.speakerMap[extra.sourceSpeakerId] = {
+        characterId: extra.id,
+        source: extra.source || 'ai-suggested-accepted',  // preserves user-created vs ai-suggested-accepted
+      };
+    }
+  }
+  // Cleanup: any speakerMap entry pointing to a non-existent character (e.g.,
+  // user deleted character mid-project) → reset to narrator
+  for (const [speakerId, mapping] of Object.entries(inputDoc.speakerMap)) {
+    if (mapping.source === 'ai-suggested-accepted' || mapping.source === 'user-created') {
+      const stillExists = inputDoc.aiSuggestedExtras.some(
+        e => e.id === mapping.characterId && e.userAccepted
+      );
+      if (!stillExists) {
+        // Character was rejected or removed — fall back to narrator
+        inputDoc.speakerMap[speakerId] = { characterId: 'narrator', source: 'rejected-fallback' };
+      }
+    }
+  }
+}
+```
+
+Called after:
+- User accepts an AI-suggested extra
+- User rejects an AI-suggested extra
+- User changes the voice for an accepted extra
+- User explicitly deletes an accepted extra mid-project
+- Project autosave restore (re-derive on load)
+
+## 7. AI-suggested extras flow (load-bearing rule — canonical source for both audio AND text input)
+
+This section is the canonical specification for the AI-suggested extras flow. It applies identically to text input (input-formats-plan) and audio input (this plan). Per audit fix C3, the input-formats-plan EC-RG-02 references this section as the source of truth — anyone implementing extras flow should read this section regardless of which input format they're working on.
+
+The rule persists across ALL input formats (text + audio) per the locked decision in #14 of the conversation thread.
 
 ### 7.1 The rule
 
@@ -334,6 +408,73 @@ When `audioMode === 'original'` (Mode A), the voice picker is **disabled** for A
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+### 8.1a Diarization confidence + warning banner (per audit fix B1)
+
+After Scribe completes, compute a diarization confidence score from structural signals:
+
+```js
+function computeDiarizationConfidence(speakers, alignedWords, totalAudioSec) {
+  // totalAudioSec passed in by caller (typically from inputDoc.audioDurationSec or
+  // derived from alignedWords[alignedWords.length - 1].end).
+  // Factor 1: Average segment length (short segments = noisy diarization)
+  const avgSegmentSec = totalAudioSec / Math.max(1, speakers.length);
+  const lengthScore = Math.min(1.0, avgSegmentSec / 5.0);   // 5s avg = full marks
+  // Factor 2: Single-word-segment ratio (high ratio = label thrashing)
+  const singleWordSegments = countSingleWordSegments(alignedWords);
+  const thrashScore = 1.0 - Math.min(1.0, singleWordSegments / Math.max(1, alignedWords.length));
+  // Factor 3: Speaker switch frequency (>1 switch/sec = suspicious)
+  const switchesPerSec = countSpeakerSwitches(alignedWords) / Math.max(0.001, totalAudioSec);
+  const switchScore = Math.max(0, 1.0 - switchesPerSec);
+  // Factor 4 (label stability) deferred to v1.5. v1 redistributes the 0.10
+  // weight across the three implemented factors per pass-2 audit fix B2 to
+  // avoid baking in a constant 1.0 free score.
+
+  return (lengthScore * 0.40) + (thrashScore * 0.40) + (switchScore * 0.20);
+}
+
+// Helper: count segments where a speaker speaks only one word before another
+// speaker takes over (high count = label thrashing, diarization noise).
+function countSingleWordSegments(alignedWords) {
+  let count = 0;
+  let currentSpeaker = null;
+  let wordCount = 0;
+  for (const word of alignedWords) {
+    if (word.speaker_id !== currentSpeaker) {
+      if (wordCount === 1) count++;
+      currentSpeaker = word.speaker_id;
+      wordCount = 1;
+    } else {
+      wordCount++;
+    }
+  }
+  if (wordCount === 1) count++;   // tail segment
+  return count;
+}
+
+// Helper: count points where the speaker label changes between adjacent words.
+function countSpeakerSwitches(alignedWords) {
+  let switches = 0;
+  for (let i = 1; i < alignedWords.length; i++) {
+    if (alignedWords[i].speaker_id !== alignedWords[i - 1].speaker_id) {
+      switches++;
+    }
+  }
+  return switches;
+}
+```
+
+**UI surface when `confidence < 0.7`:** persistent banner in the speaker-mapping UI (§8.1):
+
+```
+⚠ Speaker detection confidence: 58% — review carefully
+  Stori may have merged similar voices or split a single speaker. If the
+  detected speaker count looks wrong, consider re-recording with clearer
+  separation between speakers, or start a new project as text input.
+  [Re-record]   [Start new as text]   [Continue with current detection]
+```
+
+When `confidence < 0.5`: hard-warn + offer the same options. User can still proceed; quality is their call. Doesn't block.
+
 ### 8.2 Auto-suggest matching
 
 Before showing the mapping UI, run a heuristic: if the transcript contains "Maya:" or "MAYA" or `[Maya]` style tags within the first ~5 lines of a speaker's content, pre-fill the dropdown to that cast character. Saves clicks for screenplay-style recorded performances (e.g., a voice memo of someone reading a screenplay aloud, names mentioned aloud).
@@ -368,25 +509,40 @@ async function processOriginalAudio(audioBuffer, alignedWords, speakerMap) {
   let currentLine = null;
 
   for (const word of alignedWords) {
-    const charId = speakerMap[word.speaker_id]?.characterId;
+    // Per audit fix B5: handle null/missing speakerMap entries with narrator fallback.
+    // - undefined map entry happens if Scribe returns a speaker_id that wasn't in the
+    //   diarization preview (rare but defensive)
+    // - rejected extras have entries pointing to 'narrator' via syncSpeakerMap (§6.4)
+    const charId = (speakerMap[word.speaker_id] && speakerMap[word.speaker_id].characterId)
+                   || 'narrator';
+    const isVoiceOver = (charId === 'narrator');
     if (charId !== currentSpeaker) {
       // Speaker change — emit current line if any
       if (currentLine) dialogueLines.push(currentLine);
       currentLine = {
-        speakerName: getCharacterName(charId),
+        speakerName: getCharacterName(charId),       // returns 'narrator' for charId === 'narrator'
         speakerCharacterId: charId,
         text: word.word,
         speakerConfidence: 1.0,           // user-mapped is 1.0 by definition
+        mood: 'matter-of-fact',           // Mode A default per A3
+        moodConfidence: null,
         sourceMode: 'audio-input',
-        audioSegmentStart: word.start,
-        audioSegmentEnd: word.end,
-        isVoiceOver: false,
+        audioSegmentStartMs: word.start * 1000,   // Scribe returns seconds → convert to ms (per audit fix A1)
+        audioSegmentEndMs: word.end * 1000,
+        isVoiceOver,                       // true when charId === 'narrator'
+        muted: false,
+        regenCount: 0,
+        regenLockToken: null,
+        // Text-only fields for unified schema:
+        performanceCue: null,
+        sourceLineNum: null,
+        isExtraSpeaker: speakerMap[word.speaker_id]?.source === 'ai-suggested-accepted',
       };
       currentSpeaker = charId;
     } else {
       // Same speaker — extend line
       currentLine.text += ' ' + word.word;
-      currentLine.audioSegmentEnd = word.end;
+      currentLine.audioSegmentEndMs = word.end * 1000;   // Scribe seconds → ms
     }
   }
   if (currentLine) dialogueLines.push(currentLine);
@@ -395,7 +551,47 @@ async function processOriginalAudio(audioBuffer, alignedWords, speakerMap) {
 }
 ```
 
-The original `audioBuffer` becomes the project's master audio. Each `dialogueLines[i]` references a SLICE of the master buffer at `[audioSegmentStart, audioSegmentEnd]`. Mini-players in the audio-rehearsal step play these slices directly from the master buffer (per audio-rehearsal-plan §6.1 IDB-cached per-line buffer pattern, but here the source buffer is original audio not TTS).
+The original `audioBuffer` becomes the project's master audio. Each `dialogueLines[i]` references a SLICE of the master buffer at `[audioSegmentStartMs, audioSegmentEndMs]` (canonical field names per §6.2). Mini-players in the audio-rehearsal step play these slices directly from the master buffer (per audio-rehearsal-plan §6.1 IDB-cached per-line buffer pattern, but here the source buffer is original audio not TTS).
+
+### 9.1a Setting + action inference for image-gen prompts (per audit fix B2)
+
+Audio input has no narrative description — just spoken dialogue. The storyboard agent (and downstream image-gen) needs visual context. Run an explicit Gemini call BEFORE handoff to storyboard:
+
+```js
+async function inferSettingAndActionsFromDialogue(dialogueLines, geminiKey) {
+  const transcript = dialogueLines.map(d => `${d.speakerName}: "${d.text}"`).join('\n');
+  const prompt = `
+Given this dialogue transcript, infer the visual context for each segment.
+Return ONLY JSON, no commentary.
+
+For each segment, infer:
+- setting: location + time of day + indoor/outdoor (concise phrase)
+- actions: characters' physical actions and body language (concise list)
+- atmosphere: overall tone/mood of the scene
+
+Group consecutive lines into scene-like segments where the setting feels stable.
+
+Schema:
+[{ "segmentIndex": 0, "lineIndices": [0, 1, 2], "setting": "Kitchen, morning, indoor",
+   "actions": "Maya stands at counter; Joe enters from doorway",
+   "atmosphere": "tense, charged" }]
+
+Transcript:
+${transcript}
+  `;
+  const resp = await callGeminiAPI(['gemini-2.5-flash'], {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  }, geminiKey);
+  return parseGeminiJson(resp);
+}
+```
+
+**Output mapping:** populate `parsed.actionLines[]` and `parsed.sceneHeadings[]` from the inference. Storyboard agent then has visual context to feed image-gen.
+
+**Cost:** ~$0.01-0.03 per project, single call regardless of recording length (chunk only if total transcript >30K chars). One-time at Stage 5.
+
+**Fallback when Gemini call fails:** populate `actionLines` with generic placeholders ("Characters speaking in conversation") + log warning. Image gen will work but with weaker prompts.
 
 ### 9.2 Mode B — Re-TTS as script reference
 
@@ -409,11 +605,23 @@ async function processReTTS(audioBuffer, alignedWords, speakerMap, audioMode) {
   let currentEnd = 0;
 
   for (const word of alignedWords) {
-    const charId = speakerMap[word.speaker_id]?.characterId;
+    // Per audit fix B5 (extended to Mode B per pass-3 finding #12): narrator fallback
+    // when speakerMap entry is missing or rejected. Mode A handles this in §9.1; Mode B
+    // must match.
+    const charId = (speakerMap[word.speaker_id] && speakerMap[word.speaker_id].characterId)
+                   || 'narrator';
     if (charId !== currentSpeaker) {
       if (currentText) {
-        lines.push({ speakerCharacterId: currentSpeaker, text: currentText.trim(),
-                     originalStart: currentStart, originalEnd: currentEnd });
+        // Per pass-4 NEW-ISSUE-1: isVoiceOver must be set on every line (Mode A
+        // sets it in §9.1; Mode B was missing it). Downstream consumers
+        // (audio rehearsal mood/regen disable, lip sync skip) read this field.
+        lines.push({
+          speakerCharacterId: currentSpeaker,
+          text: currentText.trim(),
+          originalStart: currentStart,
+          originalEnd: currentEnd,
+          isVoiceOver: (currentSpeaker === 'narrator'),
+        });
       }
       currentSpeaker = charId;
       currentText = word.word;
@@ -424,8 +632,13 @@ async function processReTTS(audioBuffer, alignedWords, speakerMap, audioMode) {
       currentEnd = word.end;
     }
   }
-  if (currentText) lines.push({ speakerCharacterId: currentSpeaker, text: currentText.trim(),
-                                originalStart: currentStart, originalEnd: currentEnd });
+  if (currentText) lines.push({
+    speakerCharacterId: currentSpeaker,
+    text: currentText.trim(),
+    originalStart: currentStart,
+    originalEnd: currentEnd,
+    isVoiceOver: (currentSpeaker === 'narrator'),
+  });
 
   // Step 2: optional tone detection per line from original audio
   // For each line, slice the original audio + send to Gemini for mood classification
@@ -452,19 +665,59 @@ async function processReTTS(audioBuffer, alignedWords, speakerMap, audioMode) {
 
 After Mode B processing, the original audio is **kept in IDB** (under `audio_input_original_<projectId>`) for potential v2 undo/comparison features. Master audio for the project is the re-TTS output.
 
+**Storyboard-step TTS skip contract (per audit fix B3):**
+
+When `inputDoc.audioMode === 're-tts'` AND `inputDoc.locked === true`, the storyboard step MUST skip its `castGenerateMultiVoiceAudio` call. The TTS already ran at Stage 5; running it again would:
+- Double the TTS cost
+- Produce different audio (different mood defaults, segmentation drift)
+- Overwrite the master buffer that Stage 5 produced
+
+```js
+// Storyboard step entry (existing path) — add this guard at the top:
+if (window.createJobState?.inputDoc?.audioMode === 're-tts'
+    && window.createJobState?.inputDoc?.locked === true) {
+  // Audio already produced at audio-input Stage 5; skip TTS.
+  // The combined buffer + speakerTurns are already in window._createSpeakerTurns
+  // and createAudioBuffer.
+  return;
+}
+```
+
+Cross-reference this contract in voice-and-lipsync-plan §8 + audio-rehearsal-plan §11.3 so future implementers don't accidentally re-run TTS.
+
 ### 9.3 Tone detection from original audio (Mode B optional)
 
-For each per-line audio segment, call Gemini with the audio chunk:
+For each per-line audio segment, call Gemini with the audio chunk via Gemini's structured-output JSON mode (per audit fix C8 — bare-word prompts are fragile):
 
 ```
-"Classify the emotional tone of this voice clip. Choose ONE from:
- [matter-of-fact, calm, warm, serious, excited, angry, sad, whispered,
-  playful, concerned, urgent, sarcastic]
+Classify the emotional tone of these voice clips. For each clip, return one
+mood from the enum below.
 
- Respond with the single tone word."
+Enum:
+[matter-of-fact, calm, warm, serious, excited, angry, sad, whispered,
+ playful, concerned, urgent, sarcastic]
+
+Return JSON conforming to schema: [{ "lineIdx": int, "tone": string,
+"confidence": number 0..1 }]
 ```
 
-Cost: ~$0.001 per line. Adds ~10s latency for a 30-line script. Optional — skip if user wants speed over fidelity (toggle in mode-select UI).
+With `responseMimeType: 'application/json'` set in `generationConfig`.
+
+**Batching strategy (per audit fix B6):** chunk lines into groups of 30 per Gemini call. For 80+-line recordings, multiple sequential calls.
+
+```js
+const BATCH = 30;
+const lineMoods = [];
+for (let i = 0; i < lines.length; i += BATCH) {
+  const batch = lines.slice(i, i + BATCH);
+  const moods = await classifyLineMoodsFromAudio(audioBuffer, batch);  // single Gemini call w/ 30 lines audio
+  lineMoods.push(...moods);
+}
+```
+
+**Cost:** ~$0.001 per line, regardless of total count.
+**Latency:** ~10s per batch of 30 — scales linearly past 30 lines (60 lines = ~20s; 90 lines = ~30s).
+**Optional:** user can disable in mode-select UI to skip the latency. Disabled → all moods default to `'matter-of-fact'`.
 
 ## 10. Cost surface
 
@@ -490,9 +743,9 @@ Both are negligible relative to per-project total ($5-15 typical).
 | Phase | What | Files | Risk |
 |---|---|---|---|
 | **1. Audio upload + validation** | File picker; format detection (WAV/MP3/M4A); size/duration limits; IDB persistence | js/17c, js/01-core, css/styles | low |
-| **2. Scribe with diarize: true** | Flip diarize flag in `alignWordsWithScribe`; extend output schema for speaker labels | js/17a-create-api.js | low |
+| **2. Scribe with diarize: true (backward-compat)** | Add `diarize` as optional parameter (defaults `false`) to `alignWordsWithScribe`. Output mapper preserves `speaker_id` when `diarize: true`, omits it otherwise. Verify all 3 existing callers (17a, 17c, 20-reels-creator) work unchanged with default. | js/17a-create-api.js | **medium** (re-rated from low per audit fix C4 — output schema change risks breaking existing typed/validated consumers) |
 | **3. Mode-select UI (Stage 3)** | Modal at upload completion; persist `audioMode` lock | js/17c, css/styles | low |
-| **4. Speaker-mapping UI (Stage 4)** | Audio sample generation per speaker; mapping dropdowns; auto-suggest matching | js/17b, js/17c, css/styles | medium |
+| **4. Speaker-mapping UI (Stage 4)** | Audio sample generation per speaker — store as data URLs in IDB (`speaker_sample_<speakerId>`) per audit fix B4 (was blob URLs, didn't survive page reload); mapping dropdowns; auto-suggest matching; AudioContext resume-on-gesture wrapper per EC-DI-11 | js/17b, js/17c, css/styles | medium |
 | **5. AI-suggested extras flow (§7)** | Detect unmapped speakers; suggest creating new characters; voice picker; 5-cap enforcement; cross-format consistency (text + audio) | js/17b, js/17c | medium |
 | **6. Mode A — original audio processing** | Speaker-boundary slicing; master buffer reference; per-line buffer access for mini-player | new js/32-audio-input.js, js/17b | medium |
 | **7. Mode B — re-TTS pipeline** | Per-line text extraction; optional tone detection; multi-voice TTS handoff; master replacement | new js/32-audio-input.js, js/17b | high |
@@ -511,7 +764,7 @@ Total: ~1500-1800 lines across ~6 files.
 | EC-AU-01 | Unsupported format (e.g., .flac, .ogg) | Reject with hint: "Supported formats: WAV, MP3, M4A. Convert your file." |
 | EC-AU-02 | Audio > 60 minutes | Allow upload but warn: "Long recordings may diarize less accurately. Consider splitting." Scribe handles up to 4hr. |
 | EC-AU-03 | Audio < 5 seconds | Reject: "Recording too short. Stori needs at least 5 seconds of audio for diarization." |
-| EC-AU-04 | Stereo audio | Downmix to mono before Scribe (Scribe handles either but mono is more reliable for diarization) |
+| EC-AU-04 | Stereo audio | **Per audit fix C5:** preserve original (possibly stereo) buffer in `rawAudioId` — that's what Mode A plays back in the final video. Create a temporary mono downmix ONLY for Scribe at Stage 2 (Scribe gets cleaner diarization on mono); discard the temp buffer after Scribe returns. Mode A slicing and playback always reference the original `rawAudioId` buffer (stereo if uploaded as stereo). Mode B's re-TTS produces mono regardless (TTS engines are mono-by-design). |
 | EC-AU-05 | File size > 25 MB | Compress/transcode client-side before upload to fit Scribe limits |
 | EC-AU-06 | Audio with very low volume | Surface warning at upload; recommend re-recording or amplification |
 | EC-AU-07 | Audio with heavy background music | Diarization quality degrades; surface warning post-Scribe if confidence is low |
@@ -520,14 +773,18 @@ Total: ~1500-1800 lines across ~6 files.
 
 | ID | Case | Behavior |
 |---|---|---|
-| EC-DI-01 | Single speaker only | Skip Stage 4 mapping UI; auto-map speaker_0 to narrator; proceed to Stage 5 |
+| EC-DI-01 | Single speaker only | Skip Stage 4 mapping UI; default mapping is **videoType-aware** (per audit fix C1, refined): for `videoType: 'narration'` → narrator; for `videoType: 'brand'` with locked presenter → presenter; for `videoType: 'film'` with locked characters → first character; if NO cast at all → narrator with surfaced note "No cast — audio plays as narrator voice-over with no on-screen character." User can override in a confirm step before proceeding. |
 | EC-DI-02 | More speakers detected than user-cast (and no ai-suggest extras yet) | Trigger AI-suggest-extras flow per §7; user accepts/rejects |
 | EC-DI-03 | Speakers detected > 5 + cast count (cap exceeded) | Auto-merge lowest-line-count speakers to narrator; surface UI per §7.2 |
 | EC-DI-04 | Same-gender speakers misdiarized as one speaker | Detected as fewer speakers than expected; user can split via "this is actually two people" UI in Stage 4 (v1.5 — for now, surface warning if cast > detected count) |
 | EC-DI-05 | Same speaker diarized as two (tonal shift mid-recording) | User maps both to same cast character — system treats them as one speaker downstream |
-| EC-DI-06 | Scribe call fails | Retry once with backoff; on second failure, surface error and offer mode switch to text input (paste transcript manually) |
+| EC-DI-06 | Scribe call fails | Retry once with backoff. On second failure, surface error with two options: (a) "Retry Scribe" (re-runs the call), (b) "Start new project as text input" (deep-link that pre-fills `rawText` from any partial `diarizationResult.alignedWords` text into a NEW project — does NOT mutate the current locked-by-design audio project). Per audit fix A5: mid-project type-switching violates the lock contract; only "start new project" is valid. |
 | EC-DI-07 | Scribe returns no speaker labels (diarize: true ignored) | Treat as single-speaker recording; map all to narrator; surface hint about Scribe configuration |
 | EC-DI-08 | Diarized speaker has < 3s of audio | Sample clip generation falls back to all available audio; mapping UI works |
+| EC-DI-09 | Overlapping speaker segments (Scribe assigns same time range to multiple speakers — simultaneous speech) | Per audit fix C6: merge overlapping words into a single multi-speaker segment with `multipleSpeakers: true` flag; surface warning in mapping UI: "Detected overlap at 0:24-0:27 — Stori plays this as a single segment in v1." Cut-on-speaker rule still treats it as one beat. |
+| EC-DI-10 | Tab close during Scribe processing | Per audit fix C6: persist upload + partial state to IDB when Scribe call begins. On reload, if Scribe wasn't completed, re-trigger from scratch (results are deterministic; cost charged once on success only). [Renumbered from EC-AU-08 in pass-3 — sits in the diarization section, not upload.] |
+| EC-DI-11 | AudioContext suspended (browser requires user gesture) | Per audit fix C6: wrap all play buttons (sample clips, mini-players in §8.1, rehearsal preview) with resume-on-gesture. If `audioContext.state === 'suspended'`, surface "Click to enable audio" overlay; first user click resumes context + starts playback. [Renumbered from EC-AU-09.] |
+| EC-DI-12 | ElevenLabs key not configured at audio upload time | Per audit fix C6: gate at Stage 1 — when user attempts audio upload but `getElevenLabsKey()` returns null, block with: "Audio input requires an ElevenLabs API key. Configure it in Voice Settings before uploading." Do NOT let upload proceed only to fail at Scribe (waste of user time + uploaded bytes). When credit-system migration lands (per project_credit_system_only memory), this becomes "Audio input is a credit-billed feature — your credit balance is X." [Renumbered from EC-AU-10.] |
 
 ### Mode selection
 
@@ -574,7 +831,7 @@ Total: ~1500-1800 lines across ~6 files.
 |---|---|---|
 | EC-LH-01 | User attempts to upload new audio after lock | Block; "Input is locked. Start a new project to use different audio." |
 | EC-LH-02 | Storyboard agent crashes on transcript | Surface error; offer to switch to text input (paste transcript manually); user can copy from `inputDoc.diarizationResult.alignedWords` |
-| EC-LH-03 | Project autosave during diarization | Persist progress; on reload, resume from last completed stage |
+| EC-LH-03 | Project autosave during diarization | Persist progress; on reload, resume from last completed stage. **Lock-state invariant (per audit fix C2):** `if (inputDoc.locked) assert(inputDoc.audioMode !== null)`. On reload, if `audioMode === null` regardless of other persisted state, ALWAYS resume at Stage 3 (mode select). Never jump to Stage 5 or 6 without a confirmed mode. The impossible state (`audioMode: null, locked: true`) is guarded against by this invariant. |
 
 ## 13. Telemetry
 
@@ -619,6 +876,17 @@ Total: ~1500-1800 lines across ~6 files.
   toneDetectionCostUsd: <float>,
   reTtsCostUsd: <float>,
   totalAudioInputCostUsd: <float>,
+
+  // Audit fix C7 — fallback paths and quality signals
+  audioToTextFallbackOffered: bool,        // EC-DI-06 retry-failed path surfaced
+  audioToTextFallbackAccepted: bool,       // user clicked "Start new project as text input"
+  transcriptCopiedToClipboard: <int>,      // count of copy-transcript actions
+  diarizationConfidence: <float>,          // computed score from §8.1a
+  diarizationConfidenceWarningShown: <int>, // count of <0.7 warnings surfaced
+  audioContextResumeRequired: <int>,       // EC-DI-11 — count of "click to enable audio" surfacings
+  elevenlabsKeyMissingAtUpload: <int>,     // EC-DI-12 — gates fired at Stage 1
+  overlappingSegmentsDetected: <int>,      // EC-DI-09 — merged overlap events
+  tabCloseDuringScribeRecoveries: <int>,   // EC-DI-10 — Scribe restart on reload
 }
 ```
 
@@ -662,6 +930,23 @@ Total: ~1500-1800 lines across ~6 files.
 | Mode switch mid-project? | **No (v1)** — locked at submission per #7 of conversation | New project required to switch modes. |
 | Mini-player controls in Mode A? | **Disabled** for mood/regen — display only | Original audio can't be regen'd; voice override would lie. |
 | Audio file format support? | WAV, MP3, M4A | Common formats; covers 95% of user uploads. |
+| Time field units? | All `audioSegmentStartMs/EndMs` in milliseconds; Scribe seconds × 1000 at the boundary | Per audit fix A1 — unit naming made explicit to prevent silent ×1000 bugs. |
+| Schema unification across input types? | Single supertype; null fields where not applicable; never undefined | Per audit fix A2 — text + audio paths produce identical shape consumers can iterate. |
+| Mode A mood field? | Always `'matter-of-fact'`; `moodConfidence: null` | Per audit fix A3 — disabled regen means mood semantically n/a. |
+| `speakerMap` ↔ `aiSuggestedExtras` sync? | `aiSuggestedExtras` canonical; `speakerMap` derived; explicit `syncSpeakerMap()` after every mutation | Per audit fix A4. |
+| Scribe failure mid-project fallback? | Two options: retry, OR start new project as text input (deep-link with pre-filled rawText). NOT in-place type switch. | Per audit fix A5 — preserves lock contract. |
+| Diarization confidence score? | Computed from segment length + thrash + switch frequency + label stability; surfaced as banner when < 0.7 | Per audit fix B1 — was a risk note, now a design feature. |
+| Action lines for image-gen prompts? | Inferred via Gemini call from dialogue transcript at Stage 5 | Per audit fix B2 — audio doesn't produce action lines naturally; image gen needs visual context. |
+| TTS skip contract for Mode B at storyboard step? | Skip when `audioMode === 're-tts' && locked`; cross-referenced in voice + audio-rehearsal plans | Per audit fix B3 — prevents double TTS run. |
+| Sample clip persistence? | Data URLs in IDB; not blob URLs | Per audit fix B4 — blob URLs don't survive reload. |
+| `processOriginalAudio` null guard? | Defensive `|| 'narrator'` fallback; sets `isVoiceOver: true` on narrator-fallback lines | Per audit fix B5. |
+| Tone detection batching for >30 lines? | 30-line batches in series; latency scales linearly | Per audit fix B6. |
+| Single-speaker default mapping? | videoType-aware: narration → narrator; brand → presenter; film → first character; no cast → narrator with note | Per audit fix C1. |
+| Lock-state invariant? | `if locked, audioMode !== null` enforced; resume always at Stage 3 if mode null | Per audit fix C2. |
+| 5-extras canonical source? | This plan §7 (referenced by input-formats-plan EC-RG-02) | Per audit fix C3. |
+| `alignWordsWithScribe` API change? | Optional `diarize` param; defaults false; speaker_id only emitted when true | Per audit fix C4 — backward-compat with 3 existing callers. |
+| Stereo audio handling? | Original buffer in `rawAudioId` (stereo preserved for playback); temporary mono downmix for Scribe only | Per audit fix C5. |
+| Tone detection prompt? | Gemini structured-output JSON mode (`responseMimeType: 'application/json'`); batched 30-per-call | Per audit fix C8. |
 
 ## 16. Acceptance criteria
 
@@ -687,3 +972,21 @@ The plan is complete when:
 - [ ] Telemetry captures all 25+ fields in §13.
 - [ ] Aurora dark + light theme tokens applied to mode-select modal, speaker-mapping UI, AI-suggested extras flow per voice-and-lipsync-plan §19.
 - [ ] Total Mode A cost stays under $0.05; Mode B cost dominated by multi-voice TTS regen (per voice-plan §12 cost surface).
+- [ ] All time fields use `audioSegmentStartMs/EndMs` (ms units); Scribe `word.start/end` (seconds) × 1000 at the boundary.
+- [ ] `parsed.dialogueLines` schema unified across text-input and audio-input; null where not applicable, never undefined.
+- [ ] Mode A `mood` always = 'matter-of-fact'; `moodConfidence` always null.
+- [ ] `aiSuggestedExtras` is canonical; `speakerMap` re-derived via `syncSpeakerMap()` after every mutation.
+- [ ] Scribe failure offers retry + start-new-project-as-text (NOT in-place type switch).
+- [ ] `diarizationResult.confidence` computed; <0.7 surfaces warning banner with re-record/text-fallback options.
+- [ ] Setting + actions inferred via Gemini call at Stage 5; populates `actionLines[]` and `sceneHeadings[]`.
+- [ ] Storyboard step skips `castGenerateMultiVoiceAudio` when `audioMode === 're-tts' && locked === true`.
+- [ ] Sample clips stored as data URLs in IDB at `speaker_sample_<speakerId>`; survive reload.
+- [ ] `processOriginalAudio` defensive guards: `|| 'narrator'` fallback when speakerMap returns undefined; sets `isVoiceOver: true` on narrator-fallback.
+- [ ] Tone detection batched 30 lines per call when audio has >30 lines; sequential calls for >30.
+- [ ] Single-speaker default mapping is videoType-aware (narration → narrator; brand → presenter; film → first character).
+- [ ] Lock-state invariant: `if locked, audioMode !== null` enforced; resume always at Stage 3 when audioMode null.
+- [ ] `alignWordsWithScribe` accepts optional `{ diarize }` param defaulting false; existing 3 callers unaffected.
+- [ ] Stereo audio: original preserved in `rawAudioId`; temporary mono downmix for Scribe only.
+- [ ] Tone detection uses Gemini JSON mode (`responseMimeType: 'application/json'`); not bare-word prompts.
+- [ ] EC-DI-09 overlapping speakers, EC-DI-10 tab close during Scribe, EC-DI-11 AudioContext suspended, EC-DI-12 ElevenLabs key gate — all handled.
+- [ ] Telemetry captures: diarizationConfidence, audioContextResumeRequired, elevenlabsKeyMissingAtUpload, overlappingSegmentsDetected, tabCloseDuringScribeRecoveries, audioToTextFallbackOffered/Accepted, transcriptCopiedToClipboard.

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AutoPilot Reel – Mobile UI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+    background: #0a0a0f; color: #e4e4e7;
+    min-height: 100vh; max-width: 430px; margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: #111118;
+    border-bottom: 1px solid #1e1e2a;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-back { font-size: 22px; color: #a78bfa; background: none; border: none; cursor: pointer; }
+  .topbar-title { font-size: 14px; font-weight: 600; color: #fff; flex: 1; }
+  .topbar-badge {
+    font-size: 10px; padding: 3px 10px; border-radius: 10px;
+    font-weight: 700;
+  }
+  .topbar-badge.illustrated { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+  .topbar-badge.animated { background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b44; }
+  .topbar-badge.none { background: #1e1e2a; color: #71717a; border: 1px solid #1e1e2a; }
+
+  /* ── Agent pipeline bar ── */
+  .agent-pipeline {
+    display: flex; align-items: center; gap: 0;
+    padding: 8px 14px; background: #0d0d14;
+    border-bottom: 1px solid #1e1e2a;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .agent-pipeline::-webkit-scrollbar { display: none; }
+  .agent-chip {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 8px;
+    font-size: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+    background: #1e1e2a; color: #71717a;
+  }
+  .agent-chip.active { background: #7c3aed33; color: #a78bfa; }
+  .agent-chip.done { background: #05966933; color: #34d399; }
+  .agent-arrow { color: #333; font-size: 10px; margin: 0 2px; flex-shrink: 0; }
+
+  /* ── Steps ── */
+  .step {
+    padding: 14px 16px; border-bottom: 1px solid #1e1e2a;
+  }
+  .step.collapsed .step-body { display: none; }
+  .step-header {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+  }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    background: #7c3aed; color: #fff;
+  }
+  .step-num.done { background: #059669; }
+  .step-num.waiting { background: #1e1e2a; color: #71717a; }
+  .step-num.gen { background: #fbbf24; color: #000; }
+  .step-name { font-size: 13px; font-weight: 600; color: #e4e4e7; flex: 1; }
+  .step-status {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+  }
+  .step-status.done { background: #05966922; color: #34d399; }
+  .step-status.active { background: #7c3aed22; color: #a78bfa; }
+  .step-status.waiting { background: #1e1e2a; color: #71717a; }
+  .step-body { padding-top: 12px; }
+
+  /* ── Generic ── */
+  .prop-label { font-size: 10px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .action-btn {
+    padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 600;
+    text-align: center; border: none; cursor: pointer;
+  }
+  .action-btn.primary { background: #7c3aed; color: #fff; }
+  .action-btn.secondary { background: #1e1e2a; color: #e4e4e7; }
+  .action-btn.ghost { background: none; border: 1px solid #1e1e2a; color: #a1a1aa; }
+  .action-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ═══ Step 1: Video Mode ═══ */
+  .mode-cards { display: flex; gap: 10px; }
+  .mode-card {
+    flex: 1; padding: 14px 12px; border-radius: 12px;
+    background: #1a1a24; border: 2px solid #1e1e2a;
+    cursor: pointer; position: relative;
+  }
+  .mode-card.active { border-color: #7c3aed; background: #7c3aed11; }
+  .mode-card.locked { opacity: .35; pointer-events: none; }
+  .mode-card-title { font-size: 13px; font-weight: 700; color: #e4e4e7; margin-bottom: 4px; }
+  .mode-card-desc { font-size: 11px; color: #71717a; margin-bottom: 8px; }
+  .mode-card-cost {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+    display: inline-block;
+  }
+  .mode-card.active .mode-card-cost { background: #7c3aed22; color: #a78bfa; }
+  .mode-card:not(.active) .mode-card-cost { background: #1e1e2a; color: #71717a; }
+  .mode-card-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+  .mode-card.active .mode-card-check { background: #7c3aed; color: #fff; }
+  .mode-card:not(.active) .mode-card-check { background: #1e1e2a; color: #71717a; }
+  .mode-lock-msg {
+    margin-top: 10px; padding: 8px 10px; border-radius: 8px;
+    background: #f59e0b0d; border: 1px solid #f59e0b22;
+    font-size: 11px; color: #fbbf24; display: none;
+  }
+
+  /* Kling key section */
+  .api-key-row {
+    display: flex; gap: 8px; align-items: center; margin-top: 8px;
+  }
+  .api-key-input {
+    flex: 1; padding: 7px 10px; border-radius: 8px;
+    background: #0a0a0f; border: 1px solid #1e1e2a;
+    color: #e4e4e7; font-size: 11px;
+  }
+  .api-key-save {
+    padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    background: #059669; color: #fff; border: none; cursor: pointer;
+  }
+
+  /* ═══ Step 2: Input ═══ */
+  .input-toggle {
+    display: flex; gap: 0; border-radius: 10px; overflow: hidden;
+    border: 1px solid #1e1e2a; margin-bottom: 10px;
+  }
+  .input-toggle-btn {
+    flex: 1; padding: 8px 0; text-align: center; font-size: 12px; font-weight: 600;
+    background: #111118; color: #71717a; border: none; cursor: pointer;
+  }
+  .input-toggle-btn.active { background: #7c3aed; color: #fff; }
+  .text-area {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: #0a0a0f; border: 1px solid #1e1e2a;
+    color: #e4e4e7; font-size: 12px; line-height: 1.6;
+    resize: vertical; min-height: 100px;
+  }
+  .audio-import-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 20px; border-radius: 12px;
+    background: #1a1a24; border: 2px dashed #1e1e2a;
+    color: #71717a; font-size: 13px; cursor: pointer;
+  }
+  .brainstorm-hint {
+    font-size: 11px; color: #71717a; margin-top: 8px;
+    padding: 8px 10px; background: #7c3aed0a; border-radius: 8px;
+    border: 1px solid #7c3aed22;
+  }
+  .brainstorm-hint span { color: #a78bfa; font-weight: 600; }
+
+  /* ═══ Step 3: Style & Presets ═══ */
+  .template-cats {
+    display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .template-cats::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    background: #1e1e2a; color: #a1a1aa; border: none; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .cat-chip.active { background: #7c3aed; color: #fff; }
+
+  .template-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+  }
+  .template-card {
+    padding: 12px; border-radius: 10px; cursor: pointer;
+    border: 2px solid transparent; position: relative;
+    min-height: 70px; display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .template-card.active { border-color: #7c3aed; }
+  .template-card-name { font-size: 12px; font-weight: 700; color: #fff; }
+  .template-card-desc { font-size: 10px; color: #fffa; margin-top: 2px; }
+
+  .option-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .option-item {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .option-select {
+    padding: 7px 10px; border-radius: 8px;
+    background: #0a0a0f; border: 1px solid #1e1e2a;
+    color: #e4e4e7; font-size: 11px; -webkit-appearance: none;
+  }
+
+  .launch-row {
+    display: flex; align-items: center; gap: 10px; margin-top: 14px;
+  }
+  .cost-chip {
+    font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
+    background: #f59e0b22; color: #fbbf24;
+  }
+  .progress-bar {
+    width: 100%; height: 6px; border-radius: 3px; background: #1e1e2a;
+    overflow: hidden; margin-top: 10px;
+  }
+  .progress-fill {
+    height: 100%; width: 65%; border-radius: 3px;
+    background: linear-gradient(90deg, #7c3aed, #a855f7);
+    animation: progress-pulse 2s ease-in-out infinite;
+  }
+
+  /* ═══ Step 4: Scenes ═══ */
+  .scene-section-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .scene-section-label.img { color: #a78bfa; }
+  .scene-section-label.vid { color: #fbbf24; }
+  .scene-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .scene-card {
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid #1e1e2a; position: relative;
+    aspect-ratio: 9/16;
+  }
+  .scene-card-inner { width: 100%; height: 100%; }
+  .scene-card-num {
+    position: absolute; top: 4px; left: 4px;
+    font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+    background: #000a; color: #fff; backdrop-filter: blur(4px);
+  }
+  .scene-card-status {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 3px 6px; font-size: 9px; font-weight: 600;
+    text-align: center; background: linear-gradient(transparent, #000c);
+  }
+  .scene-card-status.done { color: #34d399; }
+  .scene-card-status.gen { color: #fbbf24; }
+  .scene-card-status.error { color: #ef4444; }
+
+  .scene-card-play {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #000a; backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 10px;
+  }
+
+  .video-grid-wrapper {
+    margin-top: 14px; display: none;
+  }
+  .video-grid-wrapper.show { display: block; }
+  .scene-card.video-card { border-color: #f59e0b33; }
+  .scene-card.video-card .scene-card-num { background: #f59e0b66; }
+
+  .scene-actions {
+    display: flex; gap: 6px; margin-top: 10px; justify-content: center;
+  }
+
+  /* ═══ Step 5: Animation (Animated only) ═══ */
+  .anim-progress-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .anim-card {
+    padding: 10px; border-radius: 10px; background: #1a1a24;
+    border: 1px solid #1e1e2a;
+  }
+  .anim-card-scene { font-size: 10px; font-weight: 700; color: #fbbf24; margin-bottom: 4px; }
+  .anim-card-status { font-size: 11px; font-weight: 600; }
+  .anim-card-status.done { color: #34d399; }
+  .anim-card-status.gen { color: #fbbf24; }
+  .anim-card-status.pending { color: #71717a; }
+  .anim-card-bar {
+    width: 100%; height: 3px; border-radius: 2px; background: #1e1e2a;
+    margin-top: 6px; overflow: hidden;
+  }
+  .anim-card-bar-fill { height: 100%; border-radius: 2px; }
+  .anim-card-bar-fill.done { width: 100%; background: #059669; }
+  .anim-card-bar-fill.gen { width: 60%; background: #fbbf24; animation: progress-pulse 2s ease-in-out infinite; }
+
+  /* ═══ Step BGM ═══ */
+  .bgm-track {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: #1a1a24; border-radius: 10px;
+    border: 1px solid #1e1e2a; margin-bottom: 8px;
+  }
+  .bgm-track-icon { font-size: 18px; }
+  .bgm-track-info { flex: 1; }
+  .bgm-track-name { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+  .bgm-track-mood { font-size: 10px; color: #71717a; }
+  .bgm-wave {
+    width: 100%; height: 40px; background: #0a0a0f; border-radius: 8px;
+    border: 1px solid #1e1e2a; overflow: hidden; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 1px; padding: 0 8px;
+  }
+  .bgm-bar { width: 2px; border-radius: 1px; background: #a855f7; }
+  .vol-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .vol-slider {
+    flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px;
+    background: #1e1e2a; outline: none;
+  }
+  .vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #a855f7; cursor: pointer;
+  }
+  .vol-val { font-size: 11px; color: #a1a1aa; min-width: 32px; text-align: right; }
+
+  /* ═══ Preview ═══ */
+  .phone-frame {
+    width: 200px; margin: 0 auto;
+    background: #111118; border-radius: 20px; padding: 8px;
+    border: 2px solid #1e1e2a;
+  }
+  .phone-screen {
+    width: 100%; aspect-ratio: 9/16; border-radius: 14px;
+    background: #0f0f1a; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .phone-screen-text { font-size: 11px; color: #71717a; text-align: center; line-height: 1.5; }
+  .phone-play {
+    position: absolute; width: 36px; height: 36px; border-radius: 50%;
+    background: #000a; backdrop-filter: blur(6px); border: 2px solid #fff3;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px;
+  }
+  .phone-transport {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 0 4px;
+  }
+  .phone-play-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #7c3aed; border: none; color: #fff; font-size: 10px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .phone-time { font-size: 10px; color: #71717a; }
+
+  /* ═══ Export ═══ */
+  .export-eyebrow {
+    font-size: 10px; font-weight: 700; color: #71717a;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .export-meta {
+    display: flex; gap: 12px; margin-bottom: 12px;
+  }
+  .export-meta-item {
+    font-size: 11px; color: #a1a1aa;
+  }
+  .export-meta-item span { color: #e4e4e7; font-weight: 600; }
+  .export-actions {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .export-main-btn {
+    width: 100%; padding: 14px 0; border-radius: 12px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .export-secondary-row {
+    display: flex; gap: 8px;
+  }
+  .export-sec-btn {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    font-size: 12px; font-weight: 600; text-align: center;
+    background: #1e1e2a; color: #e4e4e7; border: none; cursor: pointer;
+  }
+  .export-sec-btn.canvas { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+
+  .hidden { display: none !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes progress-pulse { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <button class="topbar-back">‹</button>
+  <span class="topbar-title">AutoPilot</span>
+  <span class="topbar-badge none" id="topbar-badge">Select Mode</span>
+</div>
+
+<!-- Agent pipeline — changes based on mode -->
+<div class="agent-pipeline" id="agent-pipeline">
+  <div class="agent-chip" style="color:#71717a;">Select a mode to see agent pipeline</div>
+</div>
+
+<!-- ═══ Step 1: Video Mode ═══ -->
+<div class="step" id="step-mode">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num">1</div>
+    <span class="step-name">Video Mode</span>
+    <span class="step-status active" id="mode-status">Choose</span>
+  </div>
+  <div class="step-body">
+    <div class="mode-cards">
+      <div class="mode-card" id="card-illustrated" onclick="selectMode('illustrated')">
+        <div class="mode-card-check">○</div>
+        <div class="mode-card-title">🎨 Illustrated</div>
+        <div class="mode-card-desc">AI-generated scene images with Ken Burns motion &amp; transitions</div>
+        <span class="mode-card-cost">1× token · 5 agents</span>
+      </div>
+      <div class="mode-card" id="card-animated" onclick="selectMode('animated')">
+        <div class="mode-card-check">○</div>
+        <div class="mode-card-title">🎬 Animated</div>
+        <div class="mode-card-desc">Images → Kling/Veo3 AI video clips with cinematic motion</div>
+        <span class="mode-card-cost">16× token · 6 agents</span>
+      </div>
+    </div>
+    <div class="mode-lock-msg" id="mode-lock-msg">⚠ Mode is locked after generation starts. To change, create a new project.</div>
+    <div class="hidden" id="kling-keys" style="margin-top:12px;">
+      <div class="prop-label">Kling / Veo3 API Keys</div>
+      <div class="api-key-row">
+        <input class="api-key-input" type="password" placeholder="Access key">
+        <button class="api-key-save">Save</button>
+      </div>
+      <div class="api-key-row">
+        <input class="api-key-input" type="password" placeholder="Secret key">
+        <button class="api-key-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step 2: Input ═══ -->
+<div class="step" id="step-input">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num">2</div>
+    <span class="step-name">Input</span>
+    <span class="step-status active">Active</span>
+  </div>
+  <div class="step-body">
+    <div class="input-toggle">
+      <button class="input-toggle-btn" onclick="switchInput(this, 'audio')">🎵 Audio</button>
+      <button class="input-toggle-btn" onclick="switchInput(this, 'video')">🎬 Video</button>
+      <button class="input-toggle-btn active" onclick="switchInput(this, 'text')">📝 Text</button>
+    </div>
+    <div id="input-text">
+      <textarea class="text-area" placeholder="Paste or type your script here. Stori will narrate and turn it into a reel.">A lone figure walks through neon-lit rain in a dark alley. The cobblestones reflect blue and purple signs overhead.
+
+A crumpled letter trembles in weathered hands under warm lamplight. The truth is finally revealed.
+
+At a rain-soaked crossroads beneath a single streetlight, two paths disappear into darkness. The choice is clear.
+
+Footsteps echo through changing landscapes — mountains, forests, city streets. Each step forward is a step toward yourself.</textarea>
+      <div class="brainstorm-hint">
+        <span>Tip:</span> Use Brainstorm on the home page to have AI help write your script first.
+      </div>
+    </div>
+    <div id="input-audio" class="hidden">
+      <div class="audio-import-btn">🎵 Choose Audio File</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step 3: Style & Presets ═══ -->
+<div class="step" id="step-presets">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num">3</div>
+    <span class="step-name">Style & Presets</span>
+    <span class="step-status waiting">Waiting</span>
+  </div>
+  <div class="step-body">
+    <div class="template-cats">
+      <button class="cat-chip active">Cinematic</button>
+      <button class="cat-chip">Product</button>
+      <button class="cat-chip">Travel</button>
+      <button class="cat-chip">Editorial</button>
+      <button class="cat-chip">Minimal</button>
+    </div>
+    <div class="template-grid">
+      <div class="template-card active" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);">
+        <div class="template-card-name">Dark Cinematic</div>
+        <div class="template-card-desc">Moody, high contrast</div>
+      </div>
+      <div class="template-card" style="background:linear-gradient(135deg,#2d1b42,#462046);">
+        <div class="template-card-name">Neon Nights</div>
+        <div class="template-card-desc">Vibrant, urban</div>
+      </div>
+      <div class="template-card" style="background:linear-gradient(135deg,#0f2027,#2c5364);">
+        <div class="template-card-name">Ocean Blue</div>
+        <div class="template-card-desc">Calm, cinematic</div>
+      </div>
+      <div class="template-card" style="background:linear-gradient(135deg,#3a1c1c,#7c2d12);">
+        <div class="template-card-name">Warm Film</div>
+        <div class="template-card-desc">Golden, vintage</div>
+      </div>
+    </div>
+
+    <div class="option-grid">
+      <div class="option-item">
+        <div class="prop-label">Platform</div>
+        <select class="option-select">
+          <option>Instagram Reel</option>
+          <option>YouTube Short</option>
+          <option>TikTok</option>
+        </select>
+      </div>
+      <div class="option-item">
+        <div class="prop-label">Visual Style</div>
+        <select class="option-select">
+          <option>Cinematic</option>
+          <option>Watercolor</option>
+          <option>Anime</option>
+          <option>Photorealistic</option>
+        </select>
+      </div>
+      <div class="option-item">
+        <div class="prop-label">Transition</div>
+        <select class="option-select" id="transition-select">
+          <option>Whip Pan</option>
+          <option>Quick Cut</option>
+          <option>Crossfade</option>
+          <option>Flash</option>
+        </select>
+      </div>
+      <div class="option-item">
+        <div class="prop-label">Audio Language</div>
+        <select class="option-select">
+          <option>Same as Input</option>
+          <option>English</option>
+          <option>Tamil</option>
+          <option>Hindi</option>
+        </select>
+      </div>
+      <div class="option-item">
+        <div class="prop-label">Subtitle</div>
+        <select class="option-select">
+          <option>None</option>
+          <option>Same as Input</option>
+          <option>English</option>
+          <option>Tamil</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Gemini prompt preview — shows which type of descriptions Gemini generates -->
+    <div id="prompt-hint" style="margin-top:12px; padding:8px 10px; border-radius:8px; font-size:11px; display:none;">
+    </div>
+
+    <div class="launch-row">
+      <span class="cost-chip" id="cost-chip">~4 credits</span>
+      <div style="flex:1;"></div>
+      <button class="action-btn primary" style="padding:10px 24px;font-size:13px;" onclick="launchAgents()">✨ Launch Agents</button>
+    </div>
+    <div id="progress-section" class="hidden">
+      <div style="margin-top:8px;font-size:11px;color:#71717a;text-align:center;" id="progress-text">Generating scenes... 65%</div>
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step 4: Scene Images (both modes) ═══ -->
+<div class="step" id="step-scenes">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num waiting" id="scenes-num">4</div>
+    <span class="step-name" id="scenes-title">Scene Images</span>
+    <span class="step-status waiting" id="scenes-status">Waiting</span>
+  </div>
+  <div class="step-body">
+    <!-- Image grid (both modes) -->
+    <div class="scene-section-label img" id="img-grid-label">🖼 Scene Images</div>
+    <div class="scene-grid" id="image-grid">
+      <div class="scene-card">
+        <div class="scene-card-inner" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div>
+        <span class="scene-card-num">1</span>
+        <div class="scene-card-status done">Done</div>
+      </div>
+      <div class="scene-card">
+        <div class="scene-card-inner" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div>
+        <span class="scene-card-num">2</span>
+        <div class="scene-card-status done">Done</div>
+      </div>
+      <div class="scene-card">
+        <div class="scene-card-inner" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div>
+        <span class="scene-card-num">3</span>
+        <div class="scene-card-status done">Done</div>
+      </div>
+      <div class="scene-card">
+        <div class="scene-card-inner" style="background:linear-gradient(135deg,#1a1a2e,#16213e);position:relative;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+            <div style="width:20px;height:20px;border:2px solid #fbbf24;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+          </div>
+        </div>
+        <span class="scene-card-num">4</span>
+        <div class="scene-card-status gen">Generating</div>
+      </div>
+    </div>
+
+    <!-- Video grid (Animated only) -->
+    <div class="video-grid-wrapper" id="video-grid-wrapper">
+      <div class="scene-section-label vid">🎬 Scene Videos (from Kling/Veo3)</div>
+      <div style="font-size:10px;color:#71717a;margin-bottom:8px;">Generated after images complete → sent to Animation Agent ✨</div>
+      <div class="scene-grid">
+        <div class="scene-card video-card">
+          <div class="scene-card-inner" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);"></div>
+          <span class="scene-card-num">1</span>
+          <div class="scene-card-play">▶</div>
+          <div class="scene-card-status done">5s clip</div>
+        </div>
+        <div class="scene-card video-card">
+          <div class="scene-card-inner" style="background:linear-gradient(135deg,#2d1b42,#462046);"></div>
+          <span class="scene-card-num">2</span>
+          <div class="scene-card-play">▶</div>
+          <div class="scene-card-status done">5s clip</div>
+        </div>
+        <div class="scene-card video-card">
+          <div class="scene-card-inner" style="background:linear-gradient(135deg,#0f2027,#2c5364);"></div>
+          <span class="scene-card-num">3</span>
+          <div class="scene-card-play">▶</div>
+          <div class="scene-card-status gen">Rendering</div>
+        </div>
+        <div class="scene-card video-card" style="opacity:.4;">
+          <div class="scene-card-inner" style="background:#1a1a24;"></div>
+          <span class="scene-card-num">4</span>
+          <div class="scene-card-status" style="color:#71717a;">Waiting for img</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scene-actions">
+      <button class="action-btn secondary">Retry Failed</button>
+      <button class="action-btn secondary">Pause</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step 5 (Animated only): Animation Agent ═══ -->
+<div class="step hidden" id="step-animation">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num gen">5</div>
+    <span class="step-name">✨ Animation Agent</span>
+    <span class="step-status active">Rendering</span>
+  </div>
+  <div class="step-body">
+    <div style="font-size:11px;color:#71717a;margin-bottom:10px;">
+      Sending scene images → Kling/Veo3 for cinematic video generation
+    </div>
+    <div class="anim-progress-grid">
+      <div class="anim-card">
+        <div class="anim-card-scene">Scene 1</div>
+        <div class="anim-card-status done">✓ 5s clip ready</div>
+        <div class="anim-card-bar"><div class="anim-card-bar-fill done"></div></div>
+      </div>
+      <div class="anim-card">
+        <div class="anim-card-scene">Scene 2</div>
+        <div class="anim-card-status done">✓ 5s clip ready</div>
+        <div class="anim-card-bar"><div class="anim-card-bar-fill done"></div></div>
+      </div>
+      <div class="anim-card">
+        <div class="anim-card-scene">Scene 3</div>
+        <div class="anim-card-status gen">⏳ Rendering 60%</div>
+        <div class="anim-card-bar"><div class="anim-card-bar-fill gen"></div></div>
+      </div>
+      <div class="anim-card">
+        <div class="anim-card-scene">Scene 4</div>
+        <div class="anim-card-status pending">Waiting for image</div>
+        <div class="anim-card-bar"><div class="anim-card-bar-fill" style="width:0;"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:#71717a;text-align:center;">
+      Estimated: ~3 min per clip · Kling v1.6 · 5s duration
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step BGM ═══ -->
+<div class="step" id="step-bgm">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num waiting" id="bgm-num">5</div>
+    <span class="step-name">BGM Agent</span>
+    <span class="step-status waiting">Waiting</span>
+  </div>
+  <div class="step-body">
+    <div class="bgm-track">
+      <span class="bgm-track-icon">🎵</span>
+      <div class="bgm-track-info">
+        <div class="bgm-track-name">Cinematic Hopeful · 1:18</div>
+        <div class="bgm-track-mood">auto-matched to mood: hopeful</div>
+      </div>
+      <button class="action-btn ghost" style="padding:5px 10px;font-size:10px;">Browse</button>
+    </div>
+    <div class="bgm-wave" id="bgm-wave"></div>
+    <div class="vol-row">
+      <span style="font-size:11px;color:#71717a;">BGM Volume</span>
+      <input type="range" class="vol-slider" min="0" max="100" value="40">
+      <span class="vol-val">40%</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step Preview ═══ -->
+<div class="step" id="step-preview">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num waiting" id="preview-num">6</div>
+    <span class="step-name" id="preview-title">Preview</span>
+    <span class="step-status waiting">Waiting</span>
+  </div>
+  <div class="step-body">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="phone-screen-text" id="preview-desc">Preview will appear here</div>
+        <div class="phone-play">▶</div>
+      </div>
+      <div class="phone-transport">
+        <button class="phone-play-btn">▶</button>
+        <span class="phone-time">0:00 / 0:48</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Step Export ═══ -->
+<div class="step" id="step-export">
+  <div class="step-header" onclick="toggleStep(this)">
+    <div class="step-num waiting" id="export-num">7</div>
+    <span class="step-name">Export & Actions</span>
+    <span class="step-status waiting">Waiting</span>
+  </div>
+  <div class="step-body">
+    <div class="export-eyebrow">Export & Render</div>
+    <div class="export-meta" id="export-meta">
+      <div class="export-meta-item"><span>4</span> credits</div>
+      <div class="export-meta-item"><span>38s</span></div>
+      <div class="export-meta-item"><span>1080×1920</span></div>
+    </div>
+    <div class="export-actions">
+      <button class="export-main-btn">⬇ Export Reel</button>
+      <div class="export-secondary-row">
+        <button class="export-sec-btn canvas">🎨 Open in Canvas</button>
+        <button class="export-sec-btn">Open in Editor</button>
+      </div>
+      <div class="export-secondary-row">
+        <button class="export-sec-btn">💾 Save Project</button>
+        <button class="export-sec-btn">Save Preset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height:40px;"></div>
+
+<script>
+const bgmWave = document.getElementById('bgm-wave');
+for (let i = 0; i < 100; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'bgm-bar';
+  bar.style.height = (4 + Math.random() * 28) + 'px';
+  bgmWave.appendChild(bar);
+}
+
+let currentMode = null;
+let locked = false;
+
+function toggleStep(header) {
+  header.closest('.step').classList.toggle('collapsed');
+}
+
+function selectMode(mode) {
+  if (locked) return;
+  currentMode = mode;
+  applyMode(mode);
+}
+
+function applyMode(mode) {
+  const ilCard = document.getElementById('card-illustrated');
+  const anCard = document.getElementById('card-animated');
+  const badge = document.getElementById('topbar-badge');
+
+  // Mode cards
+  [ilCard, anCard].forEach(c => {
+    c.classList.remove('active');
+    c.querySelector('.mode-card-check').textContent = '○';
+  });
+  const active = mode === 'illustrated' ? ilCard : anCard;
+  active.classList.add('active');
+  active.querySelector('.mode-card-check').textContent = '✓';
+
+  // Top badge
+  badge.className = 'topbar-badge ' + mode;
+  badge.textContent = mode === 'illustrated' ? '🎨 Illustrated' : '🎬 Animated';
+
+  // Kling keys
+  document.getElementById('kling-keys').classList.toggle('hidden', mode !== 'animated');
+
+  // Agent pipeline
+  renderPipeline(mode);
+
+  // Step 4 title
+  const scenesTitle = document.getElementById('scenes-title');
+  scenesTitle.textContent = mode === 'animated' ? 'Scene Images & Videos' : 'Scene Images';
+
+  // Image grid label
+  const imgLabel = document.getElementById('img-grid-label');
+  imgLabel.textContent = mode === 'animated' ? '🖼 Source Images (reference for video gen)' : '🖼 Scene Images (final output)';
+
+  // Video grid
+  document.getElementById('video-grid-wrapper').classList.toggle('show', mode === 'animated');
+
+  // Animation Agent step (animated only)
+  document.getElementById('step-animation').classList.toggle('hidden', mode !== 'animated');
+
+  // Step numbers shift for animated (adds step 5)
+  if (mode === 'animated') {
+    document.getElementById('bgm-num').textContent = '6';
+    document.getElementById('preview-num').textContent = '7';
+    document.getElementById('export-num').textContent = '8';
+  } else {
+    document.getElementById('bgm-num').textContent = '5';
+    document.getElementById('preview-num').textContent = '6';
+    document.getElementById('export-num').textContent = '7';
+  }
+
+  // Cost chip
+  document.getElementById('cost-chip').textContent = mode === 'animated' ? '~64 credits' : '~4 credits';
+
+  // Preview description
+  document.getElementById('preview-desc').textContent =
+    mode === 'animated'
+      ? 'Video clips play sequentially\nwith transitions'
+      : 'Images with Ken Burns\nmotion & transitions';
+
+  // Prompt hint
+  const hint = document.getElementById('prompt-hint');
+  if (mode === 'illustrated') {
+    hint.style.display = 'block';
+    hint.style.background = '#7c3aed0d';
+    hint.style.border = '1px solid #7c3aed22';
+    hint.style.color = '#a78bfa';
+    hint.innerHTML = '🎨 Gemini will generate <b>vivid visual descriptions</b> for scene images';
+  } else {
+    hint.style.display = 'block';
+    hint.style.background = '#f59e0b0d';
+    hint.style.border = '1px solid #f59e0b22';
+    hint.style.color = '#fbbf24';
+    hint.innerHTML = '🎬 Gemini will generate <b>cinematic MOTION descriptions</b> for video clips';
+  }
+
+  // Mode status
+  document.getElementById('mode-status').textContent = 'Selected';
+  document.getElementById('mode-status').className = 'step-status done';
+}
+
+function renderPipeline(mode) {
+  const el = document.getElementById('agent-pipeline');
+  if (mode === 'illustrated') {
+    el.innerHTML = `
+      <div class="agent-chip done">📝 Script</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip done">🎨 Storyboard</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip active">🖼 Image</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip">🎵 BGM</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip">👁 Preview</div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="agent-chip done">📝 Script</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip done">🎬 Cinematography</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip active">🖼 Image</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip">✨ Animation</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip">🎵 BGM</div>
+      <span class="agent-arrow">→</span>
+      <div class="agent-chip">👁 Preview</div>
+    `;
+  }
+}
+
+function launchAgents() {
+  if (!currentMode) {
+    alert('Please select a Video Mode first (Step 1)');
+    return;
+  }
+  locked = true;
+  document.getElementById('mode-lock-msg').style.display = 'block';
+  const other = currentMode === 'illustrated'
+    ? document.getElementById('card-animated')
+    : document.getElementById('card-illustrated');
+  other.classList.add('locked');
+  document.getElementById('progress-section').classList.remove('hidden');
+}
+
+function switchInput(btn, type) {
+  btn.parentElement.querySelectorAll('.input-toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('input-text').classList.toggle('hidden', type !== 'text');
+  document.getElementById('input-audio').classList.toggle('hidden', type !== 'audio');
+}
+</script>
+</body>
+</html>

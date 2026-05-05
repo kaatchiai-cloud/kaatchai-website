@@ -366,6 +366,18 @@ When framing makes mouth visibility impossible, the segment becomes voice-over:
 
 ## 8. TTS pipeline rewrite — multi-voice generation
 
+**TTS skip contract for audio-input Mode B (cross-plan):**
+When `window.createJobState.inputDoc.audioMode === 're-tts'` AND `window.createJobState.inputDoc.locked === true`, this entire TTS pipeline is **SKIPPED** — the audio was already produced by the audio-input-plan §9.2 Mode B flow at input-Stage-5. Re-running it here would double the TTS cost and overwrite the already-assembled master buffer. See audio-input-plan §9.2 for the canonical contract; this section is the cross-plan acknowledgment that Mode B audio bypasses §8.
+
+```js
+// Guard at top of multi-voice TTS entry point:
+if (window.createJobState?.inputDoc?.audioMode === 're-tts'
+    && window.createJobState?.inputDoc?.locked === true) {
+  // Audio already produced at audio-input Stage 5. Skip TTS.
+  return;
+}
+```
+
 ### 8.1 Today (single-voice)
 
 ```js
