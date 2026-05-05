@@ -441,10 +441,12 @@ async function assembleSceneAudio(scene, audioSegments) {
   }
   scene.combinedAudio = buffer;
   scene.speakerTurns = turns;
-  scene.dialogueLength = cursorMs;
+  scene.audioActualDuration = cursorMs / 1000;   // seconds — canonical field per audio-rehearsal-plan §4
   return buffer;
 }
 ```
+
+**Field rename note:** earlier drafts of this plan wrote `scene.dialogueLength` (ms). The canonical field across all plans is now `scene.audioActualDuration` (seconds). Voice-plan implementations writing this field must use the new name + units. See audio-rehearsal-plan §5.1 for the full three-field model (`audioActualDuration`, `duration`, `videoActualDuration`).
 
 ### 8.5 Scribe alignment refinement
 
@@ -741,6 +743,19 @@ Each provider returns `{ tier, status, syncedClipUrl?, overlayInstructions?, cos
 
 ## 11. ElevenLabs integration
 
+### 11.0 Provider role — what ElevenLabs is required for (locked)
+
+ElevenLabs serves two distinct functions in Stori, with different default-vs-opt-in semantics:
+
+| Function | Status | When used |
+|---|---|---|
+| **Scribe (speech-to-text + diarization + word-alignment)** | **Required default** | Whenever diarization is needed (audio-input projects), karaoke-style word-highlight subtitles, or lip-sync precision (Tier 1 ~50ms boundary detection). No silent fallback to Gemini for these features — Scribe is the source of truth. |
+| **TTS premium voices** | **Optional upgrade per character** | When user explicitly binds a character to an ElevenLabs voice instead of a Gemini voice. Default is Gemini. |
+
+**Pricing reality (verified):** Scribe v2 batch = $0.22/hr (~$0.0037/min) with diarization included at no extra charge. ElevenLabs voice TTS = ~$0.30 per 1K characters.
+
+**Credential resolution:** today via BYOK; future via credit-billed server-side credentials per the locked architecture migration. Plans don't gate features behind "configure your X key" — credential source is treated as opaque. See [project_credit_system_only.md](.claude/projects/.../memory/project_credit_system_only.md) memory note.
+
 ### 11.1 Catalog fetch
 
 ```js
@@ -810,9 +825,9 @@ function trackElevenLabsCost(text) {
 }
 ```
 
-### 11.5 Same key as Scribe
+### 11.5 Same credential as Scribe
 
-Single ElevenLabs subscription, single key entry. Reused across Scribe alignment + voice TTS.
+Single ElevenLabs credential serves both Scribe (diarization + word alignment) and TTS premium voices. In the BYOK MVP this is one localStorage key; in the future credit-billed architecture this is one server-side credential. Plans never gate features per-credential — the credential source is opaque to feature code.
 
 ## 12. Cost surface
 

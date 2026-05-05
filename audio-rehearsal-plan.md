@@ -1045,12 +1045,15 @@ audio buffer in the master combined buffer. Doesn't disturb the batch.
 The batched-call output is a single combined `AudioBuffer`. Splitting it
 back into per-segment buffers has THREE tiers, in order of accuracy:
 
-**Tier 1 — Scribe word alignment (preferred, ~95% accurate):**
-Send the combined buffer to ElevenLabs Scribe → get per-word timestamps.
-For each input line, locate its first word and last word in the timestamp
-stream; the segment boundary is `[firstWord.start, lastWord.end]`. Slice
-the AudioBuffer at those sample offsets. Sample-accurate; handles inter-
-line silence, breath groups, and prosody drift naturally.
+**Tier 1 — Scribe word alignment (DEFAULT, ~95% accurate):**
+This is the unambiguous default — Scribe is the source of truth for
+boundary precision per voice-and-lipsync-plan §11.0. Send the combined
+buffer to ElevenLabs Scribe → get per-word timestamps. For each input
+line, locate its first word and last word in the timestamp stream; the
+segment boundary is `[firstWord.start, lastWord.end]`. Slice the
+AudioBuffer at those sample offsets. Sample-accurate; handles inter-line
+silence, breath groups, and prosody drift naturally. Tier 2 and 3 are
+fallback-only paths invoked when Scribe is unavailable.
 
 **Tier 2 — ElevenLabs `*-with-timestamps` endpoint (ElevenLabs only):**
 When the active provider for the batch is ElevenLabs and Scribe is
