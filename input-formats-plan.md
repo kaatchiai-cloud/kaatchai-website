@@ -926,3 +926,119 @@ The plan is complete when:
 - [ ] Review UI labels score as "Parse confidence" with subtitle clarifying it measures structure not correctness.
 - [ ] Reformat rejection offers 3 recovery buttons (manual review / back to edit / try other format).
 - [ ] Telemetry captures `reformatResultConfidence`, `reformatResultFormat`, `reformatLoopBlocked`.
+- [ ] All new UI elements (format-detection hint, review modal, reformat-suggested modal, reformat-diff) pass §19 Aurora dark + light theme inspection per the §19.6 checklist.
+
+---
+
+## 19. Theming — Aurora dark + light compliance
+
+All new UI introduced by this plan must render correctly in both Aurora dark and Aurora light themes. Mirrors the theming spec pattern from voice-and-lipsync-plan §19 + audio-rehearsal-plan §14. Theming is non-negotiable: a Stori plan that ships theme-broken UI breaks the bar set for the product.
+
+### 19.1 Tokens to use
+
+Aurora tokens live in [css/themes.css](css/themes.css) and auto-swap based on `html[data-theme="light"]` / `dark`. Always use these via `var(--token-name, fallback)`.
+
+**Surface / structure:**
+- `var(--bg-primary, var(--lp-bg))` — outermost background (input submission step background)
+- `var(--bg-elevated, var(--lp-bg2))` — raised panels (review modal body, reformat-diff container)
+- `var(--bg-card, var(--lp-card))` — card surfaces (per-line review row, format-detection hint card, individual scene group in review modal)
+- `var(--border, var(--lp-card-bdr))` — borders, dividers
+- `var(--accent, var(--lp-accent))` — Stori brand cyan; selection rings, button hover, active dropdown item, "Confirm and continue" CTA
+- `var(--accent2, var(--lp-accent2))` — secondary accent (rarely used in this plan)
+
+**Text:**
+- `var(--text, var(--lp-text))` — primary copy (review modal headers, dialogue text, action lines)
+- `var(--text-secondary, var(--lp-dim))` — secondary copy (line numbers, helper hints, "(suggested)" annotations)
+- `var(--text-muted, var(--lp-faint))` — captions, meta, low-confidence value preview
+
+**Semantic (status):**
+- `var(--green)` + `var(--green-soft)` — high-confidence badge (auto-pass score), "✓ Confirmed"
+- `var(--red)` + `var(--red-soft)` — error states, reformat-loop-blocked banner, parse failure
+- `var(--amber)` + `var(--amber-soft)` — `⚠ N items` badge on review-required scene group, low-confidence inferred-speaker indicator, reformat-suggested banner
+
+These semantic tokens auto-swap between dark and light at [css/themes.css:69-75](css/themes.css#L69-L75) and [css/styles.css:14-19](css/styles.css#L14-L19).
+
+### 19.2 Fonts
+
+- **Body / labels / dropdowns / buttons:** `font-family: inherit;` — picks up Poppins from `body`. Never hardcode `'Poppins'` in component CSS.
+- **Source-line-number prefixes (e.g., `Line 14:`)**: `font-family: 'SF Mono', 'Fira Code', monospace;` — for visual distinction from body copy
+- **Reformat-diff side-by-side panes (raw text view):** `font-family: 'SF Mono', 'Fira Code', monospace;` — preserves whitespace + line-break visibility
+
+### 19.3 Per-component theming spec
+
+**Format-detection hint card (§6):**
+- Background: `var(--bg-card, var(--lp-card))`
+- Border: `1px solid var(--border, var(--lp-card-bdr))`
+- "Detected format: screenplay (95%)" text: `color: var(--text, var(--lp-text))`
+- Confidence subtitle (`(detected at submission)`): `color: var(--text-muted, var(--lp-faint))`
+- Hidden when `confidence > 0.95` to avoid surface clutter
+
+**Review-required modal (§10.2):**
+- Modal backdrop: `color-mix(in oklch, var(--bg-primary, var(--lp-bg)) 75%, transparent)` with `backdrop-filter: blur(4px)`
+- Modal body: `var(--bg-elevated, var(--lp-bg2))` background, `var(--border)` `1px` border, `12px` border-radius
+- Section title ("Review parsed input"): `color: var(--text); font-weight: 600;`
+- Subtitle ("Parse confidence: 67% — review the highlighted items below..."): `color: var(--text-secondary)`
+- Per-scene group (collapsed when all items high-confidence): `var(--bg-card)` background, `var(--border)` border
+  - Scene group with low-confidence items: border-left `3px solid var(--amber)` accent
+  - Scene group with all clear: border-left `3px solid var(--green)` accent
+- ⚠ `N items` badge: `color: var(--amber); background: var(--amber-soft);` with `padding: 1px 8px; border-radius: 999px; font-size: 11px;`
+- ✓ `all clear` badge: `color: var(--green); background: var(--green-soft);` same shape
+- Per-line override dropdown: native `<select>` styled with `background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 4px;`
+- ⚠ `inferred` badge next to dropdown: `color: var(--amber); font-size: 10px; font-weight: 600;`
+- "Confirm and continue" button: primary CTA — `background: var(--accent); color: var(--bg-primary);`
+- "← Back to input" button: secondary — `background: var(--bg-card); color: var(--text); border: 1px solid var(--border);`
+
+**Reformat-suggested modal (§10.3):**
+- Same modal shell as above
+- Three option cards (rewrite / manual review / edit input) stacked: each `var(--bg-card)` background; primary option (rewrite) gets `border: 1px solid var(--accent);` to highlight; others `var(--border)`
+- "$0.05; ~10 seconds" cost preview: `color: var(--text-secondary); font-size: 12px;`
+
+**Reformat-diff side-by-side (§10.4):**
+- Two-column layout: left pane (original prose) + right pane (rewritten Fountain)
+- Each pane: `var(--bg-card)` background, `var(--border)` border, `12px` padding
+- Pane header ("Original" / "Rewritten as Fountain"): `color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;`
+- Pane body (text): `font-family: 'SF Mono', 'Fira Code', monospace; color: var(--text);` with monospace
+- Three action buttons (Accept / Reject / Edit) below: same styling as review modal CTA tier
+
+**Loop-prevention error banner (§10.3 loop-prevention):**
+- Background: `var(--red-soft)`; border: `1px solid var(--red)`; text: `color: var(--red);`
+- Icon: ⚠ in red; text "Reformat didn't improve parseability. Edit your input manually."
+
+**Confidence indicator on cast-row-style review item:**
+- `1.0` confidence: no badge (default state)
+- `0.6` inferred: `(suggested)` text in `color: var(--text-secondary); font-style: italic;`
+- `0.0` ambiguous: `⚠ ambiguous` badge in `var(--amber)` tones
+
+### 19.4 Forbidden patterns
+
+Carrying lessons from prior fixes (bible chrome node + voice picker + audio-rehearsal preview area). Do NOT do:
+
+- ❌ Hardcoded hex colors for status (`#16a34a`, `#dc2626`, `#d97706`) — use `var(--green/--red/--amber)`
+- ❌ `#fff` text on light/translucent backgrounds — use `var(--text)` so it inverts in light theme
+- ❌ Solid black overlays (`rgba(0, 0, 0, 0.65)`) on modal backdrops — use `color-mix` against `var(--bg-primary)` instead
+- ❌ Fixed `--font-mono` token — that token doesn't exist in this app; use `'SF Mono', 'Fira Code', monospace` directly
+- ❌ Missing `font-family: inherit` on review-modal buttons / dropdowns — they'd revert to system default and look off
+- ❌ Hardcoded backgrounds like `rgba(127,127,127,0.08)` — use `color-mix(in oklch, var(--text) 6%, transparent)` so contrast holds in both modes
+- ❌ Reformat-diff pane backgrounds in pure white (`#ffffff`) — light theme already has light bg-card; this would create no contrast
+
+### 19.5 Light-mode-specific gotchas
+
+- **Modal backdrops**: light-mode bg-primary is light/cream, so a 75%-opaque backdrop barely darkens the underlying step. Use `color-mix(in oklch, var(--bg-primary) 75%, var(--text) 10%)` to get a subtle "elevation" effect that works in both modes
+- **⚠ amber badges on light cards**: amber-soft on light bg-card can look washed out — verify contrast ratio ≥3:1 by spot-check
+- **Reformat-diff monospace**: pure white background in light mode hurts readability for long text; use `var(--bg-card)` (slightly off-white) instead
+
+### 19.6 Acceptance check (theming)
+
+For every new UI element:
+
+- [ ] Renders correctly in `html[data-theme="dark"]`
+- [ ] Renders correctly in `html[data-theme="light"]`
+- [ ] No hardcoded hex (only exception: vendor-specific brand colors if any — none in this plan)
+- [ ] Body/buttons/dropdowns use `font-family: inherit`
+- [ ] Mono blocks (line numbers, reformat-diff panes) use `'SF Mono', 'Fira Code', monospace`
+- [ ] Status states use semantic tokens (green/red/amber)
+- [ ] Hover states use `--accent`, not arbitrary brand-cyan literals
+- [ ] Modal backdrops use `color-mix` not solid black
+- [ ] Theme inspector tested by toggling `data-theme` attribute live in DevTools — no broken contrast on any element
+
+PR-time: include screenshots of review modal + reformat-diff in both themes if substantial CSS changes.

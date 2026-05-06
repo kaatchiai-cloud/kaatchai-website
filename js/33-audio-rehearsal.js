@@ -1,0 +1,1294 @@
+// ── Audio Rehearsal — Phases 3–7 ──────────────────────────────────────────
+// Per-image card audio mini-player + mood/regen controls (Phase 3)
+// Whole-project rehearsal step UI + transport (Phase 4)
+// Drift detection + soundtouch time-stretch + canGenerateVideos() (Phase 5)
+// Per-scene video regen escape hatch (Phase 6)
+// Wavesurfer speaker-colored regions on editor master dialogue track (Phase 7)
+
+(function () {
+  'use strict';
+
+  // ── Palette ──────────────────────────────────────────────────────────────
+
+  const VOICE_PALETTE = [
+    '#3b82f6', '#10b981', '#a855f7', '#f59e0b',
+    '#ec4899', '#06b6d4', '#ef4444', '#8b5cf6',
+  ];
+  const NARRATOR_COLOR = 'var(--text-muted, #94a3b8)';
+  const _paletteAssignments = {};  // speakerId → color
+  let _paletteNext = 0;
+
+  window.characterTimelineColor = function (speakerId) {
+    if (!speakerId || speakerId === 'narrator') return NARRATOR_COLOR;
+    if (_paletteAssignments[speakerId]) return _paletteAssignments[speakerId];
+    const color = VOICE_PALETTE[_paletteNext % VOICE_PALETTE.length];
+    _paletteAssignments[speakerId] = color;
+    _paletteNext++;
+    return color;
+  };
+
+  // ── IDB helpers for per-line audio ────────────────────────────────────────
+
+  const IDB_NAME = 'stori_cast_images_v1';
+  const IDB_STORE = 'images';
+
+  function _openAudioIDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE);
+        }
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function _idbAudioSet(key, value) {
+    try {
+      const db = await _openAudioIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) { console.warn('[Rehearsal] IDB set error:', e.message); }
+  }
+
+  async function _idbAudioGet(key) {
+    try {
+      const db = await _openAudioIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) { console.warn('[Rehearsal] IDB get error:', e.message); return null; }
+  }
+
+  // Convert AudioBuffer → WAV blob URL (for mini-player <audio> src)
+  function _audioBufferToUrl(audioBuffer) {
+    const sr = audioBuffer.sampleRate;
+    const numCh = audioBuffer.numberOfChannels;
+    const numSamples = audioBuffer.length;
+    const byteLength = 44 + numSamples * numCh * 2;
+    const buf = new ArrayBuffer(byteLength);
+    const view = new DataView(buf);
+    const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, byteLength - 8, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sr, true);
+    view.setUint32(28, sr * numCh * 2, true);
+    view.setUint16(32, numCh * 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, numSamples * numCh * 2, true);
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      for (let ch = 0; ch < numCh; ch++) {
+        const s = Math.max(-1, Math.min(1, audioBuffer.getChannelData(ch)[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  }
+
+  // ── Persist per-scene audio from castGenerateMultiVoiceAudio result ───────
+  // Called by 17c after multi-voice TTS completes.
+  window.persistPerSceneAudio = async function (segments, speakerTurns) {
+    if (!Array.isArray(segments) || !Array.isArray(speakerTurns)) return;
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg || !seg.audioActualDuration) continue;
+      const turn = speakerTurns.find(t => t.segmentIndex === i);
+      if (!turn) continue;
+      // Slice from master combined buffer
+      const masterBuf = window._createMasterAudio || window.createAudioBuffer;
+      if (!masterBuf) continue;
+      try {
+        const sliced = _sliceAudioBuffer(masterBuf, turn.startMs, turn.endMs);
+        const url = _audioBufferToUrl(sliced);
+        seg._audioUrl = url;
+        const idbKey = `audio_line_${seg.id || i}_0`;
+        await _idbAudioSet(idbKey, url);
+      } catch (e) {
+        console.warn('[Rehearsal] persist audio_line error:', e.message);
+      }
+    }
+  };
+
+  // ── Phase 3: Per-image card audio section ─────────────────────────────────
+
+  function _sliceAudioBuffer(buffer, startMs, endMs) {
+    if (typeof window.sliceAudioBuffer === 'function') return window.sliceAudioBuffer(buffer, startMs, endMs);
+    const sr = buffer.sampleRate;
+    const s0 = Math.max(0, Math.round((startMs / 1000) * sr));
+    const s1 = Math.min(buffer.length, Math.round((endMs / 1000) * sr));
+    const len = Math.max(1, s1 - s0);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const out = ctx.createBuffer(buffer.numberOfChannels, len, sr);
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      out.getChannelData(ch).set(buffer.getChannelData(ch).subarray(s0, s1));
+    }
+    try { ctx.close(); } catch (_) {}
+    return out;
+  }
+
+  function _getMoodLabel(moodId) {
+    const moods = window.MOOD_ENUM || [];
+    const m = moods.find(x => x.id === moodId);
+    return m ? `${m.icon} ${m.label}` : moodId;
+  }
+
+  function _buildMoodOptions(currentMood) {
+    return (window.MOOD_ENUM || [])
+      .map(m => `<option value="${m.id}" ${m.id === currentMood ? 'selected' : ''}>${m.icon} ${m.label}</option>`)
+      .join('');
+  }
+
+  function _estimateRegenCost(scene) {
+    const voice = scene && scene.dialogue && scene.dialogue.speakerCharacterId
+      ? (typeof window.castResolveVoiceForSpeaker === 'function'
+          ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, scene.dialogue.speakerName)
+          : null)
+      : null;
+    if (!voice || voice.provider !== 'elevenlabs') return '$0.00';
+    const text = (scene.dialogue && scene.dialogue.text) || '';
+    const chars = text.length;
+    const cost = (chars / 1000) * 0.30;
+    return '$' + cost.toFixed(2);
+  }
+
+  // Build the audio section HTML for a scene card
+  function buildAudioSection(scene, idx) {
+    if (!scene) return '';
+    const hasDlg = scene.dialogue && scene.dialogue.text;
+    const isNarrator = hasDlg && scene.dialogue.speakerCharacterId === 'narrator';
+    const isBroll = !hasDlg;
+    const isStale = !!scene.audioStale;
+    const isPendingRegen = !!scene._pendingMoodRegen;
+    const hasAudio = !!(scene.audioActualDuration || scene._audioUrl);
+    const cost = _estimateRegenCost(scene);
+    const mood = (scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
+      || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : 'matter-of-fact');
+    const speakerName = (scene.dialogue && scene.dialogue.speakerName) || (isNarrator ? 'Narrator' : '');
+    const voice = hasDlg && typeof window.castResolveVoiceForSpeaker === 'function'
+      ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, speakerName)
+      : null;
+    const voiceLabel = voice ? `${voice.voiceName || voice.voiceId} (${voice.provider === 'elevenlabs' ? 'EL' : 'Gemini'})` : '';
+
+    // B-roll with no dialogue: show duration stepper only
+    if (isBroll) {
+      const dur = scene.manualDuration != null ? scene.manualDuration : (scene.duration || 5.0);
+      return `
+<div class="scene-audio-section scene-audio-broll" data-scene-idx="${idx}">
+  <div class="scene-audio-label">Duration</div>
+  <div class="scene-audio-stepper">
+    <button class="btn-xs scene-dur-dec" data-idx="${idx}">◀</button>
+    <span class="scene-dur-val" id="scene-dur-val-${idx}">${dur.toFixed(1)}s</span>
+    <button class="btn-xs scene-dur-inc" data-idx="${idx}">▶</button>
+  </div>
+</div>`;
+    }
+
+    let statusHtml = '';
+    if (isStale) {
+      statusHtml = `<span class="scene-audio-badge stale">⚠ audio stale — regen to update</span>`;
+    } else if (isPendingRegen) {
+      statusHtml = `<span class="scene-audio-badge pending">~ pending regen</span>`;
+    } else if (scene.durationStatus === 'stretched' || scene.durationStatus === 'compressed') {
+      const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
+      const op = scene.durationStatus === 'stretched' ? 'stretched' : 'compressed';
+      statusHtml = `<span class="scene-audio-badge drift" data-scene-idx="${idx}" title="Click for options">🔄 audio ${op} ${pct}% to fit video ⓘ</span>`;
+    } else if (scene.durationStatus === 'exceeds') {
+      const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
+      statusHtml = `<span class="scene-audio-badge exceeds">⛔ exceeds ${pct}% — regen video or adjust audio</span>`;
+    }
+
+    const playerHtml = hasAudio ? `
+<div class="scene-audio-player" id="scene-audio-player-${idx}">
+  <button class="scene-audio-play-btn" id="scene-audio-play-${idx}" title="Play">▶</button>
+  <div class="scene-audio-progress" id="scene-audio-progress-${idx}">
+    <div class="scene-audio-bar" id="scene-audio-bar-${idx}"></div>
+  </div>
+  <span class="scene-audio-time" id="scene-audio-time-${idx}">${(scene.audioActualDuration || 0).toFixed(1)}s</span>
+</div>` : `<div class="scene-audio-generating">⏳ Generating ${speakerName}'s audio…</div>`;
+
+    return `
+<div class="scene-audio-section" data-scene-idx="${idx}">
+  <div class="scene-audio-header">
+    <span class="scene-audio-icon">🎙</span>
+    <span class="scene-audio-speaker">${sanitize(speakerName)}${voiceLabel ? ` · ${sanitize(voiceLabel)}` : ''}</span>
+    <button class="scene-audio-overflow-btn btn-xs" data-idx="${idx}" title="Voice options">…</button>
+  </div>
+  ${hasDlg ? `<div class="scene-audio-text">"${sanitize(scene.dialogue.text || '')}"</div>` : ''}
+  ${playerHtml}
+  <div class="scene-audio-controls">
+    <label class="scene-audio-mood-label">🎭
+      <select class="scene-audio-mood-select" data-idx="${idx}">
+        ${_buildMoodOptions(mood)}
+      </select>
+    </label>
+    <button class="scene-audio-regen-btn btn-xs" data-idx="${idx}">↻ Regen (${cost})</button>
+  </div>
+  ${statusHtml}
+</div>`;
+  }
+
+  // Wire audio section events on a scene card element
+  function wireAudioSection(card, scene, idx) {
+    // Mood change → mark pending regen
+    const moodSelect = card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"]`);
+    if (moodSelect) {
+      moodSelect.addEventListener('change', () => {
+        scene._pendingMoodRegen = true;
+        scene._pendingMood = moodSelect.value;
+        const badge = card.querySelector('.scene-audio-badge');
+        if (badge) {
+          badge.textContent = '~ pending regen';
+          badge.className = 'scene-audio-badge pending';
+        } else {
+          const section = card.querySelector('.scene-audio-section');
+          if (section) {
+            const b = document.createElement('span');
+            b.className = 'scene-audio-badge pending';
+            b.textContent = '~ pending regen';
+            section.appendChild(b);
+          }
+        }
+      });
+    }
+
+    // Regen button
+    const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
+    if (regenBtn) {
+      regenBtn.addEventListener('click', () => _regenSceneAudio(idx, card));
+    }
+
+    // Duration stepper (b-roll)
+    const decBtn = card.querySelector(`.scene-dur-dec[data-idx="${idx}"]`);
+    const incBtn = card.querySelector(`.scene-dur-inc[data-idx="${idx}"]`);
+    if (decBtn && incBtn) {
+      decBtn.addEventListener('click', () => _adjustBrollDuration(idx, -0.5, card));
+      incBtn.addEventListener('click', () => _adjustBrollDuration(idx, 0.5, card));
+    }
+
+    // Drift badge → hover info popup
+    const driftBadge = card.querySelector('.scene-audio-badge.drift');
+    if (driftBadge) {
+      driftBadge.addEventListener('click', () => _showDriftPopup(idx, driftBadge));
+    }
+
+    // Voice overflow menu
+    const overflowBtn = card.querySelector(`.scene-audio-overflow-btn[data-idx="${idx}"]`);
+    if (overflowBtn) {
+      overflowBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _showVoiceOverflowMenu(idx, overflowBtn);
+      });
+    }
+
+    // Mini-player
+    _wireMiniPlayer(idx, card, scene);
+  }
+
+  function _wireMiniPlayer(idx, card, scene) {
+    const playBtn = card.querySelector(`#scene-audio-play-${idx}`);
+    const progressEl = card.querySelector(`#scene-audio-progress-${idx}`);
+    const barEl = card.querySelector(`#scene-audio-bar-${idx}`);
+    const timeEl = card.querySelector(`#scene-audio-time-${idx}`);
+    if (!playBtn) return;
+
+    let audioEl = null;
+    let isPlaying = false;
+
+    async function loadAudio() {
+      if (audioEl) return audioEl;
+      // Try in-memory URL first
+      let url = scene._audioUrl;
+      if (!url) {
+        const idbKey = `audio_line_${scene.id || idx}_0`;
+        url = await _idbAudioGet(idbKey);
+      }
+      if (!url && scene.dialogue && typeof window._createMasterAudio !== 'undefined' && window._createMasterAudio) {
+        const turn = (window._createSpeakerTurns || []).find(t => t.segmentIndex === idx);
+        if (turn) {
+          const buf = _sliceAudioBuffer(window._createMasterAudio, turn.startMs, turn.endMs);
+          url = _audioBufferToUrl(buf);
+          scene._audioUrl = url;
+        }
+      }
+      if (!url) return null;
+      audioEl = new Audio(url);
+      audioEl.addEventListener('timeupdate', () => {
+        if (!audioEl.duration) return;
+        const pct = (audioEl.currentTime / audioEl.duration) * 100;
+        if (barEl) barEl.style.width = pct + '%';
+        if (timeEl) timeEl.textContent = audioEl.currentTime.toFixed(1) + 's / ' + audioEl.duration.toFixed(1) + 's';
+      });
+      audioEl.addEventListener('ended', () => {
+        isPlaying = false;
+        playBtn.textContent = '▶';
+        if (barEl) barEl.style.width = '0%';
+      });
+      return audioEl;
+    }
+
+    playBtn.addEventListener('click', async () => {
+      // Stop any other playing mini-player
+      document.querySelectorAll('.scene-audio-play-btn.playing').forEach(b => {
+        if (b !== playBtn) b.click();
+      });
+      const el = await loadAudio();
+      if (!el) return;
+      if (isPlaying) {
+        el.pause();
+        el.currentTime = 0;
+        isPlaying = false;
+        playBtn.textContent = '▶';
+        playBtn.classList.remove('playing');
+      } else {
+        el.play().catch(() => {});
+        isPlaying = true;
+        playBtn.textContent = '⏸';
+        playBtn.classList.add('playing');
+      }
+    });
+
+    if (progressEl) {
+      progressEl.addEventListener('click', async (e) => {
+        const el = await loadAudio();
+        if (!el || !el.duration) return;
+        const rect = progressEl.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        el.currentTime = pct * el.duration;
+      });
+    }
+  }
+
+  async function _regenSceneAudio(idx, card) {
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+    if (!scene.dialogue || !scene.dialogue.text) return;
+
+    // Resolve mood from pending change or current override
+    const moodSelect = card ? card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"]`) : null;
+    const mood = (moodSelect && moodSelect.value)
+      || (scene._pendingMood)
+      || (scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
+      || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : 'matter-of-fact');
+
+    const voice = typeof window.castResolveVoiceForSpeaker === 'function'
+      ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, scene.dialogue.speakerName)
+      : null;
+    if (!voice) return;
+
+    const cost = _estimateRegenCost(scene);
+    const costNum = parseFloat(cost.replace('$', '')) || 0;
+
+    // Confirm if > $0.05
+    if (costNum > 0.05) {
+      const ok = await showConfirm(
+        `Regen this line with current mood + voice settings?\nCost: ${cost} (${voice.provider === 'elevenlabs' ? 'ElevenLabs, ' : 'Gemini, '}${(scene.dialogue.text || '').length} chars)\n`,
+        'Regen', true
+      );
+      if (!ok) return;
+    }
+
+    // Check for cascade warning (> 200ms delta, scenes have video)
+    const oldDuration = scene.audioActualDuration || 0;
+
+    // Disable regen btn while in-flight
+    if (card) {
+      const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
+      if (regenBtn) regenBtn.disabled = true;
+      const playerArea = card.querySelector(`#scene-audio-player-${idx}`);
+      if (playerArea) playerArea.style.opacity = '0.4';
+    }
+
+    let badge = card ? card.querySelector(`.scene-audio-section[data-scene-idx="${idx}"] .scene-audio-badge`) : null;
+    if (badge) { badge.textContent = '⏳ regenerating…'; badge.className = 'scene-audio-badge generating'; }
+
+    try {
+      if (typeof updateCreateAgentTask === 'function') {
+        updateCreateAgentTask('storyboard', 'multivoice', 'running', `Regenerating ${scene.dialogue.speakerName || ''} line ${idx + 1}…`);
+      }
+
+      scene.dialogue.regenLockToken = { uuid: Math.random().toString(36).slice(2), ts: Date.now() };
+
+      const result = await window.castGenerateLineTTS(scene.dialogue.text, voice, mood);
+      if (!result) throw new Error('TTS returned null');
+
+      // Update scene state
+      const newDuration = result.durationMs / 1000;
+      const deltaSec = newDuration - oldDuration;
+      scene.audioActualDuration = newDuration;
+      scene.endTime = (scene.startTime || 0) + newDuration;
+      scene.audioStale = false;
+      scene._pendingMoodRegen = false;
+      scene._pendingMood = null;
+
+      // Apply mood override
+      scene.dialogue.voiceOverride = scene.dialogue.voiceOverride || {};
+      scene.dialogue.voiceOverride.mood = mood;
+      scene.dialogue.voiceOverride.stickyKey = _hashText(scene.dialogue.text);
+      scene.dialogue.regenCount = (scene.dialogue.regenCount || 0) + 1;
+      scene.dialogue.regenLockToken = null;
+
+      // Warn if regenCount >= 5
+      if (scene.dialogue.regenCount >= 5) {
+        console.warn(`[Rehearsal] Scene ${idx + 1} has ${scene.dialogue.regenCount} regens — consider trying a different mood.`);
+      }
+
+      // Store audio URL
+      const url = _audioBufferToUrl(result.audioBuffer);
+      scene._audioUrl = url;
+      const idbKey = `audio_line_${scene.id || idx}_0`;
+      await _idbAudioSet(idbKey, url);
+
+      // Shift downstream scenes
+      if (Math.abs(deltaSec) > 0.001) {
+        const downstreamHasVideo = (window.createScenes || [])
+          .slice(idx + 1)
+          .some(s => s.videoActualDuration != null);
+
+        if (Math.abs(deltaSec) > 0.2 && downstreamHasVideo) {
+          const dir = deltaSec > 0 ? 'longer' : 'shorter';
+          const rest = (window.createScenes || []).slice(idx + 1).length;
+          const ok = await showConfirm(
+            `New audio is ${Math.abs(deltaSec).toFixed(1)}s ${dir} than current.\n\nThis will:\n• Shift ${rest} downstream scenes by ${deltaSec > 0 ? '+' : ''}${deltaSec.toFixed(1)}s in the master audio\n• Subtitles for those scenes will re-align to new timing\n• Scene ${idx + 1}'s own audio-video drift has changed — review in rehearsal\n\nOther scenes' per-scene drift is unchanged.\n\nContinue with regen?`,
+            'Regen', true
+          );
+          if (!ok) { scene.dialogue.regenLockToken = null; return; }
+        }
+
+        for (let j = idx + 1; j < (window.createScenes || []).length; j++) {
+          const ds = window.createScenes[j];
+          if (ds) {
+            ds.startTime = (ds.startTime || 0) + deltaSec;
+            ds.endTime = (ds.endTime || 0) + deltaSec;
+          }
+        }
+      }
+
+      // Recompute drift for this scene only
+      computeDurationStatus(scene);
+
+      // Revert rehearsal status
+      const ar = window.createJobState && window.createJobState.audioRehearsal;
+      if (ar && (ar.status === 'locked' || ar.status === 'reviewed')) {
+        ar.status = 'pending';
+      }
+
+      if (typeof trackCost === 'function' && costNum > 0) trackCost('voiceRegen', costNum);
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+      if (typeof updateCreateAgentTask === 'function') {
+        updateCreateAgentTask('storyboard', 'multivoice', 'done', `Regen done — scene ${idx + 1}`);
+      }
+
+      // Re-render just this card's audio section
+      if (card) {
+        const section = card.querySelector('.scene-audio-section');
+        if (section) {
+          section.outerHTML = buildAudioSection(scene, idx);
+          const newSection = card.querySelector('.scene-audio-section');
+          if (newSection) wireAudioSection(card, scene, idx);
+        }
+      }
+    } catch (e) {
+      console.error('[Rehearsal] regen failed:', e.message);
+      scene.dialogue.regenLockToken = null;
+      if (badge) { badge.textContent = '❌ regen failed — retry'; badge.className = 'scene-audio-badge error'; }
+    } finally {
+      if (card) {
+        const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
+        if (regenBtn) regenBtn.disabled = false;
+        const playerArea = card.querySelector(`#scene-audio-player-${idx}`);
+        if (playerArea) playerArea.style.opacity = '';
+      }
+    }
+  }
+
+  function _adjustBrollDuration(idx, delta, card) {
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+    scene.manualDuration = Math.max(1.0, ((scene.manualDuration != null ? scene.manualDuration : scene.duration) || 5.0) + delta);
+    if (!scene.narrationOverlay) {
+      scene.audioActualDuration = scene.manualDuration;
+      scene.duration = scene.manualDuration;
+    }
+    const valEl = card && card.querySelector(`#scene-dur-val-${idx}`);
+    if (valEl) valEl.textContent = scene.manualDuration.toFixed(1) + 's';
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+  }
+
+  function _showDriftPopup(idx, anchorEl) {
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+    const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
+    const isCompressed = scene.durationStatus === 'compressed';
+    const op = isCompressed ? 'longer than' : 'shorter than';
+    const action = isCompressed ? 'compressed playback slightly' : 'inserted natural padding';
+    const popup = document.createElement('div');
+    popup.className = 'rehearsal-drift-popup';
+    popup.innerHTML = `
+      <div class="drift-popup-body">Audio is ${pct}% ${op} the existing video.<br>Stori has ${action}.</div>
+      <div class="drift-popup-body text-sm">For exact-match audio without adjustment, regenerate this scene's video at the new audio duration.</div>
+      <button class="btn-xs primary drift-popup-regen-btn">Regenerate scene ${idx + 1} video — $0.40</button>
+    `;
+    popup.style.cssText = 'position:absolute;z-index:9999;background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:10px;padding:12px 14px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:8px;';
+    const rect = anchorEl.getBoundingClientRect();
+    document.body.appendChild(popup);
+    popup.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+    popup.style.left = (rect.left + window.scrollX) + 'px';
+    const close = (e) => { if (!popup.contains(e.target) && e.target !== anchorEl) { popup.remove(); document.removeEventListener('click', close, true); } };
+    setTimeout(() => document.addEventListener('click', close, true), 100);
+    popup.querySelector('.drift-popup-regen-btn').addEventListener('click', () => {
+      popup.remove();
+      document.removeEventListener('click', close, true);
+      _regenSceneVideo(idx);
+    });
+  }
+
+  function _showVoiceOverflowMenu(idx, anchorEl) {
+    const existing = document.querySelector('.scene-audio-overflow-menu');
+    if (existing) existing.remove();
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+    const hasOverride = scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.voiceId;
+
+    const menu = document.createElement('div');
+    menu.className = 'scene-audio-overflow-menu';
+    menu.innerHTML = `
+      <div class="overflow-menu-item" data-action="change-voice">🎙 Use a different voice for this line</div>
+      ${hasOverride ? `<div class="overflow-menu-item" data-action="reset-voice">🔄 Reset to character default voice</div>` : ''}
+    `;
+    const rect = anchorEl.getBoundingClientRect();
+    menu.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;padding:4px 0;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.left = rect.left + 'px';
+    document.body.appendChild(menu);
+
+    menu.querySelector('[data-action="change-voice"]') && menu.querySelector('[data-action="change-voice"]').addEventListener('click', () => {
+      menu.remove();
+      _showVoicePickerModal(idx);
+    });
+    const resetEl = menu.querySelector('[data-action="reset-voice"]');
+    if (resetEl) resetEl.addEventListener('click', () => {
+      menu.remove();
+      if (scene.dialogue) {
+        scene.dialogue.voiceOverride = null;
+        scene._pendingMoodRegen = true;
+      }
+      const card = document.querySelector(`.scene-audio-section[data-scene-idx="${idx}"]`)?.closest('.scene-card');
+      if (card) {
+        const section = card.querySelector('.scene-audio-section');
+        if (section) { section.outerHTML = buildAudioSection(scene, idx); wireAudioSection(card, scene, idx); }
+      }
+    });
+
+    const close = (e) => { if (!menu.contains(e.target) && e.target !== anchorEl) { menu.remove(); document.removeEventListener('click', close, true); } };
+    setTimeout(() => document.addEventListener('click', close, true), 100);
+  }
+
+  function _showVoicePickerModal(idx) {
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const providerOptions = `<option value="gemini">Gemini</option><option value="elevenlabs">ElevenLabs</option>`;
+    overlay.innerHTML = `
+      <div class="modal-box" style="max-width:380px;">
+        <div class="modal-title">Voice for scene ${idx + 1}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin:14px 0;">
+          <label>Provider:<br><select id="vp-provider" class="review-select">${providerOptions}</select></label>
+          <label>Voice ID:<br><input id="vp-voice-id" class="review-select" type="text" placeholder="e.g. Kore (Gemini) or voiceId (EL)" /></label>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button id="vp-cancel" class="btn-xs">Cancel</button>
+          <button id="vp-apply" class="btn-xs primary">Apply + Regen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cancel = () => overlay.remove();
+    overlay.querySelector('#vp-cancel').addEventListener('click', cancel);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cancel(); });
+    overlay.querySelector('#vp-apply').addEventListener('click', () => {
+      const provider = overlay.querySelector('#vp-provider').value;
+      const voiceId = overlay.querySelector('#vp-voice-id').value.trim();
+      if (!voiceId) return;
+      scene.dialogue.voiceOverride = scene.dialogue.voiceOverride || {};
+      scene.dialogue.voiceOverride.voiceId = voiceId;
+      scene.dialogue.voiceOverride.voiceProvider = provider;
+      overlay.remove();
+      const card = document.querySelector(`.scene-audio-section[data-scene-idx="${idx}"]`)?.closest('.scene-card');
+      if (card) _regenSceneAudio(idx, card);
+    });
+  }
+
+  // ── Phase 6: Per-scene video regen escape hatch ───────────────────────────
+
+  async function _regenSceneVideo(idx) {
+    const scenes = window.createScenes;
+    if (!scenes || !scenes[idx]) return;
+    const scene = scenes[idx];
+
+    const ok = await showConfirm(`Regenerate scene ${idx + 1} video at new audio duration (${(scene.audioActualDuration || 0).toFixed(1)}s)?\n\nCost: $0.40 (Kling)`, 'Regen Video', false);
+    if (!ok) return;
+
+    if (typeof regenSceneImageAndVideo === 'function') {
+      await regenSceneImageAndVideo(idx);
+      scene.videoActualDuration = scene.audioActualDuration;
+      computeDurationStatus(scene);
+      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+    }
+  }
+
+  // Export for use by 17c video regen callback
+  window.regenSceneVideoForDrift = _regenSceneVideo;
+
+  // ── Phase 5: Duration status + canGenerateVideos() ────────────────────────
+
+  function computeDurationStatus(scene) {
+    if (!scene) return 'pending';
+    if (scene.videoActualDuration == null) {
+      scene.durationStatus = scene.audioActualDuration ? 'matched' : 'pending';
+      scene.durationDriftPct = 0;
+      return scene.durationStatus;
+    }
+    const drift = (scene.audioActualDuration - scene.videoActualDuration) / scene.videoActualDuration;
+    const absDrift = Math.abs(drift);
+    let status;
+    if (absDrift <= 0.0005) status = 'matched';
+    else if (absDrift <= 0.03) status = drift < 0 ? 'stretched' : 'compressed';
+    else status = 'exceeds';
+    scene.durationStatus = status;
+    scene.durationDriftPct = drift;
+    return status;
+  }
+  window.computeDurationStatus = computeDurationStatus;
+
+  window.canGenerateVideos = function () {
+    const scenes = window.createScenes || [];
+    const allOk = scenes.every(s =>
+      s.durationStatus === 'matched'
+      || s.durationStatus === 'stretched'
+      || s.durationStatus === 'compressed'
+      || !s.audioActualDuration
+    );
+    const totalAudio = scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0);
+    const totalVideo = scenes.reduce((sum, s) => sum + (s.videoActualDuration != null ? s.videoActualDuration : (s.duration || 0)), 0);
+    const totalDriftPct = totalVideo > 0 ? Math.abs(totalAudio - totalVideo) / totalVideo : 0;
+
+    if (window.createJobState && window.createJobState.audioRehearsal) {
+      window.createJobState.audioRehearsal.totalDriftPct = totalDriftPct;
+    }
+
+    return allOk && totalDriftPct <= 0.03;
+  };
+
+  // ── Soundtouch time-stretch ────────────────────────────────────────────────
+
+  let _soundTouchLoaded = null;
+  let _soundTouchFailed = false;
+
+  async function _loadSoundTouchJs() {
+    if (_soundTouchLoaded) return _soundTouchLoaded;
+    if (_soundTouchFailed) return null;
+    return new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/soundtouchjs@0.1.30/dist/soundtouch.min.js';
+      s.onload = () => { _soundTouchLoaded = window.SoundTouch || window.soundtouch; resolve(_soundTouchLoaded); };
+      s.onerror = () => {
+        _soundTouchFailed = true;
+        console.warn('[Rehearsal] soundtouch-js CDN load failed — degraded mode active');
+        _showDegradedModeBanner();
+        resolve(null);
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  function _showDegradedModeBanner() {
+    const step = document.getElementById('create-rehearsal-step');
+    if (!step) return;
+    const existing = step.querySelector('.rehearsal-degraded-banner');
+    if (existing) return;
+    const banner = document.createElement('div');
+    banner.className = 'rehearsal-degraded-banner';
+    banner.innerHTML = `⚠ Audio time-stretch library unavailable — stricter drift tolerance active. Any audio drift will require video regeneration. Reload the page to retry loading the library. <button class="btn-xs" onclick="location.reload()">Reload</button>`;
+    step.insertBefore(banner, step.firstChild);
+  }
+
+  window.timeStretchAudioBuffer = async function (audioBuffer, ratio) {
+    const ST = await _loadSoundTouchJs();
+    if (!ST) return audioBuffer;
+    try {
+      const st = new ST.SoundTouch ? new ST.SoundTouch() : new ST();
+      st.tempo = ratio;
+      const sr = audioBuffer.sampleRate;
+      const numSamples = audioBuffer.length;
+      const left = audioBuffer.getChannelData(0);
+      const right = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : left;
+
+      const source = new ST.SimpleFilter ? new ST.SimpleFilter(null, st) : null;
+      if (!source) return audioBuffer;
+
+      // Create interleaved array for SoundTouch
+      const interleaved = new Float32Array(numSamples * 2);
+      for (let i = 0; i < numSamples; i++) {
+        interleaved[i * 2] = left[i];
+        interleaved[i * 2 + 1] = right[i];
+      }
+      source.inputBuffer = { buffer: interleaved, sampleRate: sr };
+
+      const outputLength = Math.ceil(numSamples / ratio);
+      const output = new Float32Array(outputLength * 2);
+      let written = 0;
+      const chunkSize = 4096;
+      while (written < outputLength) {
+        const chunk = new Float32Array(Math.min(chunkSize, outputLength - written) * 2);
+        const read = source.extract(chunk, Math.floor(chunk.length / 2));
+        if (read === 0) break;
+        output.set(chunk.subarray(0, read * 2), written * 2);
+        written += read;
+      }
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const out = ctx.createBuffer(2, written, sr);
+      const outLeft = out.getChannelData(0);
+      const outRight = out.getChannelData(1);
+      for (let i = 0; i < written; i++) {
+        outLeft[i] = output[i * 2];
+        outRight[i] = output[i * 2 + 1];
+      }
+      try { ctx.close(); } catch (_) {}
+      return out;
+    } catch (e) {
+      console.warn('[Rehearsal] soundtouch stretch failed:', e.message);
+      return audioBuffer;
+    }
+  };
+
+  // ── Phase 4: Audio rehearsal step ─────────────────────────────────────────
+
+  function detectProjectAudioMode() {
+    const scenes = window.createScenes || [];
+    const dialogueScenes = scenes.filter(s => s.dialogue && s.dialogue.speakerCharacterId && s.dialogue.speakerCharacterId !== 'narrator');
+    const narrationScenes = scenes.filter(s => s.dialogue && s.dialogue.speakerCharacterId === 'narrator');
+    if (dialogueScenes.length > 0) return 'rehearsal';
+    if (narrationScenes.length > 0) return 'narration-preview';
+    return 'no-audio';
+  }
+  window.detectProjectAudioMode = detectProjectAudioMode;
+
+  let _rehearsalPlaying = false;
+  let _rehearsalAudioSrc = null;
+  let _rehearsalAudioCtx = null;
+  let _rehearsalT0 = null;
+  let _rehearsalAnimFrame = null;
+  let _rehearsalPausedAt = 0;
+
+  function _ensureAudioCtx() {
+    if (!_rehearsalAudioCtx || _rehearsalAudioCtx.state === 'closed') {
+      _rehearsalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_rehearsalAudioCtx.state === 'suspended') _rehearsalAudioCtx.resume();
+    return _rehearsalAudioCtx;
+  }
+
+  function _fmtTime(s) {
+    s = Math.max(0, s || 0);
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    const ms = Math.floor((s % 1) * 10);
+    return `${m}:${String(sec).padStart(2, '0')}.${ms}`;
+  }
+
+  function renderRehearsalStep() {
+    const step = document.getElementById('create-rehearsal-step');
+    if (!step) return;
+    const scenes = window.createScenes || [];
+    const mode = detectProjectAudioMode();
+    const stepLabel = mode === 'narration-preview' ? 'Audio preview' : 'Audio rehearsal';
+    const someHasVideo = scenes.some(s => s.videoActualDuration != null);
+
+    // Total durations
+    const totalAudioSec = scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0);
+    const totalVideoSec = scenes.reduce((sum, s) => sum + (s.videoActualDuration != null ? s.videoActualDuration : (s.duration || 0)), 0);
+    const totalDriftPct = totalVideoSec > 0 ? (totalAudioSec - totalVideoSec) / totalVideoSec : 0;
+    const canGen = typeof window.canGenerateVideos === 'function' ? window.canGenerateVideos() : false;
+
+    // Scene strip
+    const totalSec = totalAudioSec || 1;
+    const sceneTickHtml = scenes.map((s, i) => {
+      const pct = ((s.audioActualDuration || 0) / totalSec * 100).toFixed(1);
+      return `<div class="rehearsal-tick" data-idx="${i}" style="width:${pct}%;" title="Scene ${i + 1} · ${(s.audioActualDuration || 0).toFixed(1)}s">
+        <span class="rehearsal-tick-num">${i + 1}</span>
+      </div>`;
+    }).join('');
+
+    // Per-scene status rows
+    const statusRowsHtml = scenes.map((s, i) => {
+      const isNarrator = s.dialogue && s.dialogue.speakerCharacterId === 'narrator';
+      const isBroll = !s.dialogue || !s.dialogue.text;
+      const speakerIcon = isBroll ? '🌅' : (isNarrator ? '🎙' : '🎙');
+      const speakerName = isBroll ? 'b-roll' : (s.dialogue && s.dialogue.speakerName) || (isNarrator ? 'narrator' : '');
+      const start = s.startTime != null ? s.startTime : 0;
+      const end = s.endTime != null ? s.endTime : start + (s.audioActualDuration || 0);
+      let badgeHtml = '';
+      let backLink = '';
+      if (!someHasVideo) {
+        // First-pass: audio-completion mode
+        if (!s.audioActualDuration) {
+          badgeHtml = `<span class="rehearsal-status-badge regen">⏳ generating…</span>`;
+        } else if (s.durationStatus === 'pending' || s.durationStatus === 'error') {
+          badgeHtml = `<span class="rehearsal-status-badge regen">❌ regen needed</span>`;
+          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
+        } else {
+          badgeHtml = `<span class="rehearsal-status-badge ok">✓ ready</span>`;
+        }
+      } else {
+        // Post-video-gen: drift mode
+        const ds = s.durationStatus || 'pending';
+        if (ds === 'matched') {
+          badgeHtml = `<span class="rehearsal-status-badge ok">✓ matched</span>`;
+        } else if (ds === 'stretched' || ds === 'compressed') {
+          const pct = s.durationDriftPct != null ? (Math.abs(s.durationDriftPct) * 100).toFixed(1) : '0';
+          badgeHtml = `<span class="rehearsal-status-badge warn">⚠ ${ds} ${pct}%</span>`;
+          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
+        } else if (ds === 'exceeds') {
+          const pct = s.durationDriftPct != null ? (Math.abs(s.durationDriftPct) * 100).toFixed(1) : '0';
+          badgeHtml = `<span class="rehearsal-status-badge error">⛔ exceeds ${pct}%</span>`;
+          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
+        } else {
+          badgeHtml = `<span class="rehearsal-status-badge regen">⏳ generating…</span>`;
+        }
+      }
+      return `<div class="rehearsal-scene-row" id="rehearsal-row-${i}">
+        <span class="rehearsal-scene-num">Scene ${i + 1}</span>
+        <span class="rehearsal-scene-time">${_fmtTime(start)}–${_fmtTime(end)}</span>
+        <span class="rehearsal-scene-speaker">${speakerIcon} ${sanitize(speakerName)}</span>
+        ${badgeHtml}
+        ${backLink}
+      </div>`;
+    }).join('');
+
+    const driftBanner = Math.abs(totalDriftPct) > 0.03 ? `
+      <div class="rehearsal-drift-banner">
+        ⚠ Total duration drift: ${(totalDriftPct * 100).toFixed(1)}% (${_fmtTime(totalAudioSec)} audio vs ${_fmtTime(totalVideoSec)} video target)<br>
+        Adjust individual scenes' duration to bring total within 3%, or regenerate longer scenes' video for exact match.
+      </div>` : '';
+
+    const genBtn = canGen
+      ? `<button class="btn-md primary" id="rehearsal-gen-videos-btn">Generate videos $${_estimateVideoCost()} →</button>`
+      : `<button class="btn-md" id="rehearsal-gen-videos-btn" disabled title="Resolve all scenes first">Resolve ${scenes.filter(s => s.durationStatus === 'exceeds').length || 0} scenes first</button>`;
+
+    step.innerHTML = `
+      <div class="agent-step-header">
+        <span class="agent-step-icon">R</span>
+        <span class="agent-step-name">${stepLabel}</span>
+        <span class="agent-step-status-badge waiting">Preview</span>
+      </div>
+      <p class="text-sm text-secondary" style="margin-bottom:12px;">Preview your project before generating videos. All audio must be ready.</p>
+
+      <div class="rehearsal-preview-area" id="rehearsal-preview-area">
+        <img id="rehearsal-preview-img" class="rehearsal-preview-img" src="" alt="" />
+        <div class="rehearsal-preview-overlay" id="rehearsal-preview-overlay"></div>
+      </div>
+
+      <div class="rehearsal-transport">
+        <div class="rehearsal-transport-row">
+          <button class="rehearsal-play-btn btn-xs" id="rehearsal-play-btn">▶ Play</button>
+          <button class="btn-xs" id="rehearsal-stop-btn">⏹ Stop</button>
+          <span class="rehearsal-time-display" id="rehearsal-time-display">0:00.0 / ${_fmtTime(totalAudioSec)}</span>
+        </div>
+        <div class="rehearsal-scrubber-track" id="rehearsal-scrubber-track">
+          <div class="rehearsal-scrubber-fill" id="rehearsal-scrubber-fill"></div>
+          <div class="rehearsal-scrubber-thumb" id="rehearsal-scrubber-thumb"></div>
+        </div>
+        <div class="rehearsal-tick-strip" id="rehearsal-tick-strip">${sceneTickHtml}</div>
+      </div>
+
+      <div class="rehearsal-scene-list">${statusRowsHtml}</div>
+
+      <div class="rehearsal-footer">
+        <div class="rehearsal-footer-info">
+          Total audio: ${_fmtTime(totalAudioSec)} &nbsp;|&nbsp; Estimated video: ${_fmtTime(totalVideoSec || totalAudioSec)}
+        </div>
+        ${driftBanner}
+        <div class="rehearsal-footer-actions">
+          <button class="btn-md" id="rehearsal-back-images-btn">← Back to images</button>
+          ${genBtn}
+        </div>
+      </div>
+    `;
+
+    // Wire interactions
+    _wireRehearsalStep(step);
+  }
+  window.renderRehearsalStep = renderRehearsalStep;
+
+  function _estimateVideoCost() {
+    const scenes = window.createScenes || [];
+    const count = scenes.filter(s => s.dialogue && s.dialogue.text && !s.videoActualDuration).length;
+    return (count * 0.40).toFixed(2);
+  }
+
+  function _wireRehearsalStep(step) {
+    const scenes = window.createScenes || [];
+
+    // Play button
+    const playBtn = step.querySelector('#rehearsal-play-btn');
+    const stopBtn = step.querySelector('#rehearsal-stop-btn');
+    if (playBtn) playBtn.addEventListener('click', () => {
+      if (_rehearsalPlaying) _stopRehearsalPreview();
+      else _startRehearsalPreview();
+    });
+    if (stopBtn) stopBtn.addEventListener('click', _stopRehearsalPreview);
+
+    // Scrubber click-to-seek
+    const scrubTrack = step.querySelector('#rehearsal-scrubber-track');
+    if (scrubTrack) {
+      scrubTrack.addEventListener('click', (e) => {
+        const rect = scrubTrack.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        const totalSec = scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0);
+        _seekRehearsalTo(pct * totalSec);
+      });
+    }
+
+    // Scene tick strip — click to jump
+    step.querySelectorAll('.rehearsal-tick').forEach(tick => {
+      tick.addEventListener('click', () => {
+        const i = parseInt(tick.dataset.idx, 10);
+        if (scenes[i]) _seekRehearsalTo(scenes[i].startTime || 0);
+      });
+    });
+
+    // Back links (↩ per scene row)
+    step.querySelectorAll('.rehearsal-back-link').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.idx, 10);
+        _backToImageCard(i);
+      });
+    });
+
+    // ← Back to images
+    const backBtn = step.querySelector('#rehearsal-back-images-btn');
+    if (backBtn) backBtn.addEventListener('click', () => {
+      const imgStep = document.getElementById('create-generate-step');
+      if (imgStep) imgStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // Generate videos
+    const genBtn = step.querySelector('#rehearsal-gen-videos-btn');
+    if (genBtn && !genBtn.disabled) {
+      genBtn.addEventListener('click', _lockAndGenerateVideos);
+    }
+  }
+
+  function _startRehearsalPreview() {
+    const scenes = window.createScenes || [];
+    const masterBuf = window._createMasterAudio || window.createAudioBuffer;
+    if (!masterBuf) {
+      alert('No audio assembled yet — run the storyboard agent first.');
+      return;
+    }
+
+    const ctx = _ensureAudioCtx();
+    _rehearsalAudioSrc = ctx.createBufferSource();
+    _rehearsalAudioSrc.buffer = masterBuf;
+    _rehearsalAudioSrc.connect(ctx.destination);
+    _rehearsalAudioSrc.start(0, _rehearsalPausedAt);
+    _rehearsalT0 = ctx.currentTime - _rehearsalPausedAt;
+    _rehearsalPlaying = true;
+
+    const playBtn = document.getElementById('rehearsal-play-btn');
+    if (playBtn) { playBtn.textContent = '⏸ Pause'; playBtn.classList.add('playing'); }
+
+    _rehearsalAudioSrc.onended = () => {
+      if (_rehearsalPlaying) {
+        _rehearsalPlaying = false;
+        _rehearsalPausedAt = 0;
+        const pb = document.getElementById('rehearsal-play-btn');
+        if (pb) { pb.textContent = '↻ Replay'; pb.classList.remove('playing'); }
+        cancelAnimationFrame(_rehearsalAnimFrame);
+      }
+    };
+
+    let activeSceneIdx = -1;
+    const tick = () => {
+      if (!_rehearsalPlaying) return;
+      const elapsed = ctx.currentTime - _rehearsalT0;
+      const newIdx = scenes.findIndex(s => elapsed >= (s.startTime || 0) && elapsed < (s.endTime || Infinity));
+      if (newIdx !== activeSceneIdx) {
+        _crossfadeToScene(newIdx);
+        _updateRehearsalOverlay(newIdx);
+        _updateSceneStrip(newIdx);
+        activeSceneIdx = newIdx;
+      }
+      _updateScrubber(elapsed, scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0));
+      _rehearsalAnimFrame = requestAnimationFrame(tick);
+    };
+    _rehearsalAnimFrame = requestAnimationFrame(tick);
+  }
+
+  function _stopRehearsalPreview() {
+    _rehearsalPlaying = false;
+    if (_rehearsalAudioSrc) { try { _rehearsalAudioSrc.stop(); } catch (_) {} _rehearsalAudioSrc = null; }
+    cancelAnimationFrame(_rehearsalAnimFrame);
+    _rehearsalPausedAt = 0;
+    const playBtn = document.getElementById('rehearsal-play-btn');
+    if (playBtn) { playBtn.textContent = '▶ Play'; playBtn.classList.remove('playing'); }
+    _updateScrubber(0, 1);
+  }
+
+  function _seekRehearsalTo(timeSec) {
+    _rehearsalPausedAt = Math.max(0, timeSec);
+    if (_rehearsalPlaying) {
+      _stopRehearsalPreview();
+      _startRehearsalPreview();
+    }
+  }
+
+  function _crossfadeToScene(idx) {
+    const scenes = window.createScenes || [];
+    const scene = scenes[idx];
+    const img = document.getElementById('rehearsal-preview-img');
+    if (!img || !scene) return;
+    const newSrc = scene.imgDataUrl || '';
+    if (img.src === newSrc) return;
+    img.style.opacity = '0';
+    img.src = newSrc;
+    img.onload = () => {
+      img.style.transition = 'opacity 0.2s ease';
+      img.style.opacity = '1';
+    };
+    if (!newSrc) img.style.opacity = '0.3';
+  }
+
+  function _updateRehearsalOverlay(idx) {
+    const scenes = window.createScenes || [];
+    const scene = scenes[idx];
+    const el = document.getElementById('rehearsal-preview-overlay');
+    if (!el || !scene) return;
+    const speakerName = (scene.dialogue && scene.dialogue.speakerName) || '';
+    const mood = (scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
+      || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : '');
+    el.textContent = `Scene ${idx + 1}${speakerName ? ' · ' + speakerName : ''}${mood ? ' · ' + mood : ''}`;
+  }
+
+  function _updateSceneStrip(activeIdx) {
+    document.querySelectorAll('.rehearsal-tick').forEach((tick, i) => {
+      tick.classList.toggle('active', i === activeIdx);
+    });
+    const activeRow = document.getElementById(`rehearsal-row-${activeIdx}`);
+    if (activeRow) activeRow.classList.add('rehearsal-row-active');
+    document.querySelectorAll('.rehearsal-scene-row').forEach((row, i) => {
+      if (i !== activeIdx) row.classList.remove('rehearsal-row-active');
+    });
+  }
+
+  function _updateScrubber(elapsed, totalSec) {
+    const pct = Math.min(1, elapsed / Math.max(0.001, totalSec)) * 100;
+    const fill = document.getElementById('rehearsal-scrubber-fill');
+    const thumb = document.getElementById('rehearsal-scrubber-thumb');
+    const display = document.getElementById('rehearsal-time-display');
+    if (fill) fill.style.width = pct + '%';
+    if (thumb) thumb.style.left = pct + '%';
+    if (display) display.textContent = `${_fmtTime(elapsed)} / ${_fmtTime(totalSec)}`;
+  }
+
+  function _backToImageCard(idx) {
+    const imgStep = document.getElementById('create-generate-step');
+    if (imgStep) imgStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const cards = document.querySelectorAll('.scene-card');
+      if (cards[idx]) {
+        cards[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cards[idx].classList.add('scene-card-flash');
+        setTimeout(() => cards[idx].classList.remove('scene-card-flash'), 2000);
+      }
+    }, 500);
+  }
+
+  async function _lockAndGenerateVideos() {
+    const scenes = window.createScenes || [];
+    // Lock per-scene duration
+    for (const s of scenes) {
+      if (s.audioActualDuration) s.duration = s.audioActualDuration;
+    }
+    if (window.createJobState) {
+      if (!window.createJobState.audioRehearsal) window.createJobState.audioRehearsal = {};
+      window.createJobState.audioRehearsal.status = 'locked';
+      window.createJobState.audioRehearsal.lockedAt = new Date().toISOString();
+    }
+    if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+    // Fire existing video gen flow
+    if (typeof launchBgmAgent === 'function') launchBgmAgent();
+    const videoStep = document.getElementById('create-video-step');
+    if (videoStep) videoStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Phase 7: Wavesurfer speaker-colored regions ────────────────────────────
+
+  window.initEditorSpeakerRegions = function (wavesurferInstance, regionsPlugin) {
+    if (!wavesurferInstance || !regionsPlugin) return;
+    const turns = window._createSpeakerTurns || [];
+    if (!turns.length) return;
+
+    // Remove existing speaker regions
+    regionsPlugin.getRegions && Object.values(regionsPlugin.getRegions()).forEach(r => {
+      if (r._isSpeakerRegion) r.remove();
+    });
+
+    turns.forEach((turn, i) => {
+      const color = typeof window.characterTimelineColor === 'function'
+        ? window.characterTimelineColor(turn.speakerCharacterId)
+        : '#3b82f6';
+      const rgbStr = color.startsWith('#')
+        ? _hexToRgba(color, 0.25)
+        : color.replace(')', ', 0.25)').replace('rgb(', 'rgba(');
+      const region = regionsPlugin.addRegion({
+        start: turn.startMs / 1000,
+        end: turn.endMs / 1000,
+        color: rgbStr,
+        drag: false,
+        resize: false,
+        id: `speaker-region-${i}`,
+      });
+      if (region) region._isSpeakerRegion = true;
+    });
+
+    // Context menu on region click
+    regionsPlugin.on && regionsPlugin.on('region-clicked', (region, e) => {
+      if (!region._isSpeakerRegion) return;
+      e.stopPropagation();
+      const turnIdx = parseInt(region.id.replace('speaker-region-', ''), 10);
+      const turn = turns[turnIdx];
+      if (turn) _showRegionContextMenu(turn, turnIdx, e.clientX, e.clientY);
+    });
+  };
+
+  function _hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function _showRegionContextMenu(turn, turnIdx, x, y) {
+    const existing = document.querySelector('.region-context-menu');
+    if (existing) existing.remove();
+    const scenes = window.createScenes || [];
+    const scene = scenes[turn.segmentIndex];
+    const dialogueText = scene && scene.dialogue && scene.dialogue.text ? scene.dialogue.text : '';
+    const preview = dialogueText.length > 40 ? dialogueText.slice(0, 40) + '…' : dialogueText;
+
+    const menu = document.createElement('div');
+    menu.className = 'region-context-menu';
+    const moodSubmenuHtml = (window.MOOD_ENUM || [])
+      .map(m => `<div class="rcm-item rcm-submood" data-mood="${m.id}">${m.icon} ${m.label}</div>`)
+      .join('');
+    menu.innerHTML = `
+      <div class="rcm-header">${sanitize(turn.speakerName || turn.speakerCharacterId)} — "${sanitize(preview)}"</div>
+      <div class="rcm-item" data-action="play">▶ Play this line</div>
+      <div class="rcm-item" data-action="regen">↻ Regenerate this line</div>
+      <div class="rcm-item rcm-has-sub" data-action="mood">🎭 Change mood
+        <div class="rcm-submenu">${moodSubmenuHtml}</div>
+      </div>
+      <div class="rcm-item" data-action="replace-voice">🎙 Replace voice this line</div>
+      <div class="rcm-item" data-action="mute">${scene && scene.dialogue && scene.dialogue.muted ? '🔈 Unmute this line' : '🔇 Mute this line'}</div>
+    `;
+    menu.style.cssText = `position:fixed;z-index:9999;background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;padding:4px 0;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.6);`;
+    menu.style.left = Math.min(x, window.innerWidth - 220) + 'px';
+    menu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+    document.body.appendChild(menu);
+
+    const close = () => { menu.remove(); document.removeEventListener('click', close, true); };
+    setTimeout(() => document.addEventListener('click', close, true), 100);
+
+    menu.querySelector('[data-action="play"]').addEventListener('click', () => {
+      close();
+      if (!scene || !scene._audioUrl) return;
+      const a = new Audio(scene._audioUrl);
+      a.play().catch(() => {});
+    });
+
+    menu.querySelector('[data-action="regen"]').addEventListener('click', () => {
+      close();
+      _backToImageCard(turn.segmentIndex);
+    });
+
+    menu.querySelectorAll('.rcm-submood').forEach(el => {
+      el.addEventListener('click', () => {
+        close();
+        const sceneIdx = turn.segmentIndex;
+        const sc = scenes[sceneIdx];
+        if (sc && sc.dialogue) {
+          sc.dialogue.voiceOverride = sc.dialogue.voiceOverride || {};
+          sc.dialogue.voiceOverride.mood = el.dataset.mood;
+          sc._pendingMoodRegen = true;
+        }
+        _backToImageCard(sceneIdx);
+      });
+    });
+
+    menu.querySelector('[data-action="replace-voice"]').addEventListener('click', () => {
+      close();
+      _backToImageCard(turn.segmentIndex);
+      setTimeout(() => _showVoicePickerModal(turn.segmentIndex), 600);
+    });
+
+    menu.querySelector('[data-action="mute"]').addEventListener('click', () => {
+      close();
+      if (scene && scene.dialogue) {
+        scene.dialogue.muted = !scene.dialogue.muted;
+        if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+      }
+    });
+  }
+
+  // ── Utility ──────────────────────────────────────────────────────────────
+
+  function _hashText(text) {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) h = Math.imul(31, h) + text.charCodeAt(i) | 0;
+    return h.toString(36);
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+
+  window.audioRehearsal = {
+    buildAudioSection,
+    wireAudioSection,
+    renderRehearsalStep,
+    detectProjectAudioMode,
+    computeDurationStatus,
+  };
+
+  // Register sanitize fallback if 01-core.js not yet loaded
+  if (typeof sanitize === 'undefined') {
+    window.sanitize = function (s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+  }
+
+})();

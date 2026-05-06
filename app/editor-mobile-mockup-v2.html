@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Editor — Sync Timeline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Round">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #050814;
+    --bg-secondary: #0a0f20;
+    --bg-card: rgba(255,255,255,0.035);
+    --bg-elevated: rgba(255,255,255,0.06);
+    --bg-input: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(139,92,246,0.40);
+    --border-active: rgba(139,92,246,0.55);
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --accent-soft: rgba(139,92,246,0.14);
+    --accent2: #e684c4;
+    --on-accent: #ffffff;
+    --red: #ff7a7a;
+    --green: #6ee7b7;
+    --amber: #ffc56e;
+    --amber-soft: rgba(255,197,110,0.15);
+    --cyan: #78dcff;
+    --text-primary: #eef4ff;
+    --text-secondary: rgba(238,244,255,0.65);
+    --text-muted: rgba(238,244,255,0.50);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 0%,  rgba(120,220,255,0.13), transparent 60%),
+      radial-gradient(ellipse 55% 40% at 15% 20%, rgba(120,220,255,0.18), transparent 55%),
+      radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
+      var(--bg-primary);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    min-height: 100vh; max-width: 430px; margin: 0 auto;
+    overflow-x: hidden; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  .material-icons-round { font-feature-settings: 'liga'; }
+
+  /* AppBar */
+  .appbar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 8px 4px;
+    background: rgba(5,8,20,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    height: 56px; flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .appbar-icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: none; border: none; cursor: pointer; color: var(--text-primary);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .appbar-icon-btn:active { background: rgba(255,255,255,0.08); }
+  .appbar-icon-btn .material-icons-round { font-size: 22px; }
+  .appbar-title { flex: 1; font-size: 16px; font-weight: 500; margin-left: 4px; }
+  .appbar-mode-pill {
+    font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 12px;
+    margin-right: 8px; display: flex; align-items: center; gap: 4px;
+    background: var(--amber-soft); color: var(--amber);
+  }
+  .appbar-mode-pill .material-icons-round { font-size: 14px; }
+
+  /* Preview */
+  .preview {
+    background: #000; flex-shrink: 0; position: relative;
+  }
+  .preview-canvas {
+    width: 100%; aspect-ratio: 16/9; max-height: 230px;
+    background: linear-gradient(135deg,#1a1a2e,#0f3460);
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .preview-text { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .preview-play {
+    position: absolute; width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(0,0,0,0.6); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .preview-play .material-icons-round { font-size: 28px; }
+  .preview-subtitle {
+    position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
+    font-size: 12px; color: #fff; padding: 4px 12px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+
+  /* Transport bar */
+  .transport {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 12px; background: rgba(5,8,20,0.9);
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .player-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .player-btn .material-icons-round { font-size: 16px; }
+  .player-time { font-size: 11px; color: var(--text-muted); min-width: 70px; text-align: right; }
+  .player-zoom {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .player-zoom-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .player-zoom-btn .material-icons-round { font-size: 14px; }
+
+  /* Multi-track timeline strip */
+  .timeline-strip {
+    flex-shrink: 0;
+    background: rgba(5,8,20,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 0 8px; position: relative;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .timeline-strip::-webkit-scrollbar { display: none; }
+  .timeline-tracks {
+    position: relative;
+    min-width: 600px;
+    padding: 0 12px;
+  }
+  .track {
+    display: flex; align-items: center; gap: 6px;
+    height: 28px; margin-bottom: 4px;
+    transition: opacity .2s;
+  }
+  .track:last-child { margin-bottom: 0; }
+  .track-label {
+    width: 38px; flex-shrink: 0;
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    color: var(--text-muted); letter-spacing: 0.4px;
+    display: flex; align-items: center; gap: 3px;
+  }
+  .track-label .material-icons-round { font-size: 11px; }
+  .track-content {
+    flex: 1; height: 100%; position: relative;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.02);
+  }
+  /* Active track highlighting */
+  .timeline-strip.tab-clips .track:not(.track-clips),
+  .timeline-strip.tab-audio .track:not(.track-vo):not(.track-bgm),
+  .timeline-strip.tab-text .track:not(.track-text),
+  .timeline-strip.tab-stkr .track:not(.track-stkr),
+  .timeline-strip.tab-subs .track:not(.track-subs) {
+    opacity: 0.4;
+  }
+  .track.active .track-label { color: var(--accent); }
+
+  /* Clip blocks */
+  .clip-block {
+    position: absolute; top: 0; bottom: 0;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    overflow: hidden; cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
+  }
+  .clip-block.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), inset 0 0 0 1px rgba(0,0,0,0.4); }
+  .clip-thumb { width: 100%; height: 100%; }
+  .clip-num {
+    position: absolute; top: 2px; left: 3px;
+    font-size: 8px; font-weight: 600;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .clip-dur {
+    position: absolute; bottom: 1px; right: 3px;
+    font-size: 8px; color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+
+  /* Waveform */
+  .wave {
+    position: absolute; top: 0; bottom: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex; align-items: center; gap: 1px; padding: 2px 4px;
+  }
+  .wave-bar { width: 1.5px; border-radius: 1px; flex: 1; }
+  .wave.vo { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.3); }
+  .wave.vo .wave-bar { background: var(--accent); }
+  .wave.bgm { background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.3); }
+  .wave.bgm .wave-bar { background: var(--green); opacity: 0.7; }
+
+  /* Text overlay marker */
+  .text-marker {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 18px; border-radius: 4px;
+    background: rgba(255,197,110,0.18); border: 1px solid var(--amber);
+    color: var(--amber); font-size: 9px; font-weight: 500;
+    padding: 0 6px;
+    display: flex; align-items: center;
+    cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Subtitle marker */
+  .sub-marker {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 18px; border-radius: 4px;
+    background: rgba(120,220,255,0.10); border: 1px solid rgba(120,220,255,0.4);
+    color: var(--cyan); font-size: 9px;
+    padding: 0 6px;
+    display: flex; align-items: center;
+    cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Sticker / CTA marker */
+  .stkr-marker {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 20px; border-radius: 10px;
+    background: rgba(230,132,196,0.16); border: 1px solid var(--accent2);
+    color: var(--accent2); font-size: 9px; font-weight: 600;
+    padding: 0 6px;
+    display: flex; align-items: center; gap: 3px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .stkr-marker .material-icons-round { font-size: 11px; }
+  .stkr-marker.yt { background: rgba(255,0,0,0.16); border-color: #ff4444; color: #ff8888; }
+
+  /* Playhead */
+  .playhead {
+    position: absolute; top: -4px; bottom: -4px;
+    width: 2px; background: var(--accent2);
+    box-shadow: 0 0 8px var(--accent2);
+    z-index: 5; pointer-events: none;
+  }
+  .playhead::before {
+    content: '';
+    position: absolute; top: -2px; left: -4px;
+    width: 10px; height: 8px;
+    background: var(--accent2);
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* Time ruler */
+  .time-ruler {
+    height: 14px; padding: 0 12px;
+    display: flex; align-items: flex-end;
+    color: var(--text-muted); font-size: 9px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+    position: relative;
+    min-width: 600px;
+  }
+  .time-tick {
+    position: absolute; bottom: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 3px;
+    font-size: 8px; line-height: 11px;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    display: flex; overflow-x: auto;
+    background: rgba(5,8,20,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 11px 14px; font-size: 12px; font-weight: 500;
+    background: transparent; border: none; cursor: pointer; color: var(--text-muted);
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .material-icons-round { font-size: 16px; }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 12px; }
+  .label {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+
+  /* Selection chip — shows what's selected on the timeline */
+  .selection-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    margin-bottom: 12px; font-size: 12px; color: var(--text-primary);
+  }
+  .selection-chip .material-icons-round { font-size: 16px; color: var(--accent); }
+  .selection-chip-time { color: var(--accent); font-weight: 600; }
+
+  /* Edit cards */
+  .edit-card {
+    padding: 12px; border-radius: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .edit-row {
+    display: flex; align-items: center; gap: 12px; padding: 6px 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .edit-row-label { min-width: 80px; color: var(--text-muted); font-weight: 500; }
+  .edit-row-value { color: var(--text-primary); }
+  .vol-slider {
+    flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px;
+    background: var(--bg-elevated); outline: none;
+  }
+  .vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+  }
+  .pill-btn {
+    padding: 7px 12px; border-radius: 8px;
+    background: var(--bg-elevated); color: var(--text-primary);
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--border);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .pill-btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  .pill-btn .material-icons-round { font-size: 14px; }
+
+  /* Sync hint */
+  .sync-hint {
+    font-size: 11px; color: var(--text-muted);
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(120,220,255,0.06);
+    border: 1px solid rgba(120,220,255,0.2);
+    color: var(--cyan); margin-bottom: 12px;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .sync-hint .material-icons-round { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Stickers tab UI */
+  .brand-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .brand-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg,#8b5cf6,#e684c4);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .brand-info { flex: 1; }
+  .brand-handle { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .brand-meta { font-size: 11px; color: var(--text-muted); }
+  .brand-color {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--accent); border: 2px solid rgba(255,255,255,0.2);
+  }
+
+  .preset-section { margin-bottom: 14px; }
+  .preset-section-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .preset-section-label a { color: var(--accent); font-size: 11px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+
+  .sticker-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .sticker-item {
+    aspect-ratio: 1; border-radius: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    cursor: pointer; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px;
+    transition: border-color .15s;
+  }
+  .sticker-item:active { border-color: var(--accent); }
+  .sticker-item.in-use { border-color: var(--accent2); background: rgba(230,132,196,0.06); }
+  .sticker-icon {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sticker-icon .material-icons-round { font-size: 18px; }
+  .sticker-icon.subscribe { background: #ff0000; color: #fff; border-radius: 6px; padding: 0 6px; width: auto; height: 22px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; }
+  .sticker-icon.like { background: linear-gradient(135deg,#fc466b,#ff7a7a); color: #fff; }
+  .sticker-icon.bell { background: var(--amber); color: #2a1a05; }
+  .sticker-icon.handle { background: var(--bg-elevated); color: var(--accent); border: 1.5px solid var(--accent); font-size: 11px; font-weight: 700; }
+  .sticker-icon.comment { background: rgba(120,220,255,0.18); color: var(--cyan); }
+  .sticker-icon.share { background: rgba(110,231,183,0.18); color: var(--green); }
+  .sticker-icon.heart { background: rgba(255,122,122,0.18); color: var(--red); }
+  .sticker-icon.save { background: rgba(255,197,110,0.18); color: var(--amber); }
+  .sticker-icon.link { background: rgba(120,220,255,0.18); color: var(--cyan); }
+  .sticker-icon.hash { background: rgba(139,92,246,0.18); color: var(--accent); }
+  .sticker-name { font-size: 10px; color: var(--text-secondary); text-align: center; }
+  .sticker-item.in-use::after {
+    content: '✓'; position: absolute; top: 4px; right: 4px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent2); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+
+  .platform-pills { display: flex; gap: 6px; margin-bottom: 10px; }
+  .platform-pill {
+    padding: 5px 10px; border-radius: 14px;
+    font-size: 11px; font-weight: 500; cursor: pointer;
+    background: var(--bg-elevated); color: var(--text-muted);
+    border: 1px solid var(--border);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .platform-pill.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .platform-pill .material-icons-round { font-size: 13px; }
+
+  .position-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px; padding: 6px; border-radius: 10px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    aspect-ratio: 1.5; margin-bottom: 12px;
+  }
+  .pos-cell {
+    border: 1px dashed rgba(255,255,255,0.1); border-radius: 6px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .pos-cell.active { border: 2px solid var(--accent); background: var(--accent-soft); }
+  .pos-cell .material-icons-round { font-size: 12px; color: var(--text-muted); }
+  .pos-cell.active .material-icons-round { color: var(--accent); }
+
+  /* Bottom bar */
+  .bottom-bar {
+    flex-shrink: 0;
+    padding: 10px 12px 18px;
+    background: rgba(5,8,20,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+  }
+  .btn-export {
+    width: 100%; padding: 13px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: var(--on-accent); font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-export .material-icons-round { font-size: 18px; }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <button class="appbar-icon-btn" style="margin-left:8px;"><span class="material-icons-round">arrow_back</span></button>
+  <span class="appbar-title">Bali Travel Reel</span>
+  <span class="appbar-mode-pill"><span class="material-icons-round">movie_filter</span> Animated</span>
+  <button class="appbar-icon-btn"><span class="material-icons-round">undo</span></button>
+  <button class="appbar-icon-btn" style="margin-right:4px;"><span class="material-icons-round">more_vert</span></button>
+</div>
+
+<div class="preview">
+  <div class="preview-canvas">
+    <div class="preview-text">Scene 2 · Beach sunrise</div>
+    <div class="preview-play"><span class="material-icons-round">play_arrow</span></div>
+    <div class="preview-subtitle">"A lone figure walks through the rain"</div>
+  </div>
+</div>
+
+<div class="transport">
+  <button class="player-btn"><span class="material-icons-round">play_arrow</span></button>
+  <span class="player-time" style="text-align:left;flex:1;color:var(--text-primary);font-weight:500;">00:15 / 00:45</span>
+  <div class="player-zoom">
+    <button class="player-zoom-btn"><span class="material-icons-round">zoom_out</span></button>
+    <button class="player-zoom-btn"><span class="material-icons-round">zoom_in</span></button>
+  </div>
+</div>
+
+<!-- Multi-track timeline strip — persistent across all tabs -->
+<div class="timeline-strip tab-audio" id="timeline-strip">
+  <div class="time-ruler">
+    <div class="time-tick" style="left:12px;">0:00</div>
+    <div class="time-tick" style="left:124px;">0:10</div>
+    <div class="time-tick" style="left:236px;">0:20</div>
+    <div class="time-tick" style="left:348px;">0:30</div>
+    <div class="time-tick" style="left:460px;">0:40</div>
+  </div>
+  <div class="timeline-tracks">
+
+    <!-- Clips track -->
+    <div class="track track-clips" onclick="switchTab('clips', 1)">
+      <div class="track-label"><span class="material-icons-round">movie</span>CLIP</div>
+      <div class="track-content">
+        <div class="clip-block" style="left:0;width:80px;background:linear-gradient(135deg,#1a1a2e,#0f3460);" onclick="event.stopPropagation();switchTab('clips',1)">
+          <span class="clip-num">1</span>
+          <span class="clip-dur">5s</span>
+        </div>
+        <div class="clip-block" style="left:84px;width:80px;background:linear-gradient(135deg,#2d1b42,#462046);" onclick="event.stopPropagation();switchTab('clips',2)">
+          <span class="clip-num">2</span>
+          <span class="clip-dur">5s</span>
+        </div>
+        <div class="clip-block" style="left:168px;width:80px;background:linear-gradient(135deg,#0f2027,#2c5364);" onclick="event.stopPropagation();switchTab('clips',3)">
+          <span class="clip-num">3</span>
+          <span class="clip-dur">5s</span>
+        </div>
+        <div class="clip-block" style="left:252px;width:80px;background:linear-gradient(135deg,#3a1c1c,#7c2d12);" onclick="event.stopPropagation();switchTab('clips',4)">
+          <span class="clip-num">4</span>
+          <span class="clip-dur">5s</span>
+        </div>
+        <div class="clip-block" style="left:336px;width:80px;background:linear-gradient(135deg,#1a1a2e,#16213e);">
+          <span class="clip-num">5</span>
+          <span class="clip-dur">5s</span>
+        </div>
+        <div class="clip-block" style="left:420px;width:80px;background:linear-gradient(135deg,#2c5364,#0f2027);">
+          <span class="clip-num">6</span>
+          <span class="clip-dur">5s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- VO waveform -->
+    <div class="track track-vo active">
+      <div class="track-label"><span class="material-icons-round">record_voice_over</span>VO</div>
+      <div class="track-content">
+        <div class="wave vo" id="wave-vo" style="left:6px;width:494px;"></div>
+      </div>
+    </div>
+
+    <!-- BGM waveform -->
+    <div class="track track-bgm">
+      <div class="track-label"><span class="material-icons-round">music_note</span>BGM</div>
+      <div class="track-content">
+        <div class="wave bgm" id="wave-bgm" style="left:0;width:500px;"></div>
+      </div>
+    </div>
+
+    <!-- Text overlays -->
+    <div class="track track-text">
+      <div class="track-label"><span class="material-icons-round">title</span>TEXT</div>
+      <div class="track-content">
+        <div class="text-marker" style="left:8px;width:60px;">Welcome</div>
+        <div class="text-marker" style="left:340px;width:80px;">CTA: Subscribe</div>
+      </div>
+    </div>
+
+    <!-- Stickers / CTAs -->
+    <div class="track track-stkr">
+      <div class="track-label"><span class="material-icons-round">grade</span>STKR</div>
+      <div class="track-content">
+        <div class="stkr-marker yt" style="left:90px;width:80px;"><span class="material-icons-round">play_arrow</span>SUBSCRIBE</div>
+        <div class="stkr-marker" style="left:260px;width:60px;"><span class="material-icons-round">favorite</span>Like</div>
+        <div class="stkr-marker" style="left:418px;width:80px;"><span class="material-icons-round">notifications_active</span>Bell ring</div>
+      </div>
+    </div>
+
+    <!-- Subtitles -->
+    <div class="track track-subs">
+      <div class="track-label"><span class="material-icons-round">subtitles</span>SUB</div>
+      <div class="track-content">
+        <div class="sub-marker" style="left:0;width:78px;">A lone figure…</div>
+        <div class="sub-marker" style="left:84px;width:78px;">walks through rain</div>
+        <div class="sub-marker" style="left:168px;width:78px;">A letter trembles</div>
+        <div class="sub-marker" style="left:252px;width:78px;">two paths emerge</div>
+        <div class="sub-marker" style="left:336px;width:78px;">footsteps echo…</div>
+      </div>
+    </div>
+
+    <!-- Global playhead — at 0:15 ≈ 180px -->
+    <div class="playhead" style="left:180px;"></div>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab" onclick="switchTab('clips')"><span class="material-icons-round">movie</span>Clips</button>
+  <button class="tab" onclick="switchTab('transitions')"><span class="material-icons-round">swap_horiz</span>Transitions</button>
+  <button class="tab" onclick="switchTab('text')"><span class="material-icons-round">title</span>Text</button>
+  <button class="tab" onclick="switchTab('subs')"><span class="material-icons-round">subtitles</span>Subtitles</button>
+  <button class="tab active" onclick="switchTab('audio')"><span class="material-icons-round">music_note</span>Audio</button>
+  <button class="tab" onclick="switchTab('stkr')"><span class="material-icons-round">grade</span>Stickers</button>
+  <button class="tab" onclick="switchTab('lang')"><span class="material-icons-round">translate</span>Lang</button>
+</div>
+
+<!-- Content (tab panes) -->
+<div class="content">
+
+  <div class="tab-pane active" data-pane="audio">
+    <div class="selection-chip">
+      <span class="material-icons-round">graphic_eq</span>
+      <span>Editing VO segment under playhead</span>
+      <span style="flex:1;"></span>
+      <span class="selection-chip-time">0:15</span>
+    </div>
+    <div class="sync-hint">
+      <span class="material-icons-round">info</span>
+      <span>Scene <b>2 · Beach sunrise</b> plays at this point. Trim the VO and clips re-align automatically.</span>
+    </div>
+    <div class="label">Voiceover</div>
+    <div class="edit-card">
+      <div class="edit-row">
+        <span class="edit-row-label">File</span>
+        <span class="edit-row-value">narration.mp3 · 0:45</span>
+      </div>
+      <div class="edit-row">
+        <span class="edit-row-label">Volume</span>
+        <input type="range" class="vol-slider" min="0" max="100" value="100">
+        <span class="edit-row-value" style="min-width:36px;text-align:right;">100%</span>
+      </div>
+      <div class="edit-row" style="gap:6px;">
+        <button class="pill-btn"><span class="material-icons-round">content_cut</span>Trim</button>
+        <button class="pill-btn"><span class="material-icons-round">volume_down</span>Duck BGM</button>
+        <button class="pill-btn primary"><span class="material-icons-round">refresh</span>Re-record</button>
+      </div>
+    </div>
+
+    <div class="label">Background Music</div>
+    <div class="edit-card">
+      <div class="edit-row">
+        <span class="edit-row-label">Track</span>
+        <span class="edit-row-value">Cinematic Hopeful · 1:18</span>
+      </div>
+      <div class="edit-row">
+        <span class="edit-row-label">Volume</span>
+        <input type="range" class="vol-slider" min="0" max="100" value="40">
+        <span class="edit-row-value" style="min-width:36px;text-align:right;">40%</span>
+      </div>
+      <div class="edit-row" style="gap:6px;">
+        <button class="pill-btn"><span class="material-icons-round">swap_horiz</span>Browse</button>
+        <button class="pill-btn"><span class="material-icons-round">tune</span>Fade</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" data-pane="clips">
+    <div class="selection-chip">
+      <span class="material-icons-round">movie</span>
+      <span>Clip <b>2 · Letter reveal</b></span>
+      <span style="flex:1;"></span>
+      <span class="selection-chip-time">0:05–0:10</span>
+    </div>
+    <div class="sync-hint">
+      <span class="material-icons-round">info</span>
+      <span>Trimming this clip auto-shifts everything after it. VO/BGM/text stay sync'd.</span>
+    </div>
+    <div class="label">Selected clip</div>
+    <div class="edit-card">
+      <div class="edit-row"><span class="edit-row-label">Source</span><span class="edit-row-value">img-2.jpg → Kling v1.6</span></div>
+      <div class="edit-row"><span class="edit-row-label">Duration</span><span class="edit-row-value">5.0s</span></div>
+      <div class="edit-row" style="gap:6px;">
+        <button class="pill-btn"><span class="material-icons-round">content_cut</span>Trim</button>
+        <button class="pill-btn"><span class="material-icons-round">refresh</span>Re-render</button>
+        <button class="pill-btn"><span class="material-icons-round">swap_horiz</span>Replace</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" data-pane="text">
+    <div class="selection-chip">
+      <span class="material-icons-round">title</span>
+      <span>No text at <b>0:15</b> — tap Add to insert here</span>
+      <span style="flex:1;"></span>
+      <button class="pill-btn primary"><span class="material-icons-round">add</span>Add</button>
+    </div>
+    <div class="sync-hint">
+      <span class="material-icons-round">info</span>
+      <span>Text snaps to the clip under the playhead. Drag on the timeline to re-time.</span>
+    </div>
+  </div>
+
+  <div class="tab-pane" data-pane="subs">
+    <div class="selection-chip">
+      <span class="material-icons-round">subtitles</span>
+      <span>Subtitle 2 · "walks through rain"</span>
+      <span style="flex:1;"></span>
+      <span class="selection-chip-time">0:05–0:10</span>
+    </div>
+  </div>
+
+  <div class="tab-pane" data-pane="transitions">
+    <div class="label">Transitions</div>
+  </div>
+
+  <div class="tab-pane" data-pane="stkr">
+    <div class="selection-chip">
+      <span class="material-icons-round">play_arrow</span>
+      <span>Sticker · <b>Subscribe</b> (YouTube)</span>
+      <span style="flex:1;"></span>
+      <span class="selection-chip-time">0:08–0:13</span>
+    </div>
+    <div class="sync-hint">
+      <span class="material-icons-round">info</span>
+      <span>Snaps to scene <b>2 · Letter reveal</b>. Drag on the timeline to retime.</span>
+    </div>
+
+    <div class="label">Brand defaults</div>
+    <div class="brand-card">
+      <div class="brand-avatar">P</div>
+      <div class="brand-info">
+        <div class="brand-handle">@praveen</div>
+        <div class="brand-meta">Channel handle · auto-applied to all CTAs</div>
+      </div>
+      <div class="brand-color"></div>
+    </div>
+
+    <div class="label">Selected: position</div>
+    <div class="position-grid">
+      <div class="pos-cell"><span class="material-icons-round">north_west</span></div>
+      <div class="pos-cell"><span class="material-icons-round">north</span></div>
+      <div class="pos-cell"><span class="material-icons-round">north_east</span></div>
+      <div class="pos-cell"><span class="material-icons-round">west</span></div>
+      <div class="pos-cell"><span class="material-icons-round">center_focus_strong</span></div>
+      <div class="pos-cell"><span class="material-icons-round">east</span></div>
+      <div class="pos-cell active"><span class="material-icons-round">south_west</span></div>
+      <div class="pos-cell"><span class="material-icons-round">south</span></div>
+      <div class="pos-cell"><span class="material-icons-round">south_east</span></div>
+    </div>
+
+    <div class="edit-card">
+      <div class="edit-row">
+        <span class="edit-row-label">Animation</span>
+        <span class="edit-row-value">Bounce in / Fade out</span>
+      </div>
+      <div class="edit-row">
+        <span class="edit-row-label">Sound FX</span>
+        <span class="edit-row-value" style="display:flex;align-items:center;gap:6px;">
+          <span class="material-icons-round" style="font-size:14px;color:var(--green);">check_circle</span>
+          Subscribe ding
+        </span>
+      </div>
+      <div class="edit-row">
+        <span class="edit-row-label">Duration</span>
+        <span class="edit-row-value">5.0s · auto-snap to scene</span>
+      </div>
+    </div>
+
+    <div class="preset-section">
+      <div class="preset-section-label">
+        Engagement
+        <a>See all</a>
+      </div>
+      <div class="platform-pills">
+        <button class="platform-pill active"><span class="material-icons-round">smart_display</span>YouTube</button>
+        <button class="platform-pill"><span class="material-icons-round">photo_camera</span>Instagram</button>
+        <button class="platform-pill"><span class="material-icons-round">music_video</span>TikTok</button>
+      </div>
+      <div class="sticker-grid">
+        <div class="sticker-item in-use">
+          <div class="sticker-icon subscribe">SUBSCRIBE</div>
+          <div class="sticker-name">Subscribe</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon bell"><span class="material-icons-round">notifications_active</span></div>
+          <div class="sticker-name">Bell</div>
+        </div>
+        <div class="sticker-item in-use">
+          <div class="sticker-icon like"><span class="material-icons-round">thumb_up</span></div>
+          <div class="sticker-name">Like</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon comment"><span class="material-icons-round">chat_bubble</span></div>
+          <div class="sticker-name">Comment</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon share"><span class="material-icons-round">share</span></div>
+          <div class="sticker-name">Share</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon heart"><span class="material-icons-round">favorite</span></div>
+          <div class="sticker-name">Heart</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon save"><span class="material-icons-round">bookmark</span></div>
+          <div class="sticker-name">Save</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon" style="background:rgba(255,0,0,0.18);color:#ff8888;"><span class="material-icons-round">notifications_active</span></div>
+          <div class="sticker-name">Bell ring</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preset-section">
+      <div class="preset-section-label">
+        Channel
+        <a>Edit defaults</a>
+      </div>
+      <div class="sticker-grid">
+        <div class="sticker-item">
+          <div class="sticker-icon handle">@</div>
+          <div class="sticker-name">Handle</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon" style="background:linear-gradient(135deg,#8b5cf6,#e684c4);color:#fff;font-weight:700;font-size:13px;">P</div>
+          <div class="sticker-name">Avatar</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon link"><span class="material-icons-round">link</span></div>
+          <div class="sticker-name">Link in bio</div>
+        </div>
+        <div class="sticker-item">
+          <div class="sticker-icon hash">#</div>
+          <div class="sticker-name">Hashtag</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" data-pane="lang"><div class="label">Language</div></div>
+
+</div>
+
+<div class="bottom-bar">
+  <button class="btn-export"><span class="material-icons-round">download</span>Export Reel</button>
+</div>
+
+<script>
+// VO + BGM waveforms
+const wv = document.getElementById('wave-vo');
+for (let i = 0; i < 110; i++) {
+  const b = document.createElement('div');
+  b.className = 'wave-bar';
+  b.style.height = (20 + Math.random() * 60) + '%';
+  wv.appendChild(b);
+}
+const wb = document.getElementById('wave-bgm');
+for (let i = 0; i < 110; i++) {
+  const b = document.createElement('div');
+  b.className = 'wave-bar';
+  b.style.height = (30 + Math.random() * 30) + '%';
+  wb.appendChild(b);
+}
+
+function switchTab(key, ctxId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabBtn = Array.from(document.querySelectorAll('.tab'))
+    .find(t => t.textContent.toLowerCase().includes(key));
+  if (tabBtn) tabBtn.classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.querySelector(`.tab-pane[data-pane="${key}"]`);
+  if (pane) pane.classList.add('active');
+  // Highlight track
+  const strip = document.getElementById('timeline-strip');
+  strip.className = 'timeline-strip';
+  const cls = key === 'clips' ? 'tab-clips' : key === 'audio' ? 'tab-audio' : key === 'text' ? 'tab-text' : key === 'subs' ? 'tab-subs' : '';
+  if (cls) strip.classList.add(cls);
+}
+</script>
+</body>
+</html>

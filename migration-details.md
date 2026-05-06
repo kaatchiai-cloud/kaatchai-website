@@ -1,5 +1,8 @@
 # Stori — Vercel + Supabase Migration Details
 
+> **SUPERSEDED — see `migration-plan.md` revision 4 for current architecture. This document retains historical context only; do not implement from it.**
+
+
 ## Product Direction
 - No BYOK (Bring Your Own Key)
 - Stori hosts Gemini and Kling API keys

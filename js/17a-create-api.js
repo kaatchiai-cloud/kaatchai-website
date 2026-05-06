@@ -298,9 +298,13 @@ function getElevenLabsKey() {
 
 // Send an AudioBuffer to ElevenLabs Scribe for sample-accurate per-word timestamps.
 // Returns [{word, start, end}] or null on failure / missing key.
-async function alignWordsWithScribe(audioBuffer, langCode) {
+// opts.diarize = false (default) — word alignment only; output: [{word, start, end}]
+// opts.diarize = true — diarization enabled; output: [{word, start, end, speaker_id?}]
+// All existing callers use the default (diarize omitted = false) and are unchanged.
+async function alignWordsWithScribe(audioBuffer, langCode, opts) {
   const key = getElevenLabsKey();
   if (!key) return null;
+  const diarize = !!(opts && opts.diarize);
   try {
     const wavBlob = audioBufferToWavBlob(audioBuffer);
     const formData = new FormData();
@@ -308,7 +312,7 @@ async function alignWordsWithScribe(audioBuffer, langCode) {
     formData.append('model_id', 'scribe_v1');
     formData.append('timestamps_granularity', 'word');
     formData.append('tag_audio_events', 'false');
-    formData.append('diarize', 'false');
+    formData.append('diarize', diarize ? 'true' : 'false');
     if (langCode && langCode !== 'original') formData.append('language_code', langCode);
     const resp = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
       method: 'POST',
@@ -323,7 +327,11 @@ async function alignWordsWithScribe(audioBuffer, langCode) {
     const data = await resp.json();
     const words = (data.words || [])
       .filter(w => w && w.type === 'word' && typeof w.start === 'number' && typeof w.end === 'number')
-      .map(w => ({ word: w.text, start: w.start, end: w.end }));
+      .map(w => {
+        const entry = { word: w.text, start: w.start, end: w.end };
+        if (diarize && w.speaker_id !== undefined) entry.speaker_id = w.speaker_id;
+        return entry;
+      });
     return words.length ? words : null;
   } catch (e) {
     console.warn('[Scribe] alignment failed:', e.message);
@@ -679,8 +687,12 @@ window.elevenlabsRefreshVoiceCatalog = async function () {
 
 // ElevenLabs TTS — used by the multi-voice TTS pipeline (Phase 5) and by
 // sample playback when previewUrl is missing.
-async function generateTTSElevenLabs(text, voiceId, apiKey) {
+async function generateTTSElevenLabs(text, voiceId, apiKey, voiceSettings) {
   if (!apiKey) throw new Error('ElevenLabs API key required');
+  const settings = Object.assign(
+    { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+    voiceSettings || {}
+  );
   const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
@@ -691,7 +703,7 @@ async function generateTTSElevenLabs(text, voiceId, apiKey) {
     body: JSON.stringify({
       text,
       model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+      voice_settings: settings,
     }),
   });
   if (!resp.ok) {
@@ -722,6 +734,59 @@ async function generateTTSElevenLabs(text, voiceId, apiKey) {
   return { dataUrl, durationMs, charCount: (text || '').length };
 }
 window.generateTTSElevenLabs = generateTTSElevenLabs;
+
+// ElevenLabs TTS with character-level timestamps (Tier 2 splitter path).
+// Returns { audioBuffer, durationMs, characters: [{character, start_time, end_time}] }.
+// Same cost as generateTTSElevenLabs; used when Scribe is unavailable.
+async function generateTTSElevenLabsWithTimestamps(text, voiceId, apiKey, voiceSettings) {
+  if (!apiKey) throw new Error('ElevenLabs API key required');
+  const settings = Object.assign(
+    { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
+    voiceSettings || {}
+  );
+  const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: settings,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`ElevenLabs TTS/timestamps (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  // Response: { audio_base64: string, alignment: { characters, character_start_times_seconds, character_end_times_seconds } }
+  const b64 = data.audio_base64;
+  if (!b64) throw new Error('ElevenLabs with-timestamps: missing audio_base64');
+  const alignment = data.alignment || {};
+  const chars = alignment.characters || [];
+  const starts = alignment.character_start_times_seconds || [];
+  const ends = alignment.character_end_times_seconds || [];
+  const charTimings = chars.map((ch, i) => ({
+    character: ch,
+    start_time: starts[i] || 0,
+    end_time: ends[i] || 0,
+  }));
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const raw = atob(b64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
+  try { ctx.close(); } catch (_) {}
+  if (typeof trackCost === 'function') {
+    const usd = ((text || '').length / 1000) * 0.30;
+    trackCost('elevenlabsTts', usd);
+  }
+  return { audioBuffer, durationMs: audioBuffer.duration * 1000, characters: charTimings };
+}
+window.generateTTSElevenLabsWithTimestamps = generateTTSElevenLabsWithTimestamps;
 
 // Sample playback for an ElevenLabs voice. Prefer previewUrl (free, static),
 // fall back to a live TTS call. Returns a data URL or blob URL string.

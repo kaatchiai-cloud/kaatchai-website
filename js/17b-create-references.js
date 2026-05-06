@@ -2906,6 +2906,13 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   window.castBuildDialogueAndFramingHint = function () {
     const t = window.createJobState && window.createJobState.videoType;
     if (t !== 'film' && t !== 'brand') return { promptHint: '', schemaFieldList: '' };
+    // When audio-input has pre-resolved dialogue lines, the storyboard agent
+    // already receives them via inputDoc.parsed.dialogueLines — skip inference.
+    const inputDoc = window.createJobState && window.createJobState.inputDoc;
+    if (inputDoc && inputDoc.format === 'audio' && inputDoc.locked &&
+        inputDoc.parsed && Array.isArray(inputDoc.parsed.dialogueLines) && inputDoc.parsed.dialogueLines.length) {
+      return { promptHint: '', schemaFieldList: '' };
+    }
     const chars = (window.createJobState.characters || []).filter(c => c.locked);
     const hasProduct   = !!(window.createJobState.product   && window.createJobState.product.locked);
     const hasPresenter = !!(window.createJobState.presenter && window.createJobState.presenter.locked);
@@ -3033,6 +3040,57 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
 
   // Phase 5 — multi-voice TTS pipeline.
   //
+  // 12-mood enum and per-mood TTS profiles (Gemini cue prefix + ElevenLabs voice settings).
+  window.MOOD_ENUM = [
+    { id: 'matter-of-fact', label: 'Matter-of-fact', icon: '💬' },
+    { id: 'calm',           label: 'Calm',           icon: '🧘' },
+    { id: 'warm',           label: 'Warm',           icon: '☀️' },
+    { id: 'serious',        label: 'Serious',        icon: '🎯' },
+    { id: 'excited',        label: 'Excited',        icon: '✨' },
+    { id: 'angry',          label: 'Angry',          icon: '⚡' },
+    { id: 'sad',            label: 'Sad',            icon: '💧' },
+    { id: 'whispered',      label: 'Whispered',      icon: '🌙' },
+    { id: 'playful',        label: 'Playful',        icon: '🎭' },
+    { id: 'concerned',      label: 'Concerned',      icon: '😟' },
+    { id: 'urgent',         label: 'Urgent',         icon: '🔥' },
+    { id: 'sarcastic',      label: 'Sarcastic',      icon: '🙃' },
+  ];
+
+  window.MOOD_PROFILES = {
+    'matter-of-fact': { gemini: '',                   elevenlabs: { stability: 0.5,  similarity_boost: 0.75, style: 0.0 } },
+    'calm':           { gemini: '[calmly] ',          elevenlabs: { stability: 0.6,  similarity_boost: 0.75, style: 0.1 } },
+    'warm':           { gemini: '[warmly] ',          elevenlabs: { stability: 0.55, similarity_boost: 0.75, style: 0.2 } },
+    'serious':        { gemini: '[seriously] ',       elevenlabs: { stability: 0.7,  similarity_boost: 0.75, style: 0.0 } },
+    'excited':        { gemini: '[excitedly] ',       elevenlabs: { stability: 0.35, similarity_boost: 0.75, style: 0.6 } },
+    'angry':          { gemini: '[angrily] ',         elevenlabs: { stability: 0.3,  similarity_boost: 0.75, style: 0.7 } },
+    'sad':            { gemini: '[sadly, softly] ',   elevenlabs: { stability: 0.5,  similarity_boost: 0.75, style: 0.4 } },
+    'whispered':      { gemini: '[whispered] ',       elevenlabs: { stability: 0.7,  similarity_boost: 0.75, style: 0.3 } },
+    'playful':        { gemini: '[playfully] ',       elevenlabs: { stability: 0.4,  similarity_boost: 0.75, style: 0.5 } },
+    'concerned':      { gemini: '[concerned tone] ',  elevenlabs: { stability: 0.55, similarity_boost: 0.75, style: 0.3 } },
+    'urgent':         { gemini: '[urgently] ',        elevenlabs: { stability: 0.4,  similarity_boost: 0.75, style: 0.6 } },
+    'sarcastic':      { gemini: '[sarcastically] ',   elevenlabs: { stability: 0.45, similarity_boost: 0.75, style: 0.5 } },
+  };
+
+  // Tolerant mood resolution — maps agent tone variations to a MOOD_ENUM id.
+  // Returns 'matter-of-fact' when nothing matches.
+  const _MOOD_ALIASES = {
+    'neutral': 'matter-of-fact', 'matter of fact': 'matter-of-fact',
+    'authoritative': 'serious', 'professional': 'serious',
+    'enthusiastic': 'excited', 'energetic': 'excited',
+    'soft': 'whispered', 'quiet': 'whispered', 'hushed': 'whispered',
+    'fun': 'playful', 'lighthearted': 'playful',
+    'worried': 'concerned', 'anxious': 'concerned',
+    'rushed': 'urgent', 'hurried': 'urgent',
+    'ironic': 'sarcastic',
+  };
+  window.deriveSceneMood = function deriveSceneMood(scene) {
+    const tone = scene && scene.performance && scene.performance.tone;
+    const lc = String(tone || '').toLowerCase().trim();
+    const exact = (window.MOOD_ENUM || []).find(m => m.id === lc);
+    if (exact) return exact.id;
+    return _MOOD_ALIASES[lc] || 'matter-of-fact';
+  };
+
   // resolveVoiceForSpeaker: lookup chain — explicit character voice → name match
   // → narrator → project fallback.
   function castResolveVoiceForSpeaker(speakerCharacterId, speakerName) {
@@ -3064,15 +3122,18 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window.castResolveVoiceForSpeaker = castResolveVoiceForSpeaker;
 
-  // Generate one TTS call for a given voice. Returns { audioBuffer, durationMs }.
-  // Routes to Gemini or ElevenLabs based on voice.provider.
-  async function castGenerateLineTTS(text, voice) {
+  // Generate one TTS call for a given voice, optionally applying a mood profile.
+  // Returns { audioBuffer, durationMs }.
+  // mood: optional string from MOOD_ENUM ids — applies Gemini cue prefix or ElevenLabs voice settings.
+  async function castGenerateLineTTS(text, voice, mood) {
     if (!text || !voice) return null;
+    const profile = (window.MOOD_PROFILES || {})[mood] || null;
     if (voice.provider === 'gemini') {
       const key = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
       if (!key) throw new Error('Gemini key required');
       if (typeof generateTTSGemini !== 'function') throw new Error('generateTTSGemini not available');
-      const result = await generateTTSGemini(text, voice.voiceId, key);
+      const cue = (profile && profile.gemini) || '';
+      const result = await generateTTSGemini(cue + text, voice.voiceId, key);
       const decoded = await decodeBase64Audio(result.base64, result.mimeType);
       return { audioBuffer: decoded.audioBuffer, durationMs: decoded.audioBuffer.duration * 1000 };
     }
@@ -3080,8 +3141,8 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       if (typeof window.generateTTSElevenLabs !== 'function') throw new Error('ElevenLabs TTS not available');
       const key = (typeof getElevenLabsKey === 'function') ? getElevenLabsKey() : null;
       if (!key) throw new Error('ElevenLabs key required');
-      const result = await window.generateTTSElevenLabs(text, voice.voiceId, key);
-      // dataUrl → AudioBuffer
+      const voiceSettings = (profile && profile.elevenlabs) || null;
+      const result = await window.generateTTSElevenLabs(text, voice.voiceId, key, voiceSettings);
       const m = result.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!m) throw new Error('Invalid ElevenLabs TTS dataUrl');
       const decoded = await decodeBase64Audio(m[2], m[1]);
@@ -3090,6 +3151,134 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     throw new Error('Unknown TTS provider: ' + voice.provider);
   }
   window.castGenerateLineTTS = castGenerateLineTTS;
+
+  // Group consecutive segments by (speakerId, mood) — break when either changes.
+  // Returns array of call descriptors used by castGenerateMultiVoiceAudio.
+  function planTtsCalls(segments) {
+    const calls = [];
+    let active = null;
+    for (const seg of segments) {
+      if (!seg || !seg.dialogue || !seg.dialogue.text) continue;
+      const speakerId = seg.dialogue.speakerCharacterId || 'narrator';
+      const speakerName = seg.dialogue.speakerName || 'narrator';
+      const mood = (seg.dialogue.voiceOverride && seg.dialogue.voiceOverride.mood)
+        || (seg.performance && (window.deriveSceneMood ? window.deriveSceneMood(seg) : 'matter-of-fact'))
+        || 'matter-of-fact';
+      const sentenceText = seg.dialogue.text.replace(/[.!?]?\s*$/, '.');
+      if (active && active.speakerId === speakerId && active.mood === mood) {
+        active.segments.push(seg);
+        active.joinedText += ' ' + sentenceText;
+      } else {
+        if (active) calls.push(active);
+        active = {
+          speakerId,
+          speakerName,
+          mood,
+          voice: castResolveVoiceForSpeaker(speakerId, speakerName),
+          segments: [seg],
+          joinedText: sentenceText,
+        };
+      }
+    }
+    if (active) calls.push(active);
+    return calls;
+  }
+
+  // Slice an AudioBuffer between startMs and endMs (clamped to buffer bounds).
+  function sliceAudioBuffer(buffer, startMs, endMs) {
+    const sampleRate = buffer.sampleRate;
+    const startSample = Math.max(0, Math.round((startMs / 1000) * sampleRate));
+    const endSample   = Math.min(buffer.length, Math.round((endMs / 1000) * sampleRate));
+    const length = Math.max(1, endSample - startSample);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const out = ctx.createBuffer(buffer.numberOfChannels, length, sampleRate);
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      out.getChannelData(ch).set(buffer.getChannelData(ch).subarray(startSample, endSample));
+    }
+    try { ctx.close(); } catch (_) {}
+    return out;
+  }
+
+  // Tier 3 fallback: split a batched AudioBuffer by word-rate math.
+  // providerReportedTotalMs: actual duration of combinedBuffer in ms.
+  function fallbackSplitByDurationMath(combinedBuffer, lines, providerReportedTotalMs) {
+    const wordCounts = lines.map(l => l.split(/\s+/).filter(Boolean).length);
+    const totalWords = wordCounts.reduce((a, b) => a + b, 0);
+    const avgMsPerWord = providerReportedTotalMs / Math.max(1, totalWords);
+    const INTER_LINE_PAD_MS = 100;
+    let cursorMs = 0;
+    return lines.map((line, i) => {
+      const lineDurMs = Math.max(50, wordCounts[i] * avgMsPerWord);
+      const startMs = cursorMs;
+      const endMs = cursorMs + lineDurMs;
+      cursorMs = endMs + (i < lines.length - 1 ? INTER_LINE_PAD_MS : 0);
+      return sliceAudioBuffer(combinedBuffer, startMs, endMs);
+    });
+  }
+
+  // Tier 1/2/3 splitter chain: given a batched AudioBuffer and call descriptor,
+  // return an array of per-segment AudioBuffers (one per call.segments entry).
+  // Tier 1: Scribe word alignment (DEFAULT — sample-accurate).
+  // Tier 2: ElevenLabs with-timestamps character timing (ElevenLabs only, ~90% accurate).
+  // Tier 3: Word-rate math fallback (±200ms — surfaces hint to user).
+  async function splitBatchedAudio(combinedBuffer, call, tier2CharTimings) {
+    const lines = call.segments.map(s => s.dialogue.text);
+    const totalDurMs = combinedBuffer.duration * 1000;
+
+    // Tier 1 — Scribe
+    const elevenLabsKey = (typeof getElevenLabsKey === 'function') ? getElevenLabsKey() : null;
+    if (elevenLabsKey) {
+      try {
+        const words = await alignWordsWithScribe(combinedBuffer, null);
+        if (words && words.length) {
+          // For each input line, find its first and last word in the timestamp stream.
+          // Words were joined with '. ' so we search sequentially.
+          const lineBuffers = [];
+          let wordIdx = 0;
+          for (const lineText of lines) {
+            const lineWords = lineText.split(/\s+/).filter(Boolean);
+            if (!lineWords.length || wordIdx >= words.length) {
+              lineBuffers.push(sliceAudioBuffer(combinedBuffer, 0, 100));
+              continue;
+            }
+            const firstWord = words[wordIdx];
+            const lastWord  = words[Math.min(wordIdx + lineWords.length - 1, words.length - 1)];
+            wordIdx += lineWords.length;
+            lineBuffers.push(sliceAudioBuffer(combinedBuffer, firstWord.start * 1000, lastWord.end * 1000));
+          }
+          return lineBuffers;
+        }
+      } catch (e) {
+        console.warn('[Voice] Tier 1 Scribe split failed:', e.message);
+      }
+    }
+
+    // Tier 2 — ElevenLabs character-level timestamps (passed in from the TTS call)
+    if (tier2CharTimings && tier2CharTimings.length && call.voice.provider === 'elevenlabs') {
+      try {
+        const lineBuffers = [];
+        let charOffset = 0;
+        for (const lineText of lines) {
+          const lineStart = tier2CharTimings[charOffset];
+          const lineEnd   = tier2CharTimings[Math.min(charOffset + lineText.length - 1, tier2CharTimings.length - 1)];
+          charOffset += lineText.length + 2; // +2 for '. ' separator
+          const startMs = lineStart ? lineStart.start_time * 1000 : 0;
+          const endMs   = lineEnd   ? lineEnd.end_time * 1000     : totalDurMs;
+          lineBuffers.push(sliceAudioBuffer(combinedBuffer, startMs, endMs));
+        }
+        return lineBuffers;
+      } catch (e) {
+        console.warn('[Voice] Tier 2 char-timestamps split failed:', e.message);
+      }
+    }
+
+    // Tier 3 — word-rate math (degraded mode)
+    if (!window._tier3HintShown) {
+      window._tier3HintShown = true;
+      console.info('[Voice] Using approximate audio boundary detection (Tier 3). Configure ElevenLabs key for sample-accurate alignment.');
+    }
+    return fallbackSplitByDurationMath(combinedBuffer, lines, totalDurMs);
+  }
 
   // Detect whether this project should run the multi-voice pipeline.
   // Multi-voice activates only when ≥1 segment has an explicit non-narrator
@@ -3103,118 +3292,208 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window.castShouldUseMultiVoice = castShouldUseMultiVoice;
 
-  // Per-line TTS generation across all segments. Returns:
+  // Per-character batched TTS generation across all segments.
+  // Groups consecutive segments by (speakerId, mood) — breaks when either changes.
+  // Three-tier cut-beat: 200ms speaker-change / 100ms same-speaker tone-change / 0ms in-batch.
+  // Tier 1/2/3 splitter chain to recover per-segment boundaries from batched audio.
+  //
+  // Returns:
   //   {
   //     combinedAudioBuffer: AudioBuffer,
   //     totalDurationMs: number,
-  //     speakerTurns: [{ speakerCharacterId, voiceId, startMs, endMs, segmentIndex }],
+  //     speakerTurns: [{ speakerCharacterId, speakerName, voiceId, provider, startMs, endMs, segmentIndex }],
   //     perSegmentDurationsMs: number[]
   //   }
-  // Falls back gracefully on per-line failures (uses 1s silence placeholder
-  // for that segment, surfaces a warning).
+  // Function signature preserved from prior per-line implementation — callers unchanged.
   async function castGenerateMultiVoiceAudio(segments, opts) {
     opts = opts || {};
-    const sampleRate = 24000;
-    const cutBeatMs = (typeof opts.cutBeatMs === 'number') ? opts.cutBeatMs : 200;
     const onProgress = opts.onProgress || function () {};
+    const sampleRate = 24000;
 
-    // Step 1 — generate each segment's audio in series (rate-limit-safe).
-    // Could be parallelized at 5 concurrent later; series is correct for v1.
-    const segmentAudios = [];
-    let lastSpeakerId = null;
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      if (!seg) { segmentAudios.push(null); continue; }
-      const dlg = seg.dialogue;
-      const speakerId = dlg && dlg.speakerCharacterId || 'narrator';
-      const speakerName = dlg && dlg.speakerName || 'narrator';
-      const text = (dlg && dlg.text) || seg.text || '';
-      if (!text || !text.trim()) { segmentAudios.push(null); continue; }
-      const voice = castResolveVoiceForSpeaker(speakerId, speakerName);
-      onProgress(`Voice ${i + 1}/${segments.length} — ${speakerName} (${voice.voiceName || voice.voiceId})…`);
+    // Step 1 — plan batched calls
+    const calls = planTtsCalls(segments);
+    if (!calls.length) {
+      const ctx = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : new (window.AudioContext || window.webkitAudioContext)();
+      const empty = ctx.createBuffer(1, sampleRate, sampleRate);
+      return { combinedAudioBuffer: empty, totalDurationMs: 0, speakerTurns: [], perSegmentDurationsMs: segments.map(() => 0) };
+    }
+
+    // Step 2 — run TTS for each batch group; split back into per-segment buffers
+    // segmentResults[segmentIndex] = { audioBuffer, durationMs, speakerId, speakerName, voiceId, provider }
+    const segmentResults = new Array(segments.length).fill(null);
+
+    for (let callIdx = 0; callIdx < calls.length; callIdx++) {
+      const call = calls[callIdx];
+      onProgress(`Voice ${callIdx + 1}/${calls.length} — ${call.speakerName} (${call.voice.voiceName || call.voice.voiceId}) [${call.mood}]…`);
       try {
-        const result = await castGenerateLineTTS(text, voice);
-        segmentAudios.push({
-          segmentIndex: i,
-          audioBuffer: result.audioBuffer,
-          durationMs: result.durationMs,
-          speakerCharacterId: speakerId,
-          speakerName,
-          voiceId: voice.voiceId,
-          provider: voice.provider,
-          // 200ms cut-beat between consecutive different speakers; 0 between same speaker
-          cutBeatBeforeMs: (lastSpeakerId !== null && lastSpeakerId !== speakerId) ? cutBeatMs : 0,
-        });
-        lastSpeakerId = speakerId;
+        let combinedBuffer;
+        let tier2CharTimings = null;
+
+        if (call.segments.length === 1) {
+          // Single-segment call — use castGenerateLineTTS directly (no splitting needed)
+          const res = await castGenerateLineTTS(call.segments[0].dialogue.text, call.voice, call.mood);
+          if (res) {
+            const seg = call.segments[0];
+            const segIdx = segments.indexOf(seg);
+            if (segIdx >= 0) segmentResults[segIdx] = {
+              audioBuffer: res.audioBuffer,
+              durationMs: res.durationMs,
+              speakerId: call.speakerId,
+              speakerName: call.speakerName,
+              voiceId: call.voice.voiceId,
+              provider: call.voice.provider,
+            };
+          }
+          continue;
+        }
+
+        // Multi-segment batch — prefer with-timestamps for ElevenLabs (gives Tier 2 data)
+        const elevenLabsKey = (typeof getElevenLabsKey === 'function') ? getElevenLabsKey() : null;
+        if (call.voice.provider === 'elevenlabs' && elevenLabsKey) {
+          try {
+            const profile = (window.MOOD_PROFILES || {})[call.mood] || null;
+            const withTs = await window.generateTTSElevenLabsWithTimestamps(
+              call.joinedText, call.voice.voiceId, elevenLabsKey,
+              (profile && profile.elevenlabs) || null
+            );
+            combinedBuffer = withTs.audioBuffer;
+            tier2CharTimings = withTs.characters;
+          } catch (e) {
+            // Fallback to standard ElevenLabs call
+            console.warn('[Voice] with-timestamps failed, using standard TTS:', e.message);
+            const res = await castGenerateLineTTS(call.joinedText, call.voice, call.mood);
+            combinedBuffer = res ? res.audioBuffer : null;
+          }
+        } else {
+          const res = await castGenerateLineTTS(call.joinedText, call.voice, call.mood);
+          combinedBuffer = res ? res.audioBuffer : null;
+        }
+
+        if (!combinedBuffer) {
+          throw new Error('TTS returned no audio buffer');
+        }
+
+        // Step 3 — split combined buffer back into per-segment buffers
+        const splitBuffers = await splitBatchedAudio(combinedBuffer, call, tier2CharTimings);
+        for (let i = 0; i < call.segments.length; i++) {
+          const seg = call.segments[i];
+          const segIdx = segments.indexOf(seg);
+          if (segIdx < 0) continue;
+          const buf = splitBuffers[i] || sliceAudioBuffer(combinedBuffer, 0, 100);
+          segmentResults[segIdx] = {
+            audioBuffer: buf,
+            durationMs: buf.duration * 1000,
+            speakerId: call.speakerId,
+            speakerName: call.speakerName,
+            voiceId: call.voice.voiceId,
+            provider: call.voice.provider,
+          };
+        }
       } catch (e) {
-        console.warn(`[Voice] line ${i + 1} TTS failed:`, e.message);
-        // 1s silence placeholder
-        const silence = (typeof audioContext !== 'undefined' && audioContext)
-          ? audioContext.createBuffer(1, sampleRate, sampleRate)
-          : null;
-        segmentAudios.push(silence ? {
-          segmentIndex: i,
-          audioBuffer: silence,
-          durationMs: 1000,
-          speakerCharacterId: speakerId,
-          speakerName,
-          voiceId: voice.voiceId,
-          provider: voice.provider,
-          cutBeatBeforeMs: 0,
-          error: e.message,
-        } : null);
+        console.warn(`[Voice] batch ${callIdx + 1} failed (${call.speakerName}/${call.mood}):`, e.message);
+        // 1s silence placeholder for each segment in failed batch
+        const ctxFallback = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : new (window.AudioContext || window.webkitAudioContext)();
+        const silence = ctxFallback.createBuffer(1, sampleRate, sampleRate);
+        for (const seg of call.segments) {
+          const segIdx = segments.indexOf(seg);
+          if (segIdx < 0) continue;
+          segmentResults[segIdx] = {
+            audioBuffer: silence,
+            durationMs: 1000,
+            speakerId: call.speakerId,
+            speakerName: call.speakerName,
+            voiceId: call.voice.voiceId,
+            provider: call.voice.provider,
+            error: e.message,
+          };
+        }
       }
     }
 
-    // Step 2 — assemble combined buffer with cut-beat silences
-    const ctx = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : null;
-    if (!ctx) throw new Error('No AudioContext available');
-    const totalSamples = segmentAudios.reduce((sum, sa) => {
-      if (!sa) return sum;
-      return sum + Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate) + sa.audioBuffer.length;
-    }, 0);
-    const combined = ctx.createBuffer(1, totalSamples, sampleRate);
+    // Step 4 — assemble master combined buffer with three-tier cut-beat
+    // 200ms speaker-change / 100ms same-speaker different-call (tone-change) / 0ms in-batch (already in splitBuffers)
+    const ctx = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : new (window.AudioContext || window.webkitAudioContext)();
+    const BEAT_SPEAKER_CHANGE_MS = 200;
+    const BEAT_SAME_SPEAKER_TONE_MS = 100;
+
+    // Determine cut-beat before each segment
+    const beatBeforeMs = new Array(segments.length).fill(0);
+    let lastSpeakerId = null;
+    let lastCallIdx = -1;
+    for (let i = 0; i < segments.length; i++) {
+      const sr = segmentResults[i];
+      if (!sr) continue;
+      // Find which call this segment belongs to
+      const callForSeg = calls.find(c => c.segments.includes(segments[i]));
+      const thisCallIdx = calls.indexOf(callForSeg);
+      if (lastSpeakerId === null) {
+        beatBeforeMs[i] = 0;
+      } else if (sr.speakerId !== lastSpeakerId) {
+        beatBeforeMs[i] = BEAT_SPEAKER_CHANGE_MS;
+      } else if (thisCallIdx !== lastCallIdx) {
+        // Same speaker, different batch = tone change
+        beatBeforeMs[i] = BEAT_SAME_SPEAKER_TONE_MS;
+      } else {
+        beatBeforeMs[i] = 0; // in-batch: already handled by split silence
+      }
+      lastSpeakerId = sr.speakerId;
+      lastCallIdx = thisCallIdx;
+    }
+
+    // Compute total samples
+    let totalSamples = 0;
+    for (let i = 0; i < segments.length; i++) {
+      const sr = segmentResults[i];
+      if (!sr) continue;
+      totalSamples += Math.round((beatBeforeMs[i] / 1000) * sampleRate) + sr.audioBuffer.length;
+    }
+
+    const combined = ctx.createBuffer(1, Math.max(1, totalSamples), sampleRate);
     const channel = combined.getChannelData(0);
     const speakerTurns = [];
+    const perSegmentDurationsMs = new Array(segments.length).fill(0);
     let cursorSamples = 0;
     let cursorMs = 0;
-    for (const sa of segmentAudios) {
-      if (!sa) continue;
-      // Cut-beat silence (channel already zero)
-      const beatSamples = Math.round((sa.cutBeatBeforeMs / 1000) * sampleRate);
+
+    for (let i = 0; i < segments.length; i++) {
+      const sr = segmentResults[i];
+      if (!sr) continue;
+      const beatSamples = Math.round((beatBeforeMs[i] / 1000) * sampleRate);
       cursorSamples += beatSamples;
-      cursorMs += sa.cutBeatBeforeMs;
-      // Copy line audio
-      const src = sa.audioBuffer.getChannelData(0);
+      cursorMs += beatBeforeMs[i];
+      const src = sr.audioBuffer.getChannelData(0);
       channel.set(src, cursorSamples);
       const startMs = cursorMs;
-      const endMs   = cursorMs + sa.durationMs;
+      const endMs   = cursorMs + sr.durationMs;
       speakerTurns.push({
-        segmentIndex: sa.segmentIndex,
-        speakerCharacterId: sa.speakerCharacterId,
-        speakerName: sa.speakerName,
-        voiceId: sa.voiceId,
-        provider: sa.provider,
+        segmentIndex: i,
+        speakerCharacterId: sr.speakerId,
+        speakerName: sr.speakerName,
+        voiceId: sr.voiceId,
+        provider: sr.provider,
         startMs,
         endMs,
       });
-      // Update segment's start/end timestamps to reflect actual TTS timing
-      const seg = segments[sa.segmentIndex];
+      // Write timing back to segment + audioActualDuration
+      const seg = segments[i];
       if (seg) {
         seg.startTime = startMs / 1000;
         seg.endTime   = endMs / 1000;
+        seg.audioActualDuration = sr.durationMs / 1000;
         seg.dialogue = seg.dialogue || {};
         seg.dialogue.actualStartMs = startMs;
-        seg.dialogue.actualEndMs = endMs;
+        seg.dialogue.actualEndMs   = endMs;
       }
-      cursorSamples += sa.audioBuffer.length;
+      perSegmentDurationsMs[i] = sr.durationMs;
+      cursorSamples += sr.audioBuffer.length;
       cursorMs = endMs;
     }
+
     return {
       combinedAudioBuffer: combined,
       totalDurationMs: cursorMs,
       speakerTurns,
-      perSegmentDurationsMs: segmentAudios.map(sa => sa ? sa.durationMs : 0),
+      perSegmentDurationsMs,
     };
   }
   window.castGenerateMultiVoiceAudio = castGenerateMultiVoiceAudio;

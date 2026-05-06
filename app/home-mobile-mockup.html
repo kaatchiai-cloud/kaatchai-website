@@ -4,523 +4,489 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Stori – Home</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Round">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+  :root {
+    /* Aurora theme tokens */
+    --bg-primary: #050814;
+    --bg-secondary: #0a0f20;
+    --bg-card: rgba(255,255,255,0.035);
+    --bg-elevated: rgba(255,255,255,0.06);
+    --bg-input: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(139,92,246,0.40);
+    --border-active: rgba(139,92,246,0.55);
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --accent-soft: rgba(139,92,246,0.14);
+    --accent-glow: rgba(139,92,246,0.25);
+    --accent2: #e684c4;
+    --accent2-soft: rgba(230,132,196,0.14);
+    --on-accent: #ffffff;
+    --red: #ff7a7a;
+    --red-soft: rgba(255,122,122,0.15);
+    --green: #6ee7b7;
+    --green-soft: rgba(110,231,183,0.15);
+    --amber: #ffc56e;
+    --amber-soft: rgba(255,197,110,0.15);
+    --cyan: #78dcff;
+    --cyan-soft: rgba(120,220,255,0.15);
+    --text-primary: #eef4ff;
+    --text-secondary: rgba(238,244,255,0.65);
+    --text-muted: rgba(238,244,255,0.50);
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
-    background: #0a0a0f; color: #e4e4e7;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 0%,  rgba(120,220,255,0.13), transparent 60%),
+      radial-gradient(ellipse 55% 40% at 15% 20%, rgba(120,220,255,0.18), transparent 55%),
+      radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
+      radial-gradient(ellipse 70% 35% at 50% 88%, rgba(100,220,180,0.08), transparent 55%),
+      var(--bg-primary);
+    background-attachment: fixed;
+    color: var(--text-primary);
     min-height: 100vh; max-width: 430px; margin: 0 auto;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .material-icons-round { font-feature-settings: 'liga'; }
+
+  /* ── Material AppBar ── */
+  .appbar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 8px 4px; background: var(--bg-secondary);
+    height: 56px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .appbar-icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-primary);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .appbar-icon-btn:active { background: rgba(255,255,255,0.08); }
+  .appbar-icon-btn .material-icons-round { font-size: 22px; }
+  .appbar-title {
+    flex: 1; font-size: 18px; font-weight: 500;
+    color: var(--text-primary);
+    margin-left: 12px;
   }
 
-  /* ── Header ── */
-  .header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 8px;
+  /* ── Brand Hero ── */
+  .brand-hero {
+    text-align: center;
+    padding: 18px 16px 14px;
   }
-  .logo {
-    display: flex; align-items: center; gap: 8px;
+  .brand-name {
+    font-size: 42px; font-weight: 800; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #78dcff 0%, #c864ff 60%, #e684c4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1; margin-bottom: 6px;
+    display: inline-block;
+    filter: drop-shadow(0 0 24px rgba(120,220,255,0.18));
   }
-  .logo-icon {
-    width: 32px; height: 32px; border-radius: 10px;
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 800; color: #fff;
+  .brand-tag {
+    font-size: 12px; font-weight: 500;
+    color: var(--text-primary); letter-spacing: 0.3px;
+    margin-bottom: 4px;
   }
-  .logo-text { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-  .header-actions { display: flex; gap: 10px; }
-  .header-btn {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: #1a1a24; border: 1px solid #1e1e2a;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; color: #a1a1aa; cursor: pointer;
+  .brand-sub {
+    font-size: 11px; color: var(--text-muted); line-height: 1.4;
+    max-width: 320px; margin: 0 auto;
   }
 
   /* ── Greeting ── */
   .greeting {
-    padding: 4px 16px 14px;
+    padding: 16px 16px 12px;
   }
-  .greeting-text { font-size: 13px; color: #71717a; }
-  .greeting-text span { color: #a78bfa; font-weight: 600; }
+  .greeting-line {
+    font-size: 13px; color: var(--text-muted);
+    letter-spacing: 0.2px;
+  }
+  .greeting-line span { color: var(--accent); font-weight: 500; }
+
+  /* ── Action Card (compact entry tile) ── */
+  .action-tile {
+    display: flex; align-items: center; gap: 14px;
+    margin: 0 16px 12px; padding: 14px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .action-tile:active { background: var(--bg-elevated); }
+  .action-tile-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .action-tile-icon .material-icons-round { font-size: 24px; }
+  .action-tile-icon.photo { background: rgba(6,182,212,0.15); color: var(--cyan); }
+  .action-tile-icon.autopilot { background: var(--accent-soft); color: var(--accent); }
+  .action-tile-icon.record { background: var(--red-soft); color: var(--red); }
+  .action-tile-body { flex: 1; min-width: 0; }
+  .action-tile-title { font-size: 15px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
+  .action-tile-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+  .action-tile-arrow { color: var(--text-muted); }
 
   /* ── Brainstorm Hero ── */
-  .brainstorm-hero {
-    margin: 0 16px 16px; padding: 20px 18px;
-    border-radius: 16px; cursor: pointer;
-    background: linear-gradient(135deg, #1a1033 0%, #0f1a3d 50%, #0a1628 100%);
-    border: 1px solid #7c3aed33;
-    position: relative; overflow: hidden;
+  .hero-card {
+    margin: 0 16px 12px; padding: 20px;
+    border-radius: 16px;
+    background:
+      linear-gradient(135deg, rgba(139,92,246,0.18), rgba(6,182,212,0.10)),
+      var(--bg-card);
+    border: 1px solid var(--border-active);
+    cursor: pointer; position: relative; overflow: hidden;
   }
-  .brainstorm-hero::before {
-    content: '';
-    position: absolute; top: -40px; right: -40px;
-    width: 120px; height: 120px; border-radius: 50%;
-    background: radial-gradient(circle, #7c3aed22 0%, transparent 70%);
+  .hero-card-eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 600;
+    color: var(--accent); letter-spacing: 0.4px;
+    text-transform: uppercase; margin-bottom: 10px;
   }
-  .brainstorm-hero::after {
-    content: '';
-    position: absolute; bottom: -30px; left: -30px;
-    width: 100px; height: 100px; border-radius: 50%;
-    background: radial-gradient(circle, #3b82f622 0%, transparent 70%);
+  .hero-card-eyebrow .material-icons-round { font-size: 14px; }
+  .hero-title {
+    font-size: 22px; font-weight: 600; color: var(--text-primary);
+    letter-spacing: -0.3px; margin-bottom: 6px;
   }
-  .brainstorm-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 10px; border-radius: 8px;
-    background: #7c3aed33; color: #a78bfa;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
-    margin-bottom: 10px;
+  .hero-desc {
+    font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+    margin-bottom: 14px;
   }
-  .brainstorm-title {
-    font-size: 20px; font-weight: 800; color: #fff;
-    margin-bottom: 6px; position: relative; z-index: 1;
-  }
-  .brainstorm-desc {
-    font-size: 13px; color: #a1a1aa; line-height: 1.5;
-    margin-bottom: 14px; position: relative; z-index: 1;
-  }
-  .brainstorm-chat-preview {
-    display: flex; flex-direction: column; gap: 6px;
-    margin-bottom: 14px; position: relative; z-index: 1;
+  .hero-chat {
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
   }
   .chat-bubble {
     padding: 8px 12px; border-radius: 12px;
-    font-size: 12px; max-width: 80%;
+    font-size: 12px; max-width: 80%; line-height: 1.4;
   }
   .chat-bubble.user {
-    background: #7c3aed; color: #fff;
-    align-self: flex-end; border-bottom-right-radius: 4px;
+    background: var(--accent); color: var(--on-accent);
+    align-self: flex-end; border-bottom-right-radius: 4px; font-weight: 500;
   }
   .chat-bubble.ai {
-    background: #1e1e2a; color: #e4e4e7;
+    background: var(--bg-elevated); color: var(--text-primary);
     align-self: flex-start; border-bottom-left-radius: 4px;
   }
-  .brainstorm-start-btn {
-    width: 100%; padding: 12px 0; border-radius: 12px;
-    background: #7c3aed; color: #fff;
-    font-size: 14px; font-weight: 700; border: none; cursor: pointer;
-    position: relative; z-index: 1;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+  .hero-cta {
+    width: 100%; padding: 12px; border-radius: 10px;
+    background: var(--accent); color: var(--on-accent);
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    letter-spacing: 0.2px;
   }
-  .brainstorm-formats {
-    display: flex; gap: 6px; flex-wrap: wrap;
-    margin-top: 10px; position: relative; z-index: 1;
+  .hero-cta .material-icons-round { font-size: 18px; }
+  .format-chips {
+    display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;
   }
   .format-chip {
-    display: inline-flex; align-items: center; gap: 4px;
     padding: 4px 10px; border-radius: 8px;
-    font-size: 10px; font-weight: 600;
-    background: #ffffff0a; border: 1px solid #ffffff11;
-    color: #a1a1aa;
+    font-size: 11px; color: var(--text-secondary);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
   }
-  .format-chip span { color: #e4e4e7; font-weight: 700; }
+  .format-chip b { color: var(--text-primary); font-weight: 500; }
 
   /* ── Quick Capture ── */
   .capture-card {
-    margin: 0 16px 16px; padding: 16px 18px;
-    border-radius: 16px; cursor: pointer;
-    background: linear-gradient(135deg, #1a0f0f 0%, #1c1410 50%, #0f1a14 100%);
-    border: 1px solid #ef444433;
-    position: relative; overflow: hidden;
+    margin: 0 16px 12px; padding: 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
   }
-  .capture-card::before {
-    content: '';
-    position: absolute; top: -30px; right: -30px;
-    width: 100px; height: 100px; border-radius: 50%;
-    background: radial-gradient(circle, #ef444418 0%, transparent 70%);
+  .capture-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
   }
-  .capture-top {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 8px; position: relative; z-index: 1;
+  .capture-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--red-soft); color: var(--red);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
-  .capture-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 10px; border-radius: 8px;
-    background: #ef444433; color: #f87171;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
-  }
-  .capture-title {
-    font-size: 17px; font-weight: 800; color: #fff;
-    margin-bottom: 4px; position: relative; z-index: 1;
-  }
+  .capture-icon .material-icons-round { font-size: 20px; }
+  .capture-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
   .capture-desc {
-    font-size: 12px; color: #a1a1aa; line-height: 1.5;
-    margin-bottom: 12px; position: relative; z-index: 1;
+    font-size: 12px; color: var(--text-muted); line-height: 1.4;
+    margin: 4px 0 14px 46px;
   }
-  .capture-buttons {
-    display: flex; gap: 8px; position: relative; z-index: 1;
+  .capture-btns {
+    display: flex; gap: 8px;
   }
   .capture-btn {
-    flex: 1; padding: 11px 0; border-radius: 12px;
-    font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+    flex: 1; padding: 11px 0; border-radius: 10px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-primary); letter-spacing: 0.2px;
   }
-  .capture-btn.mic { background: #ef4444; color: #fff; }
-  .capture-btn.cam { background: #1e1e2a; color: #e4e4e7; border: 1px solid #333; }
-  .capture-route {
-    font-size: 10px; color: #71717a; text-align: center;
-    margin-top: 8px; position: relative; z-index: 1;
-  }
-  .capture-route span { color: #f87171; }
+  .capture-btn.primary { background: var(--red); color: #fff; border-color: var(--red); }
+  .capture-btn .material-icons-round { font-size: 18px; }
 
-  /* ── Routing overlay ── */
-  .route-overlay {
-    display: none; position: fixed; inset: 0; z-index: 200;
-    background: #0a0a0fee; backdrop-filter: blur(10px);
-    flex-direction: column; align-items: center; justify-content: center;
-    padding: 24px;
+  /* ── Section header ── */
+  .section-head {
+    padding: 16px 16px 8px;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
   }
-  .route-overlay.show { display: flex; }
-  .route-close {
-    position: absolute; top: 16px; right: 16px;
-    width: 36px; height: 36px; border-radius: 50%;
-    background: #1e1e2a; border: 1px solid #333;
-    color: #a1a1aa; font-size: 18px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .route-transcript-box {
-    width: 100%; max-width: 380px;
-    padding: 14px 16px; border-radius: 14px;
-    background: #111118; border: 1px solid #1e1e2a;
-    margin-bottom: 20px;
-  }
-  .route-transcript-label {
-    font-size: 10px; font-weight: 700; color: #71717a;
-    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
-  }
-  .route-transcript-text {
-    font-size: 13px; color: #e4e4e7; line-height: 1.6;
-  }
-  .route-title {
-    font-size: 16px; font-weight: 800; color: #fff;
-    margin-bottom: 6px; text-align: center;
-  }
-  .route-subtitle {
-    font-size: 12px; color: #71717a; margin-bottom: 16px; text-align: center;
-  }
-  .route-options {
-    width: 100%; max-width: 380px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .route-option {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px; border-radius: 14px;
-    background: #111118; border: 1px solid #1e1e2a;
-    cursor: pointer;
-  }
-  .route-option:hover { border-color: #333; }
-  .route-option-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; flex-shrink: 0;
-  }
-  .route-option-icon.reel { background: #7c3aed22; }
-  .route-option-icon.cloud { background: #3b82f622; }
-  .route-option-icon.brainstorm { background: #f59e0b22; }
-  .route-option-body { flex: 1; }
-  .route-option-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
-  .route-option-desc { font-size: 11px; color: #71717a; }
-  .route-option-arrow { color: #333; font-size: 18px; }
-
-  /* ── Section label ── */
-  .section-label {
-    padding: 0 16px; margin-bottom: 10px;
-    font-size: 11px; font-weight: 700; color: #71717a;
-    text-transform: uppercase; letter-spacing: .5px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-label::after {
-    content: ''; flex: 1; height: 1px; background: #1e1e2a;
-  }
-
-  /* ── Action cards ── */
-  .action-cards {
-    display: flex; flex-direction: column; gap: 10px;
-    padding: 0 16px; margin-bottom: 20px;
-  }
-  .action-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px; border-radius: 14px;
-    background: #111118; border: 1px solid #1e1e2a;
-    cursor: pointer; position: relative;
-  }
-  .action-card-icon {
-    width: 48px; height: 48px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
-  }
-  .action-card-icon.record { background: #ef444422; }
-  .action-card-icon.autopilot { background: #7c3aed22; }
-  .action-card-icon.photopilot { background: #3b82f622; }
-  .action-card-body { flex: 1; }
-  .action-card-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
-  .action-card-desc { font-size: 11px; color: #71717a; line-height: 1.4; }
-  .action-card-arrow { color: #333; font-size: 18px; }
-  .action-card-tag {
-    position: absolute; top: 10px; right: 12px;
-    font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
-    text-transform: uppercase; letter-spacing: .3px;
-  }
-  .action-card-tag.camera { background: #ef444422; color: #f87171; }
-  .action-card-tag.text { background: #7c3aed22; color: #a78bfa; }
-  .action-card-tag.photos { background: #3b82f622; color: #60a5fa; }
 
   /* ── Recent projects ── */
-  .recent-section {
-    padding: 0 16px; margin-bottom: 24px;
-  }
   .recent-scroll {
     display: flex; gap: 10px; overflow-x: auto;
-    -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+    padding: 0 16px 8px; -webkit-overflow-scrolling: touch;
   }
   .recent-scroll::-webkit-scrollbar { display: none; }
   .recent-card {
     min-width: 140px; flex-shrink: 0;
     border-radius: 12px; overflow: hidden;
-    border: 1px solid #1e1e2a; cursor: pointer;
-    background: #111118;
+    background: var(--bg-card); border: 1px solid var(--border);
+    cursor: pointer;
   }
   .recent-thumb {
-    width: 100%; aspect-ratio: 9/16; max-height: 100px;
-    object-fit: cover;
-  }
-  .recent-thumb-placeholder {
     width: 100%; height: 100px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px;
+    font-size: 28px;
   }
   .recent-info { padding: 8px 10px; }
-  .recent-title { font-size: 11px; font-weight: 600; color: #e4e4e7; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .recent-meta { font-size: 10px; color: #71717a; display: flex; gap: 6px; }
+  .recent-title { font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-meta { font-size: 10px; color: var(--text-muted); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
   .recent-mode {
-    font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+    font-size: 9px; font-weight: 500; padding: 1px 6px; border-radius: 4px;
   }
-  .recent-mode.illustrated { background: #7c3aed22; color: #a78bfa; }
-  .recent-mode.animated { background: #f59e0b22; color: #fbbf24; }
+  .recent-mode.illustrated { background: var(--accent-soft); color: var(--accent); }
+  .recent-mode.animated { background: var(--amber-soft); color: var(--amber); }
 
-  /* ── Bottom nav ── */
+  /* ── Bottom nav (Material) ── */
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px;
-    display: flex; align-items: center; justify-content: space-around;
-    padding: 8px 0 20px; /* extra padding for home indicator */
-    background: #111118; border-top: 1px solid #1e1e2a;
+    display: flex; align-items: stretch;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 6px 0 16px;
+    z-index: 90;
   }
   .nav-item {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    font-size: 10px; color: #71717a; cursor: pointer;
-    background: none; border: none;
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 6px 0;
   }
-  .nav-item.active { color: #a78bfa; }
-  .nav-icon { font-size: 20px; }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .material-icons-round { font-size: 22px; }
+  .nav-item-label { font-size: 11px; font-weight: 500; }
+
+  /* ── Routing overlay ── */
+  .route-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(12,12,20,0.94); backdrop-filter: blur(8px);
+    flex-direction: column; padding: 0;
+  }
+  .route-overlay.show { display: flex; }
+  .route-appbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 4px; height: 56px;
+  }
+  .route-content {
+    flex: 1; padding: 16px; overflow-y: auto;
+  }
+  .transcript-box {
+    padding: 14px; border-radius: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .transcript-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .transcript-label .material-icons-round { font-size: 14px; }
+  .transcript-text { font-size: 14px; color: var(--text-primary); line-height: 1.6; }
+  .route-q {
+    font-size: 18px; font-weight: 500; color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .route-q-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+  .route-options { display: flex; flex-direction: column; gap: 10px; }
 
   .spacer-bottom { height: 80px; }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="logo">
-    <div class="logo-icon">S</div>
-    <span class="logo-text">Stori</span>
-  </div>
-  <div class="header-actions">
-    <button class="header-btn">🔔</button>
-    <button class="header-btn">⚙</button>
-  </div>
+<div class="appbar" style="background:transparent;box-shadow:none;justify-content:flex-end;">
+  <button class="appbar-icon-btn" style="margin-right:4px;"><span class="material-icons-round">settings</span></button>
 </div>
 
-<!-- Greeting -->
-<div class="greeting">
-  <div class="greeting-text">Welcome back, <span>Praveen</span></div>
+<div class="brand-hero">
+  <div class="brand-name">Stori</div>
+  <div class="brand-tag">AI-Powered Video Creation</div>
+  <div class="brand-sub">Welcome back, <span style="color:var(--accent);">Praveen</span></div>
 </div>
 
-<!-- PhotoPilot — top card -->
-<div class="action-cards" style="margin-bottom:12px;">
-  <div class="action-card" onclick="alert('Opens PhotoPilot')">
-    <div class="action-card-icon photopilot">📸</div>
-    <div class="action-card-body">
-      <div class="action-card-title">PhotoPilot</div>
-      <div class="action-card-desc">Upload photos — AI segments them into scenes with Ken Burns motion and exports a reel.</div>
-    </div>
-    <span class="action-card-arrow">›</span>
-    <span class="action-card-tag photos">Photos</span>
+<div class="action-tile" onclick="alert('Opens PhotoPilot')">
+  <div class="action-tile-icon photo"><span class="material-icons-round">photo_library</span></div>
+  <div class="action-tile-body">
+    <div class="action-tile-title">PhotoPilot</div>
+    <div class="action-tile-desc">Upload photos — AI builds a reel with motion and music.</div>
   </div>
+  <span class="material-icons-round action-tile-arrow">chevron_right</span>
 </div>
 
-<!-- Brainstorm Hero -->
-<div class="brainstorm-hero" onclick="alert('Opens Brainstorm Chat')">
-  <div class="brainstorm-badge">✨ AI-Powered</div>
-  <div class="brainstorm-title">Brainstorm with AI</div>
-  <div class="brainstorm-desc">No script? No problem. Tell AI your idea and it'll write the script, pick the style, and set everything up.</div>
-
-  <div class="brainstorm-chat-preview">
+<div class="hero-card" onclick="alert('Opens Brainstorm Chat')">
+  <div class="hero-card-eyebrow"><span class="material-icons-round">auto_awesome</span> AI Brainstorm</div>
+  <div class="hero-title">Brainstorm with AI</div>
+  <div class="hero-desc">No script? Tell AI your idea — it'll write the script, pick the style, and set everything up.</div>
+  <div class="hero-chat">
     <div class="chat-bubble user">I want a travel reel about Bali</div>
-    <div class="chat-bubble ai">Great! I'll create a 4-scene cinematic reel with tropical visuals...</div>
+    <div class="chat-bubble ai">Got it. I'll create a 4-scene cinematic reel with tropical visuals…</div>
   </div>
-
-  <button class="brainstorm-start-btn">💬 Start Brainstorming</button>
-  <div class="brainstorm-formats">
-    <div class="format-chip"><span>Reels</span> · 30–60s</div>
-    <div class="format-chip"><span>Shorts</span> · 15–30s</div>
-    <div class="format-chip"><span>Long-form</span> · Desktop</div>
-  </div>
-</div>
-
-<!-- Quick Capture -->
-<div class="capture-card" id="capture-card">
-  <div class="capture-badge">🔴 Quick Capture</div>
-  <div class="capture-title">Just Talk</div>
-  <div class="capture-desc">Record your voice or camera — we'll transcribe it and you choose what to do next.</div>
-  <div class="capture-buttons">
-    <button class="capture-btn mic" id="btn-mic">🎙 Voice</button>
-    <button class="capture-btn cam" id="btn-cam">📹 Camera</button>
-  </div>
-  <div class="capture-route">Routes to <span>AutoPilot</span>, <span>Copilot</span>, or <span>Brainstorm</span></div>
-</div>
-
-<!-- Routing Overlay (shown after recording) -->
-<div class="route-overlay" id="route-overlay">
-  <button class="route-close" onclick="hideRouting()">&times;</button>
-  <div class="route-transcript-box">
-    <div class="route-transcript-label">Transcribed from your recording</div>
-    <div class="route-transcript-text">"I want to tell a story about a solo backpacker traveling through Japan in autumn. Cherry blossoms, bullet trains, quiet temples at dawn, street food in Osaka..."</div>
-  </div>
-  <div class="route-title">What would you like to do?</div>
-  <div class="route-subtitle">Choose where to send your transcript</div>
-  <div class="route-options">
-    <div class="route-option" onclick="hideRouting()">
-      <div class="route-option-icon reel">🚀</div>
-      <div class="route-option-body">
-        <div class="route-option-title">Make a Reel</div>
-        <div class="route-option-desc">Send to AutoPilot — AI generates scenes, images, and exports a short reel</div>
-      </div>
-      <span class="route-option-arrow">›</span>
-    </div>
-    <div class="route-option" onclick="hideRouting()">
-      <div class="route-option-icon cloud">☁️</div>
-      <div class="route-option-body">
-        <div class="route-option-title">Save to Cloud</div>
-        <div class="route-option-desc">Save as Copilot script — open on desktop web app for long-form editing</div>
-      </div>
-      <span class="route-option-arrow">›</span>
-    </div>
-    <div class="route-option" onclick="hideRouting()">
-      <div class="route-option-icon brainstorm">💬</div>
-      <div class="route-option-body">
-        <div class="route-option-title">Brainstorm Further</div>
-        <div class="route-option-desc">Open in AI chat — refine your idea before creating anything</div>
-      </div>
-      <span class="route-option-arrow">›</span>
-    </div>
+  <button class="hero-cta">
+    <span class="material-icons-round">forum</span>
+    Start Brainstorming
+  </button>
+  <div class="format-chips">
+    <span class="format-chip"><b>Reels</b> · 30–60s</span>
+    <span class="format-chip"><b>Shorts</b> · 15–30s</span>
+    <span class="format-chip"><b>Long-form</b> · Desktop</span>
   </div>
 </div>
 
-<!-- Have Content Section -->
-<div class="section-label">Already have content?</div>
-
-<div class="action-cards">
-  <!-- AutoPilot -->
-  <div class="action-card" onclick="alert('Opens AutoPilot Reel page')">
-    <div class="action-card-icon autopilot">🚀</div>
-    <div class="action-card-body">
-      <div class="action-card-title">AutoPilot</div>
-      <div class="action-card-desc">Paste a script or import audio — AI generates scenes, images, music, and exports a reel.</div>
-    </div>
-    <span class="action-card-arrow">›</span>
-    <span class="action-card-tag text">Script / Audio</span>
+<div class="capture-card">
+  <div class="capture-row">
+    <div class="capture-icon"><span class="material-icons-round">graphic_eq</span></div>
+    <div class="capture-title">Just Talk</div>
   </div>
-
-  <!-- Record Podcast -->
-  <div class="action-card" onclick="alert('Opens Record screen')">
-    <div class="action-card-icon record">🎙</div>
-    <div class="action-card-body">
-      <div class="action-card-title">Record Podcast</div>
-      <div class="action-card-desc">Dual-camera recording for interviews, commentary, and live content.</div>
-    </div>
-    <span class="action-card-arrow">›</span>
-    <span class="action-card-tag camera">Camera</span>
+  <div class="capture-desc">Record voice or video — we'll transcribe and route it for you.</div>
+  <div class="capture-btns">
+    <button class="capture-btn primary" id="btn-mic"><span class="material-icons-round">mic</span> Voice</button>
+    <button class="capture-btn" id="btn-cam"><span class="material-icons-round">videocam</span> Camera</button>
   </div>
 </div>
 
-<!-- Recent Projects -->
-<div class="section-label">Recent Projects</div>
-<div class="recent-section">
-  <div class="recent-scroll">
-    <div class="recent-card">
-      <div class="recent-thumb-placeholder" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);">🌃</div>
-      <div class="recent-info">
-        <div class="recent-title">Neon City Walk</div>
-        <div class="recent-meta">
-          <span class="recent-mode illustrated">Illustrated</span>
-          <span>2d ago</span>
-        </div>
-      </div>
+<div class="section-head">Already have content?</div>
+
+<div class="action-tile" onclick="alert('Opens AutoPilot')">
+  <div class="action-tile-icon autopilot"><span class="material-icons-round">rocket_launch</span></div>
+  <div class="action-tile-body">
+    <div class="action-tile-title">AutoPilot</div>
+    <div class="action-tile-desc">Paste a script or import audio — AI generates a reel end-to-end.</div>
+  </div>
+  <span class="material-icons-round action-tile-arrow">chevron_right</span>
+</div>
+
+<div class="action-tile" onclick="alert('Opens Record screen')">
+  <div class="action-tile-icon record"><span class="material-icons-round">mic_none</span></div>
+  <div class="action-tile-body">
+    <div class="action-tile-title">Record Podcast</div>
+    <div class="action-tile-desc">Dual-camera recording for interviews and commentary.</div>
+  </div>
+  <span class="material-icons-round action-tile-arrow">chevron_right</span>
+</div>
+
+<div class="section-head">Recent Projects</div>
+<div class="recent-scroll">
+  <div class="recent-card">
+    <div class="recent-thumb" style="background:linear-gradient(135deg,#1a1a2e,#0f3460);">🌃</div>
+    <div class="recent-info">
+      <div class="recent-title">Neon City Walk</div>
+      <div class="recent-meta"><span class="recent-mode illustrated">Illustrated</span><span>2d</span></div>
     </div>
-    <div class="recent-card">
-      <div class="recent-thumb-placeholder" style="background:linear-gradient(135deg,#2d1b42,#462046);">🏖</div>
-      <div class="recent-info">
-        <div class="recent-title">Bali Travel Reel</div>
-        <div class="recent-meta">
-          <span class="recent-mode animated">Animated</span>
-          <span>5d ago</span>
-        </div>
-      </div>
+  </div>
+  <div class="recent-card">
+    <div class="recent-thumb" style="background:linear-gradient(135deg,#2d1b42,#462046);">🏖</div>
+    <div class="recent-info">
+      <div class="recent-title">Bali Travel Reel</div>
+      <div class="recent-meta"><span class="recent-mode animated">Animated</span><span>5d</span></div>
     </div>
-    <div class="recent-card">
-      <div class="recent-thumb-placeholder" style="background:linear-gradient(135deg,#0f2027,#2c5364);">🎙</div>
-      <div class="recent-info">
-        <div class="recent-title">Tech Podcast Ep. 12</div>
-        <div class="recent-meta">
-          <span>Record</span>
-          <span>1w ago</span>
-        </div>
-      </div>
+  </div>
+  <div class="recent-card">
+    <div class="recent-thumb" style="background:linear-gradient(135deg,#0f2027,#2c5364);">🎙</div>
+    <div class="recent-info">
+      <div class="recent-title">Tech Podcast Ep. 12</div>
+      <div class="recent-meta"><span>Podcast</span><span>·</span><span>1w</span></div>
     </div>
-    <div class="recent-card">
-      <div class="recent-thumb-placeholder" style="background:linear-gradient(135deg,#3a1c1c,#7c2d12);">📸</div>
-      <div class="recent-info">
-        <div class="recent-title">Wedding Highlights</div>
-        <div class="recent-meta">
-          <span>PhotoPilot</span>
-          <span>2w ago</span>
-        </div>
-      </div>
+  </div>
+  <div class="recent-card">
+    <div class="recent-thumb" style="background:linear-gradient(135deg,#3a1c1c,#7c2d12);">📸</div>
+    <div class="recent-info">
+      <div class="recent-title">Wedding Highlights</div>
+      <div class="recent-meta"><span>PhotoPilot</span><span>·</span><span>2w</span></div>
     </div>
   </div>
 </div>
 
 <div class="spacer-bottom"></div>
 
-<!-- Bottom Nav -->
 <div class="bottom-nav">
   <button class="nav-item active">
-    <span class="nav-icon">🏠</span>
-    <span>Home</span>
+    <span class="material-icons-round">home</span>
+    <span class="nav-item-label">Home</span>
   </button>
   <button class="nav-item">
-    <span class="nav-icon">📁</span>
-    <span>Projects</span>
+    <span class="material-icons-round">folder</span>
+    <span class="nav-item-label">Projects</span>
   </button>
   <button class="nav-item">
-    <span class="nav-icon">☁️</span>
-    <span>Cloud</span>
+    <span class="material-icons-round">cloud</span>
+    <span class="nav-item-label">Cloud</span>
   </button>
   <button class="nav-item">
-    <span class="nav-icon">👤</span>
-    <span>Profile</span>
+    <span class="material-icons-round">person</span>
+    <span class="nav-item-label">Profile</span>
   </button>
 </div>
 
+<!-- Routing overlay (Material full-screen sheet) -->
+<div class="route-overlay" id="route-overlay">
+  <div class="route-appbar">
+    <button class="appbar-icon-btn" onclick="hideRouting()" style="margin-left:8px;"><span class="material-icons-round">close</span></button>
+    <span class="appbar-title">Send to…</span>
+  </div>
+  <div class="route-content">
+    <div class="transcript-box">
+      <div class="transcript-label"><span class="material-icons-round">subtitles</span> Transcript</div>
+      <div class="transcript-text">"I want to tell a story about a solo backpacker traveling through Japan in autumn — cherry blossoms, bullet trains, quiet temples at dawn, street food in Osaka…"</div>
+    </div>
+    <div class="route-q">What would you like to do?</div>
+    <div class="route-q-sub">Audio + transcript saved to your cloud project.</div>
+    <div class="route-options">
+      <div class="action-tile" style="margin:0;" onclick="hideRouting()">
+        <div class="action-tile-icon autopilot"><span class="material-icons-round">rocket_launch</span></div>
+        <div class="action-tile-body">
+          <div class="action-tile-title">Make a Reel</div>
+          <div class="action-tile-desc">Send to AutoPilot — voice becomes narration.</div>
+        </div>
+        <span class="material-icons-round action-tile-arrow">chevron_right</span>
+      </div>
+      <div class="action-tile" style="margin:0;" onclick="hideRouting()">
+        <div class="action-tile-icon" style="background:rgba(6,182,212,0.15);color:var(--cyan);"><span class="material-icons-round">cloud_upload</span></div>
+        <div class="action-tile-body">
+          <div class="action-tile-title">Save to Cloud</div>
+          <div class="action-tile-desc">Open later on Stori desktop web app.</div>
+        </div>
+        <span class="material-icons-round action-tile-arrow">chevron_right</span>
+      </div>
+      <div class="action-tile" style="margin:0;" onclick="hideRouting()">
+        <div class="action-tile-icon" style="background:var(--amber-soft);color:var(--amber);"><span class="material-icons-round">forum</span></div>
+        <div class="action-tile-body">
+          <div class="action-tile-title">Brainstorm Further</div>
+          <div class="action-tile-desc">Refine your idea with AI before creating.</div>
+        </div>
+        <span class="material-icons-round action-tile-arrow">chevron_right</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-function showRouting() {
-  document.getElementById('route-overlay').classList.add('show');
-}
-function hideRouting() {
-  document.getElementById('route-overlay').classList.remove('show');
-}
-document.getElementById('btn-mic').addEventListener('click', function(e) { e.stopPropagation(); showRouting(); });
-document.getElementById('btn-cam').addEventListener('click', function(e) { e.stopPropagation(); showRouting(); });
+function showRouting() { document.getElementById('route-overlay').classList.add('show'); }
+function hideRouting() { document.getElementById('route-overlay').classList.remove('show'); }
+document.getElementById('btn-mic').addEventListener('click', e => { e.stopPropagation(); showRouting(); });
+document.getElementById('btn-cam').addEventListener('click', e => { e.stopPropagation(); showRouting(); });
 </script>
 </body>
 </html>

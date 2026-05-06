@@ -990,3 +990,138 @@ The plan is complete when:
 - [ ] Tone detection uses Gemini JSON mode (`responseMimeType: 'application/json'`); not bare-word prompts.
 - [ ] EC-DI-09 overlapping speakers, EC-DI-10 tab close during Scribe, EC-DI-11 AudioContext suspended, EC-DI-12 ElevenLabs key gate — all handled.
 - [ ] Telemetry captures: diarizationConfidence, audioContextResumeRequired, elevenlabsKeyMissingAtUpload, overlappingSegmentsDetected, tabCloseDuringScribeRecoveries, audioToTextFallbackOffered/Accepted, transcriptCopiedToClipboard.
+- [ ] All new UI elements (upload widget, mode-select modal, speaker-mapping UI, AI-suggested-extras modal, diarization-confidence banner, cap-exceeded prioritization UI) pass §17 Aurora dark + light theme inspection per the §17.6 checklist.
+
+---
+
+## 17. Theming — Aurora dark + light compliance
+
+All new UI introduced by this plan must render correctly in both Aurora dark and Aurora light themes. Mirrors the theming spec pattern from voice-and-lipsync-plan §19 + audio-rehearsal-plan §14 + input-formats-plan §19. Theming is non-negotiable.
+
+### 17.1 Tokens to use
+
+Aurora tokens live in [css/themes.css](css/themes.css) and auto-swap based on `html[data-theme="light"]` / `dark`. Always use these via `var(--token-name, fallback)`.
+
+**Surface / structure:**
+- `var(--bg-primary, var(--lp-bg))` — outermost background (audio-input step background)
+- `var(--bg-elevated, var(--lp-bg2))` — raised panels (mode-select modal body, mapping UI container, extras modal body)
+- `var(--bg-card, var(--lp-card))` — card surfaces (per-speaker mapping card, per-extra acceptance card, format-warning card)
+- `var(--border, var(--lp-card-bdr))` — borders, dividers
+- `var(--accent, var(--lp-accent))` — selection rings, primary CTA buttons ("Continue with mapping →"), active dropdown item
+- `var(--accent2, var(--lp-accent2))` — secondary accent (rarely used; reserved for highlight on accepted-extra confirmation)
+
+**Text:**
+- `var(--text, var(--lp-text))` — primary copy (modal headers, speaker labels, transcript snippets)
+- `var(--text-secondary, var(--lp-dim))` — secondary copy ("12 lines in this recording", line counts, helper hints)
+- `var(--text-muted, var(--lp-faint))` — captions, meta, line-count info
+
+**Semantic (status):**
+- `var(--green)` + `var(--green-soft)` — diarization confidence ≥ 0.85 indicator, "✓ Mapped to Maya"
+- `var(--red)` + `var(--red-soft)` — Scribe failure error, ElevenLabs key missing gate (EC-DI-12), upload format rejection (EC-AU-01)
+- `var(--amber)` + `var(--amber-soft)` — diarization-confidence warning banner (< 0.7), cap-exceeded auto-merge notice, "Detected overlap at 0:24-0:27" warning per EC-DI-09
+
+These semantic tokens auto-swap between dark and light at [css/themes.css:69-75](css/themes.css#L69-L75).
+
+### 17.2 Fonts
+
+- **Body / labels / dropdowns / buttons:** `font-family: inherit;` — picks up Poppins from `body`. Never hardcode `'Poppins'`.
+- **Time displays in transport bar / "0:24-0:27" overlap timestamps:** `font-family: 'SF Mono', 'Fira Code', monospace;`
+- **Transcript snippet display ("First line: ...")**: body font (Poppins inherited); not monospace
+
+### 17.3 Per-component theming spec
+
+**Audio upload widget (Stage 1):**
+- Drag-drop area: dashed border `2px dashed var(--border)`, background `var(--bg-card)`, hover state border `var(--accent)`
+- Hint text "Drop your WAV/MP3/M4A here, or click to browse": `color: var(--text-secondary);`
+- Format/duration validation errors: `color: var(--red); background: var(--red-soft);` toast bar
+
+**Mode-select modal (Stage 3, §4.3):**
+- Modal backdrop: `color-mix(in oklch, var(--bg-primary, var(--lp-bg)) 75%, var(--text) 10%)` with `backdrop-filter: blur(4px)`
+- Modal body: `var(--bg-elevated)` background, `1px solid var(--border)`, `12px` border-radius
+- Section header ("How should we use this audio?"): `color: var(--text); font-weight: 600;`
+- Subtitle ("We detected 3 speakers in your 4:32 recording."): `color: var(--text-secondary);`
+- Two option cards (original / re-TTS) stacked: `var(--bg-card)` background, `1px solid var(--border)`
+  - Default-selected (original-audio per audit fix C12): `border: 1px solid var(--accent)` highlight
+  - Radio button: `accent-color: var(--accent)`
+- Use-case description per option: `color: var(--text-secondary); font-size: 13px;`
+- "→ Best for: ..." footnote: `color: var(--text-muted); font-style: italic;`
+- "Continue →" CTA: primary — `background: var(--accent); color: var(--bg-primary);`
+- "← Re-upload audio" button: secondary — `background: var(--bg-card); color: var(--text); border: 1px solid var(--border);`
+
+**Diarization-confidence warning banner (§8.1a):**
+- Background: `var(--amber-soft)` for `confidence < 0.7`, `var(--red-soft)` for `confidence < 0.5`
+- Border-left: `4px solid var(--amber)` (or `var(--red)` for sub-0.5)
+- Text: `color: var(--text)` (primary copy, not amber/red — keeps readability)
+- Three action buttons inline: same theming as mode-select modal (primary + 2 secondary)
+
+**Speaker-mapping UI (Stage 4, §8.1):**
+- Per-speaker card: `var(--bg-card)` background, `1px solid var(--border)`, `12px` padding, `8px` border-radius, `12px` margin-bottom between cards
+- ▶ play button (3s sample): `width: 28px; height: 28px; border: 1px solid var(--border); background: color-mix(in oklch, var(--bg-elevated) 75%, transparent); color: var(--text);` — same pattern as voice picker §6.1 in voice-and-lipsync-plan
+  - Hover: `border-color: var(--accent); color: var(--accent);`
+  - Playing state (⏸): `color: var(--accent);` to indicate active
+- Audio scrubber bar inline below ▶: `background: color-mix(in oklch, var(--text) 6%, transparent);` track, `var(--accent)` thumb
+- "First line: ..." snippet: `color: var(--text-secondary); font-style: italic;`
+- "12 lines in this recording" meta: `color: var(--text-muted); font-size: 11px;`
+- "Map to:" label: `color: var(--text);`
+- Cast dropdown: native `<select>` styled `background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px;`
+- "+ Create new character" option in dropdown: append to options list with separator `<option disabled>—</option>` above
+- Auto-suggest annotation `(suggested)`: `color: var(--text-secondary); font-style: italic; font-size: 11px;`
+
+**AI-suggested-extras modal (§7.2):**
+- Same modal shell as mode-select
+- Per-extra card: `var(--bg-card)` background, `1px solid var(--border)`
+  - Accepted state: `border-left: 4px solid var(--green);`
+  - Rejected state: `border-left: 4px solid var(--text-muted);` (de-emphasized, not red — rejection is a valid choice)
+- Audio sample button: same as speaker-mapping UI
+- Voice picker dropdown (per §6.3 voice picker UI): unchanged from voice-and-lipsync §6
+- Cap counter ("Cap: 2 / 5 extras allowed"): `color: var(--text-secondary); font-size: 12px;`
+  - At cap (5/5): `color: var(--amber); font-weight: 600;`
+
+**Cap-exceeded auto-merge notice (when N > 5):**
+- Background: `var(--amber-soft)`
+- Border-left: `4px solid var(--amber)`
+- Text: `color: var(--text);` body
+- "Adjust priorities" link: `color: var(--accent);` with hover underline
+
+**ElevenLabs-key-missing gate (EC-DI-12, Stage 1):**
+- Background: `var(--red-soft)`
+- Border: `1px solid var(--red)`
+- Header text: `color: var(--red); font-weight: 600;`
+- Body: `color: var(--text);`
+- "Configure key" CTA: primary — `background: var(--accent); color: var(--bg-primary);`
+
+### 17.4 Forbidden patterns
+
+Carrying lessons from prior fixes (bible chrome node + voice picker + audio-rehearsal preview area + input-formats §19). Do NOT do:
+
+- ❌ Hardcoded hex colors for status (`#16a34a`, `#dc2626`, `#d97706`) — use `var(--green/--red/--amber)`
+- ❌ `#fff` text on light/translucent backgrounds — use `var(--text)` so it inverts in light theme
+- ❌ Solid black overlays (`rgba(0, 0, 0, 0.65)`) on modal backdrops — use `color-mix` against `var(--bg-primary)` instead
+- ❌ Fixed `--font-mono` token — that token doesn't exist in this app; use `'SF Mono', 'Fira Code', monospace` directly
+- ❌ Missing `font-family: inherit` on dropdowns / buttons — they'd revert to system default and look off
+- ❌ Hardcoded backgrounds like `rgba(127,127,127,0.08)` — use `color-mix(in oklch, var(--text) 6%, transparent)`
+- ❌ Speaker-card backgrounds in pure white — light theme already has light bg-card; pure white loses contrast hierarchy
+
+### 17.5 Light-mode-specific gotchas
+
+- **Modal backdrops**: light-mode bg-primary is light/cream, so a 75%-opaque backdrop barely darkens the underlying step. Use `color-mix(in oklch, var(--bg-primary) 75%, var(--text) 10%)` for subtle elevation
+- **▶ play buttons during playback (⏸ state)**: amber/cyan accent on light cards can look washed out — verify contrast ratio ≥3:1 by spot-check
+- **Diarization-confidence banner red/amber tones**: in light mode these can blend into pastel backgrounds; verify the `border-left: 4px solid var(--red)` provides enough visual weight
+- **Auto-suggest annotation `(suggested)` in italic**: italic text in light mode can be harder to read than dark mode — keep `color: var(--text-secondary)` not `var(--text-muted)` for legibility
+
+### 17.6 Acceptance check (theming)
+
+For every new UI element:
+
+- [ ] Renders correctly in `html[data-theme="dark"]`
+- [ ] Renders correctly in `html[data-theme="light"]`
+- [ ] No hardcoded hex (only exception: vendor-specific brand colors if any — none in this plan)
+- [ ] Body/buttons/dropdowns use `font-family: inherit`
+- [ ] Mono blocks (timestamps "0:24-0:27") use `'SF Mono', 'Fira Code', monospace`
+- [ ] Status states use semantic tokens (green/red/amber + soft variants)
+- [ ] Hover states use `--accent`, not arbitrary brand-cyan literals
+- [ ] Modal backdrops use `color-mix` against `var(--bg-primary)` not solid black
+- [ ] Audio sample buttons match the voice-picker pattern from voice-and-lipsync-plan §6.1
+- [ ] Theme inspector tested by toggling `data-theme` attribute live in DevTools — no broken contrast on any element
+
+PR-time: include screenshots of mode-select modal + speaker-mapping UI + AI-suggested-extras modal in both themes if substantial CSS changes.

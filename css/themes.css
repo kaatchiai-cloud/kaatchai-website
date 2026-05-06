@@ -202,6 +202,18 @@ html[data-theme="light"] .rp-ctrl-col select {
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
+/* ── Audio rehearsal + speaker-mapping — light mode select arrow overrides ── */
+html[data-theme="light"] .scene-audio-mood-select,
+html[data-theme="light"] .speaker-map-select,
+html[data-theme="light"] .ai-extras-voice-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='10' height='10' viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 4L5 7L8 4' stroke='%230a1628' stroke-opacity='0.55' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+/* rcm / overflow menus — light mode: bg-elevated is #fff so use card-bdr border */
+html[data-theme="light"] .scene-audio-overflow-menu,
+html[data-theme="light"] .region-context-menu {
+  box-shadow: 0 4px 20px rgba(10,22,40,0.12);
+}
+
 /* ── Storypilot mode canvas — light theme ─────────────────────────────────
    In light mode the canvas flips to a white card with dark text.
    Inner dark cards remain dark — they float on the light canvas. */

@@ -286,13 +286,15 @@ btnCreateSilReset.addEventListener('click', () => {
   if (createWavesurfer) refreshCreateWaveform();
 });
 
-// ── Input Mode Toggle (Audio / Video / Text) ──
+// ── Input Mode Toggle (Audio / Video / Text / Script Audio) ──
 const createModeVoice = $('create-mode-voice');
 const createModeVideo = $('create-mode-video');
 const createModeText = $('create-mode-text');
+const createModeScriptAudio = $('create-mode-script-audio');
 const createVoiceSection = $('create-voice-section');
 const createVideoSection = $('create-video-section');
 const createTextSection = $('create-text-section');
+const createScriptAudioSection = $('create-script-audio-section');
 const createTtsText = $('create-tts-text');
 
 function setCreateInputMode(mode) {
@@ -300,9 +302,11 @@ function setCreateInputMode(mode) {
   createModeVoice.classList.toggle('active', mode === 'voice');
   createModeVideo.classList.toggle('active', mode === 'video');
   createModeText.classList.toggle('active', mode === 'text');
+  if (createModeScriptAudio) createModeScriptAudio.classList.toggle('active', mode === 'script-audio');
   createVoiceSection.classList.toggle('hidden', mode !== 'voice');
   createVideoSection.classList.toggle('hidden', mode !== 'video');
   createTextSection.classList.toggle('hidden', mode !== 'text');
+  if (createScriptAudioSection) createScriptAudioSection.classList.toggle('hidden', mode !== 'script-audio');
   // Language row: show for text mode or animated mode
   const langRow = $('create-language-selection-row');
   if (langRow) langRow.style.display = (mode === 'text' || createVideoMode === 'animated') ? '' : 'none';
@@ -329,6 +333,7 @@ function setCreateInputMode(mode) {
 createModeVoice.addEventListener('click', () => setCreateInputMode('voice'));
 createModeVideo.addEventListener('click', () => setCreateInputMode('video'));
 createModeText.addEventListener('click', () => setCreateInputMode('text'));
+if (createModeScriptAudio) createModeScriptAudio.addEventListener('click', () => setCreateInputMode('script-audio'));
 
 // ── TTS Generation ──
 async function generateTTSGemini(text, voiceName, apiKey) {
@@ -853,6 +858,15 @@ function updateStepStates() {
   showStep('create-generate-step', hasImages);
   markStep('create-generate-step', allImagesDone, hasImages && !allImagesDone);
 
+  // Audio Rehearsal Step — animated mode only, after all images done + multi-voice audio present
+  const hasSpeakerTurns = !!(window._createSpeakerTurns && window._createSpeakerTurns.length);
+  const audioMode = (typeof window.detectProjectAudioMode === 'function') ? window.detectProjectAudioMode() : 'no-audio';
+  const showRehearsal = createVideoMode === 'animated' && allImagesDone && (hasSpeakerTurns || audioMode !== 'no-audio');
+  showStep('create-rehearsal-step', showRehearsal);
+  if (showRehearsal && typeof window.renderRehearsalStep === 'function') {
+    window.renderRehearsalStep();
+  }
+
   // Step 7: Animated Videos — only in animated mode, after images generated
   const hasVideos = hasImages && createVideoMode === 'animated' && createScenes.some(s => s.videoUrl);
   showStep('create-video-step', createVideoMode === 'animated' && hasImages);
@@ -1134,9 +1148,37 @@ btnCreateTranscribe.addEventListener('click', async () => {
     let segments;
 
     if (createInputMode === 'text') {
-      // ── Text mode: translate → TTS → segment → scene descriptions ──
+      // ── Text mode: parse input → review gate → translate → TTS → segment ──
       const inputText = $('create-tts-text')?.value?.trim();
       if (!inputText) throw new Error('No text entered');
+
+      // Step 0: Input parsing (input-formats-plan Phases 1-5)
+      if (typeof window.inputParser === 'object') {
+        updateCreateAgentTask('storyboard', 'parse', 'running', 'Parsing input format…');
+        try {
+          const { parsed, parseConfidence } = await window.inputParser.parseTextInput(inputText, key);
+          updateCreateAgentTask('storyboard', 'parse', 'running',
+            `${parseConfidence.overall !== null ? Math.round(parseConfidence.overall * 100) + '% confidence — ' : ''}${parseConfidence.reviewRequired ? 'review required' : 'auto-passed'}`);
+
+          // Review gate — may show modal; awaits user action
+          const finalParsed = await window.inputParser.runReviewGate(parsed, parseConfidence).catch(e => {
+            if (e.message === 'USER_BACK') throw new Error('USER_BACK');
+            throw e;
+          });
+          window.inputParser.lockInputDoc(finalParsed);
+          updateCreateAgentTask('storyboard', 'parse', 'done',
+            `${finalParsed.dialogueLines.length} dialogue lines · ${finalParsed.actionLines.length} action lines`);
+        } catch (e) {
+          if (e.message === 'USER_BACK') {
+            // User clicked back — abort storyboard generation cleanly
+            updateCreateAgentTask('storyboard', 'parse', 'error', 'Cancelled — edit your input and try again');
+            return;
+          }
+          // Non-fatal: log and continue with raw text fallback
+          console.warn('[InputParser] parse/review failed:', e.message);
+          updateCreateAgentTask('storyboard', 'parse', 'error', 'Parse skipped — ' + e.message);
+        }
+      }
 
       // Step 1: Translate to English (Gemini handles detection + translation)
       updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
@@ -1252,7 +1294,12 @@ btnCreateTranscribe.addEventListener('click', async () => {
       // Replaces the single-voice TTS audio with per-line voices, updates
       // segment timing to match actual TTS durations, and writes speaker
       // turn metadata used by lip sync.
-      if (typeof window.castShouldUseMultiVoice === 'function' && window.castShouldUseMultiVoice(segments)) {
+      // TTS skip contract (audio-input-plan §9.2): when audio-input Mode B has
+      // already run castGenerateMultiVoiceAudio, skip it here to avoid doubling cost.
+      const _inputDocLocked = window.createJobState && window.createJobState.inputDoc;
+      const _audioInputSkipTts = _inputDocLocked &&
+        _inputDocLocked.audioMode === 're-tts' && _inputDocLocked.locked === true;
+      if (!_audioInputSkipTts && typeof window.castShouldUseMultiVoice === 'function' && window.castShouldUseMultiVoice(segments)) {
         try {
           updateCreateAgentTask('storyboard', 'multivoice', 'running', 'Generating per-character voices…');
           const mv = await window.castGenerateMultiVoiceAudio(segments, {
@@ -1261,10 +1308,15 @@ btnCreateTranscribe.addEventListener('click', async () => {
           if (mv && mv.combinedAudioBuffer) {
             createAudioBuffer = mv.combinedAudioBuffer;
             createOriginalBuffer = mv.combinedAudioBuffer;
+            window._createMasterAudio = mv.combinedAudioBuffer;
             window._createSpeakerTurns = mv.speakerTurns;
             updateCreateAgentTask('storyboard', 'multivoice', 'done',
               `${mv.speakerTurns.length} voice line(s) · ${(mv.totalDurationMs / 1000).toFixed(1)}s`);
             console.log('[Voice] multi-voice audio assembled:', mv.totalDurationMs, 'ms,', mv.speakerTurns.length, 'turns');
+            // Persist per-scene audio slices for mini-players
+            if (typeof window.persistPerSceneAudio === 'function') {
+              window.persistPerSceneAudio(segments, mv.speakerTurns).catch(e => console.warn('[Rehearsal] persist err:', e.message));
+            }
           }
         } catch (e) {
           console.warn('[Voice] multi-voice generation failed; falling back to single-voice audio:', e.message);
@@ -2273,6 +2325,9 @@ function renderSceneCard(scene, idx, ratio) {
     card.className = 'scene-card';
     if (scene.promptDirty) card.classList.add('scene-prompt-dirty');
     const chipHtml = (typeof window.castBuildChipStripHtml === 'function') ? window.castBuildChipStripHtml(scene, idx) : '';
+    const audioSectionHtml = (window.audioRehearsal && typeof window.audioRehearsal.buildAudioSection === 'function')
+      ? window.audioRehearsal.buildAudioSection(scene, idx)
+      : '';
 
     card.innerHTML = `
       <div class="scene-img" id="create-scene-img-${idx}" style="aspect-ratio:${ratio};">
@@ -2292,9 +2347,14 @@ function renderSceneCard(scene, idx, ratio) {
           </span>
         </div>
       </div>
+      ${audioSectionHtml}
     `;
     if (typeof window.castWireSceneChipStrip === 'function') {
       window.castWireSceneChipStrip(card, scene, idx);
+    }
+    // Wire audio section events
+    if (window.audioRehearsal && typeof window.audioRehearsal.wireAudioSection === 'function') {
+      window.audioRehearsal.wireAudioSection(card, scene, idx);
     }
     // Image preview click
     const imgEl = card.querySelector('.scene-img img');

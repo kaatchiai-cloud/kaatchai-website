@@ -30,6 +30,7 @@
   <link rel="stylesheet" href="css/canvas-graph.css?v=9">
   <script defer src="vendor/wavesurfer.min.js"></script>
   <script defer src="vendor/wavesurfer-regions.min.js"></script>
+  <script defer src="vendor/fountain-js/fountain.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════
    KAATCHI — Aurora Landing Page Styles
@@ -2246,6 +2247,18 @@ body:has(#drop-zone:not(.hidden)) {
         <button id="create-mode-voice" class="mode-btn active">🎵 Audio</button>
         <button id="create-mode-video" class="mode-btn">🎙️ Podcast</button>
         <button id="create-mode-text" class="mode-btn">✏️ Text</button>
+        <button id="create-mode-script-audio" class="mode-btn">🎭 Script Audio</button>
+      </div>
+
+      <!-- Script Audio Input (audio-input-plan: diarization + speaker mapping) -->
+      <div id="create-script-audio-section" class="hidden">
+        <p class="text-sm text-muted mb-md">Upload a recorded conversation, podcast, or scratch performance. Stori will detect speakers and let you map them to characters.</p>
+        <div class="create-row">
+          <button id="btn-create-script-audio" class="btn-md">🎭 Choose Audio File</button>
+          <span id="create-script-audio-name" class="text-sm text-muted"></span>
+        </div>
+        <input type="file" id="create-script-audio-input" accept="audio/wav,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a" hidden>
+        <div id="audio-input-status" class="text-sm text-muted mt-xs"></div>
       </div>
 
       <!-- Audio Input -->
@@ -2634,6 +2647,11 @@ body:has(#drop-zone:not(.hidden)) {
         <p class="text-xs text-muted mb-md">Tick characters per scene (1st tick = main, 2nd = supporting). Select one environment. AI will intelligently include only relevant characters based on the scene text.</p>
         <div id="scene-assignment-list"></div>
       </div>
+    </div>
+
+    <!-- Audio Rehearsal Step (between Images and Video) -->
+    <div class="create-step" id="create-rehearsal-step" style="display:none;">
+      <!-- Content rendered by audioRehearsal.renderRehearsalStep() -->
     </div>
 
     <!-- Step 6: Generate Images -->
@@ -4720,7 +4738,10 @@ body:has(#drop-zone:not(.hidden)) {
       'js/22-emoji-reel.js','js/25-photopilot-fx.js','js/24-photopilot.js',
       'js/26b-llm-router.js','js/26-brainstorm.js',
       'js/29-canvas-render.js',
-      'js/30-lipsync.js'
+      'js/30-lipsync.js',
+      'js/31-input-parser.js',
+      'js/32-audio-input.js',
+      'js/33-audio-rehearsal.js'
     ];
     var _v = Date.now();
     var loaded = 0;

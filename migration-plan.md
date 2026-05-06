@@ -1,0 +1,207 @@
+# Stori Backend Migration — Phase Index
+
+> **Audience:** Solo founder + 1–2 engineers. **Status:** revision 3 (post-audit, 2026-05-06). Approved at gate; per-phase dev docs already written.
+> **Out of scope:** all billing / Stripe / subscription / quota / pricing-tier work — explicitly deferred to a separate later workstream (override O15). **All mobile / Flutter / `redesign-plan.md` content is also out of scope** — mobile is a separate future architect cycle that consumes this cycle's P03 API contract as a constraint.
+
+---
+
+## Part 1 — Summary
+
+```
+Spec sources (in scope):     /Users/praveen/Desktop/stori/migration-details.md
+                             /Users/praveen/Desktop/stori/migration-plan-audit-report.md  (revision-3 audit, 2026-05-06)
+Spec sources (deferred):     /Users/praveen/Desktop/stori/app/redesign-plan.md         (mobile-only — future cycle)
+                             /Users/praveen/Desktop/stori/app/*-mobile-mockup.html     (mobile UI refs — future cycle)
+
+Inventory:                   /Users/praveen/Desktop/stori/devDoc-migration/.architect/spec-inventory.md
+Coverage matrix:             /Users/praveen/Desktop/stori/devDoc-migration/spec-coverage-matrix.md
+Phase docs:                  /Users/praveen/Desktop/stori/migration-phase-NN-<slug>.md
+ADRs:                        /Users/praveen/Desktop/stori/migration-adr-NN-<slug>.md
+
+Phases:                      8   (cap = 9, lower-bound = 2)
+Coverage:                    100% of in-scope inventory rows mapped to ≥ 1 phase
+                             (15 of 38 inventory rows are explicitly out-of-scope: 2 billing rows + 13 mobile rows)
+Out-of-scope sections:       15  (2 billing — directive O15; 13 mobile — deferred to future mobile cycle)
+Cross-cutting ADRs signaled: 8   (ADR-01 expanded with 5 new tables in revision 3; no new ADRs added)
+Estimated total duration:    L+ to XL  — realistic range 22–31 working weeks (≈ 5.5–7.75 months) for solo + 1–2 engineers, see Part 4
+Out-of-scope confirmation:   pricing-plan.md NOT read; redesign-plan.md NOT consumed by any phase doc in this cycle; billing nowhere in this plan
+Revision note:               This is **revision 4** (rev-4 fan-out 2026-05-06; scope-clarification only — no new phases, no new ADRs). Revision 3 (also 2026-05-06) was a 7→8-phase replan; the 2026-05-06 audit (`migration-plan-audit-report.md`) surfaced (a) 6 unmigrated IndexedDB call sites that pushed P03's persistence surface from 5 to 10 tables, (b) an unaddressed multi-phase collision risk on `js/17c-create-pipeline.js` (5,199 lines) and `js/28-canvas-consistency.js` (224 lines). Revision 3 inserts a new **P04 Module Split** phase to de-risk the collisions and expands P03's schema-design spike from 3 → 7 days. Old P04–P07 are renumbered P05–P08. Total duration grew from 18–24 to 22–31 weeks. **Revision 4 (rev-4) deltas:** P05 owns the Animated AutoPilot launch path (incl. `js/17e-canvas-launch.js`) per option (a); P05 also owns the server-side Kling JWT migration in `js/21-kling.js`; P02 ships the `callApi()` shared abstraction + locks `api/kling.js` CORS at lines 8 + 39 + eager-loads `00-auth.js` + `00-api-client.js`; P03 storage scope reworded with explicit local-only carve-outs + the 3 `stori_db` reel-handoff sites (20:5799, 20:5814, index.html:4787) treated as ONE work item; P04 build/load contract corrected (no `MAIN_FILES` symbol); P06 adds a 1–2 day MediaPipe spike + fallback contract + 4 ElevenLabs endpoints + audio-input/audio-rehearsal coupling; P07 deletion list expanded with `callGeminiAPI` + 7 key-getters + `trackCost` (3 call sites). No new phases, no new ADRs. Plan duration unchanged at 22–31 weeks.
+```
+
+---
+
+## Part 2 — Phase table
+
+| #  | Slug                              | Name                                                | Goal (1 line)                                                                                                            | Entry criteria                                                                       | Exit criteria                                                                                                                                                                                                                                                                                              | Duration | Depends on |
+|----|-----------------------------------|-----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|------------|
+| 01 | backend-foundations               | Backend Foundations (Supabase + Cloud Run + R2 + Sentry + Repo Bootstrap) | Stand up the four infra pillars and the monorepo bootstrap; prove a round-trip from each pillar. | None.                                                                                | Supabase project created with empty `users` table + RLS; Cloud Run service deployed with one Hono `/v1/health` endpoint reachable from public URL; one signed-URL upload + download to R2 working from a smoke-test script; Sentry events flowing from a deliberately-thrown error in Cloud Run + a test web page; **repo bootstrap done** — root `package.json` (workspaces), Node 22 LTS pinned (`engines` + `.nvmrc`), root `tsconfig.json` with project refs into `infra/*`, `vitest.config.ts`, `playwright.config.ts`, `eslint.config.js` (flat) + `prettier.config.js`, `pnpm-workspace.yaml`; CI (`.github/workflows/ci.yml`) running `lint + typecheck + vitest + playwright (smoke)` on a sample PR with branch protection on `main`. | M (4–6 wk)        | —          |
+| 02 | auth-migration                    | Auth Migration (Supabase Auth replaces stub)        | Replace the fake auth stub with real Supabase Auth across web; mint JWTs ready for future mobile consumer.              | P01 exits.                                                                            | Google OAuth + magic-link sign-in works end-to-end on web; existing fake-auth call sites at `js/15-project.js` lines **1362–1404** (verified — see Part 4 rationale) replaced with `js/00-auth.js`; every `/v1/*` endpoint enforces JWT verification (returns 401 without it); session refresh round-trips; CORS locked to declared production domain; a Cypress / Playwright E2E test signs in, calls a protected endpoint, signs out. | S (2–3 wk)        | 01         |
+| 03 | api-contract-and-project-state    | API Contract + Project State (Postgres + R2)        | Define the `/v1/*` API surface, ship the projects/instances schema (10 tables — 5 from original audit + 5 surfaced in revision 3), and replace **every** IndexedDB / localStorage write site with cloud storage. | P02 exits.                                                                            | OpenAPI (or tRPC schema, ADR-3) checked in and renders; **10 tables** migrated with RLS + active-flag invariants — the original 5 (`projects`, `scenes`, `storyboard_instances`, `image_instances`, `video_instances`) plus 5 new from the revision-3 audit (`reel_projects`, `cast_references`, `reference_library`, `audio_inputs`, `audio_rehearsals`); `/v1/projects` CRUD + `/v1/projects/import-reel/:id` (or session-state token) + R2-presigned-URL endpoints live; **every** `indexedDB.open(...)` call site replaced — verified by grep in `js/15-project.js`, `js/20-reels-creator.js`, `js/17b-create-references.js`, `js/32-audio-input.js`, `js/33-audio-rehearsal.js`; web `js/15-project.js` save/load fully replaced; a 50-MB project round-trips create → save → reload → render under 5 s on cable; **API contract documented as suitable for a future mobile consumer (versioning + auth + error model accommodate Dart/Flutter clients eventually) — no mobile client built in this cycle.** | M+ (6–9 wk)        | 02         |
+| 04 | module-split                      | Module Split (P05/P06 boundary refactor — pure client refactor) | Carve client-side boundaries on `js/17c-create-pipeline.js` and `js/28-canvas-consistency.js` so subsequent server-side pipeline ports avoid file-level merge collisions. No behaviour change. | P03 exits.                                                                            | `js/17c-create-pipeline.js` (5,199 lines) split into `js/17c-create-pipeline.js` (~3,200, AutoPilot core), **`js/17e-canvas-launch.js`** (~145 lines, owns `openCanvasPanel`/`closeCanvasPanel`/`_callGeminiForVideoPrompts`/`cgFillVideoPrompts`/`cgLaunchVideoAgent`), and **`js/17f-tier2-lipsync-fal.js`** (~180 lines, Tier-2 fal.ai lipsync — destined for `/v1/jobs/lipsync` replacement in P06); `js/28-canvas-consistency.js` shared Gemini-call shim extracted into **`js/28a-image-gen-shim.js`**; `index.html` loader updated (the dynamic loader array at lines 4731–4744 + the eager `<script>` block around lines 4717–4718) — **no `MAIN_FILES` symbol exists**; `build.js` auto-discovers via its existing scans; `dist/index.html` builds identically; `git diff --stat` shows ~0 net line delta; founder-dogfood smoke passes (Illustrated AutoPilot, Animated AutoPilot, Tier-2 lipsync, canvas consistency regen all behave identically). | S (1–2 wk)         | 03         |
+| 05 | autopilot-pipeline-extraction     | AutoPilot Pipeline Extraction (the heavy phase)     | Re-platform the AutoPilot Reel pipeline (≈19,115 lines across 5 files) from browser to Cloud Run + Vercel Functions, behind `/v1/jobs/*`. | P04 exits (boundaries already split — P05 owns AutoPilot core in `17c` **and the Animated AutoPilot launch path in `17e`** per rev-4 option (a); P05 does NOT touch `17f` Tier-2 lipsync — that's P06).  | `/v1/projects/:id/launch`, `/v1/jobs/scene-images`, `/v1/jobs/animation` live; long jobs (Kling, Veo3) run on Cloud Run with status table + polling endpoint + idempotency keys; web autopilot path calls API exclusively (zero direct fetches to Google in `20-reels-creator.js`, `17a-create-api.js`, `17b-create-references.js`, `17c-create-pipeline.js`, `17d-create-languages.js`, **and `17e-canvas-launch.js`** per rev-4 option (a)); **`grep -nE "stori_kling_access_key\|stori_kling_secret_key\|generateKlingJWT" js/21-kling.js` returns 0 hits** (rev-4: server-side Kling JWT migration); a 4-scene Animated reel round-trips end-to-end including BGM (Lyria) and exports a playable MP4; **Illustrated mode shipped first behind a feature flag, Animated mode shipped second** as a phase-internal milestone; canary 5/50/100 traffic-shift drill executed on a no-op revision. | L (6–10 wk)       | 04         |
+| 06 | secondary-pipelines-extraction    | Secondary Pipelines (PhotoPilot, Brainstorm, Canvas, Lipsync, Audio, Input-Parser) | Move the remaining 6 feature pipelines + the Tier-2 lipsync slot to `/v1/*` so the web client never calls Google or fal.ai directly. | P05 exits (the heavy AutoPilot pattern is proven).                                     | `/v1/jobs/photopilot`, `/v1/brainstorm/*`, `/v1/brainstorm/classify`, `/v1/projects/:id/canvas`, `/v1/jobs/lipsync` (replaces both client MediaPipe **and** the P04-isolated `js/17f-tier2-lipsync-fal.js`), `/v1/parse-input`, `/v1/audio/*`, `/v1/jobs/voice-rehearsal` all live and called by web; canvas-state validation gates (`sectionWarnings`, `launchBlockers`) computed server-side; **`video_mode` immutability** enforced server-side (any attempt to mutate `video_mode` after launch returns 409 — instance/audio/BGM/storyboard edits remain legal per ADR-06); end-to-end smoke test runs each feature once and writes outputs to R2.       | L (6–9 wk)        | 05         |
+| 07 | web-cutover                       | Web Cutover (delete BYOK, ship versioned API only)  | Strip the legacy client of all direct AI calls and **all browser-stored provider secrets** (Gemini, Kling, ElevenLabs, OpenAI, Anthropic, fal.ai); web ships against `/v1/*` exclusively.                    | P06 exits.                                                                            | Fresh grep across **all six provider key prefixes** (`stori_key_paid`/`stori_key_free`/`stori_kling_*`/`stori_elevenlabs_key`/`stori_openai_key`/`stori_anthropic_key`/`stori_fal*`) **and** all six provider URLs (`generativelanguage.googleapis.com`/`api.openai.com`/`api.anthropic.com`/`api.elevenlabs.io`/`fal.run`/Kling endpoints) returns 0 hits in `js/` and `index.html`; BYOK settings UI removed from `index.html` for all six providers; **dollar-cost UI removed (web shows no cost info between this phase and the future credits workstream — confirmed acceptable)**; **(rev-4)** `grep -rnE "callGeminiAPI\|getCreateGeminiKey\|getPPApiKey\|getReelApiKey\|getFreeKey\|getPaidKey\|getReelFreeKey\|getReelPaidKey\|trackCost" js/ index.html` returns 0 hits; web shipped to production behind a feature flag with monitoring (Sentry events grouped, error budget defined); rollback drill executed (revert release in < 10 min via Vercel + feature flag flip).            | S (2–3 wk)        | 06         |
+| 08 | production-launch                 | Production Launch + Operational Readiness (web + backend) | Ship web + backend to public users with monitoring, runbooks, canaries, and a phased rollout plan — web stack only.   | P07 exits.                                                                            | Sentry dashboards live for web + Cloud Run (no Flutter dashboards in this cycle); on-call runbook checked in (auth outage, Cloud Run job stuck, R2 region failure, AI provider rate-limit); canary 5/50/100 release drill on the real production Cloud Run service for at least one revision; one-page operational status doc on a public/internal URL; a mock-incident dry-run executed and post-mortem template filed; **mobile launch is explicitly NOT part of this phase — handled by the separate future mobile cycle.** | M (3–5 wk)        | 07         |
+
+**Total estimated working duration (sequential dependency chain):** 22–31 working weeks (≈ 5.5–7.75 months) for solo founder + 1–2 engineers. With mobile dropped from this cycle, there is no parallel workstream to compress the timeline — the chain is fully sequential. P04 (module split, 1–2 wk) is short but mandatory before P05; revision 3 added 4–7 working weeks net vs revision 2 (1–2 wk for P04 + 2–3 wk for P03 expansion + 1–2 wk for P01 bootstrap sub-track).
+
+---
+
+## Part 3 — Dependency DAG
+
+```mermaid
+flowchart LR
+  P01[01 · Backend Foundations + Bootstrap] --> P02[02 · Auth Migration]
+  P02 --> P03[03 · API Contract + Project State (10 tables)]
+  P03 --> P04[04 · Module Split]
+  P04 --> P05[05 · AutoPilot Pipeline Extraction]
+  P05 --> P06[06 · Secondary Pipelines Extraction]
+  P06 --> P07[07 · Web Cutover]
+  P07 --> P08[08 · Production Launch]
+```
+
+**Edge legend:**
+- All arrows are hard dependencies (predecessor must exit before successor enters).
+- The DAG is a clean linear chain: P01 → P02 → P03 → P04 → P05 → P06 → P07 → P08. With mobile dropped, the previous soft P03 → P07-mobile and hard P05 → P07-mobile edges are gone.
+
+**Parallelizable work:**
+- Within P06, the six secondary pipelines are mutually independent and can be split across two engineers. The order suggested in the phase doc will prioritise Brainstorm + Canvas (no long jobs) before Lipsync + Audio (long jobs that mirror P05's pattern).
+- Within P01, the four infra pillars (Supabase, Cloud Run, R2, Sentry) and the bootstrap sub-track can run in parallel for the first 1–2 weeks; integration is the last 1–2 weeks.
+- No cross-phase parallelism remains. Mobile parallelism is no longer a lever (mobile is out of scope for this cycle).
+
+---
+
+## Part 4 — Rationale
+
+### P01 — Backend Foundations (+ Repo Bootstrap)
+**Why a phase:** five pieces of infra (Supabase, Cloud Run, R2, Sentry, repo bootstrap) are mutually independent but all required before any feature work. Bundling them avoids back-and-forth context switches and exposes integration friction early.
+**Why this boundary:** stops at "one round-trip works for each pillar" + "CI is green on a sample PR" — no schemas, no auth, no API surface. Anything beyond that is the next phase.
+**Why first:** override O14 is explicit; also, Cloud Run cold-start cost and R2 region selection have surprising lead times (account approval, billing alerts, IAM) that block everything else.
+**Revision-3 addition:** the original P01 specified CI but said nothing about the monorepo bootstrap (TypeScript project refs, vitest config, playwright config, lint+prettier, pnpm workspaces). That was an implicit prerequisite for every later phase. Revision 3 makes it an explicit P01 sub-track (§5.8 in the phase doc), which is why duration grew from 3–5 wk to 4–6 wk.
+
+### P02 — Auth Migration
+**Why a phase:** auth is a discrete, high-risk slice that touches every future API call. Worth isolating so its rollout (incl. CORS lock, JWT lifetime, refresh) can be reviewed independently.
+**Why this boundary:** stops at "JWT round-trips on a protected `/v1/*` route" — does not include any feature endpoints (those live in P03+).
+**Why second:** without verified JWTs every later endpoint would be either insecure or built-on-mock — both are wasted work.
+**Verified line-range fix:** the user brief and `migration-details.md` cite the fake-auth stub at `js/15-project.js:1174-1177`; we verified by `grep` that the stub actually lives at lines **1362–1404** (lines 1174–1177 are PiP video restoration). Phase doc uses the corrected range.
+
+### P03 — API Contract + Project State (Postgres + R2) — **expanded in revision 3**
+**Why a phase:** project state is the data layer everything else writes to. Override O1 explicitly promotes it from V2 to V1 — no IndexedDB-only path is acceptable. Pairing it with the API contract (OpenAPI/tRPC choice + `/v1/*` namespace) means we ship one cohesive surface rather than two half-baked ones.
+**Why this boundary:** does not extract any pipelines (P05, P06); only project CRUD + R2 presign + canvas-state schema + the 5 newly-surfaced persistence tables. Schema-design spike stays inline (no P03a sub-phase); spike budget grew **3 → 7 days** in revision 3 to cover the wider table set + reel-to-project import semantics.
+**Why third:** every pipeline extraction needs a place to write outputs. Without project state shipped, P05 either stubs with mocks or rebuilds the IndexedDB write path — both are throwaway work.
+**Future-mobile constraint:** the API contract must be designed so a future mobile (Dart/Flutter) consumer can pick it up without forcing a `/v2/*` migration. That means: stable JSON shapes, explicit versioning policy, error model that doesn't leak server internals, and auth flow that supports OAuth on mobile platforms. **No mobile client is built in this cycle** — the constraint is purely "don't paint into a corner."
+**Revision-3 expansion (5 new tables, audit 2026-05-06):**
+| New table | Source IndexedDB / localStorage site |
+|---|---|
+| `reel_projects` | `js/20-reels-creator.js:4363–4481, 5477–5515` (saved reel-builder projects, currently keyed in `stori_db` IDB) |
+| `cast_references` | `js/17b-create-references.js:683–760` (cast-image binaries — R2 keys with text-only metadata in this row) |
+| `reference_library` | `js/17b-create-references.js:4730–4785` (per-user cross-project reference library, currently in localStorage `stori_ref_library_v1`) |
+| `audio_inputs` | `js/32-audio-input.js:16–56` (audio-blob R2 keys) |
+| `audio_rehearsals` | `js/33-audio-rehearsal.js:30–71` (rehearsal-render R2 keys) |
+**Reel→Editor handoff:** the IndexedDB `stori_db` blob handoff at `js/20-reels-creator.js:5796–5839` plus `index.html:4782–4800` is replaced with an API call (`/v1/projects/import-reel/:id` or a short-lived session-state token). No local handoff blob.
+**Spike-deferred questions** (carried into the schema-design spike, recorded as ADR-01 open questions):
+1. Should `reel_projects` be a separate table or unified with `projects` via a `project_kind` discriminator? Defer to spike.
+2. What is the RLS shape of `reference_library` — strictly per-user, or shareable across a future team? Defer to spike (per-user-only for now).
+**Tradeoff surfaced:** schema for active flags (🎯 single-select, ⭐ multi-select), instance hierarchies (storyboard → image → video), and the 5 new tables is not enumerated in any spec. Phase doc reads `js/27-canvas-state.js` (616 lines) + the 5 new audit-flagged source files directly and emits the canonical schema. Risk: schema choice affects P05/P06 and the future mobile cycle; getting this wrong forces a forward-only migration mid-flight (override O9).
+
+### P04 — Module Split — **NEW in revision 3**
+**Why a phase:** the audit (2026-05-06) flagged that `js/17c-create-pipeline.js` (5,199 lines) and `js/28-canvas-consistency.js` (224 lines) sit at the intersection of three downstream phases. Without a refactor first, P05 (AutoPilot extraction), P06 (secondary pipelines + Tier-2 lipsync replacement), and P07 (BYOK deletion) would all edit the same files in conflicting ways. The split isolates the units of change so each phase touches a different file.
+**Why this boundary:** pure client-side refactor — splits two files, extracts one shim, updates `build.js`. **No new endpoints, no behaviour change, no BYOK touch.**
+**Why fourth:** has to come *after* P03 (so we don't have to re-sequence work if the split surfaces a hidden coupling P03 needed) and *before* P05 (so P05 doesn't waste effort).
+**Concrete ops:**
+- `js/17c-create-pipeline.js` → `js/17c-create-pipeline.js` (~3,200 lines, AutoPilot core) + **`js/17e-canvas-launch.js`** (~145 lines lifted from current `4889–5029`: `openCanvasPanel`, `closeCanvasPanel`, `_callGeminiForVideoPrompts`, `cgFillVideoPrompts`, `cgLaunchVideoAgent`) + **`js/17f-tier2-lipsync-fal.js`** (~180 lines lifted from current `3721–3900`: Tier-2 lipsync via fal.ai).
+- `js/28-canvas-consistency.js` shared Gemini-call shim → **`js/28a-image-gen-shim.js`**, called by both `generateStyleFingerprint` (current line 95) and `regenerateImageInstance` (current line 148).
+- `build.js` `MAIN_FILES` updated; `dist/index.html` rebuild produces an identical bundle.
+**Exit guard:** `git diff --stat` near-zero net delta; `(17c + 17e + 17f) ≈ 5199 ± 50`; `(28 + 28a) ≈ 224 ± 30`; founder dogfood smoke passes (Illustrated AutoPilot, Animated AutoPilot, Tier-2 lipsync, canvas regen all work identically).
+**Considered and rejected naming:** "P03.5 module split" — rejected; a sub-phase number breaks the partition's linear convention. "Inline the split into P05" — rejected; P05 is already the longest phase and adding refactor scope would compress engineering time.
+
+### P05 — AutoPilot Pipeline Extraction (the heavy phase)
+**Why a phase:** AutoPilot Reel is the single largest extraction surface — `20-reels-creator.js` (5,839) + the four `17*-create-*.js` files (13,276) = **19,115 lines**, more than half of the total extraction surface. Mixing it with the other six pipelines would make the phase span impossible to estimate and would defer the riskiest decisions (idempotency, retry, canary on Cloud Run jobs).
+**Why this boundary:** stops at "AutoPilot reel round-trips end-to-end with BGM and exports MP4" — does NOT include PhotoPilot / Brainstorm / Canvas / Lipsync / Audio / Input-Parser. P05 only touches `js/17c-create-pipeline.js` (now ~3,200 lines after the P04 split), `js/17a/b/d-create-*.js`, `js/20-reels-creator.js`, `js/21-kling.js`. **Does NOT touch** `js/17e-canvas-launch.js` (canvas UI, editor-side) **or** `js/17f-tier2-lipsync-fal.js` (P06 territory) — these isolations are why P04 exists.
+**Why fifth:** the long-job pattern (status table, polling, idempotency, canary 5/50/100) is invented here once and reused in P06. Doing the heaviest extraction first means subsequent pipelines slot into a proven pattern.
+**Tradeoff surfaced:** P05 is the longest phase. Compression strategy: ship Illustrated mode first behind a feature flag and Animated mode second within the phase, treating Animated as a phase-internal milestone — gives an early shippable. The previous "start mobile in parallel" lever no longer applies (mobile out of scope).
+
+### P06 — Secondary Pipelines Extraction
+**Why a phase:** six feature pipelines (PhotoPilot 3,447 lines, Brainstorm 1,881, **Canvas 840** [27-canvas-state.js 616 + 28-canvas-consistency.js 224; `js/29-canvas-render.js` 3,658 stays client-side per inventory and is NOT in the extraction surface], Lipsync 352 + the P04-isolated `17f` Tier-2 path, Audio 2,520, Input-Parser 809) — **9,849 + ~180 lines** combined. They share the AutoPilot pattern from P05 and are mutually independent, so they parallelise cleanly across two engineers.
+**Why this boundary:** ends at "all client features hit `/v1/*` exclusively for AI calls" — does NOT delete client BYOK code or rip out `index.html` (that's P07's cleanup).
+**Why sixth:** each pipeline reuses P05's job pattern. Doing them after P05 means zero re-design. Boundaries are clean post-P04 — `/v1/jobs/lipsync` slot replaces both `js/30-lipsync.js` (server MediaPipe) and `js/17f-tier2-lipsync-fal.js` (server fal.ai). No collisions with P05 pipeline files.
+**Considered and rejected:** splitting into 2 phases (e.g. "no-long-jobs: Brainstorm + Canvas + Input-Parser" then "long-jobs: PhotoPilot + Lipsync + Audio") — rejected because (1) it pushes phase count to 9 with no engineering benefit; (2) the no-long-jobs pipelines are tiny (Brainstorm 1,881 + **Canvas 840** + Input-Parser 809 = 3,530 lines) and can simply be parallelised within P06.
+
+### P07 — Web Cutover
+**Why a phase:** deletion is its own discipline. Mixing it into P06 risks half-deleted BYOK code shipping. A standalone phase forces a clean grep for all six provider key prefixes and any remaining direct fetch calls.
+**Why this boundary:** code deletion + BYOK UI removal (all six providers) + dollar-cost UI removal + production feature-flag flip on web. Does NOT include mobile (out of scope) or production launch (P08).
+**Why seventh:** P06 must be done; you can't delete the BYOK fallback while a pipeline still depends on it.
+**Stale grep numbers (revision-3 audit fix already applied):** the original spec cited "36 refs across 6 files" for `stori_key_paid` / `stori_key_free` only — that count missed five other provider key surfaces. The phase doc now itemises all six provider keys + URLs. Re-run all six greps at phase kickoff.
+**Cost-estimator UI:** the existing client-side cost estimator (`cost-estimator.html`, `cost-estimator-plan.md`, `cost-estimator-mock.html` referenced in working tree but not in scope) is currently dollar-figure-based. This phase removes it from the production UI entirely; the future credits workstream will replace it. **User confirmed: web shows no cost info between this phase and the future credits/billing workstream.** Phase doc is explicit: this is not "the credits feature lives here" — it is "the dollar-cost UI is removed; the credits feature is a separate later workstream."
+
+### P08 — Production Launch + Operational Readiness (web + backend only)
+**Why a phase:** "ship to users" is not free. Sentry dashboards, runbooks, canary drills, and an on-call rotation are not implicit; they have to be built and tested.
+**Why this boundary:** infra → web feature shipped to a small public cohort with rollback proven. Does NOT include billing (out of scope), mobile rollout (deferred to future mobile cycle), or post-launch growth instrumentation. Sentry coverage is web SDK + Cloud Run SDK only — Flutter SDK setup moves to the future mobile cycle.
+**Why last:** by definition, can't ship until P07 (web ready) is done.
+
+### Considered and rejected partitions
+- **A "billing" phase** — explicitly forbidden by override O15. Out of plan.
+- **A "mobile" phase in this cycle** — rejected per user course correction. Mobile is a separate workstream that **consumes** the migrated backend; it is not part of the migration itself. Mobile will get its own architect cycle later, with `redesign-plan.md` as input and this cycle's P03 API contract as a constraint. (Revision 1 of this partition included a P07 mobile phase and a P08 launch phase; user course-corrected before fan-out.)
+- **Splitting P01 into "Supabase" / "Cloud Run+R2" / "Sentry" / "Bootstrap"** — rejected; that would be 4 phases of mostly-account-setup ceremony with the same exit criterion. Bundling them into one foundations phase (with parallel tracks) is the right granularity.
+- **Splitting P03 into "API contract" / "Project state schema" / "R2 wiring"** — rejected; the three are tightly coupled (the schema lives in the API contract; R2 URLs are part of project responses) and splitting them would create false dependencies. Schema spike stays inline (now 7 days) per user confirmation.
+- **Numbering P04 module-split as P03.5** — rejected; user chose linear renumbering (Option A in revision-3 gate). Sub-phase numbers break the partition's linear convention.
+- **Combining P02 (Auth) with P01 (Foundations)** — rejected; auth has its own E2E test surface and JWT-lifetime decisions that warrant a phase boundary. Also lets us ship the JWT-verification middleware as a clean layer before any feature endpoint relies on it.
+- **Combining P05 + P06 into one "pipeline extraction" phase** — rejected; the size disparity (19,115 vs 9,849 lines) and the risk concentration in AutoPilot warrant the split. Doing them together would also delay the "long-job pattern" learning until the very end.
+- **Combining P07 (Web Cutover) with P06** — rejected; deletion needs its own discipline (see rationale above). Saves zero working time and increases risk.
+- **Inlining the P04 split into P05** — rejected; P05 is already the longest phase. Adding a 1–2 wk refactor to it would compress feature-extraction time and increase merge-collision risk. Splitting first is cheaper.
+
+### Coverage and risk callouts
+- Coverage = 100% of in-scope inventory rows mapped to ≥ 1 phase. 15 of 38 inventory rows are explicitly out-of-scope (2 billing per O15, 13 mobile per the revision).
+- 8 cross-cutting decisions flagged for ADRs (unchanged from revision 2 — ADR-01 expanded with 5 new tables in revision 3, but no new ADRs added). P04 raises no new ADR-worthy decisions; it is a mechanical refactor that aligns with already-decided server-side boundaries (ADR-01, ADR-02, ADR-03, ADR-07).
+- Unanchored-claim risks from the inventory (15 total; 10 still relevant after dropping mobile rows) will be carried into the relevant phase docs as "Open Questions" — none are blocking the partition.
+- Highest schedule risk: P05 (AutoPilot extraction). Highest behavioural risk: P03 (project state schema choice — gets locked in early; mistakes are expensive to fix later, especially because the future mobile client must consume the same API). Highest correctness risk: P04 (a regression in the split would silently break Tier-2 lipsync or canvas regen — mitigated by the dogfood smoke gate).
+
+---
+
+## Part 5 — Out of scope
+
+| #  | Spec section / source                                                                                       | Why out of scope                                                                                                                                                                              |
+|----|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | `migration-details.md` §"Subscription Plans" L296–304                                                       | **Deferred** — explicit billing content. Override O15: billing is a separate later workstream.                                                                                                |
+| 2  | `migration-details.md` §"Stripe" — `api/stripe/checkout.js`, `api/stripe/webhook.js`, `api/stripe/portal.js` (L164–173); §"Phase 3 Stripe" L324–328; §"Effort Estimate" billing rows L344 | **Deferred** — Stripe surface entirely. Override O15.                                                                                                                                          |
+| 3  | `migration-details.md` §"Schema" — `subscriptions` table; `users.plan`, `users.images_limit`, `users.videos_limit`, `users.period_*`; `api/_lib/quota.js`; quota deduct RPC | **Deferred** — quota / billing schema. Override O15.                                                                                                                                          |
+| 4  | `pricing-plan.md`                                                                                            | **Deferred** — not read at all per directive. Will not be referenced anywhere downstream.                                                                                                     |
+| 5  | `redesign-plan.md` (entire file)                                                                              | **Deferred — mobile-only spec.** Covered in a separate future architect cycle that will consume this cycle's P03 API contract as a constraint. No phase doc in this cycle reads from `redesign-plan.md`.                                 |
+| 6  | `redesign-plan.md` §1 Goals & Scope L7–31                                                                     | **Deferred** — mobile-only. See row 5.                                                                                                                                                         |
+| 7  | `redesign-plan.md` §2 Architecture & Data L34–43                                                              | **Deferred** — mobile-only. (Active-flag schema and instance hierarchy are independently captured in P03 by reading `js/27-canvas-state.js` directly, not via `redesign-plan.md`.)             |
+| 8  | `redesign-plan.md` §3 Screen Inventory L46–61                                                                 | **Deferred** — mobile-only. See row 5.                                                                                                                                                         |
+| 9  | `redesign-plan.md` §4 Phased Plan L65–138 (all sub-phases P0–P7)                                              | **Deferred** — mobile-only. See row 5.                                                                                                                                                         |
+| 10 | `redesign-plan.md` §5 Engineering Risks L142–151                                                              | **Deferred** — mobile-only. (Cross-cutting risks like Kling polling latency are independently captured in P05's risk table from `migration-details.md`.)                                       |
+| 11 | `redesign-plan.md` §6 Suggested Total Effort L155–157                                                         | **Deferred** — mobile-only headcount/duration estimate.                                                                                                                                        |
+| 12 | `redesign-plan.md` §7 Reference Files L161–168                                                                | **Reference** — pure citation list, mobile only.                                                                                                                                              |
+| 13 | Mockup HTML files (`*-mobile-mockup.html` in `app/`)                                                           | **Deferred — mobile UI fidelity references.** Covered in future mobile cycle. Not edited and not directly mapped to any phase exit criterion in this cycle.                                   |
+| 14 | `migration-details.md` §"Notes" L351–358 (V1/V2 split commentary)                                            | **Reference** — superseded narrative; the V2-now-V1 promotion is captured in the phase plan, the legacy commentary is reference only.                                                          |
+| 15 | Cost-estimator working files (`cost-estimator.html`, `cost-estimator-mock.html`, `cost-estimator-plan.md` in repo root) | **Deferred** — pre-existing client-side dollar-cost UI; will be removed in P07. The replacement (credits feature) is the future billing workstream. Phase doc covers the *removal* in P07; the replacement is out of scope. |
+
+---
+
+## Part 6 — Flagged ADR candidates
+
+| #  | Decision topic                                       | Phases affected                            | Recommendation |
+|----|------------------------------------------------------|--------------------------------------------|----------------|
+| 1  | Project state model (Postgres + R2) — **expanded in revision 3** to 10 tables | P03, P05, P06           | **ADR-01**     |
+| 2  | Long-running job architecture (Cloud Run worker)     | P01, P05, P06, P08                         | **ADR-02**     |
+| 3  | Web/mobile API contract — versioning strategy must accommodate future mobile clients eventually | P03, P05, P06, P07              | **ADR-03**     |
+| 4  | Trunk-based dev + canary deployment + feature flag tooling — **CI bootstrap explicit in P01** | P01, P07, P08              | **ADR-04**     |
+| 5  | Auth & session (Supabase Auth, JWT lifetime, RLS)    | P02, P03, P08                              | **ADR-05**     |
+| 6  | Mode lock invariant (`videoMode` immutability)        | P03, P05, P06                              | **ADR-06**     |
+| 7  | File storage strategy (R2 presigned vs proxy + lifecycle + CDN) | P01, P03, P05, P06                | **ADR-07**     |
+| 8  | Observability (Sentry across web + Cloud Run only — Flutter SDK deferred to future mobile cycle) | P01, P07, P08            | **ADR-08**     |
+
+**Dropped from this cycle (vs revision 1):**
+- ADR-04 (revision-1 numbering) — Mobile version compatibility / force-update + remote feature flags. Belongs to the future mobile architect cycle.
+- Inline #10 (revision-1) — Mobile classification heuristic vs Gemini for Brainstorm. Was P07-mobile only; deferred.
+- Inline #11 (revision-1) — Mobile FFmpeg framework footprint. Was P07-mobile only; deferred.
+
+**ADR file naming (per architect directive):** `migration-adr-NN-<slug>.md` at `/Users/praveen/Desktop/stori/`. ADRs 01–08 already captured.
+
+**Final ADR count: 8** (unchanged across revisions 2 and 3 — ADR-01 expanded internally; no new ADRs added).
+
+---
+
+*End of phase index. Revision 3 — 2026-05-06.*
