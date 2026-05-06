@@ -268,6 +268,8 @@ const brainstormState = {
   finalised:      false,
   wizardAnswers:   {},         // { type, length }
   narratorChoice:  null,       // { enabled, name, onScreenStyle } — locked at chat start for Brand/Film
+  visualStyle:     null,       // selected SUB_STYLE_PRESETS entry (or null)
+  visualTreatment: null,       // selected VISUAL_TREATMENTS entry (or null)
   sessionSummary:  null,       // set when continuing from a previous session
   willExtend:      false,      // user opted in to continue; triggers auto-extend after message 15
   savedAt:         null,
@@ -511,8 +513,17 @@ function _confirmMode(mode, pipeline) {
   if (mode === 'brand-product' || mode === 'film-narrative') {
     _showNarratorChoice();
   } else {
-    _showScreen('bs-chat');
-    _renderGreeting();
+    _showStylePicker('autopilot',
+      function onBack() {
+        brainstormState.mode = null;
+        brainstormState.pipeline = null;
+        _showScreen('bs-hero');
+      },
+      function onConfirm() {
+        _showScreen('bs-chat');
+        _renderGreeting();
+      }
+    );
   }
 }
 
@@ -569,8 +580,11 @@ function _wireNarratorChoiceScreen() {
       } else {
         brainstormState.narratorChoice = { enabled: false };
       }
-      _showScreen('bs-chat');
-      _renderGreeting();
+      var presetMode = brainstormState.mode === 'film-narrative' ? 'film' : 'brand';
+      _showStylePicker(presetMode,
+        function onBack() { _showNarratorChoice(); },
+        function onConfirm() { _showScreen('bs-chat'); _renderGreeting(); }
+      );
     });
   }
 }
@@ -905,6 +919,17 @@ function _buildSystemPrompt() {
 
   if (brainstormState.sessionSummary) {
     base += '\n\n[CONTINUATION SESSION — previous session summary:\n' + brainstormState.sessionSummary + '\nDo NOT re-ask anything already decided above. Pick up exactly where the user left off.]';
+  }
+  // Phase 4 — inject locked style when set (Phases 5/6/7 write this; Phase 4 wires the read path)
+  var vs = brainstormState.visualStyle;
+  var vt = brainstormState.visualTreatment;
+  if ((vs && vs.description) || (vt && vt.description)) {
+    var styleParts = [
+      vs && vs.description   ? 'Sub-style: ' + vs.description   : null,
+      vs && vs.motionGrammar ? 'Motion grammar: ' + vs.motionGrammar : null,
+      vt && vt.description   ? 'Visual treatment: ' + vt.description : null,
+    ].filter(Boolean);
+    base += '\n\n[VISUAL STYLE LOCKED — reference in all scene descriptions and suggestions:\n' + styleParts.join('. ') + '\nDo NOT suggest changing the style — it is final for this session.]';
   }
   return base;
 }
@@ -1477,6 +1502,76 @@ function _esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ── SECTION 12b: Style picker ──────────────────────────────────────────────────
+
+function _showStylePicker(presetMode, onBack, onConfirm) {
+  var presetMap   = (window.SUB_STYLE_PRESETS && window.SUB_STYLE_PRESETS[presetMode]) || {};
+  var presetKeys  = Object.keys(presetMap);
+  var presets     = presetKeys.map(function(k) { return Object.assign({ _key: k }, presetMap[k]); });
+  var treatMap    = window.VISUAL_TREATMENTS || {};
+  var treatKeys   = Object.keys(treatMap);
+
+  var grid       = document.getElementById('bs-sp-grid');
+  var sel        = document.getElementById('bs-sp-treatment');
+  var confirmBtn = document.getElementById('bs-sp-confirm');
+  var backBtn    = document.getElementById('bs-sp-back');
+  var skipBtn    = document.getElementById('bs-sp-skip');
+  if (!grid || !sel || !confirmBtn || !backBtn || !skipBtn) return;
+
+  brainstormState.visualStyle = null;
+
+  grid.innerHTML = presets.map(function(p, i) {
+    var name = p._key.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    var desc = (p.description || '').slice(0, 80);
+    return '<button class="bs-sp-preset" data-idx="' + i + '">'
+      + '<div class="bs-sp-preset-name">' + _esc(name) + '</div>'
+      + '<div class="bs-sp-preset-desc">' + _esc(desc) + '</div>'
+      + '</button>';
+  }).join('');
+
+  grid.querySelectorAll('.bs-sp-preset').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      grid.querySelectorAll('.bs-sp-preset').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      brainstormState.visualStyle = presets[+btn.dataset.idx] || null;
+      document.getElementById('bs-sp-confirm').disabled = false;
+    });
+  });
+
+  sel.innerHTML = '<option value="">— None —</option>' + treatKeys.map(function(k, i) {
+    var label = k.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    return '<option value="' + i + '">' + _esc(label) + '</option>';
+  }).join('');
+  sel.value = '';
+
+  // Replace buttons to clear previous listeners
+  function _rewire(oldId, handler) {
+    var old = document.getElementById(oldId);
+    if (!old) return;
+    var fresh = old.cloneNode(true);
+    old.parentNode.replaceChild(fresh, old);
+    fresh.addEventListener('click', handler);
+    return fresh;
+  }
+
+  _rewire('bs-sp-back', onBack);
+  _rewire('bs-sp-skip', function() {
+    brainstormState.visualStyle    = null;
+    brainstormState.visualTreatment = null;
+    onConfirm();
+  });
+  var freshConfirm = _rewire('bs-sp-confirm', function() {
+    var tidx = parseInt(sel.value, 10);
+    brainstormState.visualTreatment = (!isNaN(tidx) && treatKeys[tidx])
+      ? Object.assign({ _key: treatKeys[tidx] }, treatMap[treatKeys[tidx]])
+      : null;
+    onConfirm();
+  });
+  if (freshConfirm) freshConfirm.disabled = true;
+
+  _showScreen('bs-style-picker');
+}
+
 // ── SECTION 13: Handoff ───────────────────────────────────────────────────────
 
 function _sendToPipeline(target) {
@@ -1485,11 +1580,13 @@ function _sendToPipeline(target) {
   var fileName = _downloadScript(brainstormState.finalScript, target);
 
   window.__storiHandoff = {
-    target:       target,
-    plainText:    _formatScriptToPlainText(brainstormState.finalScript),
-    fileName:     fileName,
-    source:       'brainstorm',
-    finalScript:  brainstormState.finalScript
+    target:          target,
+    plainText:       _formatScriptToPlainText(brainstormState.finalScript),
+    fileName:        fileName,
+    source:          'brainstorm',
+    finalScript:     brainstormState.finalScript,
+    visualStyle:     brainstormState.visualStyle    || null,
+    visualTreatment: brainstormState.visualTreatment || null
   };
 
   if (target === 'autopilot') {
@@ -1697,7 +1794,7 @@ function _autoResizeTextarea(ta) {
 }
 
 function _showScreen(id) {
-  ['bs-selector', 'bs-chat', 'bs-final'].forEach(function(sid) {
+  ['bs-narrator-choice', 'bs-style-picker', 'bs-chat', 'bs-final'].forEach(function(sid) {
     var el = document.getElementById(sid);
     if (el) el.classList.toggle('hidden', sid !== id);
   });

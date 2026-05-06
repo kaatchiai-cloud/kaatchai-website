@@ -460,6 +460,12 @@ function navigateTo(view, pushHistory) {
               if (typeof window.castShowMutexHints === 'function') window.castShowMutexHints();
             } catch(seedErr) { console.warn('[handoff seed]', seedErr.message); }
           }
+          // Seed visual style/treatment from brainstorm picker
+          if (ho.visualStyle || ho.visualTreatment) {
+            window.createJobState = window.createJobState || {};
+            if (ho.visualStyle)     window.createJobState.subStyle        = ho.visualStyle;
+            if (ho.visualTreatment) window.createJobState.visualTreatment = ho.visualTreatment;
+          }
           window.__storiHandoff = null;
           var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';
           if (typeof setStatus === 'function') setStatus('Script imported from Storypilot — review and click Generate.' + tail);
@@ -495,6 +501,12 @@ function navigateTo(view, pushHistory) {
           // Brainstorm handoff — store structured script for direct storyboard path
           if (ho.source === 'brainstorm' && ho.finalScript) {
             window.__reelHandoffScript = ho.finalScript;
+          }
+          // Seed visual style/treatment so getMergedStyle works on the reel path
+          if (ho.visualStyle || ho.visualTreatment) {
+            window.createJobState = window.createJobState || {};
+            if (ho.visualStyle)     window.createJobState.subStyle        = ho.visualStyle;
+            if (ho.visualTreatment) window.createJobState.visualTreatment = ho.visualTreatment;
           }
           window.__storiHandoff = null;
           var tail = ho.fileName ? ' Saved as ' + ho.fileName + ' on your device.' : '';

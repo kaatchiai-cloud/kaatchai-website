@@ -256,7 +256,18 @@ function renderSceneAssignments() {
 // Build prompt with references for image generation
 function buildScenePromptWithRefs(scene, basePrompt) {
   let prompt = '';
-  if (createStylePrompt) prompt += `Style: ${createStylePrompt}. `;
+  // Phase 4 — prefer merged sub-style over legacy flat createStylePrompt
+  const _ms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(scene) : null;
+  const _mt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+  if (_ms && _ms.description) {
+    prompt += `Style: ${_ms.description}. `;
+    if (_ms.lighting)     prompt += `Lighting: ${_ms.lighting}. `;
+    if (_ms.color)        prompt += `Color palette: ${_ms.color}. `;
+    if (_ms.composition)  prompt += `Composition: ${_ms.composition}. `;
+  } else if (createStylePrompt) {
+    prompt += `Style: ${createStylePrompt}. `;
+  }
+  if (_mt && _mt.description) prompt += `Rendering aesthetic: ${_mt.description}. `;
 
   // Environment
   if (scene.refEnvironment >= 0) {
@@ -2897,17 +2908,15 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     };
   };
 
-  // Phase 4 — dialogue + framing hints for the storyboard agent.
+  // Phase 3 — dialogue + framing hints for the storyboard agent.
   // Returns { promptHint, schemaFieldList } extending the storyboard call so
-  // each segment carries dialogue (speaker + text + isVoiceOver) and framing
-  // (one of 9 enum values). Only emitted for film / brand projects where at
-  // least one cast member is locked. Narration-only projects skip — the
-  // existing narrator suffix already handles them.
+  // each segment carries dialogueLines[] (per-line speaker + text + isVoiceOver),
+  // visualSubjectIds[] (characters on screen), and framing (free choice from enum).
+  // Only emitted for film / brand projects with at least one locked cast member.
   window.castBuildDialogueAndFramingHint = function () {
     const t = window.createJobState && window.createJobState.videoType;
     if (t !== 'film' && t !== 'brand') return { promptHint: '', schemaFieldList: '' };
-    // When audio-input has pre-resolved dialogue lines, the storyboard agent
-    // already receives them via inputDoc.parsed.dialogueLines — skip inference.
+    // When audio-input has pre-resolved dialogue lines, skip inference.
     const inputDoc = window.createJobState && window.createJobState.inputDoc;
     if (inputDoc && inputDoc.format === 'audio' && inputDoc.locked &&
         inputDoc.parsed && Array.isArray(inputDoc.parsed.dialogueLines) && inputDoc.parsed.dialogueLines.length) {
@@ -2917,72 +2926,94 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     const hasProduct   = !!(window.createJobState.product   && window.createJobState.product.locked);
     const hasPresenter = !!(window.createJobState.presenter && window.createJobState.presenter.locked);
     if (!chars.length && !hasProduct && !hasPresenter) return { promptHint: '', schemaFieldList: '' };
+
     const speakerNames = chars.map(c => c.name);
     if (hasPresenter) speakerNames.push(window.createJobState.presenter.name);
     speakerNames.push('narrator');
+
+    const charIds = chars.map(c => c.id);
+    if (hasPresenter && window.createJobState.presenter.id) charIds.push(window.createJobState.presenter.id);
+
     return {
       promptHint:
         '\n\nDIALOGUE & FRAMING:\n' +
         'For each segment, ALSO emit:\n' +
-        '  - dialogue: object — extract any quoted speech or "Speaker: line" prefix.\n' +
-        '      Shape: { "speakerName": one of [' + speakerNames.map(n => `"${n}"`).join(', ') + '] | null,\n' +
-        '              "text": "the spoken words only, no stage directions",\n' +
-        '              "isVoiceOver": boolean }.\n' +
-        '      Set dialogue=null when the segment is pure narration / description.\n' +
-        '      If multiple speakers appear in one segment, return ONLY the first speaker\'s line\n' +
-        '      and add a "additionalTurns" array of additional {speakerName, text} entries.\n' +
+        '  - dialogueLines: array of ALL spoken lines in this segment (may be empty).\n' +
+        '      Each entry: { "speakerName": one of [' + speakerNames.map(n => `"${n}"`).join(', ') + '] | null,\n' +
+        '                   "speakerCharacterId": the character id or null,\n' +
+        '                   "text": "the spoken words only, no stage directions",\n' +
+        '                   "mood": "matter-of-fact" | "upbeat" | "serious" | "dramatic" | "warm",\n' +
+        '                   "isVoiceOver": boolean — true when the speaker is not visible on screen\n' +
+        '                     or their mouth is not resolvable in the chosen framing }.\n' +
+        '      Set dialogueLines=[] when the segment is pure narration / description.\n' +
+        '  - visualSubjectIds: array of character id strings who are visually on screen.\n' +
+        '      Available ids: [' + charIds.map(id => `"${id}"`).join(', ') + ']. Use [] for no characters.\n' +
         '  - framing: one of "frontal-close-up" | "frontal-medium" | "three-quarter" |\n' +
         '              "over-shoulder-front" | "over-shoulder-back" | "profile" |\n' +
-        '              "back-of-head" | "wide-establishing" | "extreme-wide".\n\n' +
+        '              "back-of-head" | "wide-establishing" | "two-shot-medium" | "two-shot-wide" | "extreme-wide".\n\n' +
         'RULES:\n' +
-        ' - When a segment contains dialogue spoken by a visible cast member, prefer\n' +
-        '   "frontal-close-up" or "three-quarter" framing so the speaker\'s mouth is on camera.\n' +
-        ' - When framing is "back-of-head", "profile", "wide-establishing", or "extreme-wide",\n' +
-        '   set dialogue.isVoiceOver = true (audio plays as voice-over, no mouth animation).\n' +
-        ' - NEVER place two characters in a single "frontal-close-up" of one speaking. If the\n' +
-        '   script has alternating dialogue, place each speaker in a separate segment using\n' +
-        '   their own "frontal-close-up" (cut-on-speaker rule).\n',
+        ' - Choose framing to match dramatic intent. Reaction shots, two-shots, wides, and\n' +
+        '   over-the-shoulder are all valid — do not force close-ups just for dialogue.\n' +
+        ' - Set isVoiceOver=true for any line where the speaker\'s mouth is not on screen\n' +
+        '   (back-of-head, wide-establishing, extreme-wide, or speaker not in visualSubjectIds).\n' +
+        ' - Multiple dialogue lines in one segment are allowed when the framing supports it\n' +
+        '   (e.g. two-shot-medium with two visible speakers).\n',
       schemaFieldList:
-        ', "dialogue": null, "framing": "frontal-medium"',
+        ', "dialogueLines": [], "visualSubjectIds": [], "framing": "frontal-medium"',
     };
   };
 
-  // Phase 4 — cut-on-speaker enforcer. Post-process storyboard segments to
-  // split any segment that has additionalTurns into per-speaker segments.
-  // Each generated split inherits the parent timing proportionally.
+  // Phase 3.5 — cut-on-speaker enforcer (narrowed). Reads dialogueLines[].
+  // Preserves multi-line scenes when ≤1 speaker is visibly lip-synced.
+  // Only forces split when >1 visible-lipsynced speakers (v1 limitation).
   window.castEnforceCutOnSpeaker = function (segments) {
     if (!Array.isArray(segments)) return segments;
     const out = [];
     for (const seg of segments) {
-      const dlg = seg && seg.dialogue;
-      const extra = dlg && Array.isArray(dlg.additionalTurns) ? dlg.additionalTurns : null;
-      if (!extra || !extra.length) {
+      const lines = (seg && Array.isArray(seg.dialogueLines)) ? seg.dialogueLines : [];
+
+      if (lines.length <= 1) {
         out.push(seg);
         continue;
       }
-      // Allocate timing across (1 + extra.length) turns evenly within the segment
-      const turns = [{ speakerName: dlg.speakerName, text: dlg.text }].concat(extra);
+
+      const framingShowsMouth = window.castDeriveSpeakerVisible
+        ? window.castDeriveSpeakerVisible(seg.framing)
+        : false;
+      const visualSubjects = Array.isArray(seg.visualSubjectIds) ? seg.visualSubjectIds : [];
+
+      const visibleLipsyncedSpeakers = new Set();
+      for (const line of lines) {
+        if (!line || line.isVoiceOver) continue;
+        if (!line.speakerCharacterId) continue;
+        if (!framingShowsMouth) continue;
+        if (!visualSubjects.includes(line.speakerCharacterId)) continue;
+        visibleLipsyncedSpeakers.add(line.speakerCharacterId);
+      }
+
+      if (visibleLipsyncedSpeakers.size <= 1) {
+        out.push(seg);
+        continue;
+      }
+
+      // >1 visible-lipsynced speakers → forced split with proportional timing.
       const start = (typeof seg.startTime === 'number') ? seg.startTime : 0;
       const end   = (typeof seg.endTime   === 'number') ? seg.endTime   : (start + 1);
       const span  = Math.max(0.001, end - start);
-      const per   = span / turns.length;
-      for (let i = 0; i < turns.length; i++) {
-        const t = turns[i];
-        const tStart = start + per * i;
-        const tEnd   = start + per * (i + 1);
+      const per   = span / lines.length;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const splitVisualSubjects = visualSubjects.includes(line.speakerCharacterId)
+          ? [line.speakerCharacterId]
+          : visualSubjects.slice();
         const cloned = Object.assign({}, seg, {
-          startTime: tStart,
-          endTime: tEnd,
-          dialogue: {
-            speakerName: t.speakerName || null,
-            text: t.text || '',
-            isVoiceOver: false,
-            additionalTurns: undefined,
-          },
-          framing: 'frontal-close-up',
+          startTime:        start + per * i,
+          endTime:          start + per * (i + 1),
+          dialogueLines:    [Object.assign({}, line)],
+          visualSubjectIds: splitVisualSubjects,
+          framing:          'frontal-close-up',
           _cutFromSpeakerSplit: true,
         });
-        delete cloned.dialogue.additionalTurns;
         out.push(cloned);
       }
     }
@@ -3029,13 +3060,17 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     if (!scene || !scene.framing) return '';
     const tmpl = FRAMING_PROMPTS[scene.framing];
     if (!tmpl) return '';
-    const speaker = (scene.dialogue && scene.dialogue.speakerName) || 'the speaker';
-    // Heuristic listener: any other locked character not the speaker
+    const firstLine = (scene.dialogueLines && scene.dialogueLines[0]) || scene.dialogue || null;
+    const speaker = (firstLine && firstLine.speakerName) || 'the speaker';
     let listener = 'the other character';
     const cs = window.createJobState || {};
     const others = (cs.characters || []).filter(c => c.locked && c.name !== speaker);
     if (others.length) listener = others[0].name;
-    return tmpl.replace(/\{speaker\}/g, speaker).replace(/\{listener\}/g, listener);
+    let result = tmpl.replace(/\{speaker\}/g, speaker).replace(/\{listener\}/g, listener);
+    // Phase 4 — append project motion grammar so Kling targets the right camera movement
+    const ms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(scene) : null;
+    if (ms && ms.motionGrammar) result += ` Camera movement: ${ms.motionGrammar}.`;
+    return result;
   };
 
   // Phase 5 — multi-voice TTS pipeline.
@@ -3152,32 +3187,42 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window.castGenerateLineTTS = castGenerateLineTTS;
 
-  // Group consecutive segments by (speakerId, mood) — break when either changes.
+  // Group consecutive (segment, line) pairs by (speakerId, mood) — break when either changes.
   // Returns array of call descriptors used by castGenerateMultiVoiceAudio.
+  // Phase 2b: call.segments entries are { seg, lineIdx } — not bare seg objects.
   function planTtsCalls(segments) {
     const calls = [];
     let active = null;
     for (const seg of segments) {
-      if (!seg || !seg.dialogue || !seg.dialogue.text) continue;
-      const speakerId = seg.dialogue.speakerCharacterId || 'narrator';
-      const speakerName = seg.dialogue.speakerName || 'narrator';
-      const mood = (seg.dialogue.voiceOverride && seg.dialogue.voiceOverride.mood)
-        || (seg.performance && (window.deriveSceneMood ? window.deriveSceneMood(seg) : 'matter-of-fact'))
-        || 'matter-of-fact';
-      const sentenceText = seg.dialogue.text.replace(/[.!?]?\s*$/, '.');
-      if (active && active.speakerId === speakerId && active.mood === mood) {
-        active.segments.push(seg);
-        active.joinedText += ' ' + sentenceText;
-      } else {
-        if (active) calls.push(active);
-        active = {
-          speakerId,
-          speakerName,
-          mood,
-          voice: castResolveVoiceForSpeaker(speakerId, speakerName),
-          segments: [seg],
-          joinedText: sentenceText,
-        };
+      // Support both new schema (dialogueLines[]) and old schema (dialogue) through migration window.
+      const lines = (seg && Array.isArray(seg.dialogueLines) && seg.dialogueLines.length)
+        ? seg.dialogueLines
+        : (seg && seg.dialogue) ? [seg.dialogue] : [];
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (!line || !line.text) continue;
+        const speakerId   = line.speakerCharacterId || 'narrator';
+        const speakerName = line.speakerName || 'narrator';
+        const mood = (line.voiceOverride && line.voiceOverride.mood)
+          || (seg.performance && (typeof window.deriveSceneMood === 'function'
+              ? window.deriveSceneMood(seg)
+              : 'matter-of-fact'))
+          || 'matter-of-fact';
+        const sentenceText = line.text.replace(/[.!?]?\s*$/, '.');
+        if (active && active.speakerId === speakerId && active.mood === mood) {
+          active.segments.push({ seg, lineIdx });
+          active.joinedText += ' ' + sentenceText;
+        } else {
+          if (active) calls.push(active);
+          active = {
+            speakerId,
+            speakerName,
+            mood,
+            voice: castResolveVoiceForSpeaker(speakerId, speakerName),
+            segments: [{ seg, lineIdx }],
+            joinedText: sentenceText,
+          };
+        }
       }
     }
     if (active) calls.push(active);
@@ -3222,7 +3267,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   // Tier 2: ElevenLabs with-timestamps character timing (ElevenLabs only, ~90% accurate).
   // Tier 3: Word-rate math fallback (±200ms — surfaces hint to user).
   async function splitBatchedAudio(combinedBuffer, call, tier2CharTimings) {
-    const lines = call.segments.map(s => s.dialogue.text);
+    const lines = call.segments.map(({ seg, lineIdx }) => seg.dialogueLines[lineIdx].text);
     const totalDurMs = combinedBuffer.duration * 1000;
 
     // Tier 1 — Scribe
@@ -3285,10 +3330,13 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   // speaker. Narrator-only projects keep their existing single-voice path.
   function castShouldUseMultiVoice(segments) {
     if (!Array.isArray(segments)) return false;
-    return segments.some(s =>
-      s && s.dialogue && s.dialogue.speakerCharacterId &&
-      s.dialogue.speakerCharacterId !== 'narrator'
-    );
+    return segments.some(s => {
+      // Check dialogueLines[] first (new schema); fall back to dialogue (shim/old schema).
+      const lines = (s && Array.isArray(s.dialogueLines) && s.dialogueLines.length)
+        ? s.dialogueLines
+        : (s && s.dialogue) ? [s.dialogue] : [];
+      return lines.some(l => l && l.speakerCharacterId && l.speakerCharacterId !== 'narrator');
+    });
   }
   window.castShouldUseMultiVoice = castShouldUseMultiVoice;
 
@@ -3331,10 +3379,10 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
 
         if (call.segments.length === 1) {
           // Single-segment call — use castGenerateLineTTS directly (no splitting needed)
-          const res = await castGenerateLineTTS(call.segments[0].dialogue.text, call.voice, call.mood);
+          const { seg: s0, lineIdx: li0 } = call.segments[0];
+          const res = await castGenerateLineTTS(s0.dialogueLines[li0].text, call.voice, call.mood);
           if (res) {
-            const seg = call.segments[0];
-            const segIdx = segments.indexOf(seg);
+            const segIdx = segments.indexOf(s0);
             if (segIdx >= 0) segmentResults[segIdx] = {
               audioBuffer: res.audioBuffer,
               durationMs: res.durationMs,
@@ -3342,6 +3390,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
               speakerName: call.speakerName,
               voiceId: call.voice.voiceId,
               provider: call.voice.provider,
+              lineIdx: li0,
             };
           }
           continue;
@@ -3376,7 +3425,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         // Step 3 — split combined buffer back into per-segment buffers
         const splitBuffers = await splitBatchedAudio(combinedBuffer, call, tier2CharTimings);
         for (let i = 0; i < call.segments.length; i++) {
-          const seg = call.segments[i];
+          const { seg, lineIdx } = call.segments[i];
           const segIdx = segments.indexOf(seg);
           if (segIdx < 0) continue;
           const buf = splitBuffers[i] || sliceAudioBuffer(combinedBuffer, 0, 100);
@@ -3387,6 +3436,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
             speakerName: call.speakerName,
             voiceId: call.voice.voiceId,
             provider: call.voice.provider,
+            lineIdx,
           };
         }
       } catch (e) {
@@ -3480,9 +3530,10 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         seg.startTime = startMs / 1000;
         seg.endTime   = endMs / 1000;
         seg.audioActualDuration = sr.durationMs / 1000;
-        seg.dialogue = seg.dialogue || {};
-        seg.dialogue.actualStartMs = startMs;
-        seg.dialogue.actualEndMs   = endMs;
+        if (Array.isArray(seg.dialogueLines) && typeof sr.lineIdx === 'number' && seg.dialogueLines[sr.lineIdx]) {
+          seg.dialogueLines[sr.lineIdx].withinSceneStartMs = startMs;
+          seg.dialogueLines[sr.lineIdx].withinSceneEndMs   = endMs;
+        }
       }
       perSegmentDurationsMs[i] = sr.durationMs;
       cursorSamples += sr.audioBuffer.length;
@@ -3498,30 +3549,37 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window.castGenerateMultiVoiceAudio = castGenerateMultiVoiceAudio;
 
-  // Phase 4 — apply derived speakerVisible + force isVoiceOver=true for
-  // voice-over framings. Mutates segments in place.
+  // Phase 3.5 — apply derived per-line isVoiceOver from framing. Mutates segments in place.
+  // Deprecates scene-level speakerVisible (Phase 12 cleanup removes it).
   window.castApplyFramingDerived = function (segments) {
     if (!Array.isArray(segments)) return segments;
     for (const seg of segments) {
       if (!seg) continue;
       const visible = window.castDeriveSpeakerVisible(seg.framing);
-      seg.speakerVisible = visible;
-      if (!visible && seg.dialogue) {
-        seg.dialogue.isVoiceOver = true;
-      }
-      // Resolve speakerCharacterId from speakerName (case-insensitive)
-      if (seg.dialogue && seg.dialogue.speakerName) {
-        const lc = String(seg.dialogue.speakerName).toLowerCase();
-        if (lc === 'narrator') {
-          seg.dialogue.speakerCharacterId = 'narrator';
-        } else {
-          const cs = window.createJobState || {};
-          const all = [
-            ...(cs.characters || []),
-            cs.presenter, cs.setting,
-          ].filter(Boolean);
-          const found = all.find(x => x.locked && (x.name || '').toLowerCase() === lc);
-          seg.dialogue.speakerCharacterId = found ? found.id : null;
+      if (Array.isArray(seg.dialogueLines)) {
+        for (const line of seg.dialogueLines) {
+          if (!line) continue;
+          const speakerInScene = (Array.isArray(seg.visualSubjectIds))
+            ? seg.visualSubjectIds.includes(line.speakerCharacterId)
+            : false;
+          line.isVoiceOver = !(speakerInScene && visible);
+          // Resolve speakerCharacterId from speakerName
+          if (line.speakerName && !line.speakerCharacterId) {
+            const lc = String(line.speakerName).toLowerCase();
+            line.speakerCharacterId = lc === 'narrator'
+              ? 'narrator'
+              : resolveSpeakerFromName(line.speakerName);
+          }
+        }
+      } else if (seg.dialogue) {
+        // Legacy single-dialogue fallback (deprecated; removed in Phase 12)
+        seg.speakerVisible = visible;
+        if (!visible) seg.dialogue.isVoiceOver = true;
+        if (seg.dialogue.speakerName && !seg.dialogue.speakerCharacterId) {
+          const lc = String(seg.dialogue.speakerName).toLowerCase();
+          seg.dialogue.speakerCharacterId = lc === 'narrator'
+            ? 'narrator'
+            : resolveSpeakerFromName(seg.dialogue.speakerName);
         }
       }
     }
@@ -3547,9 +3605,19 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       ? `NARRATOR MODE: This video has a single narrator (${escapeHtml(narrator.name)}) who voices ALL audio content. Characters and other entities appear visually in scenes but DO NOT speak — there is no character dialogue. Treat all script text as narration prose. The narrator does NOT appear in scene visuals (rendered separately at edit time).\n\n`
       : '';
 
-    if (t === 'narration') return narratorHint;
+    // Phase 4 — append locked style context so agent generates consistent scene descriptions
+    const _pms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+    const _pmt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+    const _styleParts = [
+      _pms && _pms.description   ? `Sub-style: ${_pms.description}` : null,
+      _pms && _pms.motionGrammar ? `Motion grammar: ${_pms.motionGrammar}` : null,
+      _pmt && _pmt.description   ? `Visual treatment: ${_pmt.description}` : null,
+    ].filter(Boolean);
+    const _styleHint = _styleParts.length ? `\nVISUAL STYLE LOCKED:\n${_styleParts.join('. ')}\n\n` : '';
+
+    if (t === 'narration') return narratorHint + _styleHint;
     if (t === 'brand') {
-      if (!productLocked && !presenterLocked && !settingLocked) return narratorHint;
+      if (!productLocked && !presenterLocked && !settingLocked) return narratorHint + _styleHint;
       let out = narratorHint;
       if (productLocked) {
         out += 'PRODUCT (the hero of every scene):\n';
@@ -3565,10 +3633,10 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         out += `- [${setting.name}] — ${setting.appearanceSheet || setting.userDescription || setting.name}\n`;
       }
       out += '\nWhen a scene features the product, presenter, or setting, refer to them by their bracketed name. The image generator has their reference images and will lock visual consistency. Do NOT redescribe their physical traits in the scene description.\n\n';
-      return out;
+      return out + _styleHint;
     }
     // film mode (default)
-    if (chars.length === 0 && locs.length === 0) return narratorHint;
+    if (chars.length === 0 && locs.length === 0) return narratorHint + _styleHint;
     let out = narratorHint;
     if (chars.length) {
       out += 'CHARACTERS in this story:\n';
@@ -3583,7 +3651,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       }
     }
     out += '\nWhen a scene features a character or location, refer to them by their bracketed name (e.g. [' + (chars[0]?.name || locs[0]?.name) + '] enters the room). The image generator already has their reference image and will lock visual consistency. Do NOT redescribe their physical traits in the scene description.\n\n';
-    return out;
+    return out + _styleHint;
   };
 
   // ─── Visual Bible — Phase 1 (data model + spec builder) ────────────────
@@ -4115,11 +4183,18 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
 
     // Chip × — instant strip, no AI call
     strip.querySelectorAll('[data-action="chip-remove"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const refId = btn.dataset.refId;
         const ref = _allLockedRefs().find(r => r.id === refId);
         if (!ref) return;
+        // Class B: confirm if scene already has a generated image
+        if (scene.imgDataUrl && typeof window.showCascadeBModal === 'function') {
+          const ok = await window.showCascadeBModal({ title: 'Removing this character will clear the generated image and require a regen.', scenes: [idx], cost: '$0.30–$0.60' });
+          if (!ok) return;
+          scene.imgDataUrl = null;
+          scene.status = 'pending';
+        }
         const re = new RegExp('\\s*\\[' + ref.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]\\s*', 'gi');
         const newProse = (scene.prompt || '').replace(re, ' ').replace(/\s+/g, ' ').trim();
         _setProse(newProse);
@@ -4132,11 +4207,18 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
 
     // Chip + — instant append, no AI call
     strip.querySelectorAll('[data-action="chip-add"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const refId = btn.dataset.refId;
         const ref = _allLockedRefs().find(r => r.id === refId);
         if (!ref) return;
+        // Class B: confirm if scene already has a generated image
+        if (scene.imgDataUrl && typeof window.showCascadeBModal === 'function') {
+          const ok = await window.showCascadeBModal({ title: 'Adding this character will clear the generated image and require a regen.', scenes: [idx], cost: '$0.30–$0.60' });
+          if (!ok) return;
+          scene.imgDataUrl = null;
+          scene.status = 'pending';
+        }
         const newProse = (scene.prompt || '').trim() + ' [' + ref.name + ']';
         _setProse(newProse);
         scene.promptDirty = true;
@@ -4933,3 +5015,114 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window._castInstantiateFromLibrary = _instantiateFromLibrary;
 })();
+
+// ── Phase 2a: Cinematic pipeline migration shims ──
+// These helpers are called at scene creation time (17c-create-pipeline.js)
+// and at project restore time (15-project.js). They install backward-compat
+// getters so legacy readers see the same values they always did, while new
+// code uses the explicit durationSec / dialogueLines fields.
+
+window._cinematicShimWarnings = window._cinematicShimWarnings || {
+  dialogue:            0,   // multi-line scene accessed through dialogue shim
+  durationFallthrough: 0,   // duration shim fell through to default 0
+  timingFallback:      0,   // uniform-distribution timing fallback used
+};
+
+// Convert a legacy single dialogue object into a dialogueLines[] entry.
+function legacyDialogueToLine(legacyDialogue) {
+  return {
+    speakerCharacterId: legacyDialogue.speakerCharacterId,
+    speakerName:        legacyDialogue.speakerName || null,
+    text:               legacyDialogue.text,
+    mood:               (legacyDialogue.voiceOverride && legacyDialogue.voiceOverride.mood) || 'matter-of-fact',
+    isVoiceOver:        legacyDialogue.isVoiceOver || false,
+    withinSceneStartMs: null,
+    withinSceneEndMs:   null,
+    audioBufferKey:     null,
+    regenCount:         legacyDialogue.regenCount || 0,
+    regenLockToken:     legacyDialogue.regenLockToken || null,
+    voiceOverride:      legacyDialogue.voiceOverride || null,
+    muted:              legacyDialogue.muted || false,
+  };
+}
+window.legacyDialogueToLine = legacyDialogueToLine;
+
+// Install scene.dialogue getter/setter for backward compat.
+// getter: returns dialogueLines[0] (warns on multi-line access).
+// setter: converts a legacy dialogue object into dialogueLines[].
+function attachDialogueShim(scene) {
+  if (Object.getOwnPropertyDescriptor(scene, 'dialogue')) return;
+  Object.defineProperty(scene, 'dialogue', {
+    configurable: true,
+    enumerable:   false,
+    get() {
+      const lines = this.dialogueLines || [];
+      if (lines.length > 1 && !this._dialogueShimWarned) {
+        console.warn(
+          `[migration] scene.dialogue accessed on multi-line scene (${lines.length} lines). ` +
+          `Migrate reader to scene.dialogueLines[]. Scene id: ${this.id}`
+        );
+        this._dialogueShimWarned = true;
+        window._cinematicShimWarnings.dialogue = (window._cinematicShimWarnings.dialogue || 0) + 1;
+      }
+      return lines[0] || null;
+    },
+    set(value) {
+      this.dialogueLines = value ? [legacyDialogueToLine(value)] : [];
+    },
+  });
+}
+window.attachDialogueShim = attachDialogueShim;
+
+// Install scene.duration getter/setter for backward compat.
+// getter: resolves to durationSec (visible scene length) only — never to durationTier.
+// setter: mirrors write to durationSec + _legacyDuration and invalidates segmentPlan.
+function attachDurationShim(scene) {
+  if (Object.getOwnPropertyDescriptor(scene, 'duration')) return;
+  Object.defineProperty(scene, 'duration', {
+    configurable: true,
+    enumerable:   false,
+    get() {
+      if (typeof this.durationSec === 'number') return this.durationSec;
+      if (typeof this._legacyDuration === 'number') return this._legacyDuration;
+      window._cinematicShimWarnings.durationFallthrough =
+        (window._cinematicShimWarnings.durationFallthrough || 0) + 1;
+      return 0;
+    },
+    set(value) {
+      this._legacyDuration = value;
+      this.durationSec     = value;
+      this.segmentPlanPass = null;
+    },
+  });
+}
+window.attachDurationShim = attachDurationShim;
+
+// Resolve a speaker name to a characterId using the same chain as castApplyFramingDerived.
+function resolveSpeakerFromName(speakerName) {
+  const cs = window.createJobState || {};
+  const all = [
+    ...(cs.characters || []),
+    cs.presenter,
+    cs.setting,
+  ].filter(Boolean);
+  const found = all.find(x => x.locked && (x.name || '').toLowerCase() === speakerName.toLowerCase());
+  return found ? found.id : null;
+}
+window.resolveSpeakerFromName = resolveSpeakerFromName;
+
+// Back-compute visualSubjectIds for legacy scenes that predate Phase 3 (§12.5a).
+// Called once per scene during project restore, before shims attach.
+function backfillVisualSubjectIds(scene) {
+  if (Array.isArray(scene.visualSubjectIds)) return;
+  const firstLine = (scene.dialogueLines && scene.dialogueLines[0]) || null;
+  if (firstLine && firstLine.speakerCharacterId && firstLine.speakerCharacterId !== 'narrator') {
+    scene.visualSubjectIds = [firstLine.speakerCharacterId];
+  } else if (firstLine && firstLine.speakerName && firstLine.speakerName.toLowerCase() !== 'narrator') {
+    const resolved = resolveSpeakerFromName(firstLine.speakerName);
+    scene.visualSubjectIds = resolved ? [resolved] : [];
+  } else {
+    scene.visualSubjectIds = [];
+  }
+}
+window.backfillVisualSubjectIds = backfillVisualSubjectIds;

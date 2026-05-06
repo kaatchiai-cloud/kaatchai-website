@@ -3895,6 +3895,27 @@ body:has(#drop-zone:not(.hidden)) {
       </div>
     </section>
 
+    <!-- Screen 0b: Style picker (shown after narrator-choice for Brand/Film; before chat for Quick) -->
+    <section id="bs-style-picker" class="bs-screen hidden">
+      <div class="bs-sp-card">
+        <header class="bs-sp-head">
+          <div class="bs-sp-icon">🎨</div>
+          <div class="bs-sp-title">Visual style</div>
+          <div class="bs-sp-sub">Pick a look for your video — you can change it later on the create page.</div>
+        </header>
+        <div id="bs-sp-grid" class="bs-sp-grid"></div>
+        <div class="bs-sp-treatment-row">
+          <label class="bs-sp-treatment-label" for="bs-sp-treatment">Rendering aesthetic (optional)</label>
+          <select id="bs-sp-treatment" class="bs-sp-treatment-sel"></select>
+        </div>
+        <div class="bs-sp-actions">
+          <button id="bs-sp-back" class="bs-cta-secondary">← Back</button>
+          <button id="bs-sp-skip" class="bs-cta-secondary">Skip</button>
+          <button id="bs-sp-confirm" class="bs-cta-primary" disabled>Confirm →</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Screen 1: Chat workspace -->
     <section id="bs-chat" class="bs-screen hidden">
       <header class="bs-chat-hdr">
@@ -5678,6 +5699,26 @@ body:has(#drop-zone:not(.hidden)) {
           <button data-action="close-add-modal" class="btn-md">Cancel</button>
         </div>
         <div id="refs-add-status" class="text-xs text-muted" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Style gate modal — overlays create page before storyboard generation -->
+  <div id="create-style-gate" class="csg-overlay hidden" role="dialog" aria-modal="true">
+    <div class="csg-dialog">
+      <header class="bs-sp-head">
+        <div class="bs-sp-icon">🎨</div>
+        <div class="bs-sp-title">Visual style</div>
+        <div class="bs-sp-sub">Pick a look before generating your storyboard.</div>
+      </header>
+      <div id="csg-grid" class="bs-sp-grid"></div>
+      <div class="bs-sp-treatment-row">
+        <label class="bs-sp-treatment-label" for="csg-treatment">Rendering aesthetic (optional)</label>
+        <select id="csg-treatment" class="bs-sp-treatment-sel"></select>
+      </div>
+      <div class="bs-sp-actions">
+        <button id="csg-skip" class="bs-cta-secondary">Skip</button>
+        <button id="csg-confirm" class="bs-cta-primary" disabled>Confirm →</button>
       </div>
     </div>
   </div>

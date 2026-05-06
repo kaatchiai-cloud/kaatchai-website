@@ -1109,7 +1109,9 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           let en = typeof s.endTime === 'number' ? s.endTime : ((si2 + 1) / segments.length) * totalDur;
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
-          return { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, duration: en - st, text: s.text, emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [], words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          const sc = { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, durationSec: en - st, text: s.text, emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [], words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
+          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(sc);
+          return sc;
         });
       }
       job.words = words;
@@ -1442,26 +1444,30 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
         // Brainstorm handoff: use pre-baked visuals, skip Gemini scene-description generation
         const bsScenes = matchBrainstormSceneTiming(window.__reelHandoffScript, reelWords, totalDur);
         window.__reelHandoffScript = null;
-        reelScenes = bsScenes.map(sc => ({
-          prompt: [sc.visual, sc.mood].filter(Boolean).join(', '),
-          startTime: sc.startTime, endTime: sc.endTime,
-          duration: sc.endTime - sc.startTime,
-          text: sc.text || '',
-          emojis: [],
-          words: distributeWordsToScene(sc.startTime, sc.endTime, reelWords),
-          imgDataUrl: null, status: 'pending',
-          transition: transPreset.transition,
-          transDur: transPreset.transDur,
-          motion: transPreset.motion,
-        }));
+        reelScenes = bsScenes.map(sc => {
+          const s = {
+            prompt: [sc.visual, sc.mood].filter(Boolean).join(', '),
+            startTime: sc.startTime, endTime: sc.endTime,
+            durationSec: sc.endTime - sc.startTime,
+            text: sc.text || '',
+            emojis: [],
+            words: distributeWordsToScene(sc.startTime, sc.endTime, reelWords),
+            imgDataUrl: null, status: 'pending',
+            transition: transPreset.transition,
+            transDur: transPreset.transDur,
+            motion: transPreset.motion,
+          };
+          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(s);
+          return s;
+        });
       } else {
         reelScenes = segments.map((s, si) => {
           const st = typeof s.startTime === 'number' ? s.startTime : (si / segments.length) * totalDur;
           const en = typeof s.endTime === 'number' ? s.endTime : ((si + 1) / segments.length) * totalDur;
-          return {
+          const sc = {
             prompt: s.sceneDescription || s.text,
             startTime: st, endTime: en,
-            duration: en - st,
+            durationSec: en - st,
             text: s.text,
             emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
             words: distributeWordsToScene(st, en, reelWords),
@@ -1470,6 +1476,8 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
             transDur: transPreset.transDur,
             motion: transPreset.motion,
           };
+          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(sc);
+          return sc;
         });
       }
 
@@ -2925,7 +2933,7 @@ function renderReelSceneGrid(scenes) {
     card.innerHTML = `
       <div class="scene-img" id="reel-scene-img-${idx}" style="aspect-ratio:${ratio};">
         ${reelVideoMode === 'animated' && scene.videoUrl
-          ? `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline></video>`
+          ? `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline${scene._stitchedVideoMissing ? ' title="Multi-clip: showing clip 1 only"' : ''}></video>`
           : scene.imgDataUrl
           ? `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`
           : `<div class="scene-img-placeholder" style="aspect-ratio:${ratio};"></div>`}
@@ -3064,7 +3072,11 @@ function reelUpdateSceneCardImage(idx) {
   const platform = REEL_PLATFORMS[reelPlatform];
   const ratio = `${platform.width}/${platform.height}`;
   if (reelVideoMode === 'animated' && scene.videoUrl) {
-    imgDiv.innerHTML = `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline></video>`;
+    // §8.7: sequential clip playback is a Phase 8 tracked sub-deliverable
+    if (scene._stitchedVideoMissing && Array.isArray(scene.videoClips) && scene.videoClips.length > 1) {
+      console.warn('[v4] Multi-clip reel scene: sequential playback pending, showing clip 1 only');
+    }
+    imgDiv.innerHTML = `<video src="${scene.videoUrl}" style="width:100%;aspect-ratio:${ratio};" muted loop autoplay playsinline${scene._stitchedVideoMissing ? ' title="Multi-clip: showing clip 1 only"' : ''}></video>`;
   } else if (scene.imgDataUrl) {
     imgDiv.innerHTML = `<img src="${scene.imgDataUrl}" alt="Scene ${idx + 1}" style="aspect-ratio:${ratio}; cursor:pointer;">`;
   } else {

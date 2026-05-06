@@ -915,6 +915,9 @@
     function setStatus(msg) { if (statusEl) statusEl.textContent = '⏳ ' + msg; }
 
     try {
+      // ★ Style gate — skipped when subStyle already set (e.g. brainstorm handoff)
+      if (typeof window.runStyleGate === 'function') await window.runStyleGate();
+
       let dialogueLines;
       setStatus(mode === 'original' ? 'Processing audio segments…' : 'Extracting script from audio…');
 

@@ -157,15 +157,14 @@
       .join('');
   }
 
-  function _estimateRegenCost(scene) {
-    const voice = scene && scene.dialogue && scene.dialogue.speakerCharacterId
+  function _estimateRegenCost(line) {
+    const voice = line && line.speakerCharacterId
       ? (typeof window.castResolveVoiceForSpeaker === 'function'
-          ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, scene.dialogue.speakerName)
+          ? window.castResolveVoiceForSpeaker(line.speakerCharacterId, line.speakerName)
           : null)
       : null;
     if (!voice || voice.provider !== 'elevenlabs') return '$0.00';
-    const text = (scene.dialogue && scene.dialogue.text) || '';
-    const chars = text.length;
+    const chars = (line.text || '').length;
     const cost = (chars / 1000) * 0.30;
     return '$' + cost.toFixed(2);
   }
@@ -173,20 +172,10 @@
   // Build the audio section HTML for a scene card
   function buildAudioSection(scene, idx) {
     if (!scene) return '';
-    const hasDlg = scene.dialogue && scene.dialogue.text;
-    const isNarrator = hasDlg && scene.dialogue.speakerCharacterId === 'narrator';
-    const isBroll = !hasDlg;
+    const lines = scene.dialogueLines || [];
+    const isBroll = lines.length === 0;
     const isStale = !!scene.audioStale;
     const isPendingRegen = !!scene._pendingMoodRegen;
-    const hasAudio = !!(scene.audioActualDuration || scene._audioUrl);
-    const cost = _estimateRegenCost(scene);
-    const mood = (scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
-      || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : 'matter-of-fact');
-    const speakerName = (scene.dialogue && scene.dialogue.speakerName) || (isNarrator ? 'Narrator' : '');
-    const voice = hasDlg && typeof window.castResolveVoiceForSpeaker === 'function'
-      ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, speakerName)
-      : null;
-    const voiceLabel = voice ? `${voice.voiceName || voice.voiceId} (${voice.provider === 'elevenlabs' ? 'EL' : 'Gemini'})` : '';
 
     // B-roll with no dialogue: show duration stepper only
     if (isBroll) {
@@ -216,64 +205,158 @@
       statusHtml = `<span class="scene-audio-badge exceeds">⛔ exceeds ${pct}% — regen video or adjust audio</span>`;
     }
 
-    const playerHtml = hasAudio ? `
-<div class="scene-audio-player" id="scene-audio-player-${idx}">
-  <button class="scene-audio-play-btn" id="scene-audio-play-${idx}" title="Play">▶</button>
-  <div class="scene-audio-progress" id="scene-audio-progress-${idx}">
-    <div class="scene-audio-bar" id="scene-audio-bar-${idx}"></div>
-  </div>
-  <span class="scene-audio-time" id="scene-audio-time-${idx}">${(scene.audioActualDuration || 0).toFixed(1)}s</span>
-</div>` : `<div class="scene-audio-generating">⏳ Generating ${speakerName}'s audio…</div>`;
+    const lineRowsHtml = lines.map((line, lineIdx) => {
+      const speakerIcon = line.isVoiceOver ? '🔉' : '🎙';
+      const speakerName = line.speakerName || (line.speakerCharacterId === 'narrator' ? 'Narrator' : '');
+      const voice = typeof window.castResolveVoiceForSpeaker === 'function'
+        ? window.castResolveVoiceForSpeaker(line.speakerCharacterId, speakerName)
+        : null;
+      const voiceLabel = voice ? `${voice.voiceName || voice.voiceId} (${voice.provider === 'elevenlabs' ? 'EL' : 'Gemini'})` : '';
+      const cost = _estimateRegenCost(line);
+      const mood = (line.voiceOverride && line.voiceOverride.mood)
+        || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : 'matter-of-fact');
+      const hasLineAudio = !!(scene.audioActualDuration || scene._audioUrl);
 
-    return `
-<div class="scene-audio-section" data-scene-idx="${idx}">
-  <div class="scene-audio-header">
-    <span class="scene-audio-icon">🎙</span>
-    <span class="scene-audio-speaker">${sanitize(speakerName)}${voiceLabel ? ` · ${sanitize(voiceLabel)}` : ''}</span>
-    <button class="scene-audio-overflow-btn btn-xs" data-idx="${idx}" title="Voice options">…</button>
+      const playerHtml = hasLineAudio ? `
+<div class="scene-audio-player" id="scene-audio-player-${idx}-${lineIdx}">
+  <button class="scene-audio-play-btn" id="scene-audio-play-${idx}-${lineIdx}" title="Play">▶</button>
+  <div class="scene-audio-progress" id="scene-audio-progress-${idx}-${lineIdx}">
+    <div class="scene-audio-bar" id="scene-audio-bar-${idx}-${lineIdx}"></div>
   </div>
-  ${hasDlg ? `<div class="scene-audio-text">"${sanitize(scene.dialogue.text || '')}"</div>` : ''}
+  <span class="scene-audio-time" id="scene-audio-time-${idx}-${lineIdx}">${(scene.audioActualDuration || 0).toFixed(1)}s</span>
+</div>` : `<div class="scene-audio-generating">⏳ Generating ${sanitize(speakerName)}'s audio…</div>`;
+
+      return `
+<div class="scene-audio-line${line.muted ? ' scene-audio-line--muted' : ''}" data-idx="${idx}" data-line-idx="${lineIdx}">
+  <div class="scene-audio-header">
+    <span class="scene-audio-icon">${speakerIcon}</span>
+    <span class="scene-audio-speaker">${sanitize(speakerName)}${voiceLabel ? ` · ${sanitize(voiceLabel)}` : ''}</span>
+    <button class="scene-audio-mute-btn btn-xs" data-idx="${idx}" data-line-idx="${lineIdx}" title="${line.muted ? 'Unmute' : 'Mute'}">${line.muted ? '🔇' : '🔊'}</button>
+    <button class="scene-audio-overflow-btn btn-xs" data-idx="${idx}" data-line-idx="${lineIdx}" title="Voice options">…</button>
+    <button class="scene-audio-remove-line-btn btn-xs" data-idx="${idx}" data-line-idx="${lineIdx}" title="Remove line">✕</button>
+  </div>
+  <textarea class="scene-audio-text-edit" data-idx="${idx}" data-line-idx="${lineIdx}" rows="2">${sanitize(line.text || '')}</textarea>
   ${playerHtml}
   <div class="scene-audio-controls">
     <label class="scene-audio-mood-label">🎭
-      <select class="scene-audio-mood-select" data-idx="${idx}">
+      <select class="scene-audio-mood-select" data-idx="${idx}" data-line-idx="${lineIdx}">
         ${_buildMoodOptions(mood)}
       </select>
     </label>
-    <button class="scene-audio-regen-btn btn-xs" data-idx="${idx}">↻ Regen (${cost})</button>
+    <button class="scene-audio-regen-btn btn-xs" data-idx="${idx}" data-line-idx="${lineIdx}">↻ Regen (${cost})</button>
   </div>
+</div>`;
+    }).join('');
+
+    return `
+<div class="scene-audio-section" data-scene-idx="${idx}">
+  ${lineRowsHtml}
+  <button class="scene-audio-add-line-btn btn-xs" data-idx="${idx}">+ Add line</button>
   ${statusHtml}
 </div>`;
   }
 
+  function _refreshAudioSection(card, scene, idx) {
+    const old = card.querySelector('.scene-audio-section');
+    if (!old) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildAudioSection(scene, idx);
+    old.parentNode.replaceChild(tmp.firstElementChild, old);
+    wireAudioSection(card, scene, idx);
+  }
+
   // Wire audio section events on a scene card element
   function wireAudioSection(card, scene, idx) {
-    // Mood change → mark pending regen
-    const moodSelect = card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"]`);
-    if (moodSelect) {
-      moodSelect.addEventListener('change', () => {
-        scene._pendingMoodRegen = true;
-        scene._pendingMood = moodSelect.value;
-        const badge = card.querySelector('.scene-audio-badge');
-        if (badge) {
-          badge.textContent = '~ pending regen';
-          badge.className = 'scene-audio-badge pending';
-        } else {
-          const section = card.querySelector('.scene-audio-section');
-          if (section) {
-            const b = document.createElement('span');
-            b.className = 'scene-audio-badge pending';
-            b.textContent = '~ pending regen';
-            section.appendChild(b);
-          }
-        }
-      });
-    }
+    const lines = scene.dialogueLines || [];
 
-    // Regen button
-    const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
-    if (regenBtn) {
-      regenBtn.addEventListener('click', () => _regenSceneAudio(idx, card));
+    // Per-line controls
+    lines.forEach((line, lineIdx) => {
+      // Mood change → mark pending regen
+      const moodSelect = card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (moodSelect) {
+        moodSelect.addEventListener('change', () => {
+          line._pendingMoodRegen = true;
+          line._pendingMood = moodSelect.value;
+          scene._pendingMoodRegen = true;
+          const badge = card.querySelector('.scene-audio-badge');
+          if (badge) {
+            badge.textContent = '~ pending regen';
+            badge.className = 'scene-audio-badge pending';
+          } else {
+            const section = card.querySelector('.scene-audio-section');
+            if (section) {
+              const b = document.createElement('span');
+              b.className = 'scene-audio-badge pending';
+              b.textContent = '~ pending regen';
+              section.appendChild(b);
+            }
+          }
+        });
+      }
+
+      // Regen button
+      const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (regenBtn) {
+        regenBtn.addEventListener('click', () => _regenSceneAudio(idx, lineIdx, card));
+      }
+
+      // Voice overflow menu
+      const overflowBtn = card.querySelector(`.scene-audio-overflow-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (overflowBtn) {
+        overflowBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _showVoiceOverflowMenu(idx, lineIdx, overflowBtn);
+        });
+      }
+
+      // Mute toggle (Class A)
+      const muteBtn = card.querySelector(`.scene-audio-mute-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+          line.muted = !line.muted;
+          muteBtn.textContent = line.muted ? '🔇' : '🔊';
+          muteBtn.title = line.muted ? 'Unmute' : 'Mute';
+          const lineEl = card.querySelector(`.scene-audio-line[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+          if (lineEl) lineEl.classList.toggle('scene-audio-line--muted', line.muted);
+          scene._pendingMoodRegen = true;
+        });
+      }
+
+      // Inline text edit (Class A)
+      const textEdit = card.querySelector(`.scene-audio-text-edit[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (textEdit) {
+        textEdit.addEventListener('change', () => {
+          line.text = textEdit.value;
+          scene._pendingMoodRegen = true;
+        });
+      }
+
+      // Remove line (Class A)
+      const removeBtn = card.querySelector(`.scene-audio-remove-line-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
+      if (removeBtn) {
+        removeBtn.addEventListener('click', async () => {
+          const hasAudio = !!(scene.audioActualDuration || scene._audioUrl);
+          if (hasAudio) {
+            const ok = await showConfirm('Remove this line? Its audio will be discarded.', 'Remove');
+            if (!ok) return;
+          }
+          scene.dialogueLines.splice(lineIdx, 1);
+          _refreshAudioSection(card, scene, idx);
+        });
+      }
+
+      // Mini-player
+      _wireMiniPlayer(idx, lineIdx, card, scene);
+    });
+
+    // Add line (Class A)
+    const addLineBtn = card.querySelector(`.scene-audio-add-line-btn[data-idx="${idx}"]`);
+    if (addLineBtn) {
+      addLineBtn.addEventListener('click', () => {
+        if (!Array.isArray(scene.dialogueLines)) scene.dialogueLines = [];
+        scene.dialogueLines.push({ text: '', speakerCharacterId: 'narrator', speakerName: 'Narrator', isVoiceOver: true });
+        _refreshAudioSection(card, scene, idx);
+      });
     }
 
     // Duration stepper (b-roll)
@@ -289,25 +372,13 @@
     if (driftBadge) {
       driftBadge.addEventListener('click', () => _showDriftPopup(idx, driftBadge));
     }
-
-    // Voice overflow menu
-    const overflowBtn = card.querySelector(`.scene-audio-overflow-btn[data-idx="${idx}"]`);
-    if (overflowBtn) {
-      overflowBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _showVoiceOverflowMenu(idx, overflowBtn);
-      });
-    }
-
-    // Mini-player
-    _wireMiniPlayer(idx, card, scene);
   }
 
-  function _wireMiniPlayer(idx, card, scene) {
-    const playBtn = card.querySelector(`#scene-audio-play-${idx}`);
-    const progressEl = card.querySelector(`#scene-audio-progress-${idx}`);
-    const barEl = card.querySelector(`#scene-audio-bar-${idx}`);
-    const timeEl = card.querySelector(`#scene-audio-time-${idx}`);
+  function _wireMiniPlayer(idx, lineIdx, card, scene) {
+    const playBtn = card.querySelector(`#scene-audio-play-${idx}-${lineIdx}`);
+    const progressEl = card.querySelector(`#scene-audio-progress-${idx}-${lineIdx}`);
+    const barEl = card.querySelector(`#scene-audio-bar-${idx}-${lineIdx}`);
+    const timeEl = card.querySelector(`#scene-audio-time-${idx}-${lineIdx}`);
     if (!playBtn) return;
 
     let audioEl = null;
@@ -315,13 +386,12 @@
 
     async function loadAudio() {
       if (audioEl) return audioEl;
-      // Try in-memory URL first
       let url = scene._audioUrl;
       if (!url) {
-        const idbKey = `audio_line_${scene.id || idx}_0`;
+        const idbKey = `audio_line_${scene.id || idx}_${lineIdx}`;
         url = await _idbAudioGet(idbKey);
       }
-      if (!url && scene.dialogue && typeof window._createMasterAudio !== 'undefined' && window._createMasterAudio) {
+      if (!url && typeof window._createMasterAudio !== 'undefined' && window._createMasterAudio) {
         const turn = (window._createSpeakerTurns || []).find(t => t.segmentIndex === idx);
         if (turn) {
           const buf = _sliceAudioBuffer(window._createMasterAudio, turn.startMs, turn.endMs);
@@ -346,7 +416,6 @@
     }
 
     playBtn.addEventListener('click', async () => {
-      // Stop any other playing mini-player
       document.querySelectorAll('.scene-audio-play-btn.playing').forEach(b => {
         if (b !== playBtn) b.click();
       });
@@ -377,44 +446,43 @@
     }
   }
 
-  async function _regenSceneAudio(idx, card) {
+  async function _regenSceneAudio(idx, lineIdx, card) {
     const scenes = window.createScenes;
     if (!scenes || !scenes[idx]) return;
     const scene = scenes[idx];
-    if (!scene.dialogue || !scene.dialogue.text) return;
+    const lines = scene.dialogueLines || [];
+    if (lineIdx < 0 || lineIdx >= lines.length) return;
+    const line = lines[lineIdx];
+    if (!line || !line.text) return;
 
-    // Resolve mood from pending change or current override
-    const moodSelect = card ? card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"]`) : null;
+    const moodSelect = card ? card.querySelector(`.scene-audio-mood-select[data-idx="${idx}"][data-line-idx="${lineIdx}"]`) : null;
     const mood = (moodSelect && moodSelect.value)
-      || (scene._pendingMood)
-      || (scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
+      || (line._pendingMood)
+      || (line.voiceOverride && line.voiceOverride.mood)
       || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : 'matter-of-fact');
 
     const voice = typeof window.castResolveVoiceForSpeaker === 'function'
-      ? window.castResolveVoiceForSpeaker(scene.dialogue.speakerCharacterId, scene.dialogue.speakerName)
+      ? window.castResolveVoiceForSpeaker(line.speakerCharacterId, line.speakerName)
       : null;
     if (!voice) return;
 
-    const cost = _estimateRegenCost(scene);
+    const cost = _estimateRegenCost(line);
     const costNum = parseFloat(cost.replace('$', '')) || 0;
 
-    // Confirm if > $0.05
     if (costNum > 0.05) {
       const ok = await showConfirm(
-        `Regen this line with current mood + voice settings?\nCost: ${cost} (${voice.provider === 'elevenlabs' ? 'ElevenLabs, ' : 'Gemini, '}${(scene.dialogue.text || '').length} chars)\n`,
+        `Regen this line with current mood + voice settings?\nCost: ${cost} (${voice.provider === 'elevenlabs' ? 'ElevenLabs, ' : 'Gemini, '}${(line.text || '').length} chars)\n`,
         'Regen', true
       );
       if (!ok) return;
     }
 
-    // Check for cascade warning (> 200ms delta, scenes have video)
     const oldDuration = scene.audioActualDuration || 0;
 
-    // Disable regen btn while in-flight
     if (card) {
-      const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
+      const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
       if (regenBtn) regenBtn.disabled = true;
-      const playerArea = card.querySelector(`#scene-audio-player-${idx}`);
+      const playerArea = card.querySelector(`#scene-audio-player-${idx}-${lineIdx}`);
       if (playerArea) playerArea.style.opacity = '0.4';
     }
 
@@ -423,42 +491,38 @@
 
     try {
       if (typeof updateCreateAgentTask === 'function') {
-        updateCreateAgentTask('storyboard', 'multivoice', 'running', `Regenerating ${scene.dialogue.speakerName || ''} line ${idx + 1}…`);
+        updateCreateAgentTask('storyboard', 'multivoice', 'running', `Regenerating ${line.speakerName || ''} line ${idx + 1}…`);
       }
 
-      scene.dialogue.regenLockToken = { uuid: Math.random().toString(36).slice(2), ts: Date.now() };
+      line.regenLockToken = { uuid: Math.random().toString(36).slice(2), ts: Date.now() };
 
-      const result = await window.castGenerateLineTTS(scene.dialogue.text, voice, mood);
+      const result = await window.castGenerateLineTTS(line.text, voice, mood);
       if (!result) throw new Error('TTS returned null');
 
-      // Update scene state
       const newDuration = result.durationMs / 1000;
       const deltaSec = newDuration - oldDuration;
       scene.audioActualDuration = newDuration;
       scene.endTime = (scene.startTime || 0) + newDuration;
       scene.audioStale = false;
       scene._pendingMoodRegen = false;
-      scene._pendingMood = null;
+      line._pendingMoodRegen = false;
+      line._pendingMood = null;
 
-      // Apply mood override
-      scene.dialogue.voiceOverride = scene.dialogue.voiceOverride || {};
-      scene.dialogue.voiceOverride.mood = mood;
-      scene.dialogue.voiceOverride.stickyKey = _hashText(scene.dialogue.text);
-      scene.dialogue.regenCount = (scene.dialogue.regenCount || 0) + 1;
-      scene.dialogue.regenLockToken = null;
+      line.voiceOverride = line.voiceOverride || {};
+      line.voiceOverride.mood = mood;
+      line.voiceOverride.stickyKey = _hashText(line.text);
+      line.regenCount = (line.regenCount || 0) + 1;
+      line.regenLockToken = null;
 
-      // Warn if regenCount >= 5
-      if (scene.dialogue.regenCount >= 5) {
-        console.warn(`[Rehearsal] Scene ${idx + 1} has ${scene.dialogue.regenCount} regens — consider trying a different mood.`);
+      if (line.regenCount >= 5) {
+        console.warn(`[Rehearsal] Scene ${idx + 1} line ${lineIdx} has ${line.regenCount} regens — consider trying a different mood.`);
       }
 
-      // Store audio URL
       const url = _audioBufferToUrl(result.audioBuffer);
       scene._audioUrl = url;
-      const idbKey = `audio_line_${scene.id || idx}_0`;
+      const idbKey = `audio_line_${scene.id || idx}_${lineIdx}`;
       await _idbAudioSet(idbKey, url);
 
-      // Shift downstream scenes
       if (Math.abs(deltaSec) > 0.001) {
         const downstreamHasVideo = (window.createScenes || [])
           .slice(idx + 1)
@@ -471,7 +535,7 @@
             `New audio is ${Math.abs(deltaSec).toFixed(1)}s ${dir} than current.\n\nThis will:\n• Shift ${rest} downstream scenes by ${deltaSec > 0 ? '+' : ''}${deltaSec.toFixed(1)}s in the master audio\n• Subtitles for those scenes will re-align to new timing\n• Scene ${idx + 1}'s own audio-video drift has changed — review in rehearsal\n\nOther scenes' per-scene drift is unchanged.\n\nContinue with regen?`,
             'Regen', true
           );
-          if (!ok) { scene.dialogue.regenLockToken = null; return; }
+          if (!ok) { line.regenLockToken = null; return; }
         }
 
         for (let j = idx + 1; j < (window.createScenes || []).length; j++) {
@@ -483,10 +547,8 @@
         }
       }
 
-      // Recompute drift for this scene only
       computeDurationStatus(scene);
 
-      // Revert rehearsal status
       const ar = window.createJobState && window.createJobState.audioRehearsal;
       if (ar && (ar.status === 'locked' || ar.status === 'reviewed')) {
         ar.status = 'pending';
@@ -498,7 +560,6 @@
         updateCreateAgentTask('storyboard', 'multivoice', 'done', `Regen done — scene ${idx + 1}`);
       }
 
-      // Re-render just this card's audio section
       if (card) {
         const section = card.querySelector('.scene-audio-section');
         if (section) {
@@ -509,13 +570,13 @@
       }
     } catch (e) {
       console.error('[Rehearsal] regen failed:', e.message);
-      scene.dialogue.regenLockToken = null;
+      line.regenLockToken = null;
       if (badge) { badge.textContent = '❌ regen failed — retry'; badge.className = 'scene-audio-badge error'; }
     } finally {
       if (card) {
-        const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"]`);
+        const regenBtn = card.querySelector(`.scene-audio-regen-btn[data-idx="${idx}"][data-line-idx="${lineIdx}"]`);
         if (regenBtn) regenBtn.disabled = false;
-        const playerArea = card.querySelector(`#scene-audio-player-${idx}`);
+        const playerArea = card.querySelector(`#scene-audio-player-${idx}-${lineIdx}`);
         if (playerArea) playerArea.style.opacity = '';
       }
     }
@@ -564,13 +625,16 @@
     });
   }
 
-  function _showVoiceOverflowMenu(idx, anchorEl) {
+  function _showVoiceOverflowMenu(idx, lineIdx, anchorEl) {
     const existing = document.querySelector('.scene-audio-overflow-menu');
     if (existing) existing.remove();
     const scenes = window.createScenes;
     if (!scenes || !scenes[idx]) return;
     const scene = scenes[idx];
-    const hasOverride = scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.voiceId;
+    const lines = scene.dialogueLines || [];
+    const line = lines[lineIdx];
+    if (!line) return;
+    const hasOverride = line.voiceOverride && line.voiceOverride.voiceId;
 
     const menu = document.createElement('div');
     menu.className = 'scene-audio-overflow-menu';
@@ -586,15 +650,13 @@
 
     menu.querySelector('[data-action="change-voice"]') && menu.querySelector('[data-action="change-voice"]').addEventListener('click', () => {
       menu.remove();
-      _showVoicePickerModal(idx);
+      _showVoicePickerModal(idx, lineIdx);
     });
     const resetEl = menu.querySelector('[data-action="reset-voice"]');
     if (resetEl) resetEl.addEventListener('click', () => {
       menu.remove();
-      if (scene.dialogue) {
-        scene.dialogue.voiceOverride = null;
-        scene._pendingMoodRegen = true;
-      }
+      line.voiceOverride = null;
+      scene._pendingMoodRegen = true;
       const card = document.querySelector(`.scene-audio-section[data-scene-idx="${idx}"]`)?.closest('.scene-card');
       if (card) {
         const section = card.querySelector('.scene-audio-section');
@@ -606,16 +668,19 @@
     setTimeout(() => document.addEventListener('click', close, true), 100);
   }
 
-  function _showVoicePickerModal(idx) {
+  function _showVoicePickerModal(idx, lineIdx = 0) {
     const scenes = window.createScenes;
     if (!scenes || !scenes[idx]) return;
     const scene = scenes[idx];
+    const lines = scene.dialogueLines || [];
+    const line = lines[lineIdx];
+    if (!line) return;
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     const providerOptions = `<option value="gemini">Gemini</option><option value="elevenlabs">ElevenLabs</option>`;
     overlay.innerHTML = `
       <div class="modal-box" style="max-width:380px;">
-        <div class="modal-title">Voice for scene ${idx + 1}</div>
+        <div class="modal-title">Voice for scene ${idx + 1} line ${lineIdx + 1}</div>
         <div style="display:flex;flex-direction:column;gap:10px;margin:14px 0;">
           <label>Provider:<br><select id="vp-provider" class="review-select">${providerOptions}</select></label>
           <label>Voice ID:<br><input id="vp-voice-id" class="review-select" type="text" placeholder="e.g. Kore (Gemini) or voiceId (EL)" /></label>
@@ -633,12 +698,12 @@
       const provider = overlay.querySelector('#vp-provider').value;
       const voiceId = overlay.querySelector('#vp-voice-id').value.trim();
       if (!voiceId) return;
-      scene.dialogue.voiceOverride = scene.dialogue.voiceOverride || {};
-      scene.dialogue.voiceOverride.voiceId = voiceId;
-      scene.dialogue.voiceOverride.voiceProvider = provider;
+      line.voiceOverride = line.voiceOverride || {};
+      line.voiceOverride.voiceId = voiceId;
+      line.voiceOverride.voiceProvider = provider;
       overlay.remove();
       const card = document.querySelector(`.scene-audio-section[data-scene-idx="${idx}"]`)?.closest('.scene-card');
-      if (card) _regenSceneAudio(idx, card);
+      if (card) _regenSceneAudio(idx, lineIdx, card);
     });
   }
 
@@ -790,8 +855,8 @@
 
   function detectProjectAudioMode() {
     const scenes = window.createScenes || [];
-    const dialogueScenes = scenes.filter(s => s.dialogue && s.dialogue.speakerCharacterId && s.dialogue.speakerCharacterId !== 'narrator');
-    const narrationScenes = scenes.filter(s => s.dialogue && s.dialogue.speakerCharacterId === 'narrator');
+    const dialogueScenes = scenes.filter(s => (s.dialogueLines || []).some(l => l.speakerCharacterId && l.speakerCharacterId !== 'narrator'));
+    const narrationScenes = scenes.filter(s => (s.dialogueLines || []).length > 0 && (s.dialogueLines || []).every(l => l.speakerCharacterId === 'narrator'));
     if (dialogueScenes.length > 0) return 'rehearsal';
     if (narrationScenes.length > 0) return 'narration-preview';
     return 'no-audio';
@@ -846,10 +911,12 @@
 
     // Per-scene status rows
     const statusRowsHtml = scenes.map((s, i) => {
-      const isNarrator = s.dialogue && s.dialogue.speakerCharacterId === 'narrator';
-      const isBroll = !s.dialogue || !s.dialogue.text;
-      const speakerIcon = isBroll ? '🌅' : (isNarrator ? '🎙' : '🎙');
-      const speakerName = isBroll ? 'b-roll' : (s.dialogue && s.dialogue.speakerName) || (isNarrator ? 'narrator' : '');
+      const sLines = s.dialogueLines || [];
+      const isBroll = sLines.length === 0;
+      const firstLine = sLines[0] || null;
+      const isNarrator = firstLine && firstLine.speakerCharacterId === 'narrator';
+      const speakerIcon = isBroll ? '🌅' : '🎙';
+      const speakerName = isBroll ? 'b-roll' : (firstLine && firstLine.speakerName) || (isNarrator ? 'narrator' : '');
       const start = s.startTime != null ? s.startTime : 0;
       const end = s.endTime != null ? s.endTime : start + (s.audioActualDuration || 0);
       let badgeHtml = '';
@@ -947,7 +1014,7 @@
 
   function _estimateVideoCost() {
     const scenes = window.createScenes || [];
-    const count = scenes.filter(s => s.dialogue && s.dialogue.text && !s.videoActualDuration).length;
+    const count = scenes.filter(s => Array.isArray(s.dialogueLines) && s.dialogueLines.length > 0 && !s.videoActualDuration).length;
     return (count * 0.40).toFixed(2);
   }
 
@@ -1089,8 +1156,9 @@
     const scene = scenes[idx];
     const el = document.getElementById('rehearsal-preview-overlay');
     if (!el || !scene) return;
-    const speakerName = (scene.dialogue && scene.dialogue.speakerName) || '';
-    const mood = (scene.dialogue && scene.dialogue.voiceOverride && scene.dialogue.voiceOverride.mood)
+    const firstLine = (scene.dialogueLines || [])[0] || null;
+    const speakerName = (firstLine && firstLine.speakerName) || '';
+    const mood = (firstLine && firstLine.voiceOverride && firstLine.voiceOverride.mood)
       || (typeof window.deriveSceneMood === 'function' ? window.deriveSceneMood(scene) : '');
     el.textContent = `Scene ${idx + 1}${speakerName ? ' · ' + speakerName : ''}${mood ? ' · ' + mood : ''}`;
   }

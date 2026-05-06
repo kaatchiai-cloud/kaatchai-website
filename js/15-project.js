@@ -525,7 +525,16 @@ async function saveProjectToFile(audioBuf, statusFn) {
         videoMode: createVideoMode || 'illustrated',
         inputMode: (typeof createInputMode !== 'undefined') ? createInputMode : 'voice',
         scenes: await Promise.all(createScenes.map(async s => {
-          const base = { id: s.id, prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment };
+          const base = { id: s.id, prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment,
+            // Phase 2a: new cinematic pipeline fields
+            dialogueLines:      s.dialogueLines      || null,
+            visualSubjectIds:   s.visualSubjectIds   || null,
+            durationSec:        (typeof s.durationSec === 'number') ? s.durationSec : null,
+            durationTier:       (typeof s.durationTier === 'number') ? s.durationTier : null,
+            segmentPlan:        s.segmentPlan         || null,
+            segmentPlanPass:    s.segmentPlanPass     || null,
+            audioRegions:       s.audioRegions        || null,
+          };
           const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
           if (clipsToSave.length > 0) {
             try {
@@ -536,6 +545,14 @@ async function saveProjectToFile(audioBuf, statusFn) {
               }));
               base.videoData = base.videoClipsData[0].clipData;
             } catch(e) { console.warn('Scene video save error:', e); }
+          }
+          // Phase 2a: persist stitched output when available (§8.7)
+          if (s.videoUrl && s._stitchedVideoMissing !== true && s.videoClips && s.videoClips.length > 1) {
+            try {
+              const resp = await fetch(s.videoUrl);
+              const blob = await resp.blob();
+              base.stitchedVideoData = { videoData: await blobToBase64(blob) };
+            } catch(e) { console.warn('Scene stitched video save error:', e); }
           }
           // Canvas graph instance trees (kept verbatim — image data is already base64 inline,
           // video clip blob URLs are converted to base64).
@@ -601,10 +618,13 @@ async function saveProjectToFile(audioBuf, statusFn) {
         bgmNodePosition:     (typeof window !== 'undefined') ? (window.createBgmNodePosition || null) : null,
         canvasJobState:      (typeof window !== 'undefined' && window.createJobState)
           ? {
-              bgmSkipped:      !!window.createJobState.bgmSkipped,
-              audioSubSkipped: !!window.createJobState.audioSubSkipped,
-              lastExportedAt:  window.createJobState.lastExportedAt || null,
-              subtitleDirty:   !!window.createJobState.subtitleDirty,
+              bgmSkipped:       !!window.createJobState.bgmSkipped,
+              audioSubSkipped:  !!window.createJobState.audioSubSkipped,
+              lastExportedAt:   window.createJobState.lastExportedAt || null,
+              subtitleDirty:    !!window.createJobState.subtitleDirty,
+              subStyle:         window.createJobState.subStyle         || null,
+              visualTreatment:  window.createJobState.visualTreatment  || null,
+              narrationMode:    window.createJobState.narrationMode     || null,
             }
           : null,
         selectedTemplate: selectedTemplate || '',
@@ -1020,13 +1040,27 @@ projectInput.addEventListener('change', async () => {
               const blob = base64ToBlob(cd.clipData);
               return { url: URL.createObjectURL(blob), clipDuration: cd.clipDuration };
             });
-            scene.videoUrl = scene.videoClips[0].url;
+            // Phase 2a §8.7: prefer stitched output; fall back to first clip
+            if (s.stitchedVideoData && s.stitchedVideoData.videoData) {
+              try {
+                const sb = base64ToBlob(s.stitchedVideoData.videoData);
+                scene.videoUrl = URL.createObjectURL(sb);
+                scene._stitchedVideoMissing = false;
+              } catch(e) {
+                scene.videoUrl = scene.videoClips[0].url;
+                scene._stitchedVideoMissing = scene.videoClips.length > 1;
+              }
+            } else {
+              scene.videoUrl = scene.videoClips[0].url;
+              scene._stitchedVideoMissing = scene.videoClips.length > 1;
+            }
           } catch(e) { console.warn('Scene video restore error:', e); }
         } else if (s.videoData) {
           try {
             const blob = base64ToBlob(s.videoData);
             scene.videoUrl = URL.createObjectURL(blob);
             scene.videoClips = [{ url: scene.videoUrl, clipDuration: s.duration }];
+            scene._stitchedVideoMissing = false;
           } catch(e) { console.warn('Scene video restore error:', e); }
         }
         // Restore canvas graph instance trees if present
@@ -1051,6 +1085,38 @@ projectInput.addEventListener('change', async () => {
             return out;
           });
         }
+
+        // Phase 2a: attach migration shims and backfill legacy fields.
+        // Guards are typeof checks because 17b-create-references.js (dynamic bundle)
+        // may not be loaded yet if this restore runs in a non-standard context.
+        if (typeof window.attachDurationShim === 'function') {
+          // Move plain `duration` property to canonical fields, then install shim.
+          const legacyDur = scene.duration;
+          if (typeof legacyDur === 'number') {
+            if (typeof scene.durationSec !== 'number') scene.durationSec = legacyDur;
+            scene._legacyDuration = legacyDur;
+            delete scene.duration;
+          }
+          window.attachDurationShim(scene);
+        }
+        if (typeof window.attachDialogueShim === 'function') {
+          // Move plain `dialogue` property to dialogueLines[], then install shim.
+          if (scene.dialogue && !Array.isArray(scene.dialogueLines)) {
+            scene.dialogueLines = [
+              typeof window.legacyDialogueToLine === 'function'
+                ? window.legacyDialogueToLine(scene.dialogue)
+                : Object.assign({}, scene.dialogue, { withinSceneStartMs: null, withinSceneEndMs: null, audioBufferKey: null }),
+            ];
+            delete scene.dialogue;
+          } else if (!Array.isArray(scene.dialogueLines)) {
+            scene.dialogueLines = [];
+          }
+          window.attachDialogueShim(scene);
+        }
+        if (typeof window.backfillVisualSubjectIds === 'function') {
+          window.backfillVisualSubjectIds(scene);
+        }
+
         return scene;
       }));
       // Restore canvas job-level state
@@ -1060,6 +1126,13 @@ projectInput.addEventListener('change', async () => {
         window.createFinalRenderPosition = project.createState.finalRenderPosition || null;
         window.createBgmNodePosition     = project.createState.bgmNodePosition     || null;
         window.createJobState            = project.createState.canvasJobState     || { bgmSkipped: false, audioSubSkipped: false };
+        // Phase 2a: ensure style stubs exist (populated by Phase 4 style picker)
+        if (!('subStyle'        in window.createJobState)) window.createJobState.subStyle        = null;
+        if (!('visualTreatment' in window.createJobState)) window.createJobState.visualTreatment = null;
+        // Phase 10: back-compute narrationMode if missing (new field or legacy project)
+        if (!window.createJobState.narrationMode && typeof window.computeNarrationMode === 'function') {
+          window.createJobState.narrationMode = window.computeNarrationMode(createScenes || []);
+        }
       }
       // Run canvas migration + flag normalization (idempotent — handles old + new shapes)
       if (typeof CanvasState !== 'undefined' && CanvasState.migrateAllScenes) {

@@ -561,7 +561,7 @@ function updateSBNode(node, scene, sb, sceneIdx) {
   // badge inside the chip.
   const voiceChip = node.querySelector('[data-role="voice-chip"]');
   if (voiceChip) {
-    const dlg = scene.dialogue;
+    const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || scene.dialogue || null;
     const ls = scene.lipSync;
     const showChip = !!(dlg && dlg.speakerCharacterId && dlg.speakerCharacterId !== 'narrator');
     if (!showChip) {
@@ -2440,6 +2440,10 @@ function cgRenderProperties() {
       ? allVids.filter(v => v.sourceImageInstanceId === vid.sourceImageInstanceId)
       : allVids;
     const previewUrl = vid.videoUrl || '';
+    // §8.7: sequential clip playback is a Phase 8 tracked sub-deliverable
+    if (vid._stitchedVideoMissing && Array.isArray(vid.videoClips) && vid.videoClips.length > 1) {
+      console.warn('[v4] Multi-clip scene: sequential playback pending, showing clip 1 only');
+    }
     const stripHtml = siblings.map((v, i) => {
       const cls = 'cg-rp-thumb cg-rp-thumb-vid' + (v.isRenderActive ? ' is-active' : '');
       return `<button class="${cls}" data-rp-vid-thumb="${safe(v.id)}" title="Video ${i+1}">
@@ -3386,6 +3390,8 @@ function notifyVideoReady(sceneIdx) {
            || (scene.videoInstances || [])[0];
   if (vid) {
     if (scene.videoUrl) vid.videoUrl = scene.videoUrl;
+    if (scene._stitchedVideoMissing !== undefined) vid._stitchedVideoMissing = scene._stitchedVideoMissing;
+    if (Array.isArray(scene.videoClips) && scene.videoClips.length > 0) vid.videoClips = scene.videoClips;
     if (scene.videoError) { vid.status = 'error'; vid.videoError = scene.videoError; }
     else if (scene.videoUrl) vid.status = 'done';
   }

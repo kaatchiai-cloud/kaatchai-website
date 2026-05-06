@@ -1180,6 +1180,9 @@ btnCreateTranscribe.addEventListener('click', async () => {
         }
       }
 
+      // ★ Style gate — skipped when subStyle already set (e.g. brainstorm handoff)
+      if (typeof window.runStyleGate === 'function') await window.runStyleGate();
+
       // Step 1: Translate to English (Gemini handles detection + translation)
       updateCreateAgentTask('storyboard', 'translate', 'running', 'Translating…');
       const translateResp = await callGeminiAPI(['gemini-2.5-flash'], {
@@ -1270,8 +1273,9 @@ btnCreateTranscribe.addEventListener('click', async () => {
                 segments[idx].sceneDescription = d.sceneDescription || '';
                 if (typeof d.suggestNarrator === 'boolean') segments[idx].suggestNarrator = d.suggestNarrator;
                 if (d.performance && typeof d.performance === 'object') segments[idx].performance = d.performance;
-                // Phase 4 — dialogue + framing
-                if (d.dialogue !== undefined) segments[idx].dialogue = d.dialogue || null;
+                // Phase 3 — dialogueLines + visualSubjectIds + framing
+                if (d.dialogueLines !== undefined) segments[idx].dialogueLines = Array.isArray(d.dialogueLines) ? d.dialogueLines : [];
+                if (d.visualSubjectIds !== undefined) segments[idx].visualSubjectIds = Array.isArray(d.visualSubjectIds) ? d.visualSubjectIds : [];
                 if (typeof d.framing === 'string') segments[idx].framing = d.framing;
               }
             });
@@ -1590,7 +1594,7 @@ Important:
         prompt: s.sceneDescription,
         startTime: s.startTime,
         endTime: s.endTime,
-        duration: (s.endTime - s.startTime),
+        durationSec: (s.endTime - s.startTime),
         text: s.text,
         emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [],
         imgDataUrl: null,
@@ -1598,11 +1602,28 @@ Important:
         refCharacters: [],
         refEnvironment: -1,
         promptDirty: false,
-        // Talking-head dual-track fields. Defaults are safe for non-talking-head projects.
         suggestNarrator: narrTalking ? !!s.suggestNarrator : false,
         performance: narrTalking ? (s.performance || { tone: 'matter-of-fact', gesture: 'neutral' }) : null,
         frontRole: (narrTalking && s.suggestNarrator) ? 'narrator' : 'broll',
+        dialogueLines:    Array.isArray(s.dialogueLines)    ? s.dialogueLines    : [],
+        visualSubjectIds: Array.isArray(s.visualSubjectIds) ? s.visualSubjectIds : [],
+        framing:          s.framing || null,
       }));
+      if (typeof window.attachDurationShim  === 'function') createScenes.forEach(s => window.attachDurationShim(s));
+      if (typeof window.attachDialogueShim  === 'function') createScenes.forEach(s => window.attachDialogueShim(s));
+      // Pass-1 segment plan — estimate only; pass-2 runs at audio rehearsal lock (Phase 12)
+      if (typeof window.planSegments === 'function') {
+        const _prov = window.videoProvider || { durationTiers: [5, 10] };
+        createScenes.forEach(s => {
+          const _r = window.planSegments({ audioMs: null, provider: _prov, scene: s, pass: 'estimate' });
+          s.segmentPlan       = _r.segments;
+          s.segmentPlanPass   = 'estimate';
+          s.generatedDurationSec = _r.totalGenSec;
+          s.croppedTailSec    = _r.croppedTailSec;
+          s.durationTier      = _r.segments[0]?.durationSec
+            ?? _r.segments.reduce((a, x) => Math.max(a, x.durationSec), 0);
+        });
+      }
       // Auto-assign refs from bracket tokens in prompts
       if (typeof window.castAutoAssignRefs === 'function') window.castAutoAssignRefs();
       renderStoryboard();
@@ -1672,6 +1693,10 @@ Important:
     }
     updateCreateButtons();
     updateStepStates();
+    // Phase 10: compute narrationMode now that dialogueLines + isVoiceOver are finalized
+    if (typeof window.computeNarrationMode === 'function' && window.createJobState) {
+      window.createJobState.narrationMode = window.computeNarrationMode(createScenes);
+    }
     autoSaveCreateState();
     if (typeof updateCreateCostEstimate === 'function') updateCreateCostEstimate();
     const launchSummary = $('create-launch-storyboard-summary');
@@ -1743,14 +1768,15 @@ function buildChapterScenes(ch) {
   );
 
   if (relevantSegs.length === 0 || ch.splits <= 1) {
-    // Single split: whole chapter
-    return [{
+    const single = {
       prompt: '', startTime: ch.startTime, endTime: ch.endTime,
-      duration: ch.duration,
+      durationSec: ch.duration,
       text: relevantSegs.map(s => s.text).join(' ').substring(0, 500),
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
-    }];
+    };
+    if (typeof window.attachDurationShim === 'function') window.attachDurationShim(single);
+    return [single];
   }
 
   // Collect all sentence break points within the chapter from transcript segments
@@ -1798,12 +1824,13 @@ function buildChapterScenes(ch) {
     const end = uniqueBreaks[i + 1];
     scenes.push({
       prompt: '', startTime: start, endTime: end,
-      duration: end - start,
+      durationSec: end - start,
       text: getTranscriptForRange(start, end),
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
     });
   }
+  if (typeof window.attachDurationShim === 'function') scenes.forEach(s => window.attachDurationShim(s));
   return scenes;
 }
 
@@ -2109,11 +2136,12 @@ RULES:
       prompt: s.sceneDescription || '',
       startTime: s.startTime ?? ch.startTime,
       endTime: s.endTime ?? ch.endTime,
-      duration: (s.endTime ?? ch.endTime) - (s.startTime ?? ch.startTime),
+      durationSec: (s.endTime ?? ch.endTime) - (s.startTime ?? ch.startTime),
       text: s.text || '',
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
     }));
+    if (typeof window.attachDurationShim === 'function') newScenes.forEach(s => window.attachDurationShim(s));
 
     // Insert at correct position
     const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
@@ -2132,6 +2160,36 @@ RULES:
   updateStepStates();
 }
 
+// Phase 11 Class C: structural scene operations
+window.deleteSceneAt = async function(idx) {
+  const ok = await showConfirm(
+    `Delete Scene ${idx + 1}?\n\nIts image, audio, and video will be permanently removed.`,
+    'Delete', false
+  );
+  if (!ok) return;
+  createScenes.splice(idx, 1);
+  renderStoryboard();
+  autoSaveCreateState();
+};
+
+window.insertSceneAt = function(idx) {
+  const blank = { text: '', prompt: '', dialogueLines: [], refCharacters: [], status: 'pending',
+    startTime: 0, endTime: 0, duration: 5, durationSec: 5 };
+  if (typeof window.attachDialogueShim === 'function') window.attachDialogueShim(blank);
+  if (typeof window.attachDurationShim === 'function') window.attachDurationShim(blank);
+  createScenes.splice(idx, 0, blank);
+  renderStoryboard();
+  autoSaveCreateState();
+};
+
+window.reorderScene = function(fromIdx, toIdx) {
+  if (toIdx < 0 || toIdx >= createScenes.length) return;
+  const [scene] = createScenes.splice(fromIdx, 1);
+  createScenes.splice(toIdx, 0, scene);
+  renderStoryboard();
+  autoSaveCreateState();
+};
+
 function renderStoryboardSceneCard(scene, idx) {
   const card = document.createElement('div');
   card.className = 'storyboard-card';
@@ -2148,6 +2206,12 @@ function renderStoryboardSceneCard(scene, idx) {
       <div class="storyboard-prompt-label">Image Prompt</div>
       <textarea class="storyboard-prompt" id="create-storyboard-prompt-${idx}" rows="3">${scene.prompt}</textarea>
       ${chipHtml}
+      <div class="storyboard-card-actions">
+        <button class="sba-btn" data-action="move-up" title="Move up">↑</button>
+        <button class="sba-btn" data-action="move-down" title="Move down">↓</button>
+        <button class="sba-btn" data-action="insert-before" title="Insert scene before">+ Insert</button>
+        <button class="sba-btn sba-btn--danger" data-action="delete" title="Delete scene">✕ Delete</button>
+      </div>
     </div>
   `;
   const textarea = card.querySelector(`#create-storyboard-prompt-${idx}`);
@@ -2160,6 +2224,11 @@ function renderStoryboardSceneCard(scene, idx) {
   if (typeof window.castWireSceneChipStrip === 'function') {
     window.castWireSceneChipStrip(card, scene, idx);
   }
+  // Class C: structural action buttons
+  card.querySelector('[data-action="move-up"]').addEventListener('click', () => window.reorderScene(idx, idx - 1));
+  card.querySelector('[data-action="move-down"]').addEventListener('click', () => window.reorderScene(idx, idx + 1));
+  card.querySelector('[data-action="insert-before"]').addEventListener('click', () => window.insertSceneAt(idx));
+  card.querySelector('[data-action="delete"]').addEventListener('click', () => window.deleteSceneAt(idx));
   return card;
 }
 
@@ -3567,14 +3636,40 @@ window.castGenerateMouthSpritesForCharacter = castGenerateMouthSpritesForCharact
 window.castGetOrGenerateMouthSprites = castGetOrGenerateMouthSprites;
 // ─── End Lip sync Phase 7b ─────────────────────────────────────────────
 
-// ─── Lip sync — Phase 7c: pre-export preparation orchestrator ──────────
+// ─── Phase 10: narrationMode computation ───────────────────────────────
+// Iterates dialogueLines[].isVoiceOver across all scenes to classify the
+// project. Called after storyboard agent finalizes scenes + on project load.
+function computeNarrationMode(scenes) {
+  let hasOnScreen = false;
+  let hasVoiceOver = false;
+  for (const scene of scenes) {
+    for (const line of (scene.dialogueLines || [])) {
+      if (line.isVoiceOver) hasVoiceOver = true;
+      else hasOnScreen = true;
+    }
+  }
+  if (!hasOnScreen && !hasVoiceOver) return 'voice-over';
+  if (!hasOnScreen) return 'voice-over';
+  if (!hasVoiceOver) return 'dialogue';
+  return 'mixed';
+}
+window.computeNarrationMode = computeNarrationMode;
+
+// Phase 11 Class B: cascade confirm modal for scene-level edits that require regen
+window.showCascadeBModal = async function({ title, scenes, cost }) {
+  const sceneList = (scenes || []).map(i => `Scene ${i + 1}`).join(', ') || 'this scene';
+  const costLine = cost ? `\nEstimated regen cost: ${cost}` : '';
+  return showConfirm(`${title}\n\nAffects: ${sceneList}${costLine}\n\nProceed?`, 'Proceed', true);
+};
+
+// ─── Lip sync — Phase 7c / Phase 10: pre-export preparation orchestrator ─
 //
-// For every scene with on-camera dialogue (speakerVisible !== false and
-// not isVoiceOver), runs MediaPipe face detection on the scene's video
-// clip, builds overlay JSON, and ensures speaker mouth sprites exist.
+// Per-line gating on isVoiceOver (Phase 10). For each scene, finds the
+// one non-VO on-screen line (v1: single-speaker visible, enforced by
+// castEnforceCutOnSpeaker). Skips if all lines are voice-over.
+// narrationMode gate: returns immediately when mode is 'voice-over' or 'pending'.
+//
 // Stores results on scene.lipSync for the export tick to consume.
-//
-// Audio buffer drives sprite openness (amplitude envelope).
 // Returns: { ready: int, skipped: int, failed: int, totalMs: number }
 async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
   opts = opts || {};
@@ -3584,6 +3679,19 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
     onProgress('Tier 2 (Kling LipSync) handled per-clip by Phase 8 worker');
     return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
   }
+
+  // Phase 10: narrationMode gate
+  const narrationMode = (window.createJobState && window.createJobState.narrationMode) || null;
+  if (narrationMode === 'pending') {
+    console.error('[LipSync] narrationMode is pending — stage fired too early; aborting');
+    return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
+  }
+  if (narrationMode === 'voice-over' || narrationMode === null) {
+    onProgress('Voice-over project — no on-screen lip sync needed');
+    scenes.forEach(s => { s.lipSync = s.lipSync || {}; s.lipSync.tier = 'none'; s.lipSync.status = 'ready'; });
+    return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
+  }
+
   if (typeof window.LipSync === 'undefined' || !window.LipSync.loadFaceLandmarker) {
     throw new Error('LipSync engine not loaded (js/30-lipsync.js missing)');
   }
@@ -3603,13 +3711,13 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
   for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
     const scene = scenes[sIdx];
     if (!scene) continue;
-    const dlg = scene.dialogue;
-    const isVO = dlg && dlg.isVoiceOver;
-    const speakerVisible = scene.speakerVisible !== false;
-    if (!dlg || !dlg.speakerCharacterId || dlg.speakerCharacterId === 'narrator' || isVO || !speakerVisible) {
+    // Phase 10: per-line routing — find the one visible on-screen line (v1 invariant: ≤1)
+    const sceneLines = scene.dialogueLines || [];
+    const dlg = sceneLines.find(l => !l.isVoiceOver && l.speakerCharacterId && l.speakerCharacterId !== 'narrator') || null;
+    if (!dlg) {
       skipped++;
       scene.lipSync = scene.lipSync || {};
-      scene.lipSync.tier = isVO ? 'none' : (scene.lipSync.tier || 'none');
+      scene.lipSync.tier = 'none';
       scene.lipSync.status = 'ready';
       continue;
     }
@@ -3813,7 +3921,7 @@ window.klingLipSyncCall = klingLipSyncCall;
 // requires a transient host — flagged as v1 limitation in plan §10.2.
 async function syncSceneWithKlingLipSync(scene, audioBuffer, opts) {
   if (!scene) throw new Error('Scene required');
-  const dlg = scene.dialogue;
+  const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || scene.dialogue || null;
   if (!dlg || dlg.isVoiceOver || !dlg.speakerCharacterId || dlg.speakerCharacterId === 'narrator') {
     return { skipped: true, reason: 'no on-camera dialogue' };
   }

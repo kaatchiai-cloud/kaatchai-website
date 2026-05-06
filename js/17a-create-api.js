@@ -69,6 +69,157 @@ const STYLE_PRESETS = {
   'surrealism': 'Surrealist art with dreamlike impossible scenes, melting forms, unexpected juxtapositions, and vivid imagination.',
 };
 
+// ── Phase 4 — Mode-aware sub-style preset library ──
+// keyed by mode (film/brand/copilot/autopilot). Each preset has description,
+// motionGrammar, lighting, color, composition. sampleImage = null (parallel asset work).
+const SUB_STYLE_PRESETS = {
+  film: {
+    drama:         { description: 'Contemporary drama with naturalistic performances and intimate framing.', motionGrammar: 'slow push-ins, subtle rack focus', lighting: 'motivated practical sources, soft shadows', color: 'desaturated warm tones', composition: 'rule of thirds, negative space', sampleImage: null },
+    thriller:      { description: 'High-tension thriller with oppressive atmosphere and paranoid framing.', motionGrammar: 'low-angle creeping dolly, handheld tremor', lighting: 'harsh contrast, deep shadow pools', color: 'cold blue-green with black crush', composition: 'tight headroom, dutch angles', sampleImage: null },
+    romance:       { description: 'Romantic drama with a warm, luminous palette and tender close-ups.', motionGrammar: 'gentle float and push, slow zoom', lighting: 'golden-hour rim, soft key', color: 'warm peach and amber, lifted blacks', composition: 'intimate two-shots, soft bokeh', sampleImage: null },
+    action:        { description: 'Kinetic action with dynamic camera work and high-contrast visuals.', motionGrammar: 'fast whip-pan, low tracking shot, snap zoom', lighting: 'hard sidelighting, intense specular', color: 'vivid saturated, teal-orange grade', composition: 'wide establishing into fast close-up', sampleImage: null },
+    documentary:   { description: 'Observational documentary with a fly-on-the-wall aesthetic.', motionGrammar: 'still wide locked-off, gentle handheld follow', lighting: 'available light, documentary naturalness', color: 'neutral accurate, slight film print', composition: 'environmental context, subject framed in scene', sampleImage: null },
+    'music-video': { description: 'Stylised music video with bold visual rhythm and graphic composition.', motionGrammar: 'beat-synced cuts, spinning 360 arc shot', lighting: 'theatrical backlit silhouette, coloured gels', color: 'vivid high-contrast, split-tone colour', composition: 'symmetrical graphic, extreme close-up and extreme wide alternating', sampleImage: null },
+    experimental:  { description: 'Avant-garde experimental filmmaking with unconventional perspective.', motionGrammar: 'unusual axis, time-remapped motion', lighting: 'abstracted or single-source', color: 'hand-processed look, unexpected palette', composition: 'deconstructed framing, rule-breaking', sampleImage: null },
+  },
+  brand: {
+    luxury:          { description: 'Premium luxury brand with restrained elegance and tactile material detail.', motionGrammar: 'slow reveal push, elegant drift', lighting: 'single-source soft key, deep black background', color: 'neutral grey-beige, gold accent', composition: 'centred hero product, minimal negative space', sampleImage: null },
+    lifestyle:       { description: 'Authentic lifestyle brand with warmth and natural human energy.', motionGrammar: 'handheld follow, casual zoom', lighting: 'golden-hour natural, warm fill', color: 'warm natural palette, analogue film warmth', composition: 'candid human moment, environmental context', sampleImage: null },
+    'tech-saas':     { description: 'Clean modern tech brand with precision UI aesthetics.', motionGrammar: 'smooth glide lateral, screen-capture zoom', lighting: 'studio white with blue-cool accent', color: 'clean white-grey-blue, accent brand colour', composition: 'UI-grid structure, product in use', sampleImage: null },
+    'sports-energy': { description: 'High-energy sports brand with dynamic motion and bold visual language.', motionGrammar: 'fast tracking parallel, explosive arc', lighting: 'hard rim, stadium flood', color: 'high-contrast vivid, white flash', composition: 'power pose, low angle hero', sampleImage: null },
+    beauty:          { description: 'Beauty brand with soft luminous close-ups and clean aesthetic.', motionGrammar: 'gentle macro push, soft reveal', lighting: 'beauty dish, ring-light catchlight', color: 'soft pink-nude, clean white', composition: 'face-fill close-up, texture macro', sampleImage: null },
+    food:            { description: 'Appetising food brand with warm tactile styling and hero plating.', motionGrammar: 'top-down reveal, gentle tilt', lighting: 'window sidelight, warm diffuse fill', color: 'warm earth tones, rich saturation', composition: 'overhead hero-plate, ingredient scatter', sampleImage: null },
+    corporate:       { description: 'Professional corporate brand with clean authoritative visuals.', motionGrammar: 'slow lateral dolly, stable tripod', lighting: 'even studio key, no harsh shadows', color: 'brand-neutral palette, trust-blue accent', composition: 'balanced symmetry, clear subject-background separation', sampleImage: null },
+    indie:           { description: 'Independent brand with raw authentic texture and honest storytelling.', motionGrammar: 'handheld roaming, caught-moment still', lighting: 'mixed available, intentional imperfection', color: 'muted analogue film tone', composition: 'unpolished rule-break framing', sampleImage: null },
+  },
+  copilot: {
+    explainer:       { description: 'Clear educational explainer with clean visual hierarchy.', motionGrammar: 'smooth push to diagram, pointer emphasis', lighting: 'studio clean, shadowless', color: 'brand-neutral clean palette', composition: 'diagram centre, annotation callout', sampleImage: null },
+    documentary:     { description: 'Narrative documentary blending interviews and b-roll.', motionGrammar: 'push-in on subject, wide broll cutaway', lighting: 'available + fill, naturalistic', color: 'documentary neutral, slight warmth', composition: 'interview rule-of-thirds, environmental wide', sampleImage: null },
+    essay:           { description: 'Thoughtful visual essay with contemplative pacing.', motionGrammar: 'slow drift, long still holds', lighting: 'soft available, poetic', color: 'muted considered palette', composition: 'wide contemplative, isolated subject', sampleImage: null },
+    lecture:         { description: 'Clear academic lecture style with instructional framing.', motionGrammar: 'stable locked-off, diagram zoom', lighting: 'even flat studio', color: 'neutral academic', composition: 'presenter centre, slide reference', sampleImage: null },
+    interview:       { description: 'Intimate interview with warm talking-head framing.', motionGrammar: 'subtle push-in, locked interview', lighting: 'Rembrandt interview key, warm fill', color: 'warm neutral skin-flattering', composition: 'rule-of-thirds talking head, shallow DOF', sampleImage: null },
+    'narrative-doc': { description: 'Character-driven narrative documentary with immersive presence.', motionGrammar: 'follow-cam, handheld observational', lighting: 'available cinematic with occasional fill', color: 'film-tone documentary', composition: 'intimate close-up, wide contextual', sampleImage: null },
+  },
+  autopilot: {
+    'tiktok-native':  { description: 'Vertical-native TikTok content with punchy kinetic energy.', motionGrammar: 'fast cut pace, text-pop beat sync', lighting: 'ring-lit selfie, vivid accent', color: 'vivid saturated native', composition: 'vertical fill-frame, face-to-camera', sampleImage: null },
+    'ig-polished':    { description: 'Polished aspirational Instagram aesthetic.', motionGrammar: 'smooth glide, elegant float', lighting: 'golden-hour soft, studio clean', color: 'warm curated palette, lifted', composition: 'square-safe centred, hero-framed', sampleImage: null },
+    'youtube-shorts': { description: 'Fast-paced YouTube Shorts with clear hook and visual clarity.', motionGrammar: 'quick zoom, reaction cut, caption burst', lighting: 'well-lit studio, ring light', color: 'punchy YT palette, vivid', composition: 'face dominant vertical, graphic text overlay safe', sampleImage: null },
+    stylized:         { description: 'Highly stylised branded visual aesthetic.', motionGrammar: 'stylised motion — per brand grammar', lighting: 'stylised per brand treatment', color: 'brand colour system dominant', composition: 'on-brand grid and framing rules', sampleImage: null },
+    'ugc-handheld':   { description: 'Authentic UGC handheld feel with real-person energy.', motionGrammar: 'shaky handheld, spontaneous zoom', lighting: 'natural mixed available', color: 'natural ungraded mobile look', composition: 'selfie proximity, in-scene background', sampleImage: null },
+  },
+};
+window.SUB_STYLE_PRESETS = SUB_STYLE_PRESETS;
+
+// 11 visual treatments — orthogonal to sub-style.
+// Treatment is the rendering aesthetic; sub-style is the cinematic frame.
+const VISUAL_TREATMENTS = {
+  photorealistic:  { description: 'Photorealistic rendering — natural lighting, true-to-life materials.' },
+  watercolor:      { description: 'Watercolor painting style with soft flowing washes and wet-on-wet edges.' },
+  'oil-painting':  { description: 'Oil painting style with rich impasto texture and classical chiaroscuro.' },
+  anime:           { description: 'Japanese anime style with clean cell-shaded lines and expressive design.' },
+  comic:           { description: 'Comic book illustration with bold outlines, halftone dots, and vivid panels.' },
+  'pixel-art':     { description: 'Pixel art style with chunky retro pixels and limited 8-bit palette.' },
+  '3d-render':     { description: 'Stylised 3D render with smooth surfaces and global illumination.' },
+  sketch:          { description: 'Pencil or charcoal sketch with visible hand-drawn strokes and paper texture.' },
+  'ukiyo-e':       { description: 'Japanese ukiyo-e woodblock print with flowing contour lines and flat colour.' },
+  'stained-glass': { description: 'Stained glass aesthetic with bold leaded outlines and jewel-toned panels.' },
+  illustrated:     { description: 'Hand-drawn editorial illustration with clean lines and deliberate colour.' },
+};
+window.VISUAL_TREATMENTS = VISUAL_TREATMENTS;
+
+// getMergedStyle(scene) — returns the effective subStyle for a scene:
+// per-scene styleOverride > project subStyle > null
+function getMergedStyle(scene) {
+  if (scene && scene.styleOverride) return scene.styleOverride;
+  if (window.createJobState && window.createJobState.subStyle) return window.createJobState.subStyle;
+  return null;
+}
+// getMergedTreatment() — project-level only (no per-scene treatment override in v1)
+function getMergedTreatment() {
+  return (window.createJobState && window.createJobState.visualTreatment) || null;
+}
+window.getMergedStyle    = getMergedStyle;
+window.getMergedTreatment = getMergedTreatment;
+
+// Style gate — shows a modal picker before storyboard generation on the create
+// page (text input + audio input paths). Resolves immediately if subStyle is
+// already set (e.g. from brainstorm handoff). Exposed as window.runStyleGate.
+window.runStyleGate = function runStyleGate() {
+  return new Promise(function(resolve) {
+    var state = window.createJobState || {};
+    if (state.subStyle) { resolve(); return; }
+
+    var modeMap    = { film: 'film', brand: 'brand' };
+    var presetMode = modeMap[state.videoType] || 'copilot';
+    var presetMap  = (window.SUB_STYLE_PRESETS && window.SUB_STYLE_PRESETS[presetMode]) || {};
+    var presetKeys = Object.keys(presetMap);
+    var presets    = presetKeys.map(function(k) { return Object.assign({ _key: k }, presetMap[k]); });
+    var treatMap   = window.VISUAL_TREATMENTS || {};
+    var treatKeys  = Object.keys(treatMap);
+
+    var overlay = document.getElementById('create-style-gate');
+    var grid    = document.getElementById('csg-grid');
+    var sel     = document.getElementById('csg-treatment');
+    if (!overlay || !grid || !sel) { resolve(); return; }
+
+    function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    var selectedStyle = null;
+
+    grid.innerHTML = presets.map(function(p, i) {
+      var name = p._key.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      return '<button class="bs-sp-preset" data-idx="' + i + '">'
+        + '<div class="bs-sp-preset-name">' + esc(name) + '</div>'
+        + '<div class="bs-sp-preset-desc">' + esc((p.description || '').slice(0, 80)) + '</div>'
+        + '</button>';
+    }).join('');
+
+    grid.querySelectorAll('.bs-sp-preset').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        grid.querySelectorAll('.bs-sp-preset').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        selectedStyle = presets[+btn.dataset.idx] || null;
+        var c = document.getElementById('csg-confirm');
+        if (c) c.disabled = false;
+      });
+    });
+
+    sel.innerHTML = '<option value="">— None —</option>' + treatKeys.map(function(k, i) {
+      var label = k.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      return '<option value="' + i + '">' + esc(label) + '</option>';
+    }).join('');
+    sel.value = '';
+
+    function done(pick) {
+      overlay.classList.add('hidden');
+      if (pick && selectedStyle) {
+        window.createJobState = window.createJobState || {};
+        window.createJobState.subStyle = selectedStyle;
+        var tidx = parseInt(sel.value, 10);
+        if (!isNaN(tidx) && treatKeys[tidx]) {
+          window.createJobState.visualTreatment = Object.assign({ _key: treatKeys[tidx] }, treatMap[treatKeys[tidx]]);
+        }
+      }
+      resolve();
+    }
+
+    function rewire(id, handler) {
+      var el = document.getElementById(id);
+      if (!el) return el;
+      var fr = el.cloneNode(true);
+      el.parentNode.replaceChild(fr, el);
+      fr.addEventListener('click', handler);
+      return fr;
+    }
+
+    var fc = rewire('csg-confirm', function() { done(true); });
+    if (fc) fc.disabled = true;
+    rewire('csg-skip', function() { done(false); });
+
+    overlay.classList.remove('hidden');
+  });
+};
+
 // ── Templates ──
 const TEMPLATE_CATEGORIES = {
   'all': 'All',
