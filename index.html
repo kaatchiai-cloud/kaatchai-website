@@ -3844,7 +3844,57 @@ body:has(#drop-zone:not(.hidden)) {
   <!-- ═══ Storypilot — AI Script Brainstorm ═══ -->
   <div id="brainstorm-page">
 
-    <!-- Screen 0: Narrator choice (Brand / Film modes only — shown before chat) -->
+    <!-- Screen 0: Product card (Brand/Product mode only — shown before narrator choice) -->
+    <section id="bs-product-card" class="bs-screen hidden">
+      <div class="bs-narrator-card">
+        <header class="bs-narrator-head">
+          <div class="bs-narrator-icon">🏷</div>
+          <div class="bs-narrator-title">Tell us about your brand or product</div>
+          <div class="bs-narrator-sub">This gets us straight into writing — no re-asking basics.</div>
+        </header>
+
+        <!-- Subtype toggle -->
+        <div class="bs-pc-type-row">
+          <button class="bs-pc-type-btn active" id="bs-pc-type-brand" data-type="brand">Brand video</button>
+          <button class="bs-pc-type-btn" id="bs-pc-type-product" data-type="product">Product video</button>
+        </div>
+
+        <!-- Brand info (always shown) -->
+        <div class="bs-narrator-field" id="bs-pc-brand-section">
+          <span id="bs-pc-brand-label">Brand / Company info <span class="bs-pc-required">*</span></span>
+          <textarea id="bs-pc-brand-text" class="bs-pc-textarea" rows="3" placeholder="Describe the brand — voice, values, what it stands for…"></textarea>
+          <div class="bs-pc-url-row">
+            <input type="url" id="bs-pc-brand-url" class="bs-pc-url-input" placeholder="Or paste brand page URL">
+            <button class="bs-pc-extract-btn" id="bs-pc-brand-extract">Extract</button>
+          </div>
+          <span class="bs-pc-extract-status" id="bs-pc-brand-status"></span>
+        </div>
+
+        <!-- Product info (only shown for product subtype) -->
+        <div class="bs-narrator-field hidden" id="bs-pc-product-section">
+          <span>Product info <span class="bs-pc-required">*</span></span>
+          <textarea id="bs-pc-product-text" class="bs-pc-textarea" rows="3" placeholder="Describe the product — what it does, key features, who it's for…"></textarea>
+          <div class="bs-pc-url-row">
+            <input type="url" id="bs-pc-product-url" class="bs-pc-url-input" placeholder="Or paste product page URL">
+            <button class="bs-pc-extract-btn" id="bs-pc-product-extract">Extract</button>
+          </div>
+          <span class="bs-pc-extract-status" id="bs-pc-product-status"></span>
+        </div>
+
+        <!-- Core claim (always shown) -->
+        <div class="bs-narrator-field">
+          <span>Core claim — what should viewers walk away knowing? <span class="bs-pc-required">*</span></span>
+          <input type="text" id="bs-pc-claim" placeholder="e.g. The only shoe designed for 12-hour shift workers">
+        </div>
+
+        <div class="bs-narrator-actions">
+          <button id="bs-product-back" class="bs-cta-secondary">← Back</button>
+          <button id="bs-product-continue" class="bs-cta-primary" disabled>Continue →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 0b: Narrator choice (Brand / Film modes only — shown before chat) -->
     <section id="bs-narrator-choice" class="bs-screen hidden">
       <div class="bs-narrator-card">
         <header class="bs-narrator-head">

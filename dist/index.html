@@ -6287,6 +6287,89 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
 .bs-cta-secondary:hover {
   background: color-mix(in oklch, var(--lp-text, #fff) 8%, transparent);
 }
+/* ── Product card screen ── */
+#bs-product-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 24px;
+}
+#bs-product-card.hidden { display: none; }
+.bs-pc-type-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.bs-pc-type-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.18));
+  background: transparent;
+  color: var(--lp-faint, rgba(255,255,255,0.55));
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+.bs-pc-type-btn.active {
+  background: color-mix(in oklch, var(--lp-accent, #7c6bff) 20%, transparent);
+  border-color: var(--lp-accent, #7c6bff);
+  color: var(--lp-text, #fff);
+}
+.bs-pc-textarea {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.18));
+  background: var(--lp-bg, rgba(0,0,0,0.2));
+  color: var(--lp-text, #fff);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 200ms;
+}
+.bs-pc-textarea:focus { outline: none; border-color: var(--lp-accent, #7c6bff); }
+.bs-pc-url-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.bs-pc-url-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.12));
+  background: var(--lp-bg, rgba(0,0,0,0.2));
+  color: var(--lp-text, #fff);
+  font-size: 12px;
+  font-family: inherit;
+}
+.bs-pc-url-input:focus { outline: none; border-color: var(--lp-accent, #7c6bff); }
+.bs-pc-extract-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--lp-card-bdr, rgba(255,255,255,0.18));
+  background: transparent;
+  color: var(--lp-faint, rgba(255,255,255,0.6));
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms, color 150ms;
+}
+.bs-pc-extract-btn:hover { background: color-mix(in oklch, var(--lp-text, #fff) 8%, transparent); color: var(--lp-text, #fff); }
+.bs-pc-extract-btn:disabled { opacity: 0.4; cursor: default; }
+.bs-pc-extract-status {
+  font-size: 11px;
+  color: var(--lp-faint, rgba(255,255,255,0.45));
+  min-height: 14px;
+  margin-top: 2px;
+}
+.bs-pc-required { color: var(--lp-accent, #7c6bff); }
+#bs-product-card .bs-narrator-field { margin-bottom: 14px; }
+#bs-product-card .bs-narrator-field input[type="text"] { width: 100%; box-sizing: border-box; }
+
 /* ── Style picker screen ── */
 #bs-style-picker {
   display: flex;
@@ -13941,7 +14024,57 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
   <!-- ═══ Storypilot — AI Script Brainstorm ═══ -->
   <div id="brainstorm-page">
 
-    <!-- Screen 0: Narrator choice (Brand / Film modes only — shown before chat) -->
+    <!-- Screen 0: Product card (Brand/Product mode only — shown before narrator choice) -->
+    <section id="bs-product-card" class="bs-screen hidden">
+      <div class="bs-narrator-card">
+        <header class="bs-narrator-head">
+          <div class="bs-narrator-icon">🏷</div>
+          <div class="bs-narrator-title">Tell us about your brand or product</div>
+          <div class="bs-narrator-sub">This gets us straight into writing — no re-asking basics.</div>
+        </header>
+
+        <!-- Subtype toggle -->
+        <div class="bs-pc-type-row">
+          <button class="bs-pc-type-btn active" id="bs-pc-type-brand" data-type="brand">Brand video</button>
+          <button class="bs-pc-type-btn" id="bs-pc-type-product" data-type="product">Product video</button>
+        </div>
+
+        <!-- Brand info (always shown) -->
+        <div class="bs-narrator-field" id="bs-pc-brand-section">
+          <span id="bs-pc-brand-label">Brand / Company info <span class="bs-pc-required">*</span></span>
+          <textarea id="bs-pc-brand-text" class="bs-pc-textarea" rows="3" placeholder="Describe the brand — voice, values, what it stands for…"></textarea>
+          <div class="bs-pc-url-row">
+            <input type="url" id="bs-pc-brand-url" class="bs-pc-url-input" placeholder="Or paste brand page URL">
+            <button class="bs-pc-extract-btn" id="bs-pc-brand-extract">Extract</button>
+          </div>
+          <span class="bs-pc-extract-status" id="bs-pc-brand-status"></span>
+        </div>
+
+        <!-- Product info (only shown for product subtype) -->
+        <div class="bs-narrator-field hidden" id="bs-pc-product-section">
+          <span>Product info <span class="bs-pc-required">*</span></span>
+          <textarea id="bs-pc-product-text" class="bs-pc-textarea" rows="3" placeholder="Describe the product — what it does, key features, who it's for…"></textarea>
+          <div class="bs-pc-url-row">
+            <input type="url" id="bs-pc-product-url" class="bs-pc-url-input" placeholder="Or paste product page URL">
+            <button class="bs-pc-extract-btn" id="bs-pc-product-extract">Extract</button>
+          </div>
+          <span class="bs-pc-extract-status" id="bs-pc-product-status"></span>
+        </div>
+
+        <!-- Core claim (always shown) -->
+        <div class="bs-narrator-field">
+          <span>Core claim — what should viewers walk away knowing? <span class="bs-pc-required">*</span></span>
+          <input type="text" id="bs-pc-claim" placeholder="e.g. The only shoe designed for 12-hour shift workers">
+        </div>
+
+        <div class="bs-narrator-actions">
+          <button id="bs-product-back" class="bs-cta-secondary">← Back</button>
+          <button id="bs-product-continue" class="bs-cta-primary" disabled>Continue →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 0b: Narrator choice (Brand / Film modes only — shown before chat) -->
     <section id="bs-narrator-choice" class="bs-screen hidden">
       <div class="bs-narrator-card">
         <header class="bs-narrator-head">
@@ -48770,6 +48903,7 @@ const brainstormState = {
   finalScript:    null,
   finalised:      false,
   wizardAnswers:   {},         // { type, length }
+  productCard:     null,       // { subtype, brandText, brandUrl, productText, productUrl, coreClaim }
   narratorChoice:  null,       // { enabled, name, onScreenStyle } — locked at chat start for Brand/Film
   visualStyle:     null,       // selected SUB_STYLE_PRESETS entry (or null)
   visualTreatment: null,       // selected VISUAL_TREATMENTS entry (or null)
@@ -48816,6 +48950,9 @@ function _init() {
   // Add tooltip on locked picker
   var picker = document.getElementById('bs-model-picker');
   if (picker) picker.setAttribute('title', 'Model is locked for this session. Click ↻ to start a new session.');
+
+  // Wire product card screen (Brand/Product mode)
+  _wireProductCard();
 
   // Wire narrator-choice screen (Brand/Film modes)
   _wireNarratorChoiceScreen();
@@ -49010,10 +49147,12 @@ function _confirmMode(mode, pipeline) {
   brainstormState.pipeline = pipeline;
   _updateModeTag(mode);
   _updateSendToButton(pipeline);
-  // Brand and Film modes get a narrator-choice step before chat. Quick mode
-  // (social/tutorial via _confirmWizard) skips this — narrator is rare for
-  // short social content; users can add one later on the create page.
-  if (mode === 'brand-product' || mode === 'film-narrative') {
+  // Brand-product shows product card first, then narrator choice.
+  // Film-narrative goes straight to narrator choice.
+  // Quick mode skips both — narrator is rare for short social content.
+  if (mode === 'brand-product') {
+    _showProductCard();
+  } else if (mode === 'film-narrative') {
     _showNarratorChoice();
   } else {
     _showStylePicker('autopilot',
@@ -49027,6 +49166,159 @@ function _confirmMode(mode, pipeline) {
         _renderGreeting();
       }
     );
+  }
+}
+
+// Product card screen — shown before narrator choice for Brand/Product mode
+function _showProductCard() {
+  var pc = brainstormState.productCard || {};
+  var subtype = pc.subtype || 'brand';
+
+  // Pre-fill fields from saved state (session restore)
+  var brandText    = document.getElementById('bs-pc-brand-text');
+  var brandUrl     = document.getElementById('bs-pc-brand-url');
+  var productText  = document.getElementById('bs-pc-product-text');
+  var productUrl   = document.getElementById('bs-pc-product-url');
+  var claim        = document.getElementById('bs-pc-claim');
+  if (brandText)   brandText.value   = pc.brandText   || '';
+  if (brandUrl)    brandUrl.value    = pc.brandUrl    || '';
+  if (productText) productText.value = pc.productText || '';
+  if (productUrl)  productUrl.value  = pc.productUrl  || '';
+  if (claim)       claim.value       = pc.coreClaim   || '';
+
+  // Apply subtype toggle
+  _pcSetSubtype(subtype);
+  _pcCheckReady();
+  _showScreen('bs-product-card');
+}
+
+function _pcSetSubtype(subtype) {
+  var brandSection   = document.getElementById('bs-pc-brand-section');
+  var productSection = document.getElementById('bs-pc-product-section');
+  var brandBtn       = document.getElementById('bs-pc-type-brand');
+  var productBtn     = document.getElementById('bs-pc-type-product');
+  var brandLabel     = document.getElementById('bs-pc-brand-label');
+
+  var isProduct = subtype === 'product';
+  if (brandSection)   brandSection.classList.remove('hidden');
+  if (productSection) productSection.classList.toggle('hidden', !isProduct);
+  if (brandBtn)       brandBtn.classList.toggle('active', !isProduct);
+  if (productBtn)     productBtn.classList.toggle('active', isProduct);
+  // Brand field is optional when product is selected
+  if (brandLabel) brandLabel.innerHTML = isProduct
+    ? 'Brand / Company info <span class="bs-pc-required" style="opacity:0.5">(optional)</span>'
+    : 'Brand / Company info <span class="bs-pc-required">*</span>';
+}
+
+function _pcCheckReady() {
+  var subtype     = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
+  var brandText   = (document.getElementById('bs-pc-brand-text')?.value   || '').trim();
+  var productText = (document.getElementById('bs-pc-product-text')?.value || '').trim();
+  var claim       = (document.getElementById('bs-pc-claim')?.value        || '').trim();
+
+  var ready = subtype === 'product'
+    ? productText.length > 0 && claim.length > 0   // brand optional for product
+    : brandText.length  > 0 && claim.length > 0;
+
+  var btn = document.getElementById('bs-product-continue');
+  if (btn) btn.disabled = !ready;
+}
+
+async function _pcExtract(urlInputId, textareaId, statusId) {
+  var urlInput = document.getElementById(urlInputId);
+  var textarea = document.getElementById(textareaId);
+  var status   = document.getElementById(statusId);
+  var url      = (urlInput?.value || '').trim();
+  if (!url) { if (status) status.textContent = 'Enter a URL first.'; return; }
+
+  if (status) status.textContent = 'Extracting…';
+  var extractBtn = urlInput?.closest('.bs-narrator-field')?.querySelector('.bs-pc-extract-btn');
+  if (extractBtn) extractBtn.disabled = true;
+
+  try {
+    var resp = await fetch('https://r.jina.ai/' + encodeURIComponent(url), {
+      headers: { 'Accept': 'text/plain' }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var text = await resp.text();
+    // Truncate to ~2500 chars to stay within token budget
+    var trimmed = text.slice(0, 2500);
+    if (textarea) textarea.value = trimmed;
+    if (status) status.textContent = 'Extracted ' + trimmed.length + ' chars — edit if needed.';
+    _pcCheckReady();
+  } catch (e) {
+    if (status) status.textContent = 'Could not extract — paste text instead.';
+  } finally {
+    if (extractBtn) extractBtn.disabled = false;
+  }
+}
+
+function _wireProductCard() {
+  // Type toggle
+  ['bs-pc-type-brand', 'bs-pc-type-product'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (btn && !btn._pcWired) {
+      btn._pcWired = true;
+      btn.addEventListener('click', function() {
+        _pcSetSubtype(btn.dataset.type);
+        _pcCheckReady();
+      });
+    }
+  });
+
+  // Input → readiness check
+  ['bs-pc-brand-text', 'bs-pc-product-text', 'bs-pc-claim'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el._pcWired) {
+      el._pcWired = true;
+      el.addEventListener('input', _pcCheckReady);
+    }
+  });
+
+  // Extract buttons
+  var brandExtract = document.getElementById('bs-pc-brand-extract');
+  if (brandExtract && !brandExtract._pcWired) {
+    brandExtract._pcWired = true;
+    brandExtract.addEventListener('click', function() {
+      _pcExtract('bs-pc-brand-url', 'bs-pc-brand-text', 'bs-pc-brand-status');
+    });
+  }
+  var productExtract = document.getElementById('bs-pc-product-extract');
+  if (productExtract && !productExtract._pcWired) {
+    productExtract._pcWired = true;
+    productExtract.addEventListener('click', function() {
+      _pcExtract('bs-pc-product-url', 'bs-pc-product-text', 'bs-pc-product-status');
+    });
+  }
+
+  // Back
+  var backBtn = document.getElementById('bs-product-back');
+  if (backBtn && !backBtn._pcWired) {
+    backBtn._pcWired = true;
+    backBtn.addEventListener('click', function() {
+      brainstormState.mode       = null;
+      brainstormState.pipeline   = null;
+      brainstormState.productCard = null;
+      navigateTo('home');
+    });
+  }
+
+  // Continue
+  var contBtn = document.getElementById('bs-product-continue');
+  if (contBtn && !contBtn._pcWired) {
+    contBtn._pcWired = true;
+    contBtn.addEventListener('click', function() {
+      var subtype = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
+      brainstormState.productCard = {
+        subtype:     subtype,
+        brandText:   (document.getElementById('bs-pc-brand-text')?.value   || '').trim(),
+        brandUrl:    (document.getElementById('bs-pc-brand-url')?.value    || '').trim(),
+        productText: (document.getElementById('bs-pc-product-text')?.value || '').trim(),
+        productUrl:  (document.getElementById('bs-pc-product-url')?.value  || '').trim(),
+        coreClaim:   (document.getElementById('bs-pc-claim')?.value        || '').trim(),
+      };
+      _showNarratorChoice();
+    });
   }
 }
 
@@ -49395,7 +49687,20 @@ function _buildSystemPrompt() {
   var ctx  = brainstormState.wizardAnswers;
 
   if (mode === 'brand-product') {
-    base += '\n\n[User context: video type = brand/product. Pipeline: Copilot. Skip re-asking these.]';
+    var pc = brainstormState.productCard;
+    if (pc) {
+      var pcLines = [
+        'Video subtype: ' + (pc.subtype === 'product' ? 'product video' : 'brand video'),
+        pc.brandText   ? 'Brand context: ' + pc.brandText.slice(0, 800)   : null,
+        pc.brandUrl    ? 'Brand URL: '     + pc.brandUrl                   : null,
+        pc.productText ? 'Product context: ' + pc.productText.slice(0, 800) : null,
+        pc.productUrl  ? 'Product URL: '   + pc.productUrl                 : null,
+        'Core claim: '  + pc.coreClaim,
+      ].filter(Boolean).join('\n');
+      base += '\n\n[PRODUCT CONTEXT — already collected, do NOT re-ask any of this:\n' + pcLines + '\nYour first response should acknowledge the brand/product and immediately start developing the narrative approach — skip discovery questions for anything listed above.]';
+    } else {
+      base += '\n\n[User context: video type = brand/product. Pipeline: Copilot.]';
+    }
   } else if (mode === 'film-narrative') {
     base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]';
   } else if (ctx.type || ctx.length) {
@@ -49475,6 +49780,7 @@ function _clearSession() {
   brainstormState.finalScript    = null;
   brainstormState.finalised       = false;
   brainstormState.wizardAnswers   = {};
+  brainstormState.productCard     = null;
   brainstormState.narratorChoice  = null;
   brainstormState.sessionSummary  = null;
   brainstormState.willExtend      = false;

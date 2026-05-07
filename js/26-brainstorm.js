@@ -267,6 +267,7 @@ const brainstormState = {
   finalScript:    null,
   finalised:      false,
   wizardAnswers:   {},         // { type, length }
+  productCard:     null,       // { subtype, brandText, brandUrl, productText, productUrl, coreClaim }
   narratorChoice:  null,       // { enabled, name, onScreenStyle } — locked at chat start for Brand/Film
   visualStyle:     null,       // selected SUB_STYLE_PRESETS entry (or null)
   visualTreatment: null,       // selected VISUAL_TREATMENTS entry (or null)
@@ -313,6 +314,9 @@ function _init() {
   // Add tooltip on locked picker
   var picker = document.getElementById('bs-model-picker');
   if (picker) picker.setAttribute('title', 'Model is locked for this session. Click ↻ to start a new session.');
+
+  // Wire product card screen (Brand/Product mode)
+  _wireProductCard();
 
   // Wire narrator-choice screen (Brand/Film modes)
   _wireNarratorChoiceScreen();
@@ -507,10 +511,12 @@ function _confirmMode(mode, pipeline) {
   brainstormState.pipeline = pipeline;
   _updateModeTag(mode);
   _updateSendToButton(pipeline);
-  // Brand and Film modes get a narrator-choice step before chat. Quick mode
-  // (social/tutorial via _confirmWizard) skips this — narrator is rare for
-  // short social content; users can add one later on the create page.
-  if (mode === 'brand-product' || mode === 'film-narrative') {
+  // Brand-product shows product card first, then narrator choice.
+  // Film-narrative goes straight to narrator choice.
+  // Quick mode skips both — narrator is rare for short social content.
+  if (mode === 'brand-product') {
+    _showProductCard();
+  } else if (mode === 'film-narrative') {
     _showNarratorChoice();
   } else {
     _showStylePicker('autopilot',
@@ -524,6 +530,159 @@ function _confirmMode(mode, pipeline) {
         _renderGreeting();
       }
     );
+  }
+}
+
+// Product card screen — shown before narrator choice for Brand/Product mode
+function _showProductCard() {
+  var pc = brainstormState.productCard || {};
+  var subtype = pc.subtype || 'brand';
+
+  // Pre-fill fields from saved state (session restore)
+  var brandText    = document.getElementById('bs-pc-brand-text');
+  var brandUrl     = document.getElementById('bs-pc-brand-url');
+  var productText  = document.getElementById('bs-pc-product-text');
+  var productUrl   = document.getElementById('bs-pc-product-url');
+  var claim        = document.getElementById('bs-pc-claim');
+  if (brandText)   brandText.value   = pc.brandText   || '';
+  if (brandUrl)    brandUrl.value    = pc.brandUrl    || '';
+  if (productText) productText.value = pc.productText || '';
+  if (productUrl)  productUrl.value  = pc.productUrl  || '';
+  if (claim)       claim.value       = pc.coreClaim   || '';
+
+  // Apply subtype toggle
+  _pcSetSubtype(subtype);
+  _pcCheckReady();
+  _showScreen('bs-product-card');
+}
+
+function _pcSetSubtype(subtype) {
+  var brandSection   = document.getElementById('bs-pc-brand-section');
+  var productSection = document.getElementById('bs-pc-product-section');
+  var brandBtn       = document.getElementById('bs-pc-type-brand');
+  var productBtn     = document.getElementById('bs-pc-type-product');
+  var brandLabel     = document.getElementById('bs-pc-brand-label');
+
+  var isProduct = subtype === 'product';
+  if (brandSection)   brandSection.classList.remove('hidden');
+  if (productSection) productSection.classList.toggle('hidden', !isProduct);
+  if (brandBtn)       brandBtn.classList.toggle('active', !isProduct);
+  if (productBtn)     productBtn.classList.toggle('active', isProduct);
+  // Brand field is optional when product is selected
+  if (brandLabel) brandLabel.innerHTML = isProduct
+    ? 'Brand / Company info <span class="bs-pc-required" style="opacity:0.5">(optional)</span>'
+    : 'Brand / Company info <span class="bs-pc-required">*</span>';
+}
+
+function _pcCheckReady() {
+  var subtype     = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
+  var brandText   = (document.getElementById('bs-pc-brand-text')?.value   || '').trim();
+  var productText = (document.getElementById('bs-pc-product-text')?.value || '').trim();
+  var claim       = (document.getElementById('bs-pc-claim')?.value        || '').trim();
+
+  var ready = subtype === 'product'
+    ? productText.length > 0 && claim.length > 0   // brand optional for product
+    : brandText.length  > 0 && claim.length > 0;
+
+  var btn = document.getElementById('bs-product-continue');
+  if (btn) btn.disabled = !ready;
+}
+
+async function _pcExtract(urlInputId, textareaId, statusId) {
+  var urlInput = document.getElementById(urlInputId);
+  var textarea = document.getElementById(textareaId);
+  var status   = document.getElementById(statusId);
+  var url      = (urlInput?.value || '').trim();
+  if (!url) { if (status) status.textContent = 'Enter a URL first.'; return; }
+
+  if (status) status.textContent = 'Extracting…';
+  var extractBtn = urlInput?.closest('.bs-narrator-field')?.querySelector('.bs-pc-extract-btn');
+  if (extractBtn) extractBtn.disabled = true;
+
+  try {
+    var resp = await fetch('https://r.jina.ai/' + encodeURIComponent(url), {
+      headers: { 'Accept': 'text/plain' }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var text = await resp.text();
+    // Truncate to ~2500 chars to stay within token budget
+    var trimmed = text.slice(0, 2500);
+    if (textarea) textarea.value = trimmed;
+    if (status) status.textContent = 'Extracted ' + trimmed.length + ' chars — edit if needed.';
+    _pcCheckReady();
+  } catch (e) {
+    if (status) status.textContent = 'Could not extract — paste text instead.';
+  } finally {
+    if (extractBtn) extractBtn.disabled = false;
+  }
+}
+
+function _wireProductCard() {
+  // Type toggle
+  ['bs-pc-type-brand', 'bs-pc-type-product'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (btn && !btn._pcWired) {
+      btn._pcWired = true;
+      btn.addEventListener('click', function() {
+        _pcSetSubtype(btn.dataset.type);
+        _pcCheckReady();
+      });
+    }
+  });
+
+  // Input → readiness check
+  ['bs-pc-brand-text', 'bs-pc-product-text', 'bs-pc-claim'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el._pcWired) {
+      el._pcWired = true;
+      el.addEventListener('input', _pcCheckReady);
+    }
+  });
+
+  // Extract buttons
+  var brandExtract = document.getElementById('bs-pc-brand-extract');
+  if (brandExtract && !brandExtract._pcWired) {
+    brandExtract._pcWired = true;
+    brandExtract.addEventListener('click', function() {
+      _pcExtract('bs-pc-brand-url', 'bs-pc-brand-text', 'bs-pc-brand-status');
+    });
+  }
+  var productExtract = document.getElementById('bs-pc-product-extract');
+  if (productExtract && !productExtract._pcWired) {
+    productExtract._pcWired = true;
+    productExtract.addEventListener('click', function() {
+      _pcExtract('bs-pc-product-url', 'bs-pc-product-text', 'bs-pc-product-status');
+    });
+  }
+
+  // Back
+  var backBtn = document.getElementById('bs-product-back');
+  if (backBtn && !backBtn._pcWired) {
+    backBtn._pcWired = true;
+    backBtn.addEventListener('click', function() {
+      brainstormState.mode       = null;
+      brainstormState.pipeline   = null;
+      brainstormState.productCard = null;
+      navigateTo('home');
+    });
+  }
+
+  // Continue
+  var contBtn = document.getElementById('bs-product-continue');
+  if (contBtn && !contBtn._pcWired) {
+    contBtn._pcWired = true;
+    contBtn.addEventListener('click', function() {
+      var subtype = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
+      brainstormState.productCard = {
+        subtype:     subtype,
+        brandText:   (document.getElementById('bs-pc-brand-text')?.value   || '').trim(),
+        brandUrl:    (document.getElementById('bs-pc-brand-url')?.value    || '').trim(),
+        productText: (document.getElementById('bs-pc-product-text')?.value || '').trim(),
+        productUrl:  (document.getElementById('bs-pc-product-url')?.value  || '').trim(),
+        coreClaim:   (document.getElementById('bs-pc-claim')?.value        || '').trim(),
+      };
+      _showNarratorChoice();
+    });
   }
 }
 
@@ -892,7 +1051,20 @@ function _buildSystemPrompt() {
   var ctx  = brainstormState.wizardAnswers;
 
   if (mode === 'brand-product') {
-    base += '\n\n[User context: video type = brand/product. Pipeline: Copilot. Skip re-asking these.]';
+    var pc = brainstormState.productCard;
+    if (pc) {
+      var pcLines = [
+        'Video subtype: ' + (pc.subtype === 'product' ? 'product video' : 'brand video'),
+        pc.brandText   ? 'Brand context: ' + pc.brandText.slice(0, 800)   : null,
+        pc.brandUrl    ? 'Brand URL: '     + pc.brandUrl                   : null,
+        pc.productText ? 'Product context: ' + pc.productText.slice(0, 800) : null,
+        pc.productUrl  ? 'Product URL: '   + pc.productUrl                 : null,
+        'Core claim: '  + pc.coreClaim,
+      ].filter(Boolean).join('\n');
+      base += '\n\n[PRODUCT CONTEXT — already collected, do NOT re-ask any of this:\n' + pcLines + '\nYour first response should acknowledge the brand/product and immediately start developing the narrative approach — skip discovery questions for anything listed above.]';
+    } else {
+      base += '\n\n[User context: video type = brand/product. Pipeline: Copilot.]';
+    }
   } else if (mode === 'film-narrative') {
     base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]';
   } else if (ctx.type || ctx.length) {
@@ -972,6 +1144,7 @@ function _clearSession() {
   brainstormState.finalScript    = null;
   brainstormState.finalised       = false;
   brainstormState.wizardAnswers   = {};
+  brainstormState.productCard     = null;
   brainstormState.narratorChoice  = null;
   brainstormState.sessionSummary  = null;
   brainstormState.willExtend      = false;
