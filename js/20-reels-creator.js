@@ -139,7 +139,7 @@ function saveReelToLocalStorage() {
         prompt: s.prompt,
         startTime: s.startTime,
         endTime: s.endTime,
-        duration: s.duration,
+        duration: s.durationSec,
         text: s.text,
         words: s.words,
         transition: s.transition,
@@ -1110,7 +1110,6 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
           if (si2 === 0 && st > 0.5) st = 0;
           if (si2 === segments.length - 1 && en < totalDur - 0.5) en = totalDur;
           const sc = { prompt: s.sceneDescription || s.text, startTime: st, endTime: en, durationSec: en - st, text: s.text, emojis: Array.isArray(s.emojis) ? s.emojis.filter(e => typeof e === 'string' && e.trim()) : [], words: distributeWordsToScene(st, en, words), imgDataUrl: null, status: 'pending', transition: transPreset.transition, transDur: transPreset.transDur, motion: transPreset.motion, segmentIndex: job.id };
-          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(sc);
           return sc;
         });
       }
@@ -1457,7 +1456,6 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
             transDur: transPreset.transDur,
             motion: transPreset.motion,
           };
-          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(s);
           return s;
         });
       } else {
@@ -1476,7 +1474,6 @@ if (btnReelGenerate) btnReelGenerate.addEventListener('click', async () => {
             transDur: transPreset.transDur,
             motion: transPreset.motion,
           };
-          if (typeof window.attachDurationShim === 'function') window.attachDurationShim(sc);
           return sc;
         });
       }
@@ -4420,7 +4417,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
       videoData,
       audio: { data: audioBase64, duration: reelAudioBuffer.duration },
       scenes: reelScenes ? reelScenes.map(s => ({
-        startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+        startTime: s.startTime, endTime: s.endTime, duration: s.durationSec,
         text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
         prompt: s.prompt, isVideo: s.isVideo,
         transition: s.transition, transDur: s.transDur, motion: s.motion,
@@ -4460,7 +4457,7 @@ if (btnReelSaveProject) btnReelSaveProject.addEventListener('click', async () =>
               try { videoData = await blobToBase64(await fetch(s.videoUrl).then(r => r.blob())); } catch(e) {}
             }
             return {
-              startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+              startTime: s.startTime, endTime: s.endTime, duration: s.durationSec,
               text: s.text, words: sanitizeSceneWords(s.words, s.text, s.startTime, s.endTime), imgDataUrl: s.imgDataUrl,
               prompt: s.prompt, isVideo: s.isVideo,
               transition: s.transition, transDur: s.transDur, motion: s.motion,
@@ -5212,7 +5209,7 @@ async function openReelInFullEditor() {
       try { tc.getContext('2d').drawImage(reelVideoEl, 0, 0, 160, 90); } catch(e) {}
       const thumbUrl = tc.toDataURL('image/jpeg', 0.6);
       const thumbImg = new Image(); thumbImg.src = thumbUrl;
-      const clipDur = currentBuffer ? currentBuffer.duration : scene.duration;
+      const clipDur = currentBuffer ? currentBuffer.duration : scene.durationSec;
       videoTimelineItems.push({
         id: nextVideoTimelineId++,
         videoEl: reelVideoEl, videoSrc: reelVideoSrc,
@@ -5226,7 +5223,7 @@ async function openReelInFullEditor() {
       const img = new Image(); img.src = scene.imgDataUrl;
       photoItems.push({
         id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
-        startTime: scene.startTime, duration: scene.duration,
+        startTime: scene.startTime, duration: scene.durationSec ?? 5,
         transition: scene.transition || 'fade', transDur: scene.transDur || 0.3,
         motion: scene.motion || 'none',
       });
@@ -5447,14 +5444,14 @@ function loadEditorReel(idx) {
         id: nextVideoTimelineId++, videoEl: reelVideoEl, videoSrc: reelVideoSrc,
         videoDuration: reelVideoEl.duration,
         inPoint: scene.startTime + (r.videoStart || 0), outPoint: scene.endTime + (r.videoStart || 0),
-        startTime: scene.startTime, duration: scene.duration,
+        startTime: scene.startTime, duration: scene.durationSec ?? 5,
         imgSrc: thumbUrl, imgEl: thumbImg,
       });
     } else if (scene.imgDataUrl) {
       const img = new Image(); img.src = scene.imgDataUrl;
       photoItems.push({
         id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
-        startTime: scene.startTime, duration: scene.duration,
+        startTime: scene.startTime, duration: scene.durationSec ?? 5,
         transition: scene.transition || 'fade', transDur: scene.transDur || 0.3, motion: scene.motion || 'none',
       });
     }

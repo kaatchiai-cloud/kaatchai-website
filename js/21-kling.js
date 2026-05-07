@@ -1,6 +1,6 @@
 // ── Kling AI Video Generation ──
 // Provider: Official Kling (kling-v2-5-turbo) via Vercel proxy at /api/kling
-// Duration: scene.duration <= 5 → 5s clip | 5 < duration <= 12 → 10s clip | > 12 → multi-clip continuation
+// Duration: scene.durationSec <= 5 → 5s clip | 5 < durationSec <= 12 → 10s clip | > 12 → multi-clip continuation
 
 // On localhost: use the local kling-proxy.js running on port 3004
 // On Vercel/production: use /api/kling serverless function
@@ -133,47 +133,6 @@ async function extractLastFrame(videoUrl) {
   });
 }
 
-// Ask Gemini to write a continuation prompt from the last frame; falls back to a generic prompt
-async function generateContinuationPrompt(frameDataUrl, originalPrompt, geminiKey) {
-  // Phase 4 — include project motion grammar in continuity context
-  const _ms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
-  const _motionCtx = (_ms && _ms.motionGrammar) ? ` Maintain motion grammar: ${_ms.motionGrammar}.` : '';
-  const FALLBACK = `Continue the motion naturally from this frame. Smooth cinematic movement, high quality, maintain style and composition.${_motionCtx}`;
-  if (!geminiKey) return FALLBACK;
-  try {
-    const rawB64 = frameDataUrl.includes(',') ? frameDataUrl.split(',')[1] : frameDataUrl;
-    const motionHint = _ms && _ms.motionGrammar ? `\nProject motion grammar: ${_ms.motionGrammar}` : '';
-    const body = {
-      contents: [{ parts: [
-        { inline_data: { mime_type: 'image/jpeg', data: rawB64 } },
-        { text: `This is the last frame of a video clip. Original scene description: "${originalPrompt.slice(0, 300)}"${motionHint}\n\nWrite a short continuation prompt (1–2 sentences) for the next video clip that continues naturally from this exact frame. Continue the motion already happening — do NOT restart the scene.` }
-      ]}],
-      generationConfig: { maxOutputTokens: 120 }
-    };
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-    );
-    if (!resp.ok) return FALLBACK;
-    const data = await resp.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    return (text && text.length > 10) ? text + ` Smooth cinematic motion, high quality.${_motionCtx}` : FALLBACK;
-  } catch (_) {
-    return FALLBACK;
-  }
-}
-
-// Build a plan of Kling clip durations (5 or 10) to cover a scene's full duration
-function buildClipPlan(duration) {
-  if (duration <= 5) return [5];
-  if (duration <= 12) return [10];
-  const clips = [];
-  let rem = duration;
-  while (rem > 12) { clips.push(10); rem -= 10; }
-  clips.push(rem <= 5 ? 5 : 10);
-  return clips;
-}
-
 // Animate a single scene using planSegments-driven clip plan + generateSplitPrompt for continuations.
 // Returns after scene.videoClips and scene.videoUrl are set (or scene.videoError on failure).
 async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, geminiKey) {
@@ -183,6 +142,12 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
   let segPlan = Array.isArray(scene.segmentPlan) && scene.segmentPlan.length > 0
     ? scene.segmentPlan
     : planSegments({ audioMs: null, provider, scene, pass: 'estimate' }).segments;
+  if (!segPlan[0] || typeof segPlan[0].durationSec !== 'number') {
+    scene.videoError = 'Invalid segment plan';
+    scene.videoClips = null;
+    scene.videoUrl = null;
+    return;
+  }
 
   let motionPrompt = (scene.motionPrompt && scene.motionPrompt.trim())
     ? scene.motionPrompt.trim()
@@ -200,6 +165,8 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
   } catch (err) {
     console.error(`[Kling] Scene ${sceneIdx + 1} submit failed:`, err.message);
     scene.videoError = err.message;
+    scene.videoClips = null;
+    scene.videoUrl = null;
     return;
   }
 
@@ -212,6 +179,7 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
   } catch (err) {
     console.error(`[Kling] Scene ${sceneIdx + 1} poll failed:`, err.message);
     scene.videoError = err.message;
+    scene.videoUrl = null;
     return;
   }
 
@@ -236,7 +204,7 @@ async function _animateSingleScene(scene, sceneIdx, totalScenes, onProgress, gem
 }
 
 // Shared orchestrator — animates scenes that have images
-// scenes: array of scene objects with { imgDataUrl, prompt, duration }
+// scenes: array of scene objects with { imgDataUrl, prompt, durationSec }
 // onProgress(done, total, label) — called after each scene completes
 // geminiKey: Gemini API key for continuation prompt generation (optional)
 // Concurrency: up to 5 scenes processed simultaneously; as each finishes the next starts
@@ -317,6 +285,10 @@ function planSegments({ audioMs, provider, scene, pass }) {
   }
 
   const sourceMs = (audioMs != null) ? audioMs : ((scene.durationSec || 5) * 1000);
+  if (sourceMs <= 0) {
+    const _P = { 5: 0.20, 10: 0.40 };
+    return { segments: [{ idx: 0, durationSec: tiers[0], role: 'main' }], audioRegions: null, totalGenSec: tiers[0], croppedTailSec: 0, expectedCost: _P[tiers[0]] || 0, fallbackPlan: null };
+  }
   let remainingMs = sourceMs;
   const segments = [];
   let isFirst = true;
@@ -346,7 +318,7 @@ window.planSegments = planSegments;
 // Normalize Mode-A project-level line timings to scene-local.
 // Only Mode A (Scribe diarization) reaches this; TTS paths write scene-local directly.
 function finalizeSceneTimings(scene) {
-  const linesWithSrc = (scene.dialogueLines || []).filter(l => l.audioSegmentStartMs != null);
+  const linesWithSrc = (scene.dialogueLines || []).filter(l => l.audioSegmentStartMs != null && l.audioSegmentEndMs != null);
   if (linesWithSrc.length === 0) return;
   const sceneAbsStartMs = Math.min(...linesWithSrc.map(l => l.audioSegmentStartMs));
   for (const line of linesWithSrc) {
@@ -356,7 +328,7 @@ function finalizeSceneTimings(scene) {
 }
 window.finalizeSceneTimings = finalizeSceneTimings;
 
-// Gemini split-prompt — replaces generateContinuationPrompt; uses gemini-2.5-flash.
+// Gemini split-prompt for continuation clips; uses gemini-2.5-flash.
 // lastFrameDataUrl: JPEG base64 data URL of the last frame from prev clip.
 // scene: full scene object for context (motionPrompt, framing, visualSubjectIds).
 async function generateSplitPrompt(lastFrameDataUrl, scene, geminiKey) {

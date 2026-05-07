@@ -1,7 +1,7 @@
 // ── Audio Rehearsal — Phases 3–7 ──────────────────────────────────────────
 // Per-image card audio mini-player + mood/regen controls (Phase 3)
 // Whole-project rehearsal step UI + transport (Phase 4)
-// Drift detection + soundtouch time-stretch + canGenerateVideos() (Phase 5)
+// Audio rehearsal — per-line audio cards, rehearsal step, video lock
 // Per-scene video regen escape hatch (Phase 6)
 // Wavesurfer speaker-colored regions on editor master dialogue track (Phase 7)
 
@@ -174,12 +174,11 @@
     if (!scene) return '';
     const lines = scene.dialogueLines || [];
     const isBroll = lines.length === 0;
-    const isStale = !!scene.audioStale;
     const isPendingRegen = !!scene._pendingMoodRegen;
 
     // B-roll with no dialogue: show duration stepper only
     if (isBroll) {
-      const dur = scene.manualDuration != null ? scene.manualDuration : (scene.duration || 5.0);
+      const dur = scene.manualDuration != null ? scene.manualDuration : (scene.durationSec || 5.0);
       return `
 <div class="scene-audio-section scene-audio-broll" data-scene-idx="${idx}">
   <div class="scene-audio-label">Duration</div>
@@ -191,19 +190,9 @@
 </div>`;
     }
 
-    let statusHtml = '';
-    if (isStale) {
-      statusHtml = `<span class="scene-audio-badge stale">⚠ audio stale — regen to update</span>`;
-    } else if (isPendingRegen) {
-      statusHtml = `<span class="scene-audio-badge pending">~ pending regen</span>`;
-    } else if (scene.durationStatus === 'stretched' || scene.durationStatus === 'compressed') {
-      const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
-      const op = scene.durationStatus === 'stretched' ? 'stretched' : 'compressed';
-      statusHtml = `<span class="scene-audio-badge drift" data-scene-idx="${idx}" title="Click for options">🔄 audio ${op} ${pct}% to fit video ⓘ</span>`;
-    } else if (scene.durationStatus === 'exceeds') {
-      const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
-      statusHtml = `<span class="scene-audio-badge exceeds">⛔ exceeds ${pct}% — regen video or adjust audio</span>`;
-    }
+    const statusHtml = isPendingRegen
+      ? `<span class="scene-audio-badge pending">~ pending regen</span>`
+      : '';
 
     const lineRowsHtml = lines.map((line, lineIdx) => {
       const speakerIcon = line.isVoiceOver ? '🔉' : '🎙';
@@ -367,11 +356,6 @@
       incBtn.addEventListener('click', () => _adjustBrollDuration(idx, 0.5, card));
     }
 
-    // Drift badge → hover info popup
-    const driftBadge = card.querySelector('.scene-audio-badge.drift');
-    if (driftBadge) {
-      driftBadge.addEventListener('click', () => _showDriftPopup(idx, driftBadge));
-    }
   }
 
   function _wireMiniPlayer(idx, lineIdx, card, scene) {
@@ -503,7 +487,6 @@
       const deltaSec = newDuration - oldDuration;
       scene.audioActualDuration = newDuration;
       scene.endTime = (scene.startTime || 0) + newDuration;
-      scene.audioStale = false;
       scene._pendingMoodRegen = false;
       line._pendingMoodRegen = false;
       line._pendingMood = null;
@@ -547,8 +530,6 @@
         }
       }
 
-      computeDurationStatus(scene);
-
       const ar = window.createJobState && window.createJobState.audioRehearsal;
       if (ar && (ar.status === 'locked' || ar.status === 'reviewed')) {
         ar.status = 'pending';
@@ -586,43 +567,14 @@
     const scenes = window.createScenes;
     if (!scenes || !scenes[idx]) return;
     const scene = scenes[idx];
-    scene.manualDuration = Math.max(1.0, ((scene.manualDuration != null ? scene.manualDuration : scene.duration) || 5.0) + delta);
+    scene.manualDuration = Math.max(1.0, ((scene.manualDuration != null ? scene.manualDuration : scene.durationSec) || 5.0) + delta);
     if (!scene.narrationOverlay) {
       scene.audioActualDuration = scene.manualDuration;
-      scene.duration = scene.manualDuration;
+      scene.durationSec = scene.manualDuration;
     }
     const valEl = card && card.querySelector(`#scene-dur-val-${idx}`);
     if (valEl) valEl.textContent = scene.manualDuration.toFixed(1) + 's';
     if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
-  }
-
-  function _showDriftPopup(idx, anchorEl) {
-    const scenes = window.createScenes;
-    if (!scenes || !scenes[idx]) return;
-    const scene = scenes[idx];
-    const pct = scene.durationDriftPct != null ? (Math.abs(scene.durationDriftPct) * 100).toFixed(1) : '?';
-    const isCompressed = scene.durationStatus === 'compressed';
-    const op = isCompressed ? 'longer than' : 'shorter than';
-    const action = isCompressed ? 'compressed playback slightly' : 'inserted natural padding';
-    const popup = document.createElement('div');
-    popup.className = 'rehearsal-drift-popup';
-    popup.innerHTML = `
-      <div class="drift-popup-body">Audio is ${pct}% ${op} the existing video.<br>Stori has ${action}.</div>
-      <div class="drift-popup-body text-sm">For exact-match audio without adjustment, regenerate this scene's video at the new audio duration.</div>
-      <button class="btn-xs primary drift-popup-regen-btn">Regenerate scene ${idx + 1} video — $0.40</button>
-    `;
-    popup.style.cssText = 'position:absolute;z-index:9999;background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:10px;padding:12px 14px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:8px;';
-    const rect = anchorEl.getBoundingClientRect();
-    document.body.appendChild(popup);
-    popup.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-    popup.style.left = (rect.left + window.scrollX) + 'px';
-    const close = (e) => { if (!popup.contains(e.target) && e.target !== anchorEl) { popup.remove(); document.removeEventListener('click', close, true); } };
-    setTimeout(() => document.addEventListener('click', close, true), 100);
-    popup.querySelector('.drift-popup-regen-btn').addEventListener('click', () => {
-      popup.remove();
-      document.removeEventListener('click', close, true);
-      _regenSceneVideo(idx);
-    });
   }
 
   function _showVoiceOverflowMenu(idx, lineIdx, anchorEl) {
@@ -707,151 +659,7 @@
     });
   }
 
-  // ── Phase 6: Per-scene video regen escape hatch ───────────────────────────
-
-  async function _regenSceneVideo(idx) {
-    const scenes = window.createScenes;
-    if (!scenes || !scenes[idx]) return;
-    const scene = scenes[idx];
-
-    const ok = await showConfirm(`Regenerate scene ${idx + 1} video at new audio duration (${(scene.audioActualDuration || 0).toFixed(1)}s)?\n\nCost: $0.40 (Kling)`, 'Regen Video', false);
-    if (!ok) return;
-
-    if (typeof regenSceneImageAndVideo === 'function') {
-      await regenSceneImageAndVideo(idx);
-      scene.videoActualDuration = scene.audioActualDuration;
-      computeDurationStatus(scene);
-      if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
-    }
-  }
-
-  // Export for use by 17c video regen callback
-  window.regenSceneVideoForDrift = _regenSceneVideo;
-
-  // ── Phase 5: Duration status + canGenerateVideos() ────────────────────────
-
-  function computeDurationStatus(scene) {
-    if (!scene) return 'pending';
-    if (scene.videoActualDuration == null) {
-      scene.durationStatus = scene.audioActualDuration ? 'matched' : 'pending';
-      scene.durationDriftPct = 0;
-      return scene.durationStatus;
-    }
-    const drift = (scene.audioActualDuration - scene.videoActualDuration) / scene.videoActualDuration;
-    const absDrift = Math.abs(drift);
-    let status;
-    if (absDrift <= 0.0005) status = 'matched';
-    else if (absDrift <= 0.03) status = drift < 0 ? 'stretched' : 'compressed';
-    else status = 'exceeds';
-    scene.durationStatus = status;
-    scene.durationDriftPct = drift;
-    return status;
-  }
-  window.computeDurationStatus = computeDurationStatus;
-
-  window.canGenerateVideos = function () {
-    const scenes = window.createScenes || [];
-    const allOk = scenes.every(s =>
-      s.durationStatus === 'matched'
-      || s.durationStatus === 'stretched'
-      || s.durationStatus === 'compressed'
-      || !s.audioActualDuration
-    );
-    const totalAudio = scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0);
-    const totalVideo = scenes.reduce((sum, s) => sum + (s.videoActualDuration != null ? s.videoActualDuration : (s.duration || 0)), 0);
-    const totalDriftPct = totalVideo > 0 ? Math.abs(totalAudio - totalVideo) / totalVideo : 0;
-
-    if (window.createJobState && window.createJobState.audioRehearsal) {
-      window.createJobState.audioRehearsal.totalDriftPct = totalDriftPct;
-    }
-
-    return allOk && totalDriftPct <= 0.03;
-  };
-
-  // ── Soundtouch time-stretch ────────────────────────────────────────────────
-
-  let _soundTouchLoaded = null;
-  let _soundTouchFailed = false;
-
-  async function _loadSoundTouchJs() {
-    if (_soundTouchLoaded) return _soundTouchLoaded;
-    if (_soundTouchFailed) return null;
-    return new Promise((resolve) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/soundtouchjs@0.1.30/dist/soundtouch.min.js';
-      s.onload = () => { _soundTouchLoaded = window.SoundTouch || window.soundtouch; resolve(_soundTouchLoaded); };
-      s.onerror = () => {
-        _soundTouchFailed = true;
-        console.warn('[Rehearsal] soundtouch-js CDN load failed — degraded mode active');
-        _showDegradedModeBanner();
-        resolve(null);
-      };
-      document.head.appendChild(s);
-    });
-  }
-
-  function _showDegradedModeBanner() {
-    const step = document.getElementById('create-rehearsal-step');
-    if (!step) return;
-    const existing = step.querySelector('.rehearsal-degraded-banner');
-    if (existing) return;
-    const banner = document.createElement('div');
-    banner.className = 'rehearsal-degraded-banner';
-    banner.innerHTML = `⚠ Audio time-stretch library unavailable — stricter drift tolerance active. Any audio drift will require video regeneration. Reload the page to retry loading the library. <button class="btn-xs" onclick="location.reload()">Reload</button>`;
-    step.insertBefore(banner, step.firstChild);
-  }
-
-  window.timeStretchAudioBuffer = async function (audioBuffer, ratio) {
-    const ST = await _loadSoundTouchJs();
-    if (!ST) return audioBuffer;
-    try {
-      const st = new ST.SoundTouch ? new ST.SoundTouch() : new ST();
-      st.tempo = ratio;
-      const sr = audioBuffer.sampleRate;
-      const numSamples = audioBuffer.length;
-      const left = audioBuffer.getChannelData(0);
-      const right = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : left;
-
-      const source = new ST.SimpleFilter ? new ST.SimpleFilter(null, st) : null;
-      if (!source) return audioBuffer;
-
-      // Create interleaved array for SoundTouch
-      const interleaved = new Float32Array(numSamples * 2);
-      for (let i = 0; i < numSamples; i++) {
-        interleaved[i * 2] = left[i];
-        interleaved[i * 2 + 1] = right[i];
-      }
-      source.inputBuffer = { buffer: interleaved, sampleRate: sr };
-
-      const outputLength = Math.ceil(numSamples / ratio);
-      const output = new Float32Array(outputLength * 2);
-      let written = 0;
-      const chunkSize = 4096;
-      while (written < outputLength) {
-        const chunk = new Float32Array(Math.min(chunkSize, outputLength - written) * 2);
-        const read = source.extract(chunk, Math.floor(chunk.length / 2));
-        if (read === 0) break;
-        output.set(chunk.subarray(0, read * 2), written * 2);
-        written += read;
-      }
-
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const out = ctx.createBuffer(2, written, sr);
-      const outLeft = out.getChannelData(0);
-      const outRight = out.getChannelData(1);
-      for (let i = 0; i < written; i++) {
-        outLeft[i] = output[i * 2];
-        outRight[i] = output[i * 2 + 1];
-      }
-      try { ctx.close(); } catch (_) {}
-      return out;
-    } catch (e) {
-      console.warn('[Rehearsal] soundtouch stretch failed:', e.message);
-      return audioBuffer;
-    }
-  };
-
-  // ── Phase 4: Audio rehearsal step ─────────────────────────────────────────
+  // ── Audio rehearsal step ──────────────────────────────────────────────────
 
   function detectProjectAudioMode() {
     const scenes = window.createScenes || [];
@@ -894,11 +702,10 @@
     const stepLabel = mode === 'narration-preview' ? 'Audio preview' : 'Audio rehearsal';
     const someHasVideo = scenes.some(s => s.videoActualDuration != null);
 
-    // Total durations
     const totalAudioSec = scenes.reduce((sum, s) => sum + (s.audioActualDuration || 0), 0);
-    const totalVideoSec = scenes.reduce((sum, s) => sum + (s.videoActualDuration != null ? s.videoActualDuration : (s.duration || 0)), 0);
-    const totalDriftPct = totalVideoSec > 0 ? (totalAudioSec - totalVideoSec) / totalVideoSec : 0;
-    const canGen = typeof window.canGenerateVideos === 'function' ? window.canGenerateVideos() : false;
+    const canGen = scenes.every(s =>
+      (s.audioActualDuration > 0) || ((s.dialogueLines || []).length === 0)
+    );
 
     // Scene strip
     const totalSec = totalAudioSec || 1;
@@ -925,28 +732,14 @@
         // First-pass: audio-completion mode
         if (!s.audioActualDuration) {
           badgeHtml = `<span class="rehearsal-status-badge regen">⏳ generating…</span>`;
-        } else if (s.durationStatus === 'pending' || s.durationStatus === 'error') {
-          badgeHtml = `<span class="rehearsal-status-badge regen">❌ regen needed</span>`;
-          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
         } else {
           badgeHtml = `<span class="rehearsal-status-badge ok">✓ ready</span>`;
         }
       } else {
-        // Post-video-gen: drift mode
-        const ds = s.durationStatus || 'pending';
-        if (ds === 'matched') {
-          badgeHtml = `<span class="rehearsal-status-badge ok">✓ matched</span>`;
-        } else if (ds === 'stretched' || ds === 'compressed') {
-          const pct = s.durationDriftPct != null ? (Math.abs(s.durationDriftPct) * 100).toFixed(1) : '0';
-          badgeHtml = `<span class="rehearsal-status-badge warn">⚠ ${ds} ${pct}%</span>`;
-          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
-        } else if (ds === 'exceeds') {
-          const pct = s.durationDriftPct != null ? (Math.abs(s.durationDriftPct) * 100).toFixed(1) : '0';
-          badgeHtml = `<span class="rehearsal-status-badge error">⛔ exceeds ${pct}%</span>`;
-          backLink = `<button class="rehearsal-back-link btn-xs" data-idx="${i}">↩</button>`;
-        } else {
-          badgeHtml = `<span class="rehearsal-status-badge regen">⏳ generating…</span>`;
-        }
+        // Post-video-gen: show ready or generating
+        badgeHtml = s.videoActualDuration
+          ? `<span class="rehearsal-status-badge ok">✓ ready</span>`
+          : `<span class="rehearsal-status-badge regen">⏳ generating…</span>`;
       }
       return `<div class="rehearsal-scene-row" id="rehearsal-row-${i}">
         <span class="rehearsal-scene-num">Scene ${i + 1}</span>
@@ -957,15 +750,9 @@
       </div>`;
     }).join('');
 
-    const driftBanner = Math.abs(totalDriftPct) > 0.03 ? `
-      <div class="rehearsal-drift-banner">
-        ⚠ Total duration drift: ${(totalDriftPct * 100).toFixed(1)}% (${_fmtTime(totalAudioSec)} audio vs ${_fmtTime(totalVideoSec)} video target)<br>
-        Adjust individual scenes' duration to bring total within 3%, or regenerate longer scenes' video for exact match.
-      </div>` : '';
-
     const genBtn = canGen
       ? `<button class="btn-md primary" id="rehearsal-gen-videos-btn">Generate videos $${_estimateVideoCost()} →</button>`
-      : `<button class="btn-md" id="rehearsal-gen-videos-btn" disabled title="Resolve all scenes first">Resolve ${scenes.filter(s => s.durationStatus === 'exceeds').length || 0} scenes first</button>`;
+      : `<button class="btn-md" id="rehearsal-gen-videos-btn" disabled title="All scenes need audio first">Generate videos — audio pending</button>`;
 
     step.innerHTML = `
       <div class="agent-step-header">
@@ -997,9 +784,8 @@
 
       <div class="rehearsal-footer">
         <div class="rehearsal-footer-info">
-          Total audio: ${_fmtTime(totalAudioSec)} &nbsp;|&nbsp; Estimated video: ${_fmtTime(totalVideoSec || totalAudioSec)}
+          Total audio: ${_fmtTime(totalAudioSec)}
         </div>
-        ${driftBanner}
         <div class="rehearsal-footer-actions">
           <button class="btn-md" id="rehearsal-back-images-btn">← Back to images</button>
           ${genBtn}
@@ -1199,10 +985,30 @@
 
   async function _lockAndGenerateVideos() {
     const scenes = window.createScenes || [];
-    // Lock per-scene duration
+    const provider = window.videoProvider;
+
+    // Pass-2: lock actual audio duration + recompute segmentPlan from real audioMs
     for (const s of scenes) {
-      if (s.audioActualDuration) s.duration = s.audioActualDuration;
+      if (s.audioActualDuration) {
+        s.durationSec = s.audioActualDuration;
+        if (provider && typeof window.planSegments === 'function') {
+          const r = window.planSegments({ audioMs: s.audioActualDuration * 1000, provider, scene: s, pass: 'actual' });
+          s.segmentPlan        = r.segments;
+          s.segmentPlanPass    = 'actual';
+          s.generatedDurationSec = r.totalGenSec;
+          s.croppedTailSec     = r.croppedTailSec;
+          s.durationTier       = r.segments[0]?.durationSec ?? s.durationTier;
+        }
+      } else if (s.segmentPlanPass !== 'actual' && provider && typeof window.planSegments === 'function') {
+        const r = window.planSegments({ audioMs: (s.durationSec || 5) * 1000, provider, scene: s, pass: 'actual' });
+        s.segmentPlan        = r.segments;
+        s.segmentPlanPass    = 'actual';
+        s.generatedDurationSec = r.totalGenSec;
+        s.croppedTailSec     = r.croppedTailSec;
+        s.durationTier       = r.segments[0]?.durationSec ?? s.durationTier;
+      }
     }
+
     if (window.createJobState) {
       if (!window.createJobState.audioRehearsal) window.createJobState.audioRehearsal = {};
       window.createJobState.audioRehearsal.status = 'locked';
@@ -1267,7 +1073,8 @@
     if (existing) existing.remove();
     const scenes = window.createScenes || [];
     const scene = scenes[turn.segmentIndex];
-    const dialogueText = scene && scene.dialogue && scene.dialogue.text ? scene.dialogue.text : '';
+    const dl0 = scene && (scene.dialogueLines || [])[0];
+    const dialogueText = dl0 && dl0.text ? dl0.text : '';
     const preview = dialogueText.length > 40 ? dialogueText.slice(0, 40) + '…' : dialogueText;
 
     const menu = document.createElement('div');
@@ -1283,7 +1090,7 @@
         <div class="rcm-submenu">${moodSubmenuHtml}</div>
       </div>
       <div class="rcm-item" data-action="replace-voice">🎙 Replace voice this line</div>
-      <div class="rcm-item" data-action="mute">${scene && scene.dialogue && scene.dialogue.muted ? '🔈 Unmute this line' : '🔇 Mute this line'}</div>
+      <div class="rcm-item" data-action="mute">${dl0 && dl0.muted ? '🔈 Unmute this line' : '🔇 Mute this line'}</div>
     `;
     menu.style.cssText = `position:fixed;z-index:9999;background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;padding:4px 0;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.6);`;
     menu.style.left = Math.min(x, window.innerWidth - 220) + 'px';
@@ -1310,9 +1117,10 @@
         close();
         const sceneIdx = turn.segmentIndex;
         const sc = scenes[sceneIdx];
-        if (sc && sc.dialogue) {
-          sc.dialogue.voiceOverride = sc.dialogue.voiceOverride || {};
-          sc.dialogue.voiceOverride.mood = el.dataset.mood;
+        const scDl0 = sc && (sc.dialogueLines || [])[0];
+        if (scDl0) {
+          scDl0.voiceOverride = scDl0.voiceOverride || {};
+          scDl0.voiceOverride.mood = el.dataset.mood;
           sc._pendingMoodRegen = true;
         }
         _backToImageCard(sceneIdx);
@@ -1327,8 +1135,8 @@
 
     menu.querySelector('[data-action="mute"]').addEventListener('click', () => {
       close();
-      if (scene && scene.dialogue) {
-        scene.dialogue.muted = !scene.dialogue.muted;
+      if (dl0) {
+        dl0.muted = !dl0.muted;
         if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
       }
     });
@@ -1349,7 +1157,6 @@
     wireAudioSection,
     renderRehearsalStep,
     detectProjectAudioMode,
-    computeDurationStatus,
   };
 
   // Register sanitize fallback if 01-core.js not yet loaded

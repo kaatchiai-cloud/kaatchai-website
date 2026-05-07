@@ -525,17 +525,19 @@ async function saveProjectToFile(audioBuf, statusFn) {
         videoMode: createVideoMode || 'illustrated',
         inputMode: (typeof createInputMode !== 'undefined') ? createInputMode : 'voice',
         scenes: await Promise.all(createScenes.map(async s => {
-          const base = { id: s.id, prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, duration: s.duration, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment,
+          const base = { id: s.id, prompt: s.prompt, startTime: s.startTime, endTime: s.endTime, text: s.text, imgDataUrl: s.imgDataUrl, refCharacters: s.refCharacters, refEnvironment: s.refEnvironment,
             // Phase 2a: new cinematic pipeline fields
             dialogueLines:      s.dialogueLines      || null,
             visualSubjectIds:   s.visualSubjectIds   || null,
             durationSec:        (typeof s.durationSec === 'number') ? s.durationSec : null,
             durationTier:       (typeof s.durationTier === 'number') ? s.durationTier : null,
-            segmentPlan:        s.segmentPlan         || null,
-            segmentPlanPass:    s.segmentPlanPass     || null,
-            audioRegions:       s.audioRegions        || null,
+            segmentPlan:          s.segmentPlan           || null,
+            segmentPlanPass:      s.segmentPlanPass       || null,
+            audioRegions:         s.audioRegions          || null,
+            generatedDurationSec: s.generatedDurationSec  ?? null,
+            croppedTailSec:       s.croppedTailSec        ?? null,
           };
-          const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.duration }] : []);
+          const clipsToSave = s.videoClips || (s.videoUrl ? [{ url: s.videoUrl, clipDuration: s.durationSec }] : []);
           if (clipsToSave.length > 0) {
             try {
               base.videoClipsData = await Promise.all(clipsToSave.map(async clip => {
@@ -1059,7 +1061,7 @@ projectInput.addEventListener('change', async () => {
           try {
             const blob = base64ToBlob(s.videoData);
             scene.videoUrl = URL.createObjectURL(blob);
-            scene.videoClips = [{ url: scene.videoUrl, clipDuration: s.duration }];
+            scene.videoClips = [{ url: scene.videoUrl, clipDuration: s.durationSec || s.duration || 5 }];
             scene._stitchedVideoMissing = false;
           } catch(e) { console.warn('Scene video restore error:', e); }
         }
@@ -1086,32 +1088,23 @@ projectInput.addEventListener('change', async () => {
           });
         }
 
-        // Phase 2a: attach migration shims and backfill legacy fields.
-        // Guards are typeof checks because 17b-create-references.js (dynamic bundle)
-        // may not be loaded yet if this restore runs in a non-standard context.
-        if (typeof window.attachDurationShim === 'function') {
-          // Move plain `duration` property to canonical fields, then install shim.
-          const legacyDur = scene.duration;
-          if (typeof legacyDur === 'number') {
-            if (typeof scene.durationSec !== 'number') scene.durationSec = legacyDur;
-            scene._legacyDuration = legacyDur;
-            delete scene.duration;
-          }
-          window.attachDurationShim(scene);
+        // Phase 2b: migrate legacy fields from old saves.
+        const legacyDur = scene.duration;
+        if (typeof legacyDur === 'number') {
+          if (typeof scene.durationSec !== 'number') scene.durationSec = legacyDur;
+          delete scene.duration;
         }
-        if (typeof window.attachDialogueShim === 'function') {
-          // Move plain `dialogue` property to dialogueLines[], then install shim.
-          if (scene.dialogue && !Array.isArray(scene.dialogueLines)) {
-            scene.dialogueLines = [
-              typeof window.legacyDialogueToLine === 'function'
-                ? window.legacyDialogueToLine(scene.dialogue)
-                : Object.assign({}, scene.dialogue, { withinSceneStartMs: null, withinSceneEndMs: null, audioBufferKey: null }),
-            ];
-            delete scene.dialogue;
-          } else if (!Array.isArray(scene.dialogueLines)) {
-            scene.dialogueLines = [];
-          }
-          window.attachDialogueShim(scene);
+        if (scene.dialogue && !Array.isArray(scene.dialogueLines)) {
+          scene.dialogueLines = [
+            typeof window.legacyDialogueToLine === 'function'
+              ? window.legacyDialogueToLine(scene.dialogue)
+              : Object.assign({}, scene.dialogue, { withinSceneStartMs: null, withinSceneEndMs: null, audioBufferKey: null }),
+          ];
+          delete scene.dialogue;
+        } else if (!Array.isArray(scene.dialogueLines)) {
+          scene.dialogueLines = [];
+        } else if (scene.dialogue) {
+          delete scene.dialogue;
         }
         if (typeof window.backfillVisualSubjectIds === 'function') {
           window.backfillVisualSubjectIds(scene);
@@ -1129,7 +1122,14 @@ projectInput.addEventListener('change', async () => {
         // Phase 2a: ensure style stubs exist (populated by Phase 4 style picker)
         if (!('subStyle'        in window.createJobState)) window.createJobState.subStyle        = null;
         if (!('visualTreatment' in window.createJobState)) window.createJobState.visualTreatment = null;
-        // Phase 10: back-compute narrationMode if missing (new field or legacy project)
+        // Phase 10: derive per-line isVoiceOver for legacy scenes that never had it saved,
+        // then compute narrationMode from the fully-derived state.
+        if (typeof window.castApplyFramingDerived === 'function') {
+          (createScenes || []).forEach(sc => {
+            const needsDerival = (sc.dialogueLines || []).some(l => l.isVoiceOver == null);
+            if (needsDerival) window.castApplyFramingDerived([sc]);
+          });
+        }
         if (!window.createJobState.narrationMode && typeof window.computeNarrationMode === 'function') {
           window.createJobState.narrationMode = window.computeNarrationMode(createScenes || []);
         }

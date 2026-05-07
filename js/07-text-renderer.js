@@ -76,6 +76,7 @@
         result.ready = true;
         URL.revokeObjectURL(url);
       };
+      img.onerror = () => { URL.revokeObjectURL(url); };
 
       // Also create a sync canvas fallback for immediate use
       const offCanvas = document.createElement('canvas');

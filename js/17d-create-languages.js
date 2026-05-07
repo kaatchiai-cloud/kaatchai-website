@@ -124,7 +124,7 @@ async function generateSubtitleTrack(langCode, scenes, audioBuffer, key) {
   const subtitles = scenes.map((s, i) => ({
     text: subtitleTexts[i] || '',
     startTime: sceneTimes[i]?.startTime ?? s.startTime,
-    duration:  sceneTimes[i]?.duration  ?? s.duration,
+    duration:  sceneTimes[i]?.duration  ?? s.durationSec ?? 0,
   }));
   return { subtitles, translatedText: translated };
 }
@@ -385,13 +385,13 @@ async function generateSubtitlesForTrack(trackId, subtitleLang) {
     if (!text || text.trim() === '' || text === '[continued]') continue;
     const sentences = text.split(/(?<=[.!?।])\s+/).filter(s => s.trim().length > 0);
     if (sentences.length <= 1) {
-      subs.push({ id: subId++, text: text.trim(), startTime: scene.startTime, duration: scene.duration });
+      subs.push({ id: subId++, text: text.trim(), startTime: scene.startTime, duration: scene.durationSec || 5 });
     } else {
       const chunks = [];
       for (let j = 0; j < sentences.length; j += 2) {
         chunks.push(sentences.slice(j, j + 2).join(' '));
       }
-      const chunkDur = scene.duration / chunks.length;
+      const chunkDur = (scene.durationSec || 0) / chunks.length;
       for (let j = 0; j < chunks.length; j++) {
         subs.push({ id: subId++, text: chunks[j].trim(), startTime: scene.startTime + j * chunkDur, duration: chunkDur });
       }
@@ -766,24 +766,24 @@ btnCreateSendEditor.addEventListener('click', async () => {
         sourceImageInstanceId: 'cg-narrator-setup',
         videoEl: narrEl,
         videoSrc: narrUrl,
-        videoDuration: narrV.clips[0].clipDuration || scene.duration,
+        videoDuration: narrV.clips[0].clipDuration || scene.durationSec || 5,
         inPoint: 0,
-        outPoint: narrV.clips[0].clipDuration || scene.duration,
+        outPoint: narrV.clips[0].clipDuration || scene.durationSec || 5,
         startTime: scene.startTime,
-        duration: scene.duration,
+        duration: scene.durationSec || 5,
         lane: 'narrator',
         imgSrc: scene.imgDataUrl,
         imgEl: img,
       });
     }
     if (createVideoMode === 'animated' && (scene.videoUrl || (scene.videoClips && scene.videoClips.length > 0))) {
-      const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.duration }];
+      const clips = scene.videoClips || [{ url: scene.videoUrl, clipDuration: scene.durationSec || 5 }];
       let clipStart = scene.startTime;
       for (let ci = 0; ci < clips.length; ci++) {
         const clip = clips[ci];
-        const remaining = scene.startTime + scene.duration - clipStart;
+        const remaining = scene.startTime + (scene.durationSec || 0) - clipStart;
         if (remaining <= 0) break;
-        const showDur = Math.min(clip.clipDuration || scene.duration, remaining);
+        const showDur = Math.min(clip.clipDuration || scene.durationSec || 5, remaining);
         const videoEl = document.createElement('video');
         videoEl.src = clip.url;
         videoEl.muted = true;
@@ -798,7 +798,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
           videoInstanceId: vidId,
           sourceImageInstanceId: sourceImgId,
           videoEl, videoSrc: clip.url,
-          videoDuration: clip.clipDuration || scene.duration,
+          videoDuration: clip.clipDuration || scene.durationSec || 5,
           startTime: clipStart, duration: showDur,
           imgSrc: scene.imgDataUrl, imgEl: img,
         };
@@ -816,7 +816,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
             inPoint: 0, outPoint: showDur,
           });
         }
-        clipStart += clip.clipDuration || scene.duration;
+        clipStart += clip.clipDuration || scene.durationSec || 5;
       }
     } else {
       const matchPhoto = oldPhotos.find(p =>
@@ -828,7 +828,7 @@ btnCreateSendEditor.addEventListener('click', async () => {
       const basePhoto = {
         sceneIdx, imageInstanceId: imgId,
         imgSrc: scene.imgDataUrl, imgEl: img,
-        startTime: scene.startTime, duration: scene.duration,
+        startTime: scene.startTime, duration: scene.durationSec || 5,
       };
       if (matchPhoto || fallbackPhoto) {
         photoItems.push({ ...(matchPhoto || fallbackPhoto), ...basePhoto });
@@ -1141,7 +1141,7 @@ btnCreateSaveProject.addEventListener('click', async () => {
       await new Promise(r => { img.onload = r; img.onerror = r; img.src = scene.imgDataUrl; });
       photoItems.push({
         id: nextPhotoId++, imgSrc: scene.imgDataUrl, imgEl: img,
-        startTime: scene.startTime, duration: scene.duration,
+        startTime: scene.startTime, duration: scene.durationSec || 5,
         transition: 'fade', transDur: 0.5,
       });
     }
@@ -1218,7 +1218,7 @@ btnBackToCreate.addEventListener('click', () => {
       if (ep) {
         createScenes[i].imgDataUrl = ep.imgSrc;
         createScenes[i].startTime = ep.startTime;
-        createScenes[i].duration = ep.duration;
+        createScenes[i].durationSec = ep.duration;
         createScenes[i].endTime = ep.startTime + ep.duration;
       }
     }

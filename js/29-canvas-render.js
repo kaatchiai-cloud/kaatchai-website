@@ -184,7 +184,7 @@ function fmtTime(sec) {
 // "0:23 – 0:34" for a scene with startTime + duration
 function fmtSceneTimeRange(scene) {
   const start = scene.startTime || 0;
-  const end = start + (scene.duration || 0);
+  const end = start + (scene.durationSec || 0);
   return fmtTime(start) + ' – ' + fmtTime(end);
 }
 function el(tag, cls, attrs) {
@@ -551,7 +551,7 @@ function updateSBNode(node, scene, sb, sceneIdx) {
 
   // Steppers
   const dur = node.querySelector('.cg-stepper[data-field="duration"] .cg-val');
-  if (dur) dur.textContent = (typeof scene.duration === 'number' ? scene.duration.toFixed(1) : '6.0') + 's';
+  if (dur) dur.textContent = (typeof scene.durationSec === 'number' ? scene.durationSec.toFixed(1) : '6.0') + 's';
   const sty = node.querySelector('.cg-stepper[data-field="style"] .cg-val');
   if (sty) sty.textContent = (window.createStylePreset || 'preset');
 
@@ -561,7 +561,7 @@ function updateSBNode(node, scene, sb, sceneIdx) {
   // badge inside the chip.
   const voiceChip = node.querySelector('[data-role="voice-chip"]');
   if (voiceChip) {
-    const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || scene.dialogue || null;
+    const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || null;
     const ls = scene.lipSync;
     const showChip = !!(dlg && dlg.speakerCharacterId && dlg.speakerCharacterId !== 'narrator');
     if (!showChip) {
@@ -593,7 +593,7 @@ function updateSBNode(node, scene, sb, sceneIdx) {
           badge = '<span class="cg-voice-badge cg-voice-badge-busy">⏳ syncing</span>';
         }
       }
-      const voiceOver = (dlg && dlg.isVoiceOver) || (scene.speakerVisible === false);
+      const voiceOver = !!(dlg && dlg.isVoiceOver);
       const voSuffix = voiceOver ? ' · voice-over' : '';
       const html =
         '<span class="cg-voice-icon">🎙️</span>' +
@@ -795,7 +795,7 @@ function updateVidNode(node, scene, sceneIdx, sb, srcImg, vid) {
   if (pin && vid.isRenderActive) pin.textContent = 'ACTIVE';
 
   const dur = node.querySelector('.cg-stepper[data-field="duration"] .cg-val');
-  if (dur) dur.textContent = ((vid.duration || scene.duration || 5).toFixed(1)) + 's';
+  if (dur) dur.textContent = ((vid.duration || scene.durationSec || 5).toFixed(1)) + 's';
 
   if (g.selectedIds.has(vid.id)) node.classList.add('cg-node-selected');
   else node.classList.remove('cg-node-selected');
@@ -3116,8 +3116,9 @@ if (!window.sbActions.regen) {
 }
 if (!window.sbActions.setDuration) {
   window.sbActions.setDuration = function (scene, sb, dir) {
-    const cur = typeof scene.duration === 'number' ? scene.duration : 6;
-    scene.duration = Math.max(1, Math.min(60, cur + dir));
+    const cur = typeof scene.durationSec === 'number' ? scene.durationSec : 6;
+    scene.durationSec = Math.max(1, Math.min(60, cur + dir));
+    scene.segmentPlanPass = null;
     renderAll();
     triggerSave();
   };

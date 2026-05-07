@@ -248,17 +248,14 @@
     const fps = detection.fps;
     const speakerNames = Array.from(new Set(speakerTurns.map(t => t.speakerCharacterId).filter(Boolean)));
     const overlays = [];
+    const faceMatches = matchFaceToSpeaker(detection, null);
     for (let f = 0; f < detection.frames.length; f++) {
       const frame = detection.frames[f];
       const t = frame.time;
       // Find active speaker turn at this time
       const turn = speakerTurns.find(s => t * 1000 >= s.startMs && t * 1000 < s.endMs);
       if (!turn) continue;
-      // Match face for this speaker (v1: leftmost-by-default policy)
-      // For multi-character scenes future work surfaces speaker positions
-      // explicitly; v1 takes leftmost as the speaker.
-      const matches = matchFaceToSpeaker(detection, turn.speakerCharacterId);
-      const faceMatch = matches[f];
+      const faceMatch = faceMatches[f];
       if (!faceMatch || !faceMatch.face) continue;
       const face = faceMatch.face;
       if (!face.mouthVisible) continue;

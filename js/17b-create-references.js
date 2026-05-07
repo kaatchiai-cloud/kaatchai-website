@@ -1489,7 +1489,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           castAssignDefaultVoice(item, g);
           if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
           renderCastRows();
-        });
+        }).catch(e => console.warn('[cast] gender inference failed (non-fatal):', e.message));
       } else if (type === 'character') {
         castAssignDefaultVoice(item, item.gender);
       }
@@ -1882,12 +1882,21 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     }
     cs.templateLocked   = !!state.templateLocked;
     cs.templateLockedAt = state.templateLockedAt || null;
+    if (state.narrationMode)   cs.narrationMode   = state.narrationMode;
+    if (state.subStyle)        cs.subStyle        = state.subStyle;
+    if (state.visualTreatment) cs.visualTreatment = state.visualTreatment;
     // Phase 1 — voice config restore
     if (state.voiceConfig) {
       cs.voiceConfig = state.voiceConfig;
     }
     if (Array.isArray(state.dismissedDetections)) cs.dismissedDetections = state.dismissedDetections.slice();
     if (Array.isArray(state.transcribedSegments)) cs.transcribedSegments = state.transcribedSegments.slice();
+    if (Array.isArray(window.createScenes) && typeof window.backfillVisualSubjectIds === 'function') {
+      window.createScenes.forEach(sc => window.backfillVisualSubjectIds(sc));
+    }
+    if (!cs.narrationMode && Array.isArray(window.createScenes) && typeof window.computeNarrationMode === 'function') {
+      cs.narrationMode = window.computeNarrationMode(window.createScenes);
+    }
     if (typeof window._castSyncToLegacy === 'function') window._castSyncToLegacy();
     if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
     if (typeof window.castRenderRows === 'function') window.castRenderRows();
@@ -1908,7 +1917,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         if (typeof window.brandRenderSlots === 'function') window.brandRenderSlots();
         if (typeof window.narratorRenderSlot === 'function') window.narratorRenderSlot();
         if (typeof window.renderRefsPanel === 'function') window.renderRefsPanel('timeline');
-      });
+      }).catch(e => console.warn('[cast] image hydration failed (non-fatal):', e.message));
     }
   }
 
@@ -3007,12 +3016,17 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           ? [line.speakerCharacterId]
           : visualSubjects.slice();
         const cloned = Object.assign({}, seg, {
-          startTime:        start + per * i,
-          endTime:          start + per * (i + 1),
-          dialogueLines:    [Object.assign({}, line)],
-          visualSubjectIds: splitVisualSubjects,
-          framing:          'frontal-close-up',
+          startTime:           start + per * i,
+          endTime:             start + per * (i + 1),
+          dialogueLines:       [Object.assign({}, line)],
+          visualSubjectIds:    splitVisualSubjects,
+          framing:             'frontal-close-up',
           _cutFromSpeakerSplit: true,
+          segmentPlan:         null,
+          segmentPlanPass:     null,
+          audioRegions:        null,
+          generatedDurationSec: null,
+          croppedTailSec:      null,
         });
         out.push(cloned);
       }
@@ -3020,8 +3034,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     return out;
   };
 
-  // Phase 4 — derive speakerVisible from framing. Voice-over framings make the
-  // speaker's mouth not on-camera, so lip sync must be skipped for those.
+  // Returns true if the framing puts the speaker's mouth on-camera (lip sync required).
   window.castDeriveSpeakerVisible = function (framing) {
     if (!framing) return false;
     return ['frontal-close-up', 'frontal-medium', 'three-quarter', 'over-shoulder-front'].includes(framing);
@@ -3060,7 +3073,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     if (!scene || !scene.framing) return '';
     const tmpl = FRAMING_PROMPTS[scene.framing];
     if (!tmpl) return '';
-    const firstLine = (scene.dialogueLines && scene.dialogueLines[0]) || scene.dialogue || null;
+    const firstLine = (scene.dialogueLines && scene.dialogueLines[0]) || null;
     const speaker = (firstLine && firstLine.speakerName) || 'the speaker';
     let listener = 'the other character';
     const cs = window.createJobState || {};
@@ -3194,10 +3207,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     const calls = [];
     let active = null;
     for (const seg of segments) {
-      // Support both new schema (dialogueLines[]) and old schema (dialogue) through migration window.
-      const lines = (seg && Array.isArray(seg.dialogueLines) && seg.dialogueLines.length)
-        ? seg.dialogueLines
-        : (seg && seg.dialogue) ? [seg.dialogue] : [];
+      const lines = (seg && Array.isArray(seg.dialogueLines)) ? seg.dialogueLines : [];
       for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         const line = lines[lineIdx];
         if (!line || !line.text) continue;
@@ -3331,10 +3341,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   function castShouldUseMultiVoice(segments) {
     if (!Array.isArray(segments)) return false;
     return segments.some(s => {
-      // Check dialogueLines[] first (new schema); fall back to dialogue (shim/old schema).
-      const lines = (s && Array.isArray(s.dialogueLines) && s.dialogueLines.length)
-        ? s.dialogueLines
-        : (s && s.dialogue) ? [s.dialogue] : [];
+      const lines = (s && Array.isArray(s.dialogueLines)) ? s.dialogueLines : [];
       return lines.some(l => l && l.speakerCharacterId && l.speakerCharacterId !== 'narrator');
     });
   }
@@ -3367,8 +3374,9 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     }
 
     // Step 2 — run TTS for each batch group; split back into per-segment buffers
-    // segmentResults[segmentIndex] = { audioBuffer, durationMs, speakerId, speakerName, voiceId, provider }
-    const segmentResults = new Array(segments.length).fill(null);
+    // segmentResults[segmentIndex] = [{ audioBuffer, durationMs, speakerId, speakerName, voiceId, provider, lineIdx }, ...]
+    // Array-of-arrays: a single scene can have multiple lines from different TTS calls.
+    const segmentResults = Array.from({ length: segments.length }, () => []);
 
     for (let callIdx = 0; callIdx < calls.length; callIdx++) {
       const call = calls[callIdx];
@@ -3383,7 +3391,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           const res = await castGenerateLineTTS(s0.dialogueLines[li0].text, call.voice, call.mood);
           if (res) {
             const segIdx = segments.indexOf(s0);
-            if (segIdx >= 0) segmentResults[segIdx] = {
+            if (segIdx >= 0) segmentResults[segIdx].push({
               audioBuffer: res.audioBuffer,
               durationMs: res.durationMs,
               speakerId: call.speakerId,
@@ -3391,7 +3399,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
               voiceId: call.voice.voiceId,
               provider: call.voice.provider,
               lineIdx: li0,
-            };
+            });
           }
           continue;
         }
@@ -3429,7 +3437,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           const segIdx = segments.indexOf(seg);
           if (segIdx < 0) continue;
           const buf = splitBuffers[i] || sliceAudioBuffer(combinedBuffer, 0, 100);
-          segmentResults[segIdx] = {
+          segmentResults[segIdx].push({
             audioBuffer: buf,
             durationMs: buf.duration * 1000,
             speakerId: call.speakerId,
@@ -3437,25 +3445,26 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
             voiceId: call.voice.voiceId,
             provider: call.voice.provider,
             lineIdx,
-          };
+          });
         }
       } catch (e) {
         console.warn(`[Voice] batch ${callIdx + 1} failed (${call.speakerName}/${call.mood}):`, e.message);
         // 1s silence placeholder for each segment in failed batch
         const ctxFallback = (typeof audioContext !== 'undefined' && audioContext) ? audioContext : new (window.AudioContext || window.webkitAudioContext)();
         const silence = ctxFallback.createBuffer(1, sampleRate, sampleRate);
-        for (const seg of call.segments) {
-          const segIdx = segments.indexOf(seg);
+        for (const { seg: errSeg, lineIdx: errLi } of call.segments) {
+          const segIdx = segments.indexOf(errSeg);
           if (segIdx < 0) continue;
-          segmentResults[segIdx] = {
+          segmentResults[segIdx].push({
             audioBuffer: silence,
             durationMs: 1000,
             speakerId: call.speakerId,
             speakerName: call.speakerName,
             voiceId: call.voice.voiceId,
             provider: call.voice.provider,
+            lineIdx: errLi,
             error: e.message,
-          };
+          });
         }
       }
     }
@@ -3471,10 +3480,11 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     let lastSpeakerId = null;
     let lastCallIdx = -1;
     for (let i = 0; i < segments.length; i++) {
-      const sr = segmentResults[i];
-      if (!sr) continue;
-      // Find which call this segment belongs to
-      const callForSeg = calls.find(c => c.segments.includes(segments[i]));
+      const srs = segmentResults[i];
+      if (!srs.length) continue;
+      const sr = srs[0];
+      // Find which call this segment belongs to (c.segments has { seg, lineIdx } entries)
+      const callForSeg = calls.find(c => c.segments.some(s => s.seg === segments[i]));
       const thisCallIdx = calls.indexOf(callForSeg);
       if (lastSpeakerId === null) {
         beatBeforeMs[i] = 0;
@@ -3486,16 +3496,17 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       } else {
         beatBeforeMs[i] = 0; // in-batch: already handled by split silence
       }
-      lastSpeakerId = sr.speakerId;
+      lastSpeakerId = srs[srs.length - 1].speakerId;
       lastCallIdx = thisCallIdx;
     }
 
     // Compute total samples
     let totalSamples = 0;
     for (let i = 0; i < segments.length; i++) {
-      const sr = segmentResults[i];
-      if (!sr) continue;
-      totalSamples += Math.round((beatBeforeMs[i] / 1000) * sampleRate) + sr.audioBuffer.length;
+      const srs = segmentResults[i];
+      if (!srs.length) continue;
+      totalSamples += Math.round((beatBeforeMs[i] / 1000) * sampleRate) +
+        srs.reduce((acc, sr) => acc + sr.audioBuffer.length, 0);
     }
 
     const combined = ctx.createBuffer(1, Math.max(1, totalSamples), sampleRate);
@@ -3506,38 +3517,44 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     let cursorMs = 0;
 
     for (let i = 0; i < segments.length; i++) {
-      const sr = segmentResults[i];
-      if (!sr) continue;
+      const srs = segmentResults[i];
+      if (!srs.length) continue;
       const beatSamples = Math.round((beatBeforeMs[i] / 1000) * sampleRate);
       cursorSamples += beatSamples;
       cursorMs += beatBeforeMs[i];
-      const src = sr.audioBuffer.getChannelData(0);
-      channel.set(src, cursorSamples);
-      const startMs = cursorMs;
-      const endMs   = cursorMs + sr.durationMs;
-      speakerTurns.push({
-        segmentIndex: i,
-        speakerCharacterId: sr.speakerId,
-        speakerName: sr.speakerName,
-        voiceId: sr.voiceId,
-        provider: sr.provider,
-        startMs,
-        endMs,
-      });
-      // Write timing back to segment + audioActualDuration
       const seg = segments[i];
-      if (seg) {
-        seg.startTime = startMs / 1000;
-        seg.endTime   = endMs / 1000;
-        seg.audioActualDuration = sr.durationMs / 1000;
-        if (Array.isArray(seg.dialogueLines) && typeof sr.lineIdx === 'number' && seg.dialogueLines[sr.lineIdx]) {
+      const segStartMs = cursorMs;
+      let segTotalDurationMs = 0;
+      // Iterate all lines for this scene — each has its own audio buffer and lineIdx
+      for (const sr of srs) {
+        const src = sr.audioBuffer.getChannelData(0);
+        channel.set(src, cursorSamples);
+        const startMs = cursorMs;
+        const endMs   = cursorMs + sr.durationMs;
+        speakerTurns.push({
+          segmentIndex: i,
+          speakerCharacterId: sr.speakerId,
+          speakerName: sr.speakerName,
+          voiceId: sr.voiceId,
+          provider: sr.provider,
+          startMs,
+          endMs,
+        });
+        if (seg && Array.isArray(seg.dialogueLines) && typeof sr.lineIdx === 'number' && seg.dialogueLines[sr.lineIdx]) {
           seg.dialogueLines[sr.lineIdx].withinSceneStartMs = startMs;
           seg.dialogueLines[sr.lineIdx].withinSceneEndMs   = endMs;
         }
+        segTotalDurationMs += sr.durationMs;
+        cursorSamples += sr.audioBuffer.length;
+        cursorMs = endMs;
       }
-      perSegmentDurationsMs[i] = sr.durationMs;
-      cursorSamples += sr.audioBuffer.length;
-      cursorMs = endMs;
+      // Write scene-level timing from first line start to last line end
+      if (seg) {
+        seg.startTime = segStartMs / 1000;
+        seg.endTime   = cursorMs / 1000;
+        seg.audioActualDuration = segTotalDurationMs / 1000;
+      }
+      perSegmentDurationsMs[i] = segTotalDurationMs;
     }
 
     return {
@@ -3549,13 +3566,12 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   }
   window.castGenerateMultiVoiceAudio = castGenerateMultiVoiceAudio;
 
-  // Phase 3.5 — apply derived per-line isVoiceOver from framing. Mutates segments in place.
-  // Deprecates scene-level speakerVisible (Phase 12 cleanup removes it).
+  // Apply derived per-line isVoiceOver from framing. Mutates segments in place.
   window.castApplyFramingDerived = function (segments) {
     if (!Array.isArray(segments)) return segments;
     for (const seg of segments) {
       if (!seg) continue;
-      const visible = window.castDeriveSpeakerVisible(seg.framing);
+      const visible = window.castDeriveSpeakerVisible ? window.castDeriveSpeakerVisible(seg.framing) : false;
       if (Array.isArray(seg.dialogueLines)) {
         for (const line of seg.dialogueLines) {
           if (!line) continue;
@@ -3571,16 +3587,6 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
               : resolveSpeakerFromName(line.speakerName);
           }
         }
-      } else if (seg.dialogue) {
-        // Legacy single-dialogue fallback (deprecated; removed in Phase 12)
-        seg.speakerVisible = visible;
-        if (!visible) seg.dialogue.isVoiceOver = true;
-        if (seg.dialogue.speakerName && !seg.dialogue.speakerCharacterId) {
-          const lc = String(seg.dialogue.speakerName).toLowerCase();
-          seg.dialogue.speakerCharacterId = lc === 'narrator'
-            ? 'narrator'
-            : resolveSpeakerFromName(seg.dialogue.speakerName);
-        }
       }
     }
     return segments;
@@ -3589,12 +3595,13 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   // Build the storyboard preamble injected into Gemini prompts.
   window.castBuildStoryboardPreamble = function () {
     const t = (window.createJobState && window.createJobState.videoType) || null;
-    const chars = (window.createJobState.characters || []).filter(c => c.locked);
-    const locs = (window.createJobState.locations || []).filter(l => l.locked);
-    const product = window.createJobState.product;
-    const presenter = window.createJobState.presenter;
-    const setting = window.createJobState.setting;
-    const narrator = window.createJobState.narrator;
+    const _cjs = window.createJobState || {};
+    const chars = (_cjs.characters || []).filter(c => c.locked);
+    const locs = (_cjs.locations || []).filter(l => l.locked);
+    const product = _cjs.product;
+    const presenter = _cjs.presenter;
+    const setting = _cjs.setting;
+    const narrator = _cjs.narrator;
     const productLocked = product && product.locked;
     const presenterLocked = presenter && presenter.locked;
     const settingLocked = setting && setting.locked;
@@ -3895,6 +3902,8 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   // the slot's role: entity portrait, alternate-angle extra, palette study,
   // lighting reference, hero composition, logo, or mood spare.
   function _bibleStylePrefix() {
+    const _ms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+    if (_ms && _ms.description) return `Style: ${_ms.description}`;
     const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
     return sp ? `Style: ${sp}` : '';
   }
@@ -5016,25 +5025,13 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
   window._castInstantiateFromLibrary = _instantiateFromLibrary;
 })();
 
-// ── Phase 2a: Cinematic pipeline migration shims ──
-// These helpers are called at scene creation time (17c-create-pipeline.js)
-// and at project restore time (15-project.js). They install backward-compat
-// getters so legacy readers see the same values they always did, while new
-// code uses the explicit durationSec / dialogueLines fields.
-
-window._cinematicShimWarnings = window._cinematicShimWarnings || {
-  dialogue:            0,   // multi-line scene accessed through dialogue shim
-  durationFallthrough: 0,   // duration shim fell through to default 0
-  timingFallback:      0,   // uniform-distribution timing fallback used
-};
-
 // Convert a legacy single dialogue object into a dialogueLines[] entry.
 function legacyDialogueToLine(legacyDialogue) {
   return {
     speakerCharacterId: legacyDialogue.speakerCharacterId,
     speakerName:        legacyDialogue.speakerName || null,
     text:               legacyDialogue.text,
-    mood:               (legacyDialogue.voiceOverride && legacyDialogue.voiceOverride.mood) || 'matter-of-fact',
+    mood:               (legacyDialogue.voiceOverride && legacyDialogue.voiceOverride.mood) || legacyDialogue.mood || 'matter-of-fact',
     isVoiceOver:        legacyDialogue.isVoiceOver || false,
     withinSceneStartMs: null,
     withinSceneEndMs:   null,
@@ -5046,57 +5043,6 @@ function legacyDialogueToLine(legacyDialogue) {
   };
 }
 window.legacyDialogueToLine = legacyDialogueToLine;
-
-// Install scene.dialogue getter/setter for backward compat.
-// getter: returns dialogueLines[0] (warns on multi-line access).
-// setter: converts a legacy dialogue object into dialogueLines[].
-function attachDialogueShim(scene) {
-  if (Object.getOwnPropertyDescriptor(scene, 'dialogue')) return;
-  Object.defineProperty(scene, 'dialogue', {
-    configurable: true,
-    enumerable:   false,
-    get() {
-      const lines = this.dialogueLines || [];
-      if (lines.length > 1 && !this._dialogueShimWarned) {
-        console.warn(
-          `[migration] scene.dialogue accessed on multi-line scene (${lines.length} lines). ` +
-          `Migrate reader to scene.dialogueLines[]. Scene id: ${this.id}`
-        );
-        this._dialogueShimWarned = true;
-        window._cinematicShimWarnings.dialogue = (window._cinematicShimWarnings.dialogue || 0) + 1;
-      }
-      return lines[0] || null;
-    },
-    set(value) {
-      this.dialogueLines = value ? [legacyDialogueToLine(value)] : [];
-    },
-  });
-}
-window.attachDialogueShim = attachDialogueShim;
-
-// Install scene.duration getter/setter for backward compat.
-// getter: resolves to durationSec (visible scene length) only — never to durationTier.
-// setter: mirrors write to durationSec + _legacyDuration and invalidates segmentPlan.
-function attachDurationShim(scene) {
-  if (Object.getOwnPropertyDescriptor(scene, 'duration')) return;
-  Object.defineProperty(scene, 'duration', {
-    configurable: true,
-    enumerable:   false,
-    get() {
-      if (typeof this.durationSec === 'number') return this.durationSec;
-      if (typeof this._legacyDuration === 'number') return this._legacyDuration;
-      window._cinematicShimWarnings.durationFallthrough =
-        (window._cinematicShimWarnings.durationFallthrough || 0) + 1;
-      return 0;
-    },
-    set(value) {
-      this._legacyDuration = value;
-      this.durationSec     = value;
-      this.segmentPlanPass = null;
-    },
-  });
-}
-window.attachDurationShim = attachDurationShim;
 
 // Resolve a speaker name to a characterId using the same chain as castApplyFramingDerived.
 function resolveSpeakerFromName(speakerName) {
@@ -5112,17 +5058,18 @@ function resolveSpeakerFromName(speakerName) {
 window.resolveSpeakerFromName = resolveSpeakerFromName;
 
 // Back-compute visualSubjectIds for legacy scenes that predate Phase 3 (§12.5a).
-// Called once per scene during project restore, before shims attach.
+// Called once per scene during project restore.
 function backfillVisualSubjectIds(scene) {
-  if (Array.isArray(scene.visualSubjectIds)) return;
-  const firstLine = (scene.dialogueLines && scene.dialogueLines[0]) || null;
-  if (firstLine && firstLine.speakerCharacterId && firstLine.speakerCharacterId !== 'narrator') {
-    scene.visualSubjectIds = [firstLine.speakerCharacterId];
-  } else if (firstLine && firstLine.speakerName && firstLine.speakerName.toLowerCase() !== 'narrator') {
-    const resolved = resolveSpeakerFromName(firstLine.speakerName);
-    scene.visualSubjectIds = resolved ? [resolved] : [];
-  } else {
-    scene.visualSubjectIds = [];
+  if (Array.isArray(scene.visualSubjectIds) && scene.visualSubjectIds.length > 0) return;
+  const ids = new Set();
+  for (const line of (scene.dialogueLines || [])) {
+    if (line.speakerCharacterId && line.speakerCharacterId !== 'narrator') {
+      ids.add(line.speakerCharacterId);
+    } else if (line.speakerName && line.speakerName.toLowerCase() !== 'narrator') {
+      const resolved = resolveSpeakerFromName(line.speakerName);
+      if (resolved) ids.add(resolved);
+    }
   }
+  scene.visualSubjectIds = [...ids];
 }
 window.backfillVisualSubjectIds = backfillVisualSubjectIds;

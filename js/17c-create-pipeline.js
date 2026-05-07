@@ -18,6 +18,20 @@ createStylePresetEl.addEventListener('change', () => {
     createStylePromptEl.disabled = true;
   }
   createStylePreset = val;
+  // Phase 12: sync createJobState.subStyle / visualTreatment from legacy preset key
+  if (val && val !== 'custom' && window.createJobState) {
+    const _toSubStyle = {
+      cinematic: 'film', noir: 'film', gothic: 'film', vintage: 'film', surrealism: 'film',
+      'flat-design': 'brand', minimalist: 'brand', 'pop-art': 'brand', pastel: 'brand', corporate: 'brand',
+    };
+    const _toTreatment = {
+      watercolor: 'watercolor', 'oil-painting': 'oil-painting', anime: 'anime', comic: 'comic',
+      'pixel-art': 'pixel-art', '3d-render': '3d-render', sketch: 'sketch', 'digital-art': 'illustrated',
+      'ukiyo-e': 'ukiyo-e', 'stained-glass': 'stained-glass', photorealistic: 'photorealistic',
+    };
+    if (_toSubStyle[val]) window.createJobState.subStyle = null;
+    if (_toTreatment[val]) window.createJobState.visualTreatment = (window.VISUAL_TREATMENTS && window.VISUAL_TREATMENTS[_toTreatment[val]]) || null;
+  }
 });
 
 createStylePromptEl.addEventListener('input', () => {
@@ -1023,8 +1037,21 @@ function autoSaveCreateState() {
     const state = {
       transcript: createTranscript,
       scenes: createScenes ? createScenes.map(s => ({
+        id: s.id || null,
         prompt: s.prompt, startTime: s.startTime, endTime: s.endTime,
-        duration: s.duration, text: s.text, status: s.status,
+        durationSec: s.durationSec, text: s.text, status: s.status,
+        framing: s.framing || null,
+        performance: s.performance || null,
+        motionPrompt: s.motionPrompt || null,
+        negativePrompt: s.negativePrompt || null,
+        dialogueLines: s.dialogueLines || null,
+        visualSubjectIds: s.visualSubjectIds || null,
+        segmentPlan: s.segmentPlan || null,
+        segmentPlanPass: s.segmentPlanPass ?? null,
+        audioRegions: s.audioRegions || null,
+        generatedDurationSec: s.generatedDurationSec ?? null,
+        croppedTailSec: s.croppedTailSec ?? null,
+        durationTier: s.durationTier ?? null,
         // Skip base64 images to stay within localStorage 5MB limit
       })) : null,
       stylePrompt: createStylePrompt,
@@ -1083,6 +1110,9 @@ function autoSaveCreateState() {
         defaultsByGender: window.createJobState.voiceConfig.defaultsByGender || null,
         elevenlabsKeyConfigured: !!window.createJobState.voiceConfig.elevenlabsKeyConfigured,
       } : null,
+      narrationMode:       window.createJobState?.narrationMode     || null,
+      subStyle:            window.createJobState?.subStyle          || null,
+      visualTreatment:     window.createJobState?.visualTreatment   || null,
       dismissedDetections: window.createJobState?.dismissedDetections || [],
       transcribedSegments: window.createJobState?.transcribedSegments || null,
       timestamp: Date.now(),
@@ -1287,7 +1317,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
       segments.forEach(s => {
         if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`;
       });
-      // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+      // Phase 4 — cut-on-speaker enforcement
       if (typeof window.castEnforceCutOnSpeaker === 'function') {
         segments = window.castEnforceCutOnSpeaker(segments);
       }
@@ -1330,6 +1360,8 @@ btnCreateTranscribe.addEventListener('click', async () => {
 
     } else {
       // ── Voice/Podcast mode: audio transcription ──
+      if (typeof window.runStyleGate === 'function') await window.runStyleGate();
+
       // G9 — if Detect-from-script already transcribed (createJobState.transcribedSegments
       // matches current audio duration), reuse those segments and skip the heavy
       // transcribe Gemini call. Then run scene-description-only call below.
@@ -1372,7 +1404,7 @@ btnCreateTranscribe.addEventListener('click', async () => {
           } catch (e) { console.warn('Could not parse scene descriptions:', e); }
         }
         segments.forEach(s => { if (!s.sceneDescription) s.sceneDescription = `Visual scene depicting: ${s.text.slice(0, 100)}`; });
-        // Phase 4 — cut-on-speaker enforcement + framing-derived speakerVisible
+        // Phase 4 — cut-on-speaker enforcement
         if (typeof window.castEnforceCutOnSpeaker === 'function') {
           segments = window.castEnforceCutOnSpeaker(segments);
         }
@@ -1609,8 +1641,6 @@ Important:
         visualSubjectIds: Array.isArray(s.visualSubjectIds) ? s.visualSubjectIds : [],
         framing:          s.framing || null,
       }));
-      if (typeof window.attachDurationShim  === 'function') createScenes.forEach(s => window.attachDurationShim(s));
-      if (typeof window.attachDialogueShim  === 'function') createScenes.forEach(s => window.attachDialogueShim(s));
       // Pass-1 segment plan — estimate only; pass-2 runs at audio rehearsal lock (Phase 12)
       if (typeof window.planSegments === 'function') {
         const _prov = window.videoProvider || { durationTiers: [5, 10] };
@@ -1775,7 +1805,6 @@ function buildChapterScenes(ch) {
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
     };
-    if (typeof window.attachDurationShim === 'function') window.attachDurationShim(single);
     return [single];
   }
 
@@ -1830,7 +1859,6 @@ function buildChapterScenes(ch) {
       chapterId: ch.id, chapterTitle: ch.title,
     });
   }
-  if (typeof window.attachDurationShim === 'function') scenes.forEach(s => window.attachDurationShim(s));
   return scenes;
 }
 
@@ -2141,8 +2169,6 @@ RULES:
       imgDataUrl: null, status: 'pending',
       chapterId: ch.id, chapterTitle: ch.title,
     }));
-    if (typeof window.attachDurationShim === 'function') newScenes.forEach(s => window.attachDurationShim(s));
-
     // Insert at correct position
     const insertIdx = createScenes.findIndex(s => s.startTime >= ch.startTime);
     createScenes.splice(insertIdx === -1 ? createScenes.length : insertIdx, 0, ...newScenes);
@@ -2174,9 +2200,7 @@ window.deleteSceneAt = async function(idx) {
 
 window.insertSceneAt = function(idx) {
   const blank = { text: '', prompt: '', dialogueLines: [], refCharacters: [], status: 'pending',
-    startTime: 0, endTime: 0, duration: 5, durationSec: 5 };
-  if (typeof window.attachDialogueShim === 'function') window.attachDialogueShim(blank);
-  if (typeof window.attachDurationShim === 'function') window.attachDurationShim(blank);
+    startTime: 0, endTime: 0, durationSec: 5 };
   createScenes.splice(idx, 0, blank);
   renderStoryboard();
   autoSaveCreateState();
@@ -2199,7 +2223,7 @@ function renderStoryboardSceneCard(scene, idx) {
     <div class="storyboard-time">
       <span class="time-badge">${fmt(scene.startTime)}</span>
       <span class="time-badge">${fmt(scene.endTime)}</span>
-      <span class="time-dur">${scene.duration.toFixed(1)}s</span>
+      <span class="time-dur">${(scene.durationSec || 0).toFixed(1)}s</span>
     </div>
     <div class="storyboard-content">
       <div class="storyboard-transcript">🗣 "${scene.text}"</div>
@@ -2899,8 +2923,10 @@ async function generateBible(opts) {
     const prompts = window.castBuildBiblePrompts(page);
     const refParts = await window.castBuildBibleRefParts(page);
 
-    // Style prompt for grid call. Uses createStylePrompt (current project style).
-    const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+    const _bibleMs = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+    const _bibleMt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+    let sp = (_bibleMs && _bibleMs.description) ? _bibleMs.description : ((typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '');
+    if (_bibleMt && _bibleMt.description) sp += (sp ? '. ' : '') + `Rendering aesthetic: ${_bibleMt.description}`;
     let gridDataUrl;
     try {
       // Try Pro → 3.1 Flash → 2.5 Flash (existing fallback chain).
@@ -2996,8 +3022,9 @@ async function generateBible(opts) {
 function _bibleStyleFingerprint() {
   const t = (typeof selectedTemplate !== 'undefined' && selectedTemplate) ? (selectedTemplate.id || selectedTemplate) : '';
   const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  const ss = (window.createJobState && window.createJobState.subStyle && window.createJobState.subStyle.description) ? window.createJobState.subStyle.description : '';
   let h = 0;
-  const s = String(t) + '|' + String(sp);
+  const s = String(t) + '|' + String(sp) + '|' + ss;
   for (let i = 0; i < s.length; i++) {
     h = ((h << 5) - h) + s.charCodeAt(i);
     h |= 0;
@@ -3471,7 +3498,10 @@ async function _bibleAddPage(newEntityName) {
   // Generate the new page via grid call (similar to generateBible's loop)
   const prompts = window.castBuildBiblePrompts(newPage);
   const refParts = await window.castBuildBibleRefParts(newPage);
-  const sp = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  const _addPageMs = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+  const _addPageMt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+  let sp = (_addPageMs && _addPageMs.description) ? _addPageMs.description : ((typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '');
+  if (_addPageMt && _addPageMt.description) sp += (sp ? '. ' : '') + `Rendering aesthetic: ${_addPageMt.description}`;
   const formatHint = 'square format (1:1 aspect ratio)';
   let gridDataUrl;
   try {
@@ -3566,7 +3596,10 @@ async function castGenerateMouthSpritesForCharacter(character, opts) {
     { text: `Reference: this is ${character.name}'s canonical appearance. Match every facial feature, build, attire, hair, color, and rendering style exactly.` },
   ];
 
-  const stylePrefix = (typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '';
+  const _spriteMs = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+  const _spriteMt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+  let stylePrefix = (_spriteMs && _spriteMs.description) ? _spriteMs.description : ((typeof createStylePrompt !== 'undefined' && createStylePrompt) ? createStylePrompt : '');
+  if (_spriteMt && _spriteMt.description) stylePrefix += (stylePrefix ? '. ' : '') + `Rendering aesthetic: ${_spriteMt.description}`;
   const styPrefix = stylePrefix ? `Style: ${stylePrefix}. ` : '';
   const variants = [
     { suffix: 'closed', tail: 'Lips fully closed, neutral relaxed expression, no teeth visible. Calm face, eyes engaged with camera.' },
@@ -3726,7 +3759,7 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
     // that fall within scene's time window). Lip sync only cares about turns
     // within this clip's local time, so rebase to clip-local milliseconds.
     const clipStartMs = (scene.startTime || 0) * 1000;
-    const clipEndMs   = (scene.endTime   || (scene.startTime + scene.duration || 0)) * 1000;
+    const clipEndMs   = (scene.endTime   || (scene.startTime + (scene.durationSec || 0))) * 1000;
     const localTurns = speakerTurns
       .filter(t => t.endMs > clipStartMs && t.startMs < clipEndMs)
       .map(t => ({
@@ -3921,12 +3954,9 @@ window.klingLipSyncCall = klingLipSyncCall;
 // requires a transient host — flagged as v1 limitation in plan §10.2.
 async function syncSceneWithKlingLipSync(scene, audioBuffer, opts) {
   if (!scene) throw new Error('Scene required');
-  const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || scene.dialogue || null;
+  const dlg = (Array.isArray(scene.dialogueLines) && scene.dialogueLines[0]) || null;
   if (!dlg || dlg.isVoiceOver || !dlg.speakerCharacterId || dlg.speakerCharacterId === 'narrator') {
     return { skipped: true, reason: 'no on-camera dialogue' };
-  }
-  if (scene.speakerVisible === false) {
-    return { skipped: true, reason: 'voice-over framing' };
   }
   if (!scene.videoUrl) {
     return { skipped: true, reason: 'no video clip URL' };
@@ -3947,7 +3977,7 @@ async function syncSceneWithKlingLipSync(scene, audioBuffer, opts) {
     scene.lipSync.syncedClipUrl = syncedUrl;
     if (typeof trackCost === 'function') {
       // Approx cost = $0.014 × duration, rounded up to 5-sec increment
-      const dur = scene.duration || 5;
+      const dur = scene.durationSec || 5;
       const billedSec = Math.max(5, Math.ceil(dur / 5) * 5);
       trackCost('klingLipsync', billedSec * 0.014);
     }
@@ -4175,9 +4205,24 @@ async function generateSceneImage(idx) {
     let imgDataUrl;
     // Build prompt with character/environment references if available
     const hasRefs = (scene.refCharacters && scene.refCharacters.length > 0) || (scene.refEnvironment >= 0);
-    let effectivePrompt = hasRefs
-      ? buildScenePromptWithRefs(scene, scene.prompt)
-      : (createStylePrompt ? `Style: ${createStylePrompt}. Scene: ${scene.prompt}` : scene.prompt);
+    let effectivePrompt;
+    if (hasRefs) {
+      effectivePrompt = buildScenePromptWithRefs(scene, scene.prompt);
+    } else {
+      const _ms = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(scene) : null;
+      const _mt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+      let _p = '';
+      if (_ms && _ms.description) {
+        _p += `Style: ${_ms.description}. `;
+        if (_ms.lighting)    _p += `Lighting: ${_ms.lighting}. `;
+        if (_ms.color)       _p += `Color palette: ${_ms.color}. `;
+        if (_ms.composition) _p += `Composition: ${_ms.composition}. `;
+      } else if (createStylePrompt) {
+        _p += `Style: ${createStylePrompt}. `;
+      }
+      if (_mt && _mt.description) _p += `Rendering aesthetic: ${_mt.description}. `;
+      effectivePrompt = _p + scene.prompt;
+    }
     // Text mode instruction
     const textMode = $('create-image-text-mode')?.value || 'no-text';
     if (textMode === 'no-text') {
@@ -4504,8 +4549,12 @@ async function runImageGeneration(scenesToGen) {
     });
 
     const prompts = batch.map(s => s.prompt + noTextSuffix);
-    const styleWithHint = createStylePrompt
-      ? `${createStylePrompt}. ${centerInstruction}`
+    const _batchMs = (typeof window.getMergedStyle === 'function') ? window.getMergedStyle(null) : null;
+    const _batchMt = (typeof window.getMergedTreatment === 'function') ? window.getMergedTreatment() : null;
+    let _batchStyleStr = (_batchMs && _batchMs.description) ? _batchMs.description : (createStylePrompt || '');
+    if (_batchMt && _batchMt.description) _batchStyleStr += (_batchStyleStr ? '. ' : '') + `Rendering aesthetic: ${_batchMt.description}`;
+    const styleWithHint = _batchStyleStr
+      ? `${_batchStyleStr}. ${centerInstruction}`
       : centerInstruction;
 
     // Phase 6 — bible refs at batch granularity (union of all bracket tokens
@@ -5162,7 +5211,7 @@ async function _generateNarratorClipsIfNeeded() {
     if (v.clips && v.clips.length && v.status === 'done') continue;        // already generated
     v.status = 'generating';
     try {
-      const dur = Math.max(5, Math.min(10, Math.round(scene.duration || 5)));
+      const dur = Math.max(5, Math.min(10, Math.round(scene.durationSec || 5)));
       const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '');
       const videoUrl = await pollKlingTask(taskId);
       if (videoUrl) {

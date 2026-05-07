@@ -189,7 +189,7 @@
       const r = rows[i];
       if (!r) return;
       const startMs = Math.max(0, (scene.startTime || 0) * 1000);
-      const durMs   = Math.max(0.001, ((scene.endTime || 0) - (scene.startTime || 0)) * 1000);
+      const durMs   = Math.max(0.001, ((scene.endTime ?? scene.startTime ?? 0) - (scene.startTime || 0)) * 1000);
 
       if (reduceMotion) {
         s.timers.push(setTimeout(() => {

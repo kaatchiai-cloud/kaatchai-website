@@ -13,6 +13,7 @@ btnNewProject.addEventListener('click', (e) => {
   createScenes = null; createTranscript = null; createAudioBuffer = null; selectedTemplate = '';
   btnBackToCreate.style.display = 'none';
   bgmBuffer = null; bgmSource = null; bgmGainNode = null;
+  (videoTimelineItems || []).forEach(v => { if (v.videoSrc && v.videoSrc.startsWith('blob:')) URL.revokeObjectURL(v.videoSrc); });
   videoTimelineItems = []; nextVideoTimelineId = 1; selectedVideoIds.clear();
   storyCharacters = []; storyEnvironments = []; nextCharId = 1; nextEnvId = 1;
   bgVideoMode = 'images-only';
@@ -25,6 +26,7 @@ btnNewProject.addEventListener('click', (e) => {
   const bgVidSec = $('bg-video-section');
   if (bgVidSec) bgVidSec.style.display = 'none';
   if (typeof renderVideoTimeline === 'function') renderVideoTimeline();
+  (pipItems || []).forEach(p => { if (p.videoSrc && p.videoSrc.startsWith('blob:')) URL.revokeObjectURL(p.videoSrc); });
   pipItems = []; nextPipId = 1;
   const pipSec = $('pip-section');
   if (pipSec) pipSec.style.display = 'none';

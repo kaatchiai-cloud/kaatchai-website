@@ -734,7 +734,6 @@
             ctx.globalAlpha = eAlpha;
             // Red channel
             ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(p.imgEl, 0, 0, cw, ch); // placeholder base
             drawCoverFit(ctx, drawSrc, cw, ch);
             // Overlay colored shifted copies
             ctx.globalCompositeOperation = 'screen';

@@ -36,6 +36,8 @@ function createVideoBlock(item) {
   delBtn.className = 'delete-btn'; delBtn.textContent = '×';
   delBtn.onclick = (e) => {
     e.stopPropagation();
+    const removing = videoTimelineItems.find(v => v.id === item.id);
+    if (removing && removing.videoSrc && removing.videoSrc.startsWith('blob:')) URL.revokeObjectURL(removing.videoSrc);
     videoTimelineItems = videoTimelineItems.filter(v => v.id !== item.id);
     selectedVideoIds.delete(item.id);
     hideVideoProps();
@@ -201,6 +203,8 @@ if (_cutsRowEl) {
     const narrIdx = (typeof narratorTimelineItems !== 'undefined' ? narratorTimelineItems : []).findIndex(n => Math.round(n.startTime * 10) === startKey);
     if (narrIdx >= 0) {
       // Currently narrator → flip to broll
+      const removingNarr = narratorTimelineItems[narrIdx];
+      if (removingNarr && removingNarr.videoSrc && removingNarr.videoSrc.startsWith('blob:')) URL.revokeObjectURL(removingNarr.videoSrc);
       narratorTimelineItems.splice(narrIdx, 1);
     } else {
       // Currently broll → check if a narrator clip exists for this scene back in createScenes

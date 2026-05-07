@@ -375,6 +375,8 @@
         tag.innerHTML = `${sanitize(pip.name || 'PiP')} <span style="color:var(--text-muted);">${fmtShort(pip.inPoint)}-${fmtShort(pip.outPoint)}</span> <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.7rem;padding:0 2px;" data-pip-del="${pip.id}">✕</button>`;
         tag.addEventListener('click', (e) => {
           if (e.target.dataset.pipDel) {
+            const removingPip = pipItems.find(p => p.id === pip.id);
+            if (removingPip && removingPip.videoSrc && removingPip.videoSrc.startsWith('blob:')) URL.revokeObjectURL(removingPip.videoSrc);
             pipItems = pipItems.filter(p => p.id !== pip.id);
             if (selectedPipId === pip.id) { selectedPipId = null; pipPropsEl.classList.remove('visible'); }
             renderPipList();

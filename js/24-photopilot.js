@@ -106,7 +106,7 @@ function getPhotoCap() {
   return PHOTO_CAPS[photopilotProject.format.duration] || 6;
 }
 
-function effectiveDuration() {
+function computeEffectiveDuration() {
   const cs = photopilotProject.contentSource;
   if (cs.mode !== 'audio' || !cs.audioBuffer) return photopilotProject.format.duration;
   return Math.min(photopilotProject.format.duration, cs.audioBuffer.duration);
@@ -494,7 +494,7 @@ async function runPhase1() {
 
   // 1. Distribute
   setPPTask('distribute', 'running');
-  const totalDur = effectiveDuration();
+  const totalDur = computeEffectiveDuration();
   photopilotProject.effectiveDuration = totalDur;
   const perPhoto = totalDur / photopilotProject.photos.length;
 
