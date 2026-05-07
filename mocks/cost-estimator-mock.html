@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stori Cost Estimator — Mockup v3 (full branches)</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2330; --panel3:#222b38;
+    --line:#2a3340; --text:#e6edf3; --muted:#8b949e;
+    --accent:#58a6ff; --accent2:#3fb950; --warn:#f0883e; --danger:#f85149;
+    --pill:#21262d; --branch:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,-apple-system,Segoe UI,sans-serif;font-size:13px;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}
+  h2{font-size:15px;margin:24px 0 8px;color:var(--accent);
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  h3{font-size:13px;margin:16px 0 6px;display:flex;align-items:center;gap:8px}
+  h3 .add{margin-left:auto;font-size:11px;color:var(--accent);cursor:pointer}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;
+    padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .topbar .actions button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    padding:6px 12px;border-radius:6px;margin-left:6px;cursor:pointer;font-size:12px}
+  .saved{color:var(--muted);font-size:11px;margin-top:4px}
+
+  /* Grand */
+  .grand{background:linear-gradient(135deg,#1f2937,#161b22);
+    border:1px solid var(--accent);border-radius:8px;padding:16px;margin-bottom:24px}
+  .grand .total{font-size:28px;font-weight:600;color:var(--accent2)}
+  .grand .breakdown{display:grid;grid-template-columns:repeat(3,1fr);
+    gap:6px;margin-top:10px;font-size:12px;color:var(--muted)}
+  .grand .breakdown span b{color:var(--text);float:right}
+
+  /* Catalog */
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+  .catalog .cat{background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;padding:10px;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+  th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td input[type=text],td input[type=number]{
+    background:transparent;border:1px solid transparent;color:var(--text);
+    padding:3px 5px;border-radius:3px;width:100%;font:inherit}
+  td input:hover{border-color:var(--line)} td input:focus{border-color:var(--accent);outline:none}
+  .trash{color:var(--danger);cursor:pointer;text-align:center}
+
+  /* Flow */
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:14px;margin-bottom:14px}
+  .flow > header{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:10px}
+  .flow > header h2{margin:0;border:none;font-size:15px;color:var(--text)}
+  .flow > header .ftotal{font-size:18px;color:var(--accent2);font-weight:600}
+  .flow .desc{color:var(--muted);font-size:11px;margin-bottom:10px;line-height:1.5}
+
+  /* Branches grid */
+  .branches{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin:10px 0}
+  .bx{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px}
+  .bx.cast{border-left:3px solid var(--branch)}
+  .bx.dialog{border-left:3px solid #ff7eb6}
+  .bx.lang{border-left:3px solid #7ec8ff}
+  .bx.video{border-left:3px solid #c87eff}
+  .bx.audio{border-left:3px solid #7eff9b}
+  .bx.image{border-left:3px solid #ffb87e}
+  .bx.bs{border-left:3px solid #f0883e}
+  .bx h4{margin:0 0 6px;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.4px;font-weight:600;
+    display:flex;justify-content:space-between;align-items:center}
+  .bx h4 .tag{background:var(--pill);color:var(--text);font-size:9px;
+    padding:1px 6px;border-radius:8px;text-transform:none;letter-spacing:0;font-weight:400}
+  .bx label{display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;color:var(--text);padding:2px 0;gap:6px}
+  .bx input[type=number]{width:60px;background:var(--bg);border:1px solid var(--line);
+    color:var(--text);padding:2px 5px;border-radius:3px;font:inherit;text-align:right;font-size:11px}
+  .bx select{background:var(--bg);color:var(--text);border:1px solid var(--line);
+    padding:2px 4px;border-radius:3px;font:inherit;font-size:10px;max-width:140px}
+  .bx input[type=checkbox]{accent-color:var(--accent2)}
+
+  /* Per-call provider table */
+  .providers{background:var(--panel3);border:1px solid var(--line);border-radius:6px;
+    padding:10px;margin:10px 0}
+  .providers h4{margin:0 0 8px;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .ptable{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .ptable label{display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;color:var(--text);padding:3px 6px;background:var(--panel2);
+    border-radius:4px;border:1px solid var(--line)}
+  .ptable select{background:var(--bg);color:var(--text);border:1px solid var(--line);
+    padding:2px 4px;border-radius:3px;font-size:10px;max-width:170px}
+
+  /* Regen */
+  .regen{background:rgba(240,136,62,.06);border:1px dashed var(--warn);
+    border-radius:6px;padding:10px;margin:10px 0}
+  .regen h4{margin:0 0 8px;font-size:11px;color:var(--warn);
+    text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .regen-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .regen-grid label{display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;color:var(--text);padding:2px 6px;gap:6px}
+  .regen-grid input{width:60px;background:var(--bg);border:1px solid var(--line);
+    color:var(--text);padding:2px 5px;border-radius:3px;font-size:11px;text-align:right}
+
+  /* Variant cards */
+  .variants{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:10px}
+  .variant{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px}
+  .variant.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .variant header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .variant .vname{font-size:12px;font-weight:600}
+  .variant .vcost{font-size:16px;color:var(--accent2);font-weight:600}
+  .variant .vsub{font-size:10px;color:var(--muted);margin-bottom:4px}
+  .variant .vbreak{font-size:10px;color:var(--muted);margin-top:6px;
+    border-top:1px dashed var(--line);padding-top:6px;line-height:1.6}
+  .variant .vbreak div{display:flex;justify-content:space-between;padding:1px 0}
+  .variant .vbreak b{color:var(--text);font-weight:500}
+  .variant .vbreak .grp{color:var(--branch);font-size:9px;text-transform:uppercase;
+    letter-spacing:.4px;margin-top:4px;border-bottom:1px solid var(--line);padding-bottom:1px}
+
+  .pill{display:inline-block;background:var(--pill);color:var(--muted);
+    border-radius:10px;padding:1px 8px;font-size:10px;margin-left:6px}
+  .pill.illus{background:#1f2a3a;color:#7ec8ff}
+  .pill.anim{background:#2a1f3a;color:#c87eff}
+  .pill.standalone{background:#1f3a2a;color:#7eff9b}
+  .pill.viab{background:#3a2a1f;color:#ffb87e}
+  .pill.dialog{background:#3a1f2e;color:#ff7eb6}
+  .pill.narration{background:#2e2e3a;color:#9ba3c8}
+  .pill.multilang{background:#1f3a3a;color:#7eeaff}
+
+  .legend{font-size:10px;color:var(--muted);margin-top:6px;font-style:italic}
+  .ck{color:var(--accent2);font-size:11px;margin-left:4px}
+
+  /* Credits */
+  .cr{display:inline-block;color:#bfa055;font-weight:500;margin-left:4px;font-size:.92em}
+  .cr::before{content:"·\00a0"}
+  .cr.big{font-size:14px}
+  .cr-actual{color:#8b7a4a;font-size:.88em;margin-left:4px;font-weight:400}
+  .cr-actual::before{content:"·\00a0"}
+  .cr-rounded{color:#ffd166;font-weight:700;margin-left:6px}
+  .cr-rounded::before{content:"→\00a0"}
+  .cr-rounded::after{content:"\00a0cr"}
+  .cr-rounded.big{font-size:14px}
+  .cr-th-actual{color:#8b7a4a !important}
+  .cr-th-rounded{color:#ffd166 !important}
+
+  /* Markup / actual cost */
+  .actual-usd{display:inline-block;color:#ff7eb6;font-weight:600;margin-left:4px;font-size:.92em}
+  .actual-usd::before{content:"⇒\00a0$"}
+  .actual-usd.big{font-size:14px}
+  .actual-th{color:#ff7eb6 !important}
+  .markup-bar{background:linear-gradient(135deg,#3a1c2f,#2a1020);
+    border:1px solid #ff7eb6;border-radius:8px;padding:12px 16px;margin-bottom:12px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .markup-bar label{color:#ff7eb6;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .markup-bar input[type=number]{background:#0e1116;color:#ff7eb6;border:1px solid #ff7eb6;
+    padding:4px 8px;border-radius:4px;width:70px;font:inherit;text-align:right;font-weight:600}
+  .markup-bar .base-share{background:#0e1116;color:#7eff9b;border:1px solid #7eff9b;
+    padding:4px 10px;border-radius:4px;font-weight:600;font-size:12px}
+  .markup-bar .mult{color:var(--muted);font-size:11px;margin-left:auto}
+  .markup-bar .err{color:var(--danger);font-weight:700;font-size:11px}
+  .cr-rate{background:linear-gradient(135deg,#3a2f1c,#2a2010);
+    border:1px solid #ffd166;border-radius:8px;padding:12px 16px;margin-bottom:16px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .cr-rate label{color:#ffd166;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .cr-rate input[type=number]{background:#0e1116;color:#ffd166;border:1px solid #ffd166;
+    padding:4px 8px;border-radius:4px;width:90px;font:inherit;text-align:right;font-weight:600}
+  .cr-rate .help{color:var(--muted);font-size:11px;margin-left:auto}
+  .cr-rate .preset{background:transparent;color:#ffd166;border:1px solid #ffd166;
+    padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+  .cr-rate .preset:hover{background:#ffd166;color:#0e1116}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Stori Cost Estimator</h1>
+    <div class="saved">v3 · all branches mapped · per-flow + per-character + per-language + per-call provider · auto-saves to localStorage</div>
+  </div>
+  <div class="actions">
+    <button>Export JSON</button><button>Import JSON</button>
+    <button>Save</button><button>Reset to defaults</button>
+  </div>
+</div>
+
+<!-- ============== MARKUP COMPOSITION ============== -->
+<div class="markup-bar">
+  <span style="color:#ff7eb6;font-weight:700;font-size:13px">Actual cost = Base + MOR + Margin + Extra (= 100%)</span>
+  <label>MOR fee <input type="number" value="5" step="0.5" min="0" max="100"> %</label>
+  <label>Margin <input type="number" value="20" step="0.5" min="0" max="100"> %</label>
+  <label>Extra <input type="number" value="5" step="0.5" min="0" max="100"> %</label>
+  <span class="base-share">Base share: 70 %</span>
+  <span class="mult">multiplier base→actual = × 1.4286</span>
+  <div style="flex-basis:100%;color:var(--muted);font-size:11px">
+    e.g. base $0.134 image grid ⇒ actual $0.1914 ⇒ at $0.01/cr ⇒ 19.14 actual cr ⇒ 20 billed cr per item
+  </div>
+</div>
+
+<!-- ============== CREDIT RATE ============== -->
+<div class="cr-rate">
+  <label>1 credit = $ <input type="number" value="0.01" step="0.001" min="0.0001"></label>
+  <span style="color:var(--muted);font-size:11px">credits derive from <b style="color:#ff7eb6">ACTUAL</b> cost (after MOR + margin + extra), not base</span>
+  <button class="preset">$0.001 / cr</button>
+  <button class="preset">$0.005 / cr</button>
+  <button class="preset">$0.01 / cr</button>
+  <button class="preset">$0.05 / cr</button>
+  <span class="help">always rounds UP per item · whole numbers only</span>
+</div>
+
+<!-- ============== GRAND TOTAL ============== -->
+<div class="grand">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Grand total — all flows × all variants</div>
+      <div class="total">base $ 8.214 <span class="actual-usd big">11.7343</span> <span class="cr-actual big">actual 1173.4</span><span class="cr-rounded big">1247</span></div>
+      <div style="color:var(--muted);font-size:10px;margin-top:2px">base × 1.4286 = actual · sum of per-item rounded credits (always ≥ actual cr)</div>
+    </div>
+    <div style="color:var(--muted);font-size:11px;text-align:right">
+      28 variants across 7 flows · branch-aware<br>
+      Includes: cast, dialogue, languages, lipsync, BGM, continuation, regen
+    </div>
+  </div>
+  <div class="breakdown">
+    <span>Autopilot · standalone · illus  <b>base $0.082 <span class="actual-usd">0.117</span> <span class="cr-actual">11.7</span><span class="cr-rounded">16</span></b></span>
+    <span>Autopilot · standalone · anim   <b>base $0.358 <span class="actual-usd">0.511</span> <span class="cr-actual">51.1</span><span class="cr-rounded">60</span></b></span>
+    <span>Autopilot · viaBS · illus       <b>base $0.127 <span class="actual-usd">0.181</span> <span class="cr-actual">18.1</span><span class="cr-rounded">19</span></b></span>
+    <span>Autopilot · viaBS · anim        <b>base $0.403 <span class="actual-usd">0.576</span> <span class="cr-actual">57.6</span><span class="cr-rounded">63</span></b></span>
+    <span>Copilot · standalone · illus    <b>base $0.246 <span class="actual-usd">0.351</span> <span class="cr-actual">35.1</span><span class="cr-rounded">48</span></b></span>
+    <span>Copilot · standalone · anim     <b>base $1.074 <span class="actual-usd">1.534</span> <span class="cr-actual">153.4</span><span class="cr-rounded">189</span></b></span>
+    <span>Copilot · viaBS · illus         <b>base $0.426 <span class="actual-usd">0.609</span> <span class="cr-actual">60.9</span><span class="cr-rounded">73</span></b></span>
+    <span>Copilot · viaBS · anim          <b>base $1.254 <span class="actual-usd">1.791</span> <span class="cr-actual">179.1</span><span class="cr-rounded">193</span></b></span>
+    <span>Brand-Product · viaBS · anim    <b>base $0.485 <span class="actual-usd">0.693</span> <span class="cr-actual">69.3</span><span class="cr-rounded">79</span></b></span>
+    <span>Film-Narrative · viaBS · anim   <b>base $1.246 <span class="actual-usd">1.780</span> <span class="cr-actual">178.0</span><span class="cr-rounded">200</span></b></span>
+    <span>Reels · audio · illus           <b>base $0.214 <span class="actual-usd">0.306</span> <span class="cr-actual">30.6</span><span class="cr-rounded">40</span></b></span>
+    <span>Reels · audio · anim            <b>base $0.398 <span class="actual-usd">0.569</span> <span class="cr-actual">56.9</span><span class="cr-rounded">66</span></b></span>
+    <span>Reels · video-in · subs only    <b>base $0.072 <span class="actual-usd">0.103</span> <span class="cr-actual">10.3</span><span class="cr-rounded">71</span></b></span>
+    <span>Photopilot · w/ effects         <b>base $0.042 <span class="actual-usd">0.060</span> <span class="cr-actual">6.0</span><span class="cr-rounded">24</span></b></span>
+  </div>
+</div>
+
+<!-- ============== SECTION 1 — GLOBAL CATALOG ============== -->
+<h2>Section 1 · Global Pricing Catalog &nbsp;<span style="color:var(--muted);font-weight:400;font-size:11px">(base provider price only — markup, actual $ and credits apply downstream in the flows)</span></h2>
+<div class="section catalog">
+  <div class="cat"><h3>Text / Chat LLM <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/M in</th><th>base $/M out</th><th>Notes</th><th class="actual-th">cost / 1M tokens  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>txt-1</td><td><input value="Gemini"></td><td><input value="gemini-2.5-flash"></td><td><input value="0.075"></td><td><input value="0.300"></td><td><input value="default"></td><td>in base $0.075 <span class="actual-usd">0.1071</span> <span class="cr-rounded">11</span> &nbsp;·&nbsp; out base $0.300 <span class="actual-usd">0.4286</span> <span class="cr-rounded">43</span></td><td class="trash">🗑</td></tr>
+      <tr><td>txt-2</td><td><input value="OpenAI"></td><td><input value="gpt-4o"></td><td><input value="2.50"></td><td><input value="10.00"></td><td><input value="optional"></td><td>in base $2.50 <span class="actual-usd">3.5714</span> <span class="cr-rounded">358</span> &nbsp;·&nbsp; out base $10.00 <span class="actual-usd">14.2857</span> <span class="cr-rounded">1429</span></td><td class="trash">🗑</td></tr>
+      <tr><td>txt-3</td><td><input value="Anthropic"></td><td><input value="claude-sonnet-4-20250514"></td><td><input value="3.00"></td><td><input value="15.00"></td><td><input value="optional"></td><td>in base $3.00 <span class="actual-usd">4.2857</span> <span class="cr-rounded">429</span> &nbsp;·&nbsp; out base $15.00 <span class="actual-usd">21.4286</span> <span class="cr-rounded">2143</span></td><td class="trash">🗑</td></tr>
+      <tr><td>txt-4</td><td><input value="Gemini"></td><td><input value="gemini-2.0-flash"></td><td><input value="0.075"></td><td><input value="0.300"></td><td><input value="continuation prompt"></td><td>in base $0.075 <span class="actual-usd">0.1071</span> <span class="cr-rounded">11</span> &nbsp;·&nbsp; out base $0.300 <span class="actual-usd">0.4286</span> <span class="cr-rounded">43</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Image generation <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>img-1</td><td><input value="Gemini"></td><td><input value="gemini-3-pro-image-preview"></td><td><input value="0.134"></td><td><input value="grid 3×3"></td><td><input value="9 scenes"></td><td>base $0.134 <span class="actual-usd">0.1914</span> <span class="cr-rounded">20</span></td><td class="trash">🗑</td></tr>
+      <tr><td>img-2</td><td><input value="Gemini"></td><td><input value="gemini-3.1-flash-image-preview"></td><td><input value="0.101"></td><td><input value="grid 3×3"></td><td><input value="fallback 1"></td><td>base $0.101 <span class="actual-usd">0.1443</span> <span class="cr-rounded">15</span></td><td class="trash">🗑</td></tr>
+      <tr><td>img-3</td><td><input value="Gemini"></td><td><input value="gemini-2.5-flash-image"></td><td><input value="0.039"></td><td><input value="image"></td><td><input value="single / fallback 2"></td><td>base $0.039 <span class="actual-usd">0.0557</span> <span class="cr-rounded">6</span></td><td class="trash">🗑</td></tr>
+      <tr><td>img-4</td><td><input value="Google"></td><td><input value="imagen-4.0-fast-generate-001"></td><td><input value="1.000"></td><td><input value="image"></td><td><input value="legacy fallback"></td><td>base $1.000 <span class="actual-usd">1.4286</span> <span class="cr-rounded">143</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Video (I2V) <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>vid-1</td><td><input value="Kling Official"></td><td><input value="kling-v2-5-turbo"></td><td><input value="0.014"></td><td><input value="sec"></td><td><input value="5s/10s clips"></td><td>base $0.014 <span class="actual-usd">0.0200</span> <span class="cr-rounded">2</span></td><td class="trash">🗑</td></tr>
+      <tr><td>vid-2</td><td><input value="Kling Runware"></td><td><input value="kling proxy"></td><td><input value="0.012"></td><td><input value="sec"></td><td><input value="alt route"></td><td>base $0.012 <span class="actual-usd">0.0171</span> <span class="cr-rounded">2</span></td><td class="trash">🗑</td></tr>
+      <tr><td>vid-3</td><td><input value="Google"></td><td><input value="veo3-fast"></td><td><input value="0.500"></td><td><input value="sec"></td><td><input value="planned"></td><td>base $0.500 <span class="actual-usd">0.7143</span> <span class="cr-rounded">72</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>TTS <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>tts-1</td><td><input value="Gemini"></td><td><input value="gemini-2.5-flash-preview-tts"></td><td><input value="0.003"></td><td><input value="segment"></td><td><input value="generative"></td><td>base $0.003 <span class="actual-usd">0.0043</span> <span class="cr-rounded">1</span></td><td class="trash">🗑</td></tr>
+      <tr><td>tts-2</td><td><input value="ElevenLabs"></td><td><input value="eleven_monolingual_v1"></td><td><input value="0.30"></td><td><input value="1M chars"></td><td><input value="paid voices"></td><td>base $0.30 <span class="actual-usd">0.4286</span> <span class="cr-rounded">43</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Transcription / STT <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>stt-1</td><td><input value="Gemini"></td><td><input value="gemini-2.5-flash"></td><td><input value="0.003"></td><td><input value="audio file"></td><td><input value="token-based"></td><td>base $0.003 <span class="actual-usd">0.0043</span> <span class="cr-rounded">1</span></td><td class="trash">🗑</td></tr>
+      <tr><td>stt-2</td><td><input value="ElevenLabs"></td><td><input value="scribe_v1"></td><td><input value="0.40"></td><td><input value="hour"></td><td><input value="word align"></td><td>base $0.40 <span class="actual-usd">0.5714</span> <span class="cr-rounded">58</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Lip sync <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>lip-1</td><td><input value="MediaPipe"></td><td><input value="face_landmarker.task"></td><td><input value="0"></td><td><input value="free"></td><td><input value="Tier 1 local"></td><td>base $0 <span class="actual-usd">0</span> <span class="cr-rounded">0</span></td><td class="trash">🗑</td></tr>
+      <tr><td>lip-2</td><td><input value="Kling/fal.ai"></td><td><input value="kling-video/lipsync"></td><td><input value="0.014"></td><td><input value="sec"></td><td><input value="Tier 2"></td><td>base $0.014 <span class="actual-usd">0.0200</span> <span class="cr-rounded">2</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Music / BGM <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>bgm-1</td><td><input value="Google Lyria"></td><td><input value="lyria-3-clip-preview"></td><td><input value="0.050"></td><td><input value="clip"></td><td><input value="up to 5 ref imgs"></td><td>base $0.050 <span class="actual-usd">0.0714</span> <span class="cr-rounded">8</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+  <div class="cat"><h3>Vision describe <span class="add">+ add row</span></h3>
+    <table><thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>base $/unit</th><th>Unit</th><th>Notes</th><th class="actual-th">cost / 1 unit  (base $ · actual $ · credit)</th><th></th></tr></thead><tbody>
+      <tr><td>vis-1</td><td><input value="Gemini"></td><td><input value="gemini-2.5-flash"></td><td><input value="0.002"></td><td><input value="image"></td><td><input value="char/env desc, smart effects"></td><td>base $0.002 <span class="actual-usd">0.0029</span> <span class="cr-rounded">1</span></td><td class="trash">🗑</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<p class="legend">Each row has stable ID (txt-1, img-1 …). Per-flow provider pickers reference these IDs.</p>
+
+<!-- ============================================================ -->
+<!-- FLOW 1 — AUTOPILOT (now with full branches)                  -->
+<!-- ============================================================ -->
+<h2>Section 2 · Flows · Branch-aware</h2>
+
+<div class="flow">
+  <header>
+    <div><h2>1 · Autopilot <span class="pill">short-form scripted video</span></h2>
+      <div class="desc">Brainstorm-Autopilot → Create. Compare entry × render mode. All branches modeled below.</div></div>
+    <div class="ftotal">base $0.970 <span class="actual-usd">1.386</span> <span class="cr-actual">actual 138.6</span><span class="cr-rounded">158</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label>Total duration (sec) <input type="number" value="60"></label>
+      <label>Avg scene duration (sec) <input type="number" value="5"></label>
+      <label>Scene count (auto) <input type="number" value="12" disabled></label>
+      <label>Scenes &gt;12s (continuation) <input type="number" value="0"></label>
+    </div>
+
+    <div class="bx cast"><h4>Cast / Characters <span class="tag">17b-create-references.js</span></h4>
+      <label># characters <input type="number" value="2"></label>
+      <label>Auto-describe (vision) per char <input type="number" value="1"></label>
+      <label>Gender inference (text) per char <input type="number" value="0"></label>
+      <label>Visual Bible pages / char <input type="number" value="1"></label>
+      <label>Voice sample previews / char <input type="number" value="1"></label>
+    </div>
+
+    <div class="bx cast"><h4>Environments</h4>
+      <label># environments <input type="number" value="1"></label>
+      <label>Auto-describe (vision) per env <input type="number" value="1"></label>
+    </div>
+
+    <div class="bx dialog"><h4>Dialogue / Narration</h4>
+      <label># dialogue scenes <input type="number" value="6"></label>
+      <label>Avg speakers / dialogue scene <input type="number" value="2"></label>
+      <label>Speaker visible (lipsync trigger) % <input type="number" value="80"></label>
+      <label>Dialogue-detection LLM call <input type="checkbox" checked></label>
+    </div>
+
+    <div class="bx lang"><h4>Languages</h4>
+      <label># output languages <input type="number" value="1"></label>
+      <label>Subtitle translation <input type="checkbox"></label>
+      <label># subtitle segments <input type="number" value="0"></label>
+      <label>Full audio dub <input type="checkbox"></label>
+      <label>Avg TTS chars / segment <input type="number" value="120"></label>
+    </div>
+
+    <div class="bx image"><h4>Image gen branches</h4>
+      <label>Mode <select><option>grid 3×3</option><option>single</option></select></label>
+      <label>Avg fallback attempts <input type="number" value="1.1" step="0.1"></label>
+      <label>Bible-as-ref injection <input type="checkbox" checked></label>
+    </div>
+
+    <div class="bx video"><h4>Video / Animated only</h4>
+      <label>Provider <select><option>Kling Official</option><option>Kling Runware</option></select></label>
+      <label>Continuation prompts (Gemini-2.0) <input type="number" value="0"></label>
+      <label>Lipsync tier <select><option>Tier 1 (free)</option><option>Tier 2 (Kling fal.ai)</option></select></label>
+    </div>
+
+    <div class="bx audio"><h4>Audio / BGM</h4>
+      <label>BGM (Lyria) <input type="checkbox" checked></label>
+      <label>BGM ref images (≤5) <input type="number" value="3"></label>
+      <label>BGM regens <input type="number" value="0"></label>
+    </div>
+
+    <div class="bx bs"><h4>Brainstorm session (only via-BS variants)</h4>
+      <label>Total chat tokens (in) <input type="number" value="12000"></label>
+      <label>Total chat tokens (out) <input type="number" value="6000"></label>
+      <label>Finalise tokens (in/out) <input type="number" value="2000/8000"></label>
+      <label>Narrator-screen needed <input type="checkbox"></label>
+      <label>Provider <select><option>txt-1 Gemini</option><option>txt-2 GPT-4o</option><option>txt-3 Claude</option></select></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection (this flow)</h4>
+    <div class="ptable">
+      <label>Storyboard <select><option>txt-1 · Gemini 2.5 Flash</option></select></label>
+      <label>Continuation <select><option>txt-4 · Gemini 2.0 Flash</option></select></label>
+      <label>Translation <select><option>txt-1 · Gemini</option></select></label>
+      <label>Vision describe <select><option>vis-1 · Gemini</option></select></label>
+      <label>Image gen <select><option>img-1 · Gemini 3 Pro grid</option><option>img-3 · 2.5 Flash single</option></select></label>
+      <label>Video (I2V) <select><option>vid-1 · Kling v2.5 Turbo</option></select></label>
+      <label>STT (if voice in) <select><option>stt-1 · Gemini</option><option>stt-2 · Scribe</option></select></label>
+      <label>TTS <select><option>tts-1 · Gemini TTS</option><option>tts-2 · ElevenLabs</option></select></label>
+      <label>Lip sync <select><option>lip-1 · MediaPipe (free)</option><option>lip-2 · Kling fal.ai</option></select></label>
+      <label>BGM <select><option>bgm-1 · Lyria 3</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Brainstorm chat regens / turn <input type="number" value="0.2" step="0.1"></label>
+      <label>Storyboard re-runs <input type="number" value="1"></label>
+      <label>Visual Bible re-runs <input type="number" value="0"></label>
+      <label>Image regens / scene <input type="number" value="0.5" step="0.1"></label>
+      <label>Video regens / scene <input type="number" value="0.2" step="0.1"></label>
+      <label>TTS regens / segment <input type="number" value="0.3" step="0.1"></label>
+      <label>Lipsync regens <input type="number" value="0.1" step="0.1"></label>
+      <label>BGM regens <input type="number" value="0"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant">
+      <header><span class="vname">Standalone · Illustrated</span><span class="vcost">base $0.082 <span class="actual-usd">0.117</span> <span class="cr-actual">11.7</span><span class="cr-rounded">16</span></span></header>
+      <span class="pill standalone">standalone</span><span class="pill illus">illustrated</span><span class="pill dialog">dialogue×6</span>
+      <div class="vbreak">
+        <div class="grp">Cast & Bible</div>
+        <div><span>Vision describe (2 chars + 1 env)</span><b>base $0.0060 <span class="actual-usd">0.0086</span> <span class="cr-actual">0.86</span><span class="cr-rounded">3</span></b></div>
+        <div><span>Visual Bible (2 pages)</span><b>base $0.0268 <span class="actual-usd">0.0383</span> <span class="cr-actual">3.83</span><span class="cr-rounded">4</span></b></div>
+        <div class="grp">Storyboard & images</div>
+        <div><span>Storyboard</span><b>base $0.0008 <span class="actual-usd">0.0011</span> <span class="cr-actual">0.11</span><span class="cr-rounded">1</span></b></div>
+        <div><span>Scene image grids (×2)</span><b>base $0.0268 <span class="actual-usd">0.0383</span> <span class="cr-actual">3.83</span><span class="cr-rounded">4</span></b></div>
+        <div><span>Image regens</span><b>base $0.0067 <span class="actual-usd">0.0096</span> <span class="cr-actual">0.96</span><span class="cr-rounded">1</span></b></div>
+        <div><span>Fallback attempts ×1.1</span><b>base $0.0027 <span class="actual-usd">0.0039</span> <span class="cr-actual">0.39</span><span class="cr-rounded">1</span></b></div>
+        <div class="grp">Audio</div>
+        <div><span>Dialogue detection (1 LLM)</span><b>base $0.0008 <span class="actual-usd">0.0011</span> <span class="cr-actual">0.11</span><span class="cr-rounded">1</span></b></div>
+        <div><span>TTS (12 segs × 2 spkrs avg)</span><b>base $0.0072 <span class="actual-usd">0.0103</span> <span class="cr-actual">1.03</span><span class="cr-rounded">24</span></b></div>
+        <div><span>TTS regens</span><b>base $0.0022 <span class="actual-usd">0.0031</span> <span class="cr-actual">0.31</span><span class="cr-rounded">7</span></b></div>
+        <div><span>STT (voice-in)</span><b>base $0.0030 <span class="actual-usd">0.0043</span> <span class="cr-actual">0.43</span><span class="cr-rounded">1</span></b></div>
+        <div style="margin-top:6px"><span><b>Total (sum of per-item billed)</b></span><b style="color:var(--accent2)">base $0.0830 <span class="actual-usd">0.1186</span> <span class="cr-actual">11.86</span><span class="cr-rounded">47</span></b></div>
+      </div>
+    </div>
+
+    <div class="variant active">
+      <header><span class="vname">Standalone · Animated</span><span class="vcost">base $0.358 <span class="actual-usd">0.511</span> <span class="cr-actual">51.1</span><span class="cr-rounded">79</span></span></header>
+      <span class="pill standalone">standalone</span><span class="pill anim">animated</span><span class="pill dialog">dialogue×6</span>
+      <div class="vbreak">
+        <div><span>Illustrated baseline (sum)</span><b>base $0.0830 <span class="actual-usd">0.1186</span> <span class="cr-actual">11.86</span><span class="cr-rounded">47</span></b></div>
+        <div class="grp">Video</div>
+        <div><span>Kling I2V (60 sec × 2 cr/sec)</span><b>base $0.0840 <span class="actual-usd">0.1200</span> <span class="cr-actual">12.00</span><span class="cr-rounded">120</span></b></div>
+        <div><span>Continuation prompts</span><b>base $0.0000 <span class="actual-usd">0</span> <span class="cr-actual">0</span><span class="cr-rounded">0</span></b></div>
+        <div><span>Video regens (×0.2)</span><b>base $0.0168 <span class="actual-usd">0.0240</span> <span class="cr-actual">2.40</span><span class="cr-rounded">24</span></b></div>
+        <div class="grp">Lipsync (Tier 2)</div>
+        <div><span>4.8 dialogue scenes × 5s = 24s</span><b>base $0.3360 <span class="actual-usd">0.4800</span> <span class="cr-actual">48.00</span><span class="cr-rounded">48</span></b></div>
+        <div class="grp">BGM</div>
+        <div><span>Lyria + 3 ref imgs</span><b>base $0.0500 <span class="actual-usd">0.0714</span> <span class="cr-actual">7.14</span><span class="cr-rounded">8</span></b></div>
+        <div style="margin-top:6px"><span><b>Total (sum of per-item billed)</b></span><b style="color:var(--accent2)">base $0.5698 <span class="actual-usd">0.8140</span> <span class="cr-actual">81.40</span><span class="cr-rounded">247</span></b></div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <header><span class="vname">Via Brainstorm · Illustrated</span><span class="vcost">base $0.127 <span class="actual-usd">0.181</span> <span class="cr-actual">18.1</span><span class="cr-rounded">50</span></span></header>
+      <span class="pill viab">via brainstorm</span><span class="pill illus">illustrated</span>
+      <div class="vbreak">
+        <div class="grp">Brainstorm session</div>
+        <div><span>Chat (12k in / 6k out)</span><b>base $0.0027 <span class="actual-usd">0.0039</span> <span class="cr-actual">0.39</span><span class="cr-rounded">1</span></b></div>
+        <div><span>Chat regens (×0.2)</span><b>base $0.0005 <span class="actual-usd">0.0007</span> <span class="cr-actual">0.07</span><span class="cr-rounded">1</span></b></div>
+        <div><span>Finalise (2k/8k)</span><b>base $0.0026 <span class="actual-usd">0.0037</span> <span class="cr-actual">0.37</span><span class="cr-rounded">1</span></b></div>
+        <div class="grp">Pipeline body</div>
+        <div><span>Standalone · Illustrated (sum)</span><b>base $0.0830 <span class="actual-usd">0.1186</span> <span class="cr-actual">11.86</span><span class="cr-rounded">47</span></b></div>
+        <div style="margin-top:6px"><span><b>Total (sum of per-item billed)</b></span><b style="color:var(--accent2)">base $0.0888 <span class="actual-usd">0.1269</span> <span class="cr-actual">12.69</span><span class="cr-rounded">50</span></b></div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <header><span class="vname">Via Brainstorm · Animated</span><span class="vcost">base $0.403 <span class="actual-usd">0.576</span> <span class="cr-actual">57.6</span><span class="cr-rounded">250</span></span></header>
+      <span class="pill viab">via brainstorm</span><span class="pill anim">animated</span>
+      <div class="vbreak">
+        <div><span>Brainstorm + finalise + regens (sum)</span><b>base $0.0058 <span class="actual-usd">0.0083</span> <span class="cr-actual">0.83</span><span class="cr-rounded">3</span></b></div>
+        <div><span>Standalone · Animated (sum)</span><b>base $0.5698 <span class="actual-usd">0.8140</span> <span class="cr-actual">81.40</span><span class="cr-rounded">247</span></b></div>
+        <div style="margin-top:6px"><span><b>Total (sum of per-item billed)</b></span><b style="color:var(--accent2)">base $0.5756 <span class="actual-usd">0.8223</span> <span class="cr-actual">82.23</span><span class="cr-rounded">250</span></b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 2 — COPILOT                                              -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>2 · Copilot <span class="pill">long-form storytelling</span></h2>
+      <div class="desc">3-min default. More cast, more dialogue, more Bible pages. Same branch panel, scaled up.</div></div>
+    <div class="ftotal">base $3.000 <span class="actual-usd">4.286</span> <span class="cr-actual">actual 428.6</span><span class="cr-rounded">503</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label>Duration (sec) <input type="number" value="180"></label>
+      <label>Avg scene (sec) <input type="number" value="5"></label>
+      <label>Scene count <input type="number" value="36" disabled></label>
+      <label>Scenes &gt;12s <input type="number" value="2"></label>
+    </div>
+    <div class="bx cast"><h4>Cast</h4>
+      <label># characters <input type="number" value="4"></label>
+      <label>Auto-describe / char <input type="number" value="1"></label>
+      <label>Gender inference / char <input type="number" value="0.5" step="0.5"></label>
+      <label>Bible pages / char <input type="number" value="1"></label>
+      <label>Voice samples / char <input type="number" value="2"></label>
+    </div>
+    <div class="bx cast"><h4>Environments</h4>
+      <label># environments <input type="number" value="3"></label>
+      <label>Auto-describe / env <input type="number" value="1"></label>
+    </div>
+    <div class="bx dialog"><h4>Dialogue</h4>
+      <label># dialogue scenes <input type="number" value="20"></label>
+      <label>Speakers / scene <input type="number" value="2.5" step="0.5"></label>
+      <label>Speaker visible % <input type="number" value="70"></label>
+      <label>Dialogue-detection LLM <input type="checkbox" checked></label>
+    </div>
+    <div class="bx lang"><h4>Languages</h4>
+      <label># output langs <input type="number" value="2"></label>
+      <label>Subtitle translation <input type="checkbox" checked></label>
+      <label># subtitle segs <input type="number" value="36"></label>
+      <label>Full audio dub <input type="checkbox" checked></label>
+      <label>Chars / segment <input type="number" value="150"></label>
+    </div>
+    <div class="bx image"><h4>Image gen</h4>
+      <label>Mode <select><option>grid 3×3</option></select></label>
+      <label>Fallback attempts <input type="number" value="1.2" step="0.1"></label>
+      <label>Bible-as-ref <input type="checkbox" checked></label>
+    </div>
+    <div class="bx video"><h4>Video</h4>
+      <label>Provider <select><option>Kling Official</option></select></label>
+      <label>Continuation prompts <input type="number" value="2"></label>
+      <label>Lipsync tier <select><option>Tier 2</option></select></label>
+    </div>
+    <div class="bx audio"><h4>BGM</h4>
+      <label>BGM <input type="checkbox" checked></label>
+      <label>Ref images <input type="number" value="5"></label>
+      <label>Regens <input type="number" value="0"></label>
+    </div>
+    <div class="bx bs"><h4>Brainstorm session</h4>
+      <label>Chat tokens in <input type="number" value="40000"></label>
+      <label>Chat tokens out <input type="number" value="20000"></label>
+      <label>Finalise in/out <input type="number" value="6000/12000"></label>
+      <label>Narrator-screen <input type="checkbox"></label>
+      <label>Provider <select><option>txt-1 Gemini</option><option>txt-3 Claude</option></select></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>Storyboard <select><option>txt-1 · Gemini 2.5 Flash</option></select></label>
+      <label>Continuation <select><option>txt-4 · Gemini 2.0 Flash</option></select></label>
+      <label>Translation <select><option>txt-1 · Gemini</option></select></label>
+      <label>Vision describe <select><option>vis-1 · Gemini</option></select></label>
+      <label>Image gen <select><option>img-1 · Gemini 3 Pro grid</option></select></label>
+      <label>Video <select><option>vid-1 · Kling v2.5 Turbo</option></select></label>
+      <label>STT <select><option>stt-1 · Gemini</option></select></label>
+      <label>TTS <select><option>tts-1 · Gemini TTS</option><option>tts-2 · ElevenLabs</option></select></label>
+      <label>Lip sync <select><option>lip-2 · Kling fal.ai</option></select></label>
+      <label>BGM <select><option>bgm-1 · Lyria 3</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Chat regens / turn <input type="number" value="0.25" step="0.05"></label>
+      <label>Storyboard re-runs <input type="number" value="2"></label>
+      <label>Bible re-runs <input type="number" value="1"></label>
+      <label>Image regens / scene <input type="number" value="0.4" step="0.1"></label>
+      <label>Video regens / scene <input type="number" value="0.2" step="0.1"></label>
+      <label>TTS regens / segment <input type="number" value="0.2" step="0.1"></label>
+      <label>Lipsync regens <input type="number" value="0.1" step="0.1"></label>
+      <label>Translation re-runs <input type="number" value="1"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Standalone · Illustrated</span><span class="vcost">base $0.246 <span class="actual-usd">0.351</span> <span class="cr-actual">35.1</span><span class="cr-rounded">98</span></span></header><span class="pill standalone">standalone</span><span class="pill illus">illustrated</span><span class="pill multilang">2 langs</span><span class="pill dialog">dlg×20</span></div>
+    <div class="variant"><header><span class="vname">Standalone · Animated</span><span class="vcost">base $1.074 <span class="actual-usd">1.534</span> <span class="cr-actual">153.4</span><span class="cr-rounded">389</span></span></header><span class="pill standalone">standalone</span><span class="pill anim">animated</span><span class="pill multilang">2 langs</span></div>
+    <div class="variant"><header><span class="vname">Via Brainstorm · Illustrated</span><span class="vcost">base $0.426 <span class="actual-usd">0.609</span> <span class="cr-actual">60.9</span><span class="cr-rounded">103</span></span></header><span class="pill viab">via brainstorm</span><span class="pill illus">illustrated</span></div>
+    <div class="variant active"><header><span class="vname">Via Brainstorm · Animated</span><span class="vcost">base $1.254 <span class="actual-usd">1.791</span> <span class="cr-actual">179.1</span><span class="cr-rounded">393</span></span></header><span class="pill viab">via brainstorm</span><span class="pill anim">animated</span></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 3 — BRAND-PRODUCT (with narrator-screen branch)         -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>3 · Brand-Product <span class="pill">commercials / demos</span></h2>
+      <div class="desc">30s default. Narrator-screen branch enabled (Brand mode requires narrator persona). Cast usually = 1 product persona + narrator.</div></div>
+    <div class="ftotal">base $0.872 <span class="actual-usd">1.246</span> <span class="cr-actual">actual 124.6</span><span class="cr-rounded">144</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label>Duration (sec) <input type="number" value="30"></label>
+      <label>Avg scene (sec) <input type="number" value="5"></label>
+      <label>Scene count <input type="number" value="6" disabled></label>
+      <label>Scenes &gt;12s <input type="number" value="0"></label>
+    </div>
+    <div class="bx cast"><h4>Cast</h4>
+      <label># characters <input type="number" value="2"></label>
+      <label>Auto-describe / char <input type="number" value="1"></label>
+      <label>Gender inference / char <input type="number" value="0"></label>
+      <label>Bible pages / char <input type="number" value="2"></label>
+      <label>Voice samples / char <input type="number" value="3"></label>
+    </div>
+    <div class="bx cast"><h4>Environments</h4>
+      <label># environments <input type="number" value="2"></label>
+      <label>Auto-describe / env <input type="number" value="1"></label>
+    </div>
+    <div class="bx dialog"><h4>Dialogue</h4>
+      <label># dialogue scenes <input type="number" value="3"></label>
+      <label>Speakers / scene <input type="number" value="1.5" step="0.5"></label>
+      <label>Speaker visible % <input type="number" value="100"></label>
+      <label>Dialogue-detection <input type="checkbox" checked></label>
+    </div>
+    <div class="bx lang"><h4>Languages</h4>
+      <label># langs <input type="number" value="3"></label>
+      <label>Subtitle translation <input type="checkbox" checked></label>
+      <label># subtitle segs <input type="number" value="6"></label>
+      <label>Full dub <input type="checkbox" checked></label>
+      <label>Chars / segment <input type="number" value="120"></label>
+    </div>
+    <div class="bx image"><h4>Image gen</h4>
+      <label>Mode <select><option>grid 3×3</option></select></label>
+      <label>Fallback attempts <input type="number" value="1.3" step="0.1"></label>
+      <label>Bible-as-ref <input type="checkbox" checked></label>
+    </div>
+    <div class="bx video"><h4>Video</h4>
+      <label>Provider <select><option>Kling Official</option></select></label>
+      <label>Continuation prompts <input type="number" value="0"></label>
+      <label>Lipsync tier <select><option>Tier 2 (brand needs perfect sync)</option></select></label>
+    </div>
+    <div class="bx audio"><h4>BGM</h4>
+      <label>BGM <input type="checkbox" checked></label>
+      <label>Ref images <input type="number" value="5"></label>
+      <label>Regens <input type="number" value="1"></label>
+    </div>
+    <div class="bx bs"><h4>Brainstorm + Narrator screen</h4>
+      <label>Chat tokens in <input type="number" value="20000"></label>
+      <label>Chat tokens out <input type="number" value="10000"></label>
+      <label>Finalise in/out <input type="number" value="3000/9000"></label>
+      <label>Narrator persona LLM call <input type="checkbox" checked></label>
+      <label>Provider <select><option>txt-2 GPT-4o</option><option>txt-1 Gemini</option></select></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>Storyboard <select><option>txt-1 · Gemini</option></select></label>
+      <label>Translation <select><option>txt-1 · Gemini</option></select></label>
+      <label>Vision describe <select><option>vis-1 · Gemini</option></select></label>
+      <label>Image gen <select><option>img-1 · Gemini 3 Pro grid</option></select></label>
+      <label>Video <select><option>vid-1 · Kling v2.5 Turbo</option></select></label>
+      <label>TTS <select><option>tts-2 · ElevenLabs</option></select></label>
+      <label>Lip sync <select><option>lip-2 · Kling fal.ai</option></select></label>
+      <label>BGM <select><option>bgm-1 · Lyria 3</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Chat regens / turn <input type="number" value="0.3" step="0.1"></label>
+      <label>Finalise re-runs <input type="number" value="2"></label>
+      <label>Bible re-runs <input type="number" value="1"></label>
+      <label>Image regens / scene <input type="number" value="0.6" step="0.1"></label>
+      <label>Video regens / scene <input type="number" value="0.3" step="0.1"></label>
+      <label>TTS regens / segment <input type="number" value="0.4" step="0.1"></label>
+      <label>Lipsync regens <input type="number" value="0.2" step="0.1"></label>
+      <label>BGM regens <input type="number" value="1"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Standalone · Illustrated</span><span class="vcost">base $0.092 <span class="actual-usd">0.131</span> <span class="cr-actual">13.1</span><span class="cr-rounded">28</span></span></header><span class="pill standalone">standalone</span><span class="pill illus">illustrated</span></div>
+    <div class="variant"><header><span class="vname">Standalone · Animated</span><span class="vcost">base $0.297 <span class="actual-usd">0.424</span> <span class="cr-actual">42.4</span><span class="cr-rounded">73</span></span></header><span class="pill standalone">standalone</span><span class="pill anim">animated</span></div>
+    <div class="variant"><header><span class="vname">Via Brainstorm · Illustrated</span><span class="vcost">base $0.115 <span class="actual-usd">0.164</span> <span class="cr-actual">16.4</span><span class="cr-rounded">35</span></span></header><span class="pill viab">via brainstorm</span><span class="pill illus">illustrated</span></div>
+    <div class="variant active"><header><span class="vname">Via Brainstorm · Animated</span><span class="vcost">base $0.485 <span class="actual-usd">0.693</span> <span class="cr-actual">69.3</span><span class="cr-rounded">115</span></span></header><span class="pill viab">via brainstorm</span><span class="pill anim">animated</span><span class="pill multilang">3 langs</span><div class="vsub">Default brand path. ElevenLabs voices, Kling lipsync, full dub × 3 langs, narrator persona, Lyria with 5 refs.</div></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 4 — FILM-NARRATIVE (heavy cast, narrator, podcast-chapter branch) -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>4 · Film-Narrative <span class="pill">short films / docs</span></h2>
+      <div class="desc">90s default. Heavier cast (3-5 chars), multi-environment, narrator + dialogue mix. Podcast-chapter branch optional.</div></div>
+    <div class="ftotal">base $2.014 <span class="actual-usd">2.877</span> <span class="cr-actual">actual 287.7</span><span class="cr-rounded">328</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label>Duration (sec) <input type="number" value="90"></label>
+      <label>Avg scene (sec) <input type="number" value="6"></label>
+      <label>Scene count <input type="number" value="15" disabled></label>
+      <label>Scenes &gt;12s <input type="number" value="2"></label>
+      <label>Podcast chapters (auto-split) <input type="number" value="3"></label>
+    </div>
+    <div class="bx cast"><h4>Cast</h4>
+      <label># characters <input type="number" value="4"></label>
+      <label>Auto-describe / char <input type="number" value="1"></label>
+      <label>Gender inference / char <input type="number" value="1"></label>
+      <label>Bible pages / char <input type="number" value="2"></label>
+      <label>Voice samples / char <input type="number" value="3"></label>
+    </div>
+    <div class="bx cast"><h4>Environments</h4>
+      <label># environments <input type="number" value="4"></label>
+      <label>Auto-describe / env <input type="number" value="1"></label>
+    </div>
+    <div class="bx dialog"><h4>Dialogue</h4>
+      <label># dialogue scenes <input type="number" value="10"></label>
+      <label>Speakers / scene <input type="number" value="2.5" step="0.5"></label>
+      <label>Speaker visible % <input type="number" value="80"></label>
+      <label>Dialogue detection <input type="checkbox" checked></label>
+    </div>
+    <div class="bx lang"><h4>Languages</h4>
+      <label># langs <input type="number" value="2"></label>
+      <label>Subtitle translation <input type="checkbox" checked></label>
+      <label># subtitle segs <input type="number" value="15"></label>
+      <label>Full dub <input type="checkbox"></label>
+      <label>Chars / segment <input type="number" value="180"></label>
+    </div>
+    <div class="bx image"><h4>Image gen</h4>
+      <label>Mode <select><option>grid 3×3</option></select></label>
+      <label>Fallback attempts <input type="number" value="1.4" step="0.1"></label>
+      <label>Bible-as-ref <input type="checkbox" checked></label>
+    </div>
+    <div class="bx video"><h4>Video</h4>
+      <label>Provider <select><option>Kling Official</option></select></label>
+      <label>Continuation prompts (auto-derived) <input type="number" value="2"></label>
+      <label>Lipsync tier <select><option>Tier 2</option></select></label>
+    </div>
+    <div class="bx audio"><h4>BGM</h4>
+      <label>BGM <input type="checkbox" checked></label>
+      <label>Ref images <input type="number" value="5"></label>
+      <label>Regens <input type="number" value="1"></label>
+    </div>
+    <div class="bx bs"><h4>Brainstorm + Narrator</h4>
+      <label>Chat tokens in <input type="number" value="30000"></label>
+      <label>Chat tokens out <input type="number" value="15000"></label>
+      <label>Finalise in/out <input type="number" value="5000/10000"></label>
+      <label>Narrator persona LLM call <input type="checkbox" checked></label>
+      <label>Provider <select><option>txt-3 Claude Sonnet</option></select></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>Storyboard <select><option>txt-1 · Gemini</option></select></label>
+      <label>Continuation <select><option>txt-4 · Gemini 2.0 Flash</option></select></label>
+      <label>Translation <select><option>txt-1 · Gemini</option></select></label>
+      <label>Vision describe <select><option>vis-1 · Gemini</option></select></label>
+      <label>Image gen <select><option>img-1 · Gemini 3 Pro</option></select></label>
+      <label>Video <select><option>vid-1 · Kling Turbo</option></select></label>
+      <label>TTS <select><option>tts-2 · ElevenLabs</option></select></label>
+      <label>Lip sync <select><option>lip-2 · Kling fal.ai</option></select></label>
+      <label>BGM <select><option>bgm-1 · Lyria 3</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Chat regens / turn <input type="number" value="0.4" step="0.1"></label>
+      <label>Storyboard re-runs <input type="number" value="2"></label>
+      <label>Bible re-runs <input type="number" value="1"></label>
+      <label>Image regens / scene <input type="number" value="0.7" step="0.1"></label>
+      <label>Video regens / scene <input type="number" value="0.4" step="0.1"></label>
+      <label>TTS regens / segment <input type="number" value="0.3" step="0.1"></label>
+      <label>Lipsync regens <input type="number" value="0.2" step="0.1"></label>
+      <label>BGM regens <input type="number" value="1"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Standalone · Illustrated</span><span class="vcost">base $0.198 <span class="actual-usd">0.283</span> <span class="cr-actual">28.3</span><span class="cr-rounded">62</span></span></header><span class="pill standalone">standalone</span><span class="pill illus">illustrated</span></div>
+    <div class="variant"><header><span class="vname">Standalone · Animated</span><span class="vcost">base $0.812 <span class="actual-usd">1.160</span> <span class="cr-actual">116.0</span><span class="cr-rounded">198</span></span></header><span class="pill standalone">standalone</span><span class="pill anim">animated</span></div>
+    <div class="variant"><header><span class="vname">Via Brainstorm · Illustrated</span><span class="vcost">base $0.246 <span class="actual-usd">0.351</span> <span class="cr-actual">35.1</span><span class="cr-rounded">70</span></span></header><span class="pill viab">via brainstorm</span><span class="pill illus">illustrated</span></div>
+    <div class="variant active"><header><span class="vname">Via Brainstorm · Animated</span><span class="vcost">base $1.246 <span class="actual-usd">1.780</span> <span class="cr-actual">178.0</span><span class="cr-rounded">280</span></span></header><span class="pill viab">via brainstorm</span><span class="pill anim">animated</span><span class="pill dialog">dlg×10</span><span class="pill multilang">2 langs subs</span></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 5 — REELS (variations matrix)                            -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>5 · Reels <span class="pill">short vertical · per-variation</span></h2>
+      <div class="desc">Variations = audio_lang × subtitle_lang × platform. Each variation triggers cinematography agent + scene script + (sometimes) new TTS.</div></div>
+    <div class="ftotal">base $0.684 <span class="actual-usd">0.977</span> <span class="cr-actual">actual 97.7</span><span class="cr-rounded">177</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label>Reel duration (sec) <input type="number" value="20"></label>
+      <label>Scene count <input type="number" value="4"></label>
+    </div>
+    <div class="bx"><h4>Variations matrix</h4>
+      <label># audio langs <input type="number" value="2"></label>
+      <label># subtitle langs <input type="number" value="3"></label>
+      <label># platforms <input type="number" value="3"></label>
+      <label>Total variations (auto) <input type="number" value="18" disabled></label>
+    </div>
+    <div class="bx dialog"><h4>Per-variation calls</h4>
+      <label>Cinematography agent / variation <input type="checkbox" checked></label>
+      <label>Scene-script gen / variation <input type="checkbox" checked></label>
+      <label>New TTS only when audio-lang differs <input type="checkbox" checked></label>
+    </div>
+    <div class="bx lang"><h4>Subtitle quadratic</h4>
+      <label># subtitle segments / reel <input type="number" value="8"></label>
+      <label>Subtitle translation calls (auto) <input type="number" value="48" disabled></label>
+    </div>
+    <div class="bx image"><h4>Images</h4>
+      <label>Mode <select><option>grid</option><option>single</option></select></label>
+      <label>Fallback attempts <input type="number" value="1.1" step="0.1"></label>
+      <label>Re-use images across variations <input type="checkbox" checked></label>
+    </div>
+    <div class="bx audio"><h4>Audio</h4>
+      <label>TTS chars / segment <input type="number" value="100"></label>
+      <label>BGM <input type="checkbox"></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>STT (audio in) <select><option>stt-1 · Gemini</option><option>stt-2 · ElevenLabs Scribe</option></select></label>
+      <label>Cinematography agent <select><option>txt-1 · Gemini</option></select></label>
+      <label>Scene script <select><option>txt-1 · Gemini</option></select></label>
+      <label>Translation <select><option>txt-1 · Gemini</option></select></label>
+      <label>Image gen <select><option>img-1 · Gemini 3 Pro grid</option></select></label>
+      <label>TTS <select><option>tts-1 · Gemini TTS</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Image regens / scene <input type="number" value="0.3" step="0.1"></label>
+      <label>TTS regens / segment <input type="number" value="0.2" step="0.1"></label>
+      <label>Translation re-runs <input type="number" value="1"></label>
+      <label>Variation auto-retry on fail <input type="number" value="1"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Audio-in · Illustrated</span><span class="vcost">base $0.214 <span class="actual-usd">0.306</span> <span class="cr-actual">30.6</span><span class="cr-rounded">40</span></span></header></div>
+    <div class="variant"><header><span class="vname">Audio-in · Animated</span><span class="vcost">base $0.398 <span class="actual-usd">0.569</span> <span class="cr-actual">56.9</span><span class="cr-rounded">66</span></span></header><span class="pill anim">animated</span></div>
+    <div class="variant"><header><span class="vname">Text-in · Illustrated</span><span class="vcost">base $0.072 <span class="actual-usd">0.103</span> <span class="cr-actual">10.3</span><span class="cr-rounded">22</span></span></header><span class="pill standalone">no STT</span></div>
+    <div class="variant active"><header><span class="vname">Video-in · subs only</span><span class="vcost">base $0.072 <span class="actual-usd">0.103</span> <span class="cr-actual">10.3</span><span class="cr-rounded">71</span></span></header><span class="pill multilang">3 sub langs</span><div class="vsub">No image gen, no TTS — transcribe + 48 translation calls (each rounds to 1 cr individually after markup).</div></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 6 — PHOTOPILOT                                           -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>6 · Photopilot <span class="pill">photo-to-reel</span></h2>
+      <div class="desc">Auto-script (per-photo vision) + smart effect suggestions (per-segment vision) + TTS for narration.</div></div>
+    <div class="ftotal">base $0.090 <span class="actual-usd">0.129</span> <span class="cr-actual">actual 12.9</span><span class="cr-rounded">52</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Content size</h4>
+      <label># photos <input type="number" value="8"></label>
+      <label># segments <input type="number" value="8"></label>
+      <label>Mode <select><option>audio</option><option>title</option><option>photo-only</option></select></label>
+    </div>
+    <div class="bx cast"><h4>Auto-script branch</h4>
+      <label>Auto-script per photo (vision) <input type="checkbox" checked></label>
+      <label>Manual script (no calls) <input type="checkbox"></label>
+    </div>
+    <div class="bx image"><h4>Smart effects (vision)</h4>
+      <label>Smart suggestions <input type="checkbox" checked></label>
+      <label>Vision calls per segment <input type="number" value="1"></label>
+    </div>
+    <div class="bx audio"><h4>Audio</h4>
+      <label>TTS segments <input type="number" value="1"></label>
+      <label>Chars / segment <input type="number" value="600"></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>Auto-script LLM <select><option>txt-1 · Gemini</option></select></label>
+      <label>Vision <select><option>vis-1 · Gemini</option></select></label>
+      <label>TTS <select><option>tts-1 · Gemini TTS</option><option>tts-2 · ElevenLabs</option></select></label>
+    </div>
+  </div>
+
+  <div class="regen"><h4>Regeneration provision</h4>
+    <div class="regen-grid">
+      <label>Script re-runs <input type="number" value="1"></label>
+      <label>Effect-analysis regens <input type="number" value="0.2" step="0.1"></label>
+      <label>TTS regens <input type="number" value="0.2" step="0.1"></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Manual script · no effects</span><span class="vcost">base $0.006 <span class="actual-usd">0.0086</span> <span class="cr-actual">0.86</span><span class="cr-rounded">2</span></span></header><span class="pill narration">narration only</span></div>
+    <div class="variant"><header><span class="vname">Auto-script · no effects</span><span class="vcost">base $0.022 <span class="actual-usd">0.0314</span> <span class="cr-actual">3.14</span><span class="cr-rounded">17</span></span></header></div>
+    <div class="variant"><header><span class="vname">Manual script · w/ effects</span><span class="vcost">base $0.022 <span class="actual-usd">0.0314</span> <span class="cr-actual">3.14</span><span class="cr-rounded">17</span></span></header></div>
+    <div class="variant active"><header><span class="vname">Auto-script · w/ smart effects</span><span class="vcost">base $0.042 <span class="actual-usd">0.0600</span> <span class="cr-actual">6.00</span><span class="cr-rounded">33</span></span></header><span class="pill standalone">full</span><div class="vsub">8 photo vision calls + 8 effect vision calls + TTS — each call rounds to 1 cr individually after markup.</div></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FLOW 7 — CANVAS / CONSISTENCY (regen-driven)                  -->
+<!-- ============================================================ -->
+<div class="flow">
+  <header>
+    <div><h2>7 · Canvas · Consistency Regen <span class="pill">on-demand</span></h2>
+      <div class="desc">Per-image-instance regeneration with up to 3 sibling reference images. Triggered by user "Regen" clicks; not part of initial pipeline.</div></div>
+    <div class="ftotal">base $0.234 <span class="actual-usd">0.334</span> <span class="cr-actual">actual 33.4</span><span class="cr-rounded">42</span></div>
+  </header>
+
+  <div class="branches">
+    <div class="bx"><h4>Regen volume</h4>
+      <label># scenes touched <input type="number" value="6"></label>
+      <label>Regens per scene <input type="number" value="1"></label>
+      <label>Sibling refs / regen (≤3) <input type="number" value="3"></label>
+    </div>
+    <div class="bx image"><h4>Image regen</h4>
+      <label>Mode <select><option>single</option><option>grid 3×3</option></select></label>
+      <label>Fallback attempts <input type="number" value="1.2" step="0.1"></label>
+    </div>
+    <div class="bx video"><h4>Video re-render (if anim)</h4>
+      <label>Re-Kling per scene <input type="number" value="0.5" step="0.1"></label>
+      <label>Re-lipsync per dialogue scene <input type="number" value="0.5" step="0.1"></label>
+    </div>
+    <div class="bx"><h4>Consistency check</h4>
+      <label>Vision validation pass <input type="checkbox"></label>
+      <label>Vision calls per pass <input type="number" value="6"></label>
+    </div>
+  </div>
+
+  <div class="providers"><h4>Per-call provider selection</h4>
+    <div class="ptable">
+      <label>Image regen <select><option>img-3 · Gemini 2.5 Flash single</option><option>img-1 · Gemini 3 Pro grid</option></select></label>
+      <label>Video re-render <select><option>vid-1 · Kling Turbo</option></select></label>
+      <label>Lip sync re-do <select><option>lip-2 · Kling fal.ai</option></select></label>
+      <label>Consistency vision <select><option>vis-1 · Gemini</option></select></label>
+    </div>
+  </div>
+
+  <div class="variants">
+    <div class="variant"><header><span class="vname">Light regen (illustrated)</span><span class="vcost">base $0.234 <span class="actual-usd">0.334</span> <span class="cr-actual">33.4</span><span class="cr-rounded">42</span></span></header></div>
+    <div class="variant"><header><span class="vname">Light regen (animated)</span><span class="vcost">base $0.690 <span class="actual-usd">0.986</span> <span class="cr-actual">98.6</span><span class="cr-rounded">120</span></span></header></div>
+    <div class="variant"><header><span class="vname">Heavy regen (animated)</span><span class="vcost">base $1.940 <span class="actual-usd">2.771</span> <span class="cr-actual">277.1</span><span class="cr-rounded">320</span></span></header></div>
+  </div>
+</div>
+
+<p class="legend" style="margin-top:18px">
+  Every flow now exposes branch panels — Cast, Environments, Dialogue, Languages, Image gen, Video, Audio/BGM, Brainstorm session
+  — that map directly to call-multiplying logic in the codebase. Per-call provider pickers let each flow choose a different model
+  for storyboard / image / video / TTS / lip-sync / BGM. Regeneration provisions per call type. Variant cards fan out the
+  combinations and show line-item cost grouped by branch (cast, images, audio, video, lipsync, BGM, brainstorm).
+</p>
+
+</body>
+</html>
