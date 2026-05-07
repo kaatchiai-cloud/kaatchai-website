@@ -1,0 +1,78 @@
+/* ═══════════════════════════════════════════════
+   Kaatchi AI — Aurora base styles
+   Shared by standalone pages (pricing, terms, privacy, refund)
+   ═══════════════════════════════════════════════ */
+
+:root {
+  /* Aurora dark tokens */
+  --lp-bg:          #050814;
+  --lp-bg2:         #0a0f20;
+  --lp-card:        rgba(255,255,255,0.035);
+  --lp-card-bdr:    rgba(255,255,255,0.08);
+  --lp-card-bdr-h:  rgba(120,220,255,0.40);
+  --lp-text:        #eef4ff;
+  --lp-dim:         rgba(238,244,255,0.65);
+  --lp-mute:        rgba(238,244,255,0.50);
+  --lp-faint:       rgba(238,244,255,0.38);
+  --lp-accent:      oklch(80% 0.14 200);
+  --lp-accent-h:    oklch(85% 0.16 200);
+  --lp-accent2:     oklch(72% 0.19 340);
+  --lp-on-accent:   #05101a;
+  --lp-glow:        rgba(120,220,255,0.22);
+  --lp-glow-soft:   rgba(120,220,255,0.12);
+  --lp-font-display:'Poppins', sans-serif;
+  --lp-font-ui:     'Poppins', sans-serif;
+  color-scheme: dark;
+
+  /* Short aliases — so page CSS doesn't need renaming */
+  --bg:        var(--lp-bg);
+  --bg2:       var(--lp-bg2);
+  --card:      var(--lp-card);
+  --card-bdr:  var(--lp-card-bdr);
+  --card-bdr-h:var(--lp-card-bdr-h);
+  --text:      var(--lp-text);
+  --dim:       var(--lp-dim);
+  --mute:      var(--lp-mute);
+  --accent:    var(--lp-accent);
+  --accent2:   var(--lp-accent2);
+  --glow:      var(--lp-glow);
+  --glow-soft: var(--lp-glow-soft);
+}
+
+/* ── BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--lp-bg); color: var(--lp-text); }
+body {
+  font-family: var(--lp-font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+  min-height: 100vh;
+}
+::selection { background: rgba(120,220,255,0.28); color: var(--lp-text); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--lp-bg); }
+::-webkit-scrollbar-thumb { background: var(--lp-card-bdr); border-radius: 999px; border: 2px solid var(--lp-bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--lp-card-bdr-h); }
+
+/* ── AURORA BACKGROUND ART ── */
+.lp-bgart {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%,  rgba(120,220,255,0.13), transparent 60%),
+    radial-gradient(ellipse 55% 40% at 15% 20%, rgba(120,220,255,0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 85% 25%, rgba(200,100,255,0.16), transparent 55%),
+    radial-gradient(ellipse 70% 35% at 50% 88%, rgba(100,220,180,0.08), transparent 55%),
+    var(--lp-bg);
+  animation: bg-drift 60s ease-in-out infinite alternate;
+}
+@keyframes bg-drift {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 100%; }
+}
+
+/* ── ABOVE ART ── */
+body > *:not(.lp-bgart) { position: relative; z-index: 1; }

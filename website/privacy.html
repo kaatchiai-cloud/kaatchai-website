@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Kaatchi AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/aurora-base.css">
+  <style>
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(18px) saturate(1.4);
+      border-bottom: 1px solid var(--card-bdr);
+      height: 64px; display: flex; align-items: center;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto; width: 100%;
+      padding: 0 24px; display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 1rem;
+    }
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--glow);
+    }
+    .back-link {
+      font-size: 0.82rem; color: var(--dim); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--text); }
+    .page-wrap {
+      max-width: 760px; margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+    .page-eyebrow {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+    .page-title {
+      font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .page-date { font-size: 0.8rem; color: var(--mute); margin-bottom: 48px; }
+    .section { margin-bottom: 40px; }
+    .section h2 {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--card-bdr);
+    }
+    .section p {
+      font-size: 0.88rem; color: var(--dim);
+      line-height: 1.8; margin-bottom: 12px;
+    }
+    .section ul {
+      list-style: none; padding: 0;
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .section ul li {
+      font-size: 0.88rem; color: var(--dim); line-height: 1.7;
+      padding-left: 16px; position: relative;
+    }
+    .section ul li::before { content: "—"; position: absolute; left: 0; color: var(--mute); }
+    .table-wrap { overflow-x: auto; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th {
+      text-align: left; padding: 10px 14px;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--mute);
+      border-bottom: 1px solid var(--card-bdr);
+    }
+    td {
+      padding: 12px 14px; color: var(--dim);
+      border-bottom: 1px solid var(--card-bdr);
+      vertical-align: top; line-height: 1.6;
+    }
+    td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid var(--card-bdr); padding: 28px 24px; }
+    .footer-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9rem;
+    }
+    .footer-nav { display: flex; gap: 20px; }
+    .footer-nav a {
+      font-size: 0.75rem; color: var(--mute); text-decoration: none;
+      letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.15s;
+    }
+    .footer-nav a:hover { color: var(--text); }
+    .footer-copy { font-size: 0.75rem; color: var(--mute); }
+    @media (max-width: 600px) {
+      .footer-nav { display: none; }
+      .footer-inner { justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="lp-bgart"></div>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="logo" href="/">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <a class="back-link" href="/">← Back to home</a>
+    </div>
+  </nav>
+
+  <div class="page-wrap">
+    <p class="page-eyebrow">Legal</p>
+    <h1 class="page-title">Privacy Policy</h1>
+    <p class="page-date">Last updated: April 2026</p>
+
+    <div class="section">
+      <h2>1. What We Collect</h2>
+      <ul>
+        <li><strong style="color:var(--text)">Account data</strong> — email address, name (optional)</li>
+        <li><strong style="color:var(--text)">Usage data</strong> — videos created, credits consumed, features used</li>
+        <li><strong style="color:var(--text)">Payment data</strong> — handled entirely by LemonSqueezy. We never see or store your card details</li>
+        <li><strong style="color:var(--text)">Content you upload</strong> — audio, images, and text submitted for video generation. Processed and not stored beyond the session unless saved to your project</li>
+        <li><strong style="color:var(--text)">Device and log data</strong> — IP address, browser type, pages visited</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>2. How We Use Your Data</h2>
+      <ul>
+        <li>To operate your account and provide the Service</li>
+        <li>To process payments via LemonSqueezy</li>
+        <li>To send transactional emails (receipts, low-credit alerts)</li>
+        <li>To improve the product using aggregated, anonymised data</li>
+      </ul>
+      <p>We do not sell your data. We do not use your content to train AI models.</p>
+    </div>
+
+    <div class="section">
+      <h2>3. Third-Party Services</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>LemonSqueezy</td>
+              <td>Payment processing and tax collection</td>
+            </tr>
+            <tr>
+              <td>Google (Gemini API)</td>
+              <td>AI image, video, and voice generation</td>
+            </tr>
+            <tr>
+              <td>Kling AI</td>
+              <td>Animated video generation</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each processor handles your data under their own privacy policy.</p>
+    </div>
+
+    <div class="section">
+      <h2>4. Data Retention</h2>
+      <p>Account data is retained while your account is active. Uploaded content (audio, images) is deleted after processing unless you save it to a project. You may request deletion of your account and all associated data at any time by emailing <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a>.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. Cookies</h2>
+      <p>We use minimal cookies for session management and authentication only. We do not use advertising or third-party tracking cookies.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Your Rights</h2>
+      <p>If you are in the EEA, UK, or a similar jurisdiction, you have the right to:</p>
+      <ul>
+        <li>Access the personal data we hold about you</li>
+        <li>Correct inaccurate data</li>
+        <li>Request deletion of your data</li>
+        <li>Object to or restrict processing</li>
+        <li>Data portability</li>
+      </ul>
+      <p>To exercise any of these rights, email <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a>. We will respond within 30 days.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Children</h2>
+      <p>Kaatchi AI is not directed at children under 13. We do not knowingly collect personal data from children under 13. If you believe a child has provided us data, contact <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a> and we will delete it promptly.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. Changes</h2>
+      <p>We may update this policy. We will notify you by email of material changes. Continued use after notification constitutes acceptance.</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Contact</h2>
+      <p><a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a></p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <a class="footer-logo" href="/">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <nav class="footer-nav">
+        <a href="/#lp-pricing">Pricing</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="refund.html">Refunds</a>
+      </nav>
+      <span class="footer-copy">© 2026 · Kaatchi AI</span>
+    </div>
+  </footer>
+
+</body>
+</html>

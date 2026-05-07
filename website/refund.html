@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refund Policy — Kaatchi AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/aurora-base.css">
+  <style>
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(18px) saturate(1.4);
+      border-bottom: 1px solid var(--card-bdr);
+      height: 64px; display: flex; align-items: center;
+    }
+    .nav-inner {
+      max-width: 760px; margin: 0 auto; width: 100%;
+      padding: 0 24px; display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 1rem;
+    }
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--glow);
+    }
+    .back-link {
+      font-size: 0.82rem; color: var(--dim); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--text); }
+    .page-wrap {
+      max-width: 760px; margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+    .page-eyebrow {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+    .page-title {
+      font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .page-date { font-size: 0.8rem; color: var(--mute); margin-bottom: 48px; }
+    .section { margin-bottom: 40px; }
+    .section h2 {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--card-bdr);
+    }
+    .section p {
+      font-size: 0.88rem; color: var(--dim);
+      line-height: 1.8; margin-bottom: 12px;
+    }
+    .section ul {
+      list-style: none; padding: 0;
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .section ul li {
+      font-size: 0.88rem; color: var(--dim); line-height: 1.7;
+      padding-left: 16px; position: relative;
+    }
+    .section ul li::before { content: "—"; position: absolute; left: 0; color: var(--mute); }
+    .callout {
+      background: var(--card); border: 1px solid var(--card-bdr);
+      border-radius: 12px; padding: 20px 20px;
+      margin-bottom: 12px;
+    }
+    .callout p { margin-bottom: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid var(--card-bdr); padding: 28px 24px; }
+    .footer-inner {
+      max-width: 760px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9rem;
+    }
+    .footer-nav { display: flex; gap: 20px; }
+    .footer-nav a {
+      font-size: 0.75rem; color: var(--mute); text-decoration: none;
+      letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.15s;
+    }
+    .footer-nav a:hover { color: var(--text); }
+    .footer-copy { font-size: 0.75rem; color: var(--mute); }
+    @media (max-width: 600px) {
+      .footer-nav { display: none; }
+      .footer-inner { justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="lp-bgart"></div>
+
+  <nav>
+    <div class="nav-inner">
+      <a class="logo" href="/">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <a class="back-link" href="/">← Back to home</a>
+    </div>
+  </nav>
+
+  <div class="page-wrap">
+    <p class="page-eyebrow">Legal</p>
+    <h1 class="page-title">Refund Policy</h1>
+    <p class="page-date">Last updated: April 2026</p>
+
+    <div class="section">
+      <h2>General Principle</h2>
+      <p>Credits are consumed at the moment of generation. Because AI generation incurs real API costs the instant you click generate, consumed credits cannot be refunded.</p>
+    </div>
+
+    <div class="section">
+      <h2>Subscriptions</h2>
+      <p>If you subscribed and have not used any credits in the current billing period, you may request a full refund within 48 hours of the charge.</p>
+      <p>If credits have been used in the current period, no refund is issued. Cancellation stops all future billing immediately.</p>
+    </div>
+
+    <div class="section">
+      <h2>Credit Top-Up Packs</h2>
+      <p>Top-up credits are non-refundable once purchased as they are available for immediate use.</p>
+      <div class="callout">
+        <p><strong style="color:var(--text)">Exception:</strong> If a technical error on our side resulted in credits not being added to your account after a confirmed payment, we will restore the credits or issue a full refund — your choice.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Technical Failures</h2>
+      <p>If a generation fails due to a server-side error and credits are deducted, we will restore those credits within 24 hours. If this has not happened, email <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a> and we will fix it.</p>
+    </div>
+
+    <div class="section">
+      <h2>Chargebacks</h2>
+      <p>If you initiate a chargeback without contacting us first, your account will be suspended pending resolution. We strongly prefer to resolve issues directly — please reach out before escalating.</p>
+    </div>
+
+    <div class="section">
+      <h2>How to Request a Refund</h2>
+      <p>Email <a href="mailto:mailbox@kaatchiai.com">mailbox@kaatchiai.com</a> with:</p>
+      <ul>
+        <li>Your account email address</li>
+        <li>Order number from your LemonSqueezy receipt</li>
+        <li>Brief reason for the request</li>
+      </ul>
+      <p>We aim to respond within 2 business days.</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <a class="footer-logo" href="/">
+        <span class="logo-dot"></span>
+        <span>Kaatchi</span>
+      </a>
+      <nav class="footer-nav">
+        <a href="/#lp-pricing">Pricing</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="refund.html">Refunds</a>
+      </nav>
+      <span class="footer-copy">© 2026 · Kaatchi AI</span>
+    </div>
+  </footer>
+
+</body>
+</html>
