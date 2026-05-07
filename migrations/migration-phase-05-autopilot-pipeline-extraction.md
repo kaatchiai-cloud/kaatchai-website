@@ -60,6 +60,7 @@
 | 9 | Sentry shows job-level traces for every `/v1/jobs/*` call grouped by `type`. | Sentry dashboard inspection. |
 | 10 | **(rev-4)** `grep -nE "stori_kling_access_key\|stori_kling_secret_key\|generateKlingJWT" js/21-kling.js` returns **0 hits**. Server-side Kling JWT migration complete. | `grep`. |
 | 11 | **(rev-4 option (a))** Full Animated AutoPilot path in `js/17e-canvas-launch.js` round-trips via `/v1/*` — `cgFillVideoPrompts` + `cgLaunchVideoAgent` + `animateScenes` no longer call Gemini or Kling directly. | `grep -nE "generativelanguage.googleapis.com\|api.kling.com" js/17e-canvas-launch.js` returns 0 hits. |
+| 12 | **`trackCost` call sites in AutoPilot files are intentionally left in place at P05 exit** — do NOT delete them here. P07 owns the full 53-call-site sweep across all 9 files once the dollar-cost UI is removed. After P05, `trackCost` will fire with server-side cost invisible to the browser (effectively 0) — this is acceptable until P07. | Non-zero `grep -rn "trackCost" js/17a-create-api.js js/17b-create-references.js js/17c-create-pipeline.js js/20-reels-creator.js` is the expected (passing) state. |
 
 ---
 

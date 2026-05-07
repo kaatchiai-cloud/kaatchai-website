@@ -52,10 +52,11 @@
 | 1 | All listed `/v1/*` endpoints live and JWT-guarded. | Integration suite. |
 | 2 | Server-side `validateGates()` returns identical results to the client implementation for a corpus of 20+ canvas-state fixtures. | Snapshot tests. |
 | 3 | Server-side `validateGates` blocks Launch when `launchBlockers` is non-empty (the `/launch` endpoint from P05 returns 409 with the blockers list). | Integration test. |
-| 4 | Mode-lock 409 fires for any post-launch mutation across all 6 pipelines (PhotoPilot adding scenes, Canvas adding instances, Lipsync adding clips, Audio adding tracks). | 6 integration tests. |
+| 4 | Mode-lock 409 fires for any post-launch **`video_mode` mutation attempt** across all 6 pipelines — per ADR-06, `video_mode` is the only locked field; scene content, images, audio, BGM, and storyboard edits remain legal and must NOT return 409. | 6 integration tests (3 confirming 409 on video_mode mutations; 3 confirming 200 on legal post-launch edits). |
 | 5 | Zero direct `generativelanguage.googleapis.com` fetch in `js/24-photopilot.js`, `js/25-photopilot-fx.js`, `js/26-brainstorm.js`, `js/26b-llm-router.js`, `js/27-canvas-state.js`, `js/28-canvas-consistency.js`, `js/30-lipsync.js`, `js/31-input-parser.js`, `js/32-audio-input.js`, `js/33-audio-rehearsal.js`. | `grep -rn` script in CI. |
 | 5a | **(rev-4)** `grep -rn "api.elevenlabs.io" js/ index.html` returns **0 hits** — all four ElevenLabs endpoint surfaces (`/v1/speech-to-text`, `/v1/voices`, `/v1/text-to-speech/{id}`, `/v1/text-to-speech/{id}/with-timestamps`) routed through the new `/v1/audio/*` server-side proxy. | `grep`. |
 | 5b | **(rev-4)** `grep -rnE "api\\.openai\\.com\|api\\.anthropic\\.com" js/ index.html` returns **0 hits** — `js/26b-llm-router.js` direct fetches to OpenAI and Anthropic replaced with `callApi('/v1/brainstorm/chat', { provider, ... })`. | `grep`. |
+| 5c | **`trackCost` call sites in secondary-pipeline files are intentionally left in place at P06 exit** — do NOT delete them here. P07 owns the full 53-call-site sweep. | Non-zero `grep -rn "trackCost" js/24-photopilot.js js/26-brainstorm.js js/26b-llm-router.js js/32-audio-input.js js/33-audio-rehearsal.js` is the expected (passing) state. |
 | 6 | E2E smoke runs all 6 features once, asserts R2 outputs + DB state. | E2E suite. |
 | 7 | MediaPipe-Node bundle baked into Cloud Run image; lipsync job runs end-to-end. | Manual + cold-start measurement (the larger image will increase cold-start by ~1–3 s). |
 

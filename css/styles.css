@@ -6261,7 +6261,7 @@ html[data-theme="light"] #create-page .cast-row-regen-badge {
 /* ── Product card screen ── */
 #bs-product-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   min-height: 70vh;
   padding: 24px;
