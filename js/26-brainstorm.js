@@ -33,7 +33,7 @@ GUIDANCE:
 - Build the script naturally. The user steers pace — don't gate every scene with "approve this?" Move forward when momentum is good; check in only when it's a real fork.
 - Keep visuals + voiceover/captions together when describing a scene.
 - Around message 12 of 15, gently mention you've covered a lot and ask if they want to finalise.
-- If the user EXPLICITLY asks for the full/final script ("give me the script", "finalise"), deliver it immediately in the finalised JSON format.
+- Never output the final script as JSON or code in a chat message. When the user is clearly ready, say something like: "I think we've got everything we need! Hit **Finalise Script** when you're ready." and let the app handle the generation.
 
 SCOPE LIMITS:
 - Don't write full scripts unprompted on the first turn.
@@ -55,7 +55,7 @@ GUIDANCE:
 - Develop the script naturally in sections (intro / body / outro). Don't gate every section with "approve this?" — move forward when momentum is good.
 - For each scene, weave together visual + narration/dialogue + tone. Suggest pacing and music tone when it adds value.
 - Around message 12 of 15, gently mention you've outlined a strong shape and ask if they want to finalise.
-- If the user EXPLICITLY asks for the full/final script, deliver it immediately.
+- Never output the final script as JSON or code in a chat message. When the user is clearly ready, say: "I think we've got everything we need! Hit **Finalise Script** when you're ready." and let the app handle the generation.
 
 SCOPE LIMITS:
 - Don't write full scripts unprompted on the first turn.
@@ -90,7 +90,7 @@ RULES:
 5. If the user writes a vague superlative ("the best", "amazing quality"), push back once: "What specifically makes it [the best]? Is there a proof point we can use?" Then let it go.
 6. Mirror the brand voice if stated. Don't invent one.
 7. Around message 12 of 15, gently ask if the messaging feels solid and they're ready to finalise.
-8. If the user EXPLICITLY asks for the final script, finalise immediately.
+8. Never output the final script as JSON or code in a chat message. When the user approves all elements and is ready, say: "I think we've got everything we need! Hit **Finalise Script** when you're ready." and let the app handle the generation.
 
 SCOPE LIMITS:
 - Don't suggest advanced production techniques. Focus on visual concept + spoken/on-screen words.
@@ -121,7 +121,7 @@ RULES:
 5. Offer dialogue as options: "I could draft a line for X — want me to?" rather than filling in full dialogue exchanges.
 6. Before finalising, do a quick arc check: does the ending pay off the premise? Does the protagonist change? Flag it once, then let the user decide.
 7. Around message 12 of 15, summarise the arc shape and ask if they're ready to finalise.
-8. If the user EXPLICITLY asks for the final script, finalise immediately.
+8. Never output the final script as JSON or code in a chat message. When the user approves the arc and is ready, say: "I think we've got everything we need! Hit **Finalise Script** when you're ready." and let the app handle the generation.
 
 SCOPE LIMITS:
 - Don't write complete dialogue scenes unprompted. Offer individual lines as suggestions.
@@ -562,13 +562,15 @@ function _pcSetSubtype(subtype) {
   var brandBtn       = document.getElementById('bs-pc-type-brand');
   var productBtn     = document.getElementById('bs-pc-type-product');
   var brandLabel     = document.getElementById('bs-pc-brand-label');
+  var nameLabel      = document.getElementById('bs-pc-name-label');
 
   var isProduct = subtype === 'product';
   if (brandSection)   brandSection.classList.remove('hidden');
   if (productSection) productSection.classList.toggle('hidden', !isProduct);
   if (brandBtn)       brandBtn.classList.toggle('active', !isProduct);
   if (productBtn)     productBtn.classList.toggle('active', isProduct);
-  // Brand field is optional when product is selected
+  if (nameLabel) nameLabel.innerHTML = (isProduct ? 'Product name' : 'Brand name') + ' <span class="bs-pc-required">*</span>';
+  // Brand description field is optional when product is selected
   if (brandLabel) brandLabel.innerHTML = isProduct
     ? 'Brand / Company info <span class="bs-pc-required" style="opacity:0.5">(optional)</span>'
     : 'Brand / Company info <span class="bs-pc-required">*</span>';
@@ -576,13 +578,14 @@ function _pcSetSubtype(subtype) {
 
 function _pcCheckReady() {
   var subtype     = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
+  var name        = (document.getElementById('bs-pc-name')?.value         || '').trim();
   var brandText   = (document.getElementById('bs-pc-brand-text')?.value   || '').trim();
   var productText = (document.getElementById('bs-pc-product-text')?.value || '').trim();
   var claim       = (document.getElementById('bs-pc-claim')?.value        || '').trim();
 
-  var ready = subtype === 'product'
-    ? productText.length > 0 && claim.length > 0   // brand optional for product
-    : brandText.length  > 0 && claim.length > 0;
+  var ready = name.length > 0 && claim.length > 0 && (
+    subtype === 'product' ? productText.length > 0 : brandText.length > 0
+  );
 
   var btn = document.getElementById('bs-product-continue');
   if (btn) btn.disabled = !ready;
@@ -631,7 +634,7 @@ function _wireProductCard() {
   });
 
   // Input → readiness check
-  ['bs-pc-brand-text', 'bs-pc-product-text', 'bs-pc-claim'].forEach(function(id) {
+  ['bs-pc-name', 'bs-pc-brand-text', 'bs-pc-product-text', 'bs-pc-claim'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && !el._pcWired) {
       el._pcWired = true;
@@ -675,6 +678,7 @@ function _wireProductCard() {
       var subtype = document.querySelector('.bs-pc-type-btn.active')?.dataset.type || 'brand';
       brainstormState.productCard = {
         subtype:     subtype,
+        name:        (document.getElementById('bs-pc-name')?.value         || '').trim(),
         brandText:   (document.getElementById('bs-pc-brand-text')?.value   || '').trim(),
         brandUrl:    (document.getElementById('bs-pc-brand-url')?.value    || '').trim(),
         productText: (document.getElementById('bs-pc-product-text')?.value || '').trim(),
@@ -900,10 +904,15 @@ function _renderGreeting() {
   var wizCtx   = brainstormState.wizardAnswers;
   var lenLabel = { short: 'short & punchy (under 90s)', medium: 'medium length (1–5 min)', long: 'in-depth (5+ min)' }[wizCtx.length] || '';
 
-  var greeting;
   if (mode === 'brand-product') {
-    greeting = 'Hi! I\'m your Storypilot — ready to help you shape a **brand or product video** that\'s both compelling and commercially sharp.\n\n**What\'s the product or brand, and what\'s the one thing you want viewers to walk away knowing?**';
-  } else if (mode === 'film-narrative') {
+    // Show typing indicator immediately, then one LLM call for personalized greeting + chips
+    _showTyping();
+    _generateBrandGreeting();
+    return;
+  }
+
+  var greeting;
+  if (mode === 'film-narrative') {
     greeting = 'Hi! I\'m your Storypilot — let\'s develop your story together, from premise to scene structure.\n\n**What\'s the story? Give me the premise in one sentence — what happens, and to whom.**';
   } else if (pipeline === 'autopilot') {
     var typeLabel = { social: 'social media clip', tutorial: 'tutorial' }[wizCtx.type] || 'video';
@@ -919,17 +928,16 @@ function _renderGreeting() {
 }
 
 function _renderSuggestionChips(mode) {
+  // brand-product and film-narrative get contextual chips after first reply — skip generic ones at greeting
+  if (mode === 'brand-product' || mode === 'film-narrative') return;
+
   var log = document.getElementById('bs-chat-log');
   if (!log) return;
   var CHIPS = {
-    'autopilot':      ['Skincare routine', 'Travel vlog', 'Productivity tips'],
-    'copilot':        ['Brand story', 'Product explainer', 'Tutorial video'],
-    'social':         ['Skincare routine', 'Travel vlog', 'Productivity tips'],
-    'tutorial':       ['How to start a podcast', 'Beginner\'s guide to budgeting', 'Learn Figma in 5 min'],
-    'brand-product':  ['Launch video for a new skincare product', '30-second brand ad for a SaaS tool', 'Product demo — before/after style'],
-    'film-narrative': ['A short film about a musician playing their last gig', 'Documentary portrait of a local craftsperson', 'Two strangers on a night bus'],
+    'social':   ['Skincare routine', 'Travel vlog', 'Productivity tips'],
+    'tutorial': ['How to start a podcast', 'Beginner\'s guide to budgeting', 'Learn Figma in 5 min'],
   };
-  var chips = CHIPS[mode] || CHIPS['copilot'];
+  var chips = CHIPS[mode] || CHIPS['social'];
 
   var div = document.createElement('div');
   div.className = 'bs-chips';
@@ -945,6 +953,123 @@ function _renderSuggestionChips(mode) {
     div.appendChild(btn);
   });
   log.appendChild(div);
+}
+
+async function _generateBrandGreeting() {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+
+  var pc = brainstormState.productCard || {};
+  var context = [
+    'Video type: ' + (pc.subtype === 'product' ? 'product video' : 'brand video'),
+    pc.name        ? 'Name: '    + pc.name                                : null,
+    pc.brandText   ? 'Brand: '   + pc.brandText.slice(0, 400)             : null,
+    pc.productText ? 'Product: ' + pc.productText.slice(0, 400)           : null,
+    pc.coreClaim   ? 'Core claim: ' + pc.coreClaim.slice(0, 200)          : null,
+  ].filter(Boolean).join('\n');
+
+  var nameHint = pc.name ? ' for **' + pc.name + '**' : '';
+  var fallbackGreeting = 'Got it! Let\'s find the sharpest angle' + nameHint + '.\n\n**What message do you want viewers to walk away with?**';
+
+  try {
+    var result = await callChatLLM({
+      provider:     brainstormState.provider,
+      messages:     [{ role: 'user', content: context }],
+      systemPrompt: 'You are a brand video creative strategist. Given the product/brand info, respond with a brief personalized opening (2 sentences max: acknowledge what they have and identify the strongest opportunity) and 3 specific video angles to explore. Return JSON only — no prose outside the JSON:\n{"greeting":"...","chips":["...","...","..."]}',
+      jsonMode:     false,
+      maxTokens:    250
+    });
+
+    _hideTyping();
+
+    var raw = result.text.trim();
+    var parsed = null;
+    var jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try { parsed = JSON.parse(jsonMatch[0]); } catch (e) {}
+    }
+
+    var greetingText = (parsed && parsed.greeting) ? parsed.greeting : fallbackGreeting;
+    var chips = (parsed && Array.isArray(parsed.chips) && parsed.chips.length) ? parsed.chips : null;
+
+    brainstormState.messages.unshift({ role: '_greeting', content: greetingText });
+    _appendMessage('ai', greetingText);
+
+    if (chips) {
+      var div = document.createElement('div');
+      div.className = 'bs-chips';
+      chips.slice(0, 3).forEach(function(label) {
+        var btn = document.createElement('button');
+        btn.className = 'bs-chip';
+        btn.textContent = label;
+        btn.addEventListener('click', function() {
+          var input = document.getElementById('bs-input');
+          if (input) { input.value = label; input.dispatchEvent(new Event('input')); input.focus(); }
+          div.remove();
+        });
+        div.appendChild(btn);
+      });
+      log.appendChild(div);
+    }
+    _scrollChatToBottom();
+
+  } catch (e) {
+    _hideTyping();
+    brainstormState.messages.unshift({ role: '_greeting', content: fallbackGreeting });
+    _appendMessage('ai', fallbackGreeting);
+    console.error('[brand greeting failed]', e && e.message ? e.message : e);
+  }
+}
+
+async function _generateContextualChips() {
+  var log = document.getElementById('bs-chat-log');
+  if (!log) return;
+
+  var context = brainstormState.messages
+    .filter(function(m) { return m.role === 'user' || m.role === 'assistant'; })
+    .slice(0, 4)
+    .map(function(m) { return (m.role === 'user' ? 'User: ' : 'AI: ') + m.content.slice(0, 400); })
+    .join('\n');
+
+  try {
+    var result = await callChatLLM({
+      provider:     brainstormState.provider,
+      messages:     [{ role: 'user', content: 'Based on this conversation, suggest 3 short follow-up directions. Return ONLY a JSON array of 3 strings under 60 chars each.\n\n' + context }],
+      systemPrompt: 'Output only a JSON array of 3 short strings.',
+      jsonMode:     false,
+      maxTokens:    150
+    });
+
+    var raw = result.text.trim();
+    var suggestions = null;
+    var jsonMatch = raw.match(/\[[\s\S]*?\]/);
+    if (jsonMatch) { try { suggestions = JSON.parse(jsonMatch[0]); } catch (e) {} }
+    if (!Array.isArray(suggestions) || suggestions.length === 0) {
+      suggestions = raw.split('\n')
+        .map(function(l) { return l.replace(/^[\d\-\*\.\s]+/, '').replace(/^["']|["']$/g, '').trim(); })
+        .filter(function(l) { return l.length > 4 && l.length < 100; })
+        .slice(0, 3);
+    }
+    if (!suggestions || suggestions.length === 0) return;
+
+    var div = document.createElement('div');
+    div.className = 'bs-chips';
+    suggestions.slice(0, 3).forEach(function(label) {
+      var btn = document.createElement('button');
+      btn.className = 'bs-chip';
+      btn.textContent = label;
+      btn.addEventListener('click', function() {
+        var input = document.getElementById('bs-input');
+        if (input) { input.value = label; input.dispatchEvent(new Event('input')); input.focus(); }
+        div.remove();
+      });
+      div.appendChild(btn);
+    });
+    log.appendChild(div);
+    _scrollChatToBottom();
+  } catch (e) {
+    console.warn('[contextual chips]', e);
+  }
 }
 
 // ── SECTION 7: Send ───────────────────────────────────────────────────────────
@@ -1012,10 +1137,66 @@ async function _sendMessage() {
     brainstormState.totalOutputTokens += result.outputTokens;
     brainstormState.messageCount++;
 
-    _appendMessage('ai', result.text);
+    // Detect if LLM incorrectly output the final JSON script in a chat message
+    var _jsonBlockMatch = result.text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i)
+      || (result.text.trim().startsWith('{') ? [null, result.text.trim()] : null);
+    if (_jsonBlockMatch) {
+      try {
+        var _parsed = JSON.parse(_jsonBlockMatch[1]);
+        if (_parsed && Array.isArray(_parsed.scenes) && _parsed.scenes.length) {
+          // Valid script JSON in a chat message — redirect to proper storyboard render
+          brainstormState.finalScript = _parsed;
+          brainstormState.finalised   = true;
+          _saveSession();
+          _hideTyping();
+          _renderFinalScript(_parsed);
+          _showScreen('bs-final');
+          _summariseSession();
+          if (sendBtn) sendBtn.disabled = false;
+          return;
+        }
+      } catch(_) { /* not valid JSON, render normally */ }
+    }
+
+    // Extract [[CHIPS: ...]] marker from AI response if present
+    var chipsMarker = result.text.match(/\[\[CHIPS:\s*(.+?)\]\]/i);
+    var displayText = chipsMarker ? result.text.replace(/\n*\[\[CHIPS:[^\]]*\]\]/i, '').trimEnd() : result.text;
+    var inlineChips = chipsMarker ? chipsMarker[1].split('|').map(function(s) { return s.trim(); }).filter(Boolean) : null;
+
+    // Store clean text (without marker) in message history
+    brainstormState.messages[brainstormState.messages.length - 1].content = displayText;
+
+    _appendMessage('ai', displayText);
+
+    if (inlineChips && inlineChips.length) {
+      var log = document.getElementById('bs-chat-log');
+      if (log) {
+        var div = document.createElement('div');
+        div.className = 'bs-chips';
+        inlineChips.forEach(function(label) {
+          var btn = document.createElement('button');
+          btn.className = 'bs-chip';
+          btn.textContent = label;
+          btn.addEventListener('click', function() {
+            var input = document.getElementById('bs-input');
+            if (input) { input.value = label; input.dispatchEvent(new Event('input')); input.focus(); }
+            div.remove();
+          });
+          div.appendChild(btn);
+        });
+        log.appendChild(div);
+        _scrollChatToBottom();
+      }
+    }
+
     _updateMeta();
     _checkFinalisable();
     _saveSession();
+
+    // After first user reply in film-narrative, generate contextual suggestion chips
+    if (brainstormState.mode === 'film-narrative' && brainstormState.messageCount === 1) {
+      _generateContextualChips();
+    }
 
     // Auto-finalise at message 12 — generate script inline without switching screens
     if (brainstormState.messageCount === AUTO_FINALISE_AT) {
@@ -1055,18 +1236,28 @@ function _buildSystemPrompt() {
     if (pc) {
       var pcLines = [
         'Video subtype: ' + (pc.subtype === 'product' ? 'product video' : 'brand video'),
+        pc.name        ? (pc.subtype === 'product' ? 'Product name: ' : 'Brand name: ') + pc.name : null,
         pc.brandText   ? 'Brand context: ' + pc.brandText.slice(0, 800)   : null,
         pc.brandUrl    ? 'Brand URL: '     + pc.brandUrl                   : null,
         pc.productText ? 'Product context: ' + pc.productText.slice(0, 800) : null,
         pc.productUrl  ? 'Product URL: '   + pc.productUrl                 : null,
-        'Core claim: '  + pc.coreClaim,
+        pc.coreClaim   ? 'Core claim: '    + pc.coreClaim                  : null,
       ].filter(Boolean).join('\n');
-      base += '\n\n[PRODUCT CONTEXT — already collected, do NOT re-ask any of this:\n' + pcLines + '\nYour first response should acknowledge the brand/product and immediately start developing the narrative approach — skip discovery questions for anything listed above.]';
+      var missingFields = [
+        !pc.name        ? (pc.subtype === 'product' ? 'product name' : 'brand name') : null,
+        !pc.brandText   && pc.subtype !== 'product' ? 'brand description'            : null,
+        !pc.productText && pc.subtype === 'product' ? 'product description'          : null,
+        !pc.coreClaim   ? 'core claim (what viewers should walk away knowing)'        : null,
+      ].filter(Boolean);
+
+      base += '\n\n[PRODUCT CONTEXT — already collected. Treat these as facts you have — do NOT re-ask:\n' + pcLines + ']'
+        + (missingFields.length ? '\n\n[MISSING INFO — you may ask for these naturally during conversation, one at a time: ' + missingFields.join(', ') + ']' : '\n\n[All key product info is collected. Jump straight into developing the narrative.]')
+        + '\n\n[CHIPS INSTRUCTION: When you offer the user a set of specific options (e.g. emotional tone, video angle, structure, audience), append a chips marker on its own line at the very end of your response: [[CHIPS: Option A | Option B | Option C | Option D]]. Max 4 options, each under 40 characters. ALWAYS use chips for Emotional Tone (Aspirational | Practical | Urgent | Playful). Use chips for any clear multiple-choice decision. Never use chips for open-ended questions. The user can click a chip to pre-fill their input or type a custom reply.]';
     } else {
       base += '\n\n[User context: video type = brand/product. Pipeline: Copilot.]';
     }
   } else if (mode === 'film-narrative') {
-    base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]';
+    base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]\n\n[CHIPS INSTRUCTION: When you offer the user a set of specific options to choose from (e.g. genre, tone, structure, POV), append a chips marker on its own line at the very end of your response, formatted exactly: [[CHIPS: Option A | Option B | Option C]]. Max 4 options, each under 40 characters. Only use this when presenting a clear multiple-choice decision — not for open-ended questions. The user can click a chip to pre-fill their reply, or ignore them and type freely.]';
   } else if (ctx.type || ctx.length) {
     base += '\n\n[User context from wizard: type=' + (ctx.type || 'unknown') + ', length=' + (ctx.length || 'unknown') + ' — skip re-asking these; treat as already known.]';
   }
@@ -1967,7 +2158,7 @@ function _autoResizeTextarea(ta) {
 }
 
 function _showScreen(id) {
-  ['bs-narrator-choice', 'bs-style-picker', 'bs-chat', 'bs-final'].forEach(function(sid) {
+  ['bs-product-card', 'bs-narrator-choice', 'bs-style-picker', 'bs-chat', 'bs-final'].forEach(function(sid) {
     var el = document.getElementById(sid);
     if (el) el.classList.toggle('hidden', sid !== id);
   });
