@@ -26792,6 +26792,15 @@ let pendingRefCardId = null;
 
 function getMaxRefs() { return 3; }
 
+// Returns true when the selected template is photorealistic or cinematic.
+// In these modes, uploading real person photos is blocked — characters and
+// avatars must use AI-generated appearances only to prevent deepfakes.
+function _isPhotorealisticMode() {
+  if (typeof TEMPLATES === 'undefined' || typeof selectedTemplate === 'undefined' || !selectedTemplate) return false;
+  const tpl = TEMPLATES.find(t => t.id === selectedTemplate);
+  return !!(tpl && (tpl.style === 'photorealistic' || tpl.style === 'cinematic'));
+}
+
 function renderCharacterCards() {
   if (!charCardsEl) return;
   const max = getMaxRefs();
@@ -26804,10 +26813,10 @@ function renderCharacterCards() {
       <button class="ref-card-remove" data-remove-char="${ch.id}">×</button>
       ${ch.imgDataUrl
         ? `<img src="${ch.imgDataUrl}" alt="${ch.name}">`
-        : `<div class="ref-card-placeholder" data-upload-char="${ch.id}">Click to upload illustration</div>`}
+        : `<div class="ref-card-placeholder"${_isPhotorealisticMode() ? '' : ` data-upload-char="${ch.id}"`}>${_isPhotorealisticMode() ? 'AI-generated portrait' : 'Click to upload illustration'}</div>`}
       <input type="text" class="char-name" value="${ch.name || ''}" placeholder="Name (e.g. Priya)">
       <textarea class="char-desc" placeholder="Description (e.g. 8yr girl, brown hair, red dress)">${ch.description || ''}</textarea>
-      ${!ch.imgDataUrl ? `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">📷 Upload Image</button>` : `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">🔄 Change Image</button>`}
+      ${_isPhotorealisticMode() ? `<div style="font-size:0.65rem;color:var(--text-muted);padding:2px 0;text-align:center;">AI-generated appearance only</div>` : (!ch.imgDataUrl ? `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">📷 Upload Image</button>` : `<button class="char-upload-btn" data-upload-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%;">🔄 Change Image</button>`)}
       ${ch.imgDataUrl && !ch.description ? `<button class="char-describe-btn" data-describe-char="${ch.id}" style="font-size:0.65rem; padding:2px 8px; width:100%; margin-top:2px;">🤖 Auto-Describe</button>` : ''}
     </div>
   `).join('');
@@ -28010,7 +28019,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
         ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate image to lock</div>' : ''}
       </div>
       <div class="cast-row-actions">
-        <button class="btn-xs cast-upload-btn" data-action="upload">${item.uploadedImageDataUrl ? '🔄 Change ref' : '📎 Upload ref'}</button>
+        ${(_isPhotorealisticMode() && isChar) ? `<div style="font-size:0.72rem;color:var(--text-muted);">AI-generated appearance only</div>` : `<button class="btn-xs cast-upload-btn" data-action="upload">${item.uploadedImageDataUrl ? '🔄 Change ref' : '📎 Upload ref'}</button>`}
         ${hasSheet ? `<button class="btn-xs cast-regen-img-btn" data-action="regen-image" ${isGenerating ? 'disabled' : ''}>🎨 Regen image</button>` : ''}
         ${hasSheet && hasImage ? `<button class="btn-xs primary cast-lock-btn" data-action="lock">🔒 Lock</button>` : ''}
         ${item._detected && !hasSheet ? `<button class="btn-xs cast-dismiss-btn" data-action="dismiss" title="Don't suggest this in future detections">✕ Not a ${isChar ? 'character' : 'location'}</button>` : ''}
@@ -28802,7 +28811,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate image to lock</div>' : ''}
         </div>
         <div class="cast-row-actions">
-          <button class="btn-xs" data-brand-action="upload-${kind}">${item.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>
+          ${(kind === 'presenter' && _isPhotorealisticMode()) ? `<div style="font-size:0.72rem;color:var(--text-muted);">AI-generated appearance only</div>` : `<button class="btn-xs" data-brand-action="upload-${kind}">${item.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>`}
           ${item.appearanceSheet ? `<button class="btn-xs" data-brand-action="regen-${kind}" ${isGenerating ? 'disabled' : ''}>🎨 Regen</button>` : ''}
           ${item.appearanceSheet && item.representativeImageDataUrl ? `<button class="btn-xs primary" data-brand-action="lock-${kind}">🔒 Lock</button>` : ''}
           ${removable ? `<button class="btn-xs" data-brand-action="remove-${kind}">✕ Remove</button>` : ''}
@@ -29251,7 +29260,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate to lock</div>' : ''}
         </div>
         <div class="cast-row-actions">
-          ${showFields ? `<button class="btn-xs" data-narrator-action="upload">${n.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>` : ''}
+          ${showFields && !_isPhotorealisticMode() ? `<button class="btn-xs" data-narrator-action="upload">${n.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>` : (showFields ? `<div style="font-size:0.72rem;color:var(--text-muted);">AI-generated appearance only</div>` : '')}
           ${n.appearanceSheet && showFields ? `<button class="btn-xs" data-narrator-action="regen-image" ${isGenerating ? 'disabled' : ''}>🎨 Regen</button>` : ''}
           ${(showFields ? (n.appearanceSheet && n.representativeImageDataUrl) : (n.name && n.name.trim())) ? `<button class="btn-xs primary" data-narrator-action="lock">🔒 Lock</button>` : ''}
           <button class="btn-xs" data-narrator-action="remove">✕ Remove</button>
