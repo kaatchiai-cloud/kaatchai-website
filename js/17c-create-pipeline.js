@@ -3719,7 +3719,7 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
     console.error('[LipSync] narrationMode is pending — stage fired too early; aborting');
     return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
   }
-  if (narrationMode === 'voice-over' || narrationMode === null) {
+  if ((narrationMode === 'voice-over' || narrationMode === null) && !_isTalkingHeadProject()) {
     onProgress('Voice-over project — no on-screen lip sync needed');
     scenes.forEach(s => { s.lipSync = s.lipSync || {}; s.lipSync.tier = 'none'; s.lipSync.status = 'ready'; });
     return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
@@ -3744,6 +3744,80 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
   for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
     const scene = scenes[sIdx];
     if (!scene) continue;
+
+    // Talking-head narrator scene — lip sync the narrator clip directly
+    if (_isTalkingHeadProject() && scene.frontRole === 'narrator') {
+      const narrV = _narratorClipForScene(scene);
+      if (!narrV || !narrV.clips || !narrV.clips[0] || !narrV.clips[0].url) { skipped++; continue; }
+      const narrator = window.createJobState && window.createJobState.narrator;
+      if (!narrator || !narrator.representativeImageDataUrl) { skipped++; continue; }
+
+      const clipStartMs = (scene.startTime || 0) * 1000;
+      const clipEndMs   = (scene.endTime   || (scene.startTime + (scene.durationSec || 0))) * 1000;
+      const localTurns  = speakerTurns
+        .filter(t => t.endMs > clipStartMs && t.startMs < clipEndMs)
+        .map(t => ({
+          speakerCharacterId: t.speakerCharacterId,
+          speakerName: t.speakerName,
+          voiceId: t.voiceId,
+          startMs: Math.max(0, t.startMs - clipStartMs),
+          endMs: Math.min(clipEndMs - clipStartMs, t.endMs - clipStartMs),
+        }));
+      if (!localTurns.length) { skipped++; continue; }
+
+      const narrChar = { id: 'narrator', name: narrator.name || 'Narrator',
+                         representativeImageDataUrl: narrator.representativeImageDataUrl };
+      onProgress(`Scene ${sIdx + 1}/${scenes.length} — detecting narrator face…`);
+      let narrDetection;
+      try {
+        const vEl = document.createElement('video');
+        vEl.muted = true;
+        vEl.crossOrigin = 'anonymous';
+        vEl.src = narrV.clips[0].url;
+        await new Promise((resolve, reject) => {
+          vEl.onloadedmetadata = resolve;
+          vEl.onerror = () => reject(new Error('video load failed'));
+          setTimeout(() => reject(new Error('video metadata timeout')), 10000);
+        });
+        narrDetection = await window.LipSync.detectFacesInClip(vEl, {
+          fps: 15,
+          onProgress: (f, total) => onProgress(`Scene ${sIdx + 1}: detecting frame ${f}/${total}…`),
+        });
+      } catch (e) {
+        console.warn(`[LipSync] narrator scene ${sIdx + 1} detection failed:`, e.message);
+        narrV.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+        failed++;
+        continue;
+      }
+
+      onProgress(`Scene ${sIdx + 1}: ensuring narrator mouth sprites…`);
+      let narrSpriteUrls;
+      try {
+        narrSpriteUrls = await castGetOrGenerateMouthSprites(narrChar);
+      } catch (e) {
+        console.warn(`[LipSync] narrator sprite gen failed:`, e.message);
+        narrV.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+        failed++;
+        continue;
+      }
+
+      const narrOverlay = window.LipSync.buildOverlayInstructions(narrDetection, localTurns, audioBuffer);
+      narrV.lipSync = {
+        tier: 'stori',
+        status: 'ready',
+        overlayInstructions: narrOverlay,
+        sprites: {
+          closed: window.LipSync.spriteFromDataUrl(narrSpriteUrls.closed),
+          half:   window.LipSync.spriteFromDataUrl(narrSpriteUrls.half),
+          open:   window.LipSync.spriteFromDataUrl(narrSpriteUrls.open),
+        },
+        speakerCharacterId: 'narrator',
+        speakerName: narrator.name || 'Narrator',
+      };
+      ready++;
+      continue;
+    }
+
     // Phase 10: per-line routing — find the one visible on-screen line (v1 invariant: ≤1)
     const sceneLines = scene.dialogueLines || [];
     const dlg = sceneLines.find(l => !l.isVoiceOver && l.speakerCharacterId && l.speakerCharacterId !== 'narrator') || null;
@@ -5146,6 +5220,9 @@ window.cgFillVideoPrompts = async function () {
       vid.environmentPrompt = result.environment;
       vid.negativePrompt = result.negative;
     }
+    if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyPromptReady) {
+      CanvasGraph.notifyPromptReady(createScenes.indexOf(scene));
+    }
   }));
   if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('ready');
   if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
@@ -5161,9 +5238,17 @@ window.cgLaunchVideoAgent = async function () {
     const vids = scene.videoInstances || [];
     // Pick the B-roll video instance (role 'broll' or unset). Narrator clips are
     // generated via _generateNarratorClips below and never via animateScenes.
-    const vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
-             || vids.find(v => v.role !== 'narrator')
-             || vids[0];
+    let vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
+           || vids.find(v => v.role !== 'narrator')
+           || vids[0];
+    if (!vid && typeof CanvasState !== 'undefined') {
+      const activeSb = (scene.storyboardInstances || []).find(s => s.isActive)
+                    || (scene.storyboardInstances || [])[0];
+      const srcImg = activeSb && ((activeSb.imageInstances || []).find(i => i.isRenderActive)
+                  || (activeSb.imageInstances || [])[0]);
+      vid = CanvasState.addVideoInstance(scene, srcImg && srcImg.id, {});
+      vid.isRenderActive = true;
+    }
     if (vid) {
       const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
       scene.motionPrompt = parts.join('. ') || scene.prompt || '';
@@ -5171,6 +5256,13 @@ window.cgLaunchVideoAgent = async function () {
     }
     try {
       await animateScenes([scene], () => {}, key);
+      // animateScenes writes to scene.videoClips (flat). Bridge to vid.clips so syncMirrorFields reads them.
+      if (Array.isArray(scene.videoClips) && scene.videoClips.length && vid) {
+        vid.clips = scene.videoClips.map(function (c) {
+          return { url: c.url, clipDuration: c.clipDuration || c.duration || 0 };
+        });
+        vid.status = 'done';
+      }
       if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
       if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
     } catch (e) {
@@ -5212,7 +5304,7 @@ async function _generateNarratorClipsIfNeeded() {
     v.status = 'generating';
     try {
       const dur = Math.max(5, Math.min(10, Math.round(scene.durationSec || 5)));
-      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '');
+      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '', setup.imageDataUrl);
       const videoUrl = await pollKlingTask(taskId);
       if (videoUrl) {
         v.clips = [{ url: videoUrl, clipDuration: dur }];
