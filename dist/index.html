@@ -20051,8 +20051,9 @@ STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
       return ids.map(id => prods.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
     })();
     const _falKey = _readyLora && window.LoraLibrary ? window.LoraLibrary.getFalKey() : '';
+    const _loraPrompt = _readyLora && _readyLora.triggerWord ? `${_readyLora.triggerWord} ${composedPrompt}` : composedPrompt;
     const dataUrl = (_readyLora && _falKey && typeof generateImageFalFluxLora === 'function')
-      ? await generateImageFalFluxLora(composedPrompt, _readyLora.loraUrl, _falKey, { width, height })
+      ? await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, _falKey, { width, height })
       : await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
     // Face swap post-process for photorealistic/cinematic scenes
     let finalDataUrl = dataUrl;
@@ -20254,14 +20255,15 @@ async function trainProductLora(productId) {
   if (photos.length < MIN_PHOTOS) { _showToast(`Need at least ${MIN_PHOTOS} photos to train.`); return; }
   if (!getFalKey()) { _showToast('Add your fal.ai key in Library → Products first.'); return; }
 
-  _updateProduct(productId, { loraStatus: 'training', trainStarted: Date.now(), loraError: null, falRequestId: null });
+  const triggerWord = `PROD${productId.slice(-6).toUpperCase()}`;
+  _updateProduct(productId, { loraStatus: 'training', trainStarted: Date.now(), loraError: null, falRequestId: null, triggerWord });
   renderProductsTab();
   updateLaunchImageButton();
 
   try {
     const submission = await _falSubmit('fal-ai/flux-lora-fast-training', {
       images_data_url: photos,
-      trigger_word: `PROD${productId.slice(-6).toUpperCase()}`,
+      trigger_word: triggerWord,
       steps: 1000,
     });
     const requestId = submission.request_id;
@@ -37229,7 +37231,8 @@ async function generateSceneImage(idx) {
     // Product LoRA routing: if a ready LoRA is selected for this project, use FLUX instead of Gemini
     const _readyLora = _getReadyProjectLora();
     if (_readyLora) {
-      imgDataUrl = await generateImageFalFluxLora(effectivePrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
+      const _loraPrompt = _readyLora.triggerWord ? `${_readyLora.triggerWord} ${effectivePrompt}` : effectivePrompt;
+      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
     }
     if (!imgDataUrl) {
       // Try image models in fallback order

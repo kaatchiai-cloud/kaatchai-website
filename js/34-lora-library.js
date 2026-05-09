@@ -155,14 +155,15 @@ async function trainProductLora(productId) {
   if (photos.length < MIN_PHOTOS) { _showToast(`Need at least ${MIN_PHOTOS} photos to train.`); return; }
   if (!getFalKey()) { _showToast('Add your fal.ai key in Library → Products first.'); return; }
 
-  _updateProduct(productId, { loraStatus: 'training', trainStarted: Date.now(), loraError: null, falRequestId: null });
+  const triggerWord = `PROD${productId.slice(-6).toUpperCase()}`;
+  _updateProduct(productId, { loraStatus: 'training', trainStarted: Date.now(), loraError: null, falRequestId: null, triggerWord });
   renderProductsTab();
   updateLaunchImageButton();
 
   try {
     const submission = await _falSubmit('fal-ai/flux-lora-fast-training', {
       images_data_url: photos,
-      trigger_word: `PROD${productId.slice(-6).toUpperCase()}`,
+      trigger_word: triggerWord,
       steps: 1000,
     });
     const requestId = submission.request_id;

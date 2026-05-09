@@ -4375,7 +4375,8 @@ async function generateSceneImage(idx) {
     // Product LoRA routing: if a ready LoRA is selected for this project, use FLUX instead of Gemini
     const _readyLora = _getReadyProjectLora();
     if (_readyLora) {
-      imgDataUrl = await generateImageFalFluxLora(effectivePrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
+      const _loraPrompt = _readyLora.triggerWord ? `${_readyLora.triggerWord} ${effectivePrompt}` : effectivePrompt;
+      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
     }
     if (!imgDataUrl) {
       // Try image models in fallback order

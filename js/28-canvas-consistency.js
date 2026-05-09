@@ -349,8 +349,9 @@ STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
       return ids.map(id => prods.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
     })();
     const _falKey = _readyLora && window.LoraLibrary ? window.LoraLibrary.getFalKey() : '';
+    const _loraPrompt = _readyLora && _readyLora.triggerWord ? `${_readyLora.triggerWord} ${composedPrompt}` : composedPrompt;
     const dataUrl = (_readyLora && _falKey && typeof generateImageFalFluxLora === 'function')
-      ? await generateImageFalFluxLora(composedPrompt, _readyLora.loraUrl, _falKey, { width, height })
+      ? await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, _falKey, { width, height })
       : await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
     // Face swap post-process for photorealistic/cinematic scenes
     let finalDataUrl = dataUrl;
