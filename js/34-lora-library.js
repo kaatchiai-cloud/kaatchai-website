@@ -189,16 +189,50 @@ async function _pollUntilDone(productId, requestId, productName) {
       const final = await _falFetchResult('fal-ai/flux-lora-fast-training', requestId);
       const loraUrl = final.diffusers_lora_file?.url || final.lora_file?.url;
       if (!loraUrl) throw new Error('No LoRA URL in fal.ai response');
+      const product = getProducts().find(p => p.id === productId);
       _updateProduct(productId, { loraStatus: 'ready', loraUrl, trainCompleted: Date.now(), falRequestId: null });
       renderProductsTab();
       renderStep4Products();
       updateLaunchImageButton();
-      _showToast(`✅ ${productName || 'Product'} LoRA is ready — image generation unblocked`);
+      _showToast(`✅ ${productName || 'Product'} LoRA is ready — generating preview…`);
+      // Generate preview in background — re-render card when done
+      _generateLoraPreview(productId, loraUrl, product?.triggerWord || '').then(() => renderProductsTab());
       return;
     }
     if (status.status === 'FAILED') throw new Error(status.error || 'Training failed on fal.ai');
   }
   throw new Error('LoRA training timed out (>20 min)');
+}
+
+// Generate a preview image using the trained LoRA and store in IDB.
+async function _generateLoraPreview(productId, loraUrl, triggerWord) {
+  const falKey = getFalKey();
+  if (!falKey || !loraUrl) return;
+  const prompt = triggerWord
+    ? `${triggerWord} product photo, clean white background, professional photography, sharp focus`
+    : 'product photo, clean white background, professional photography, sharp focus';
+  try {
+    const resp = await fetch('https://fal.run/fal-ai/flux-lora', {
+      method: 'POST',
+      headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, loras: [{ path: loraUrl, scale: 0.9 }], image_size: 'square', num_images: 1, output_format: 'jpeg' }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const imageUrl = data.images?.[0]?.url;
+    if (!imageUrl) return;
+    const imgResp = await fetch(imageUrl);
+    if (!imgResp.ok) return;
+    const blob = await imgResp.blob();
+    const dataUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+    await _idbSet(`lora_${productId}_preview`, dataUrl);
+  } catch (e) {
+    console.warn('[LoraLibrary] Preview generation failed:', e.message);
+  }
 }
 
 // Resume polling after page reload for in-progress training
@@ -306,7 +340,12 @@ async function _buildProductCardHTML(p) {
         <span class="text-2xs text-muted">You can leave — we'll update when ready.</span>
       </div>`;
   } else if (p.loraStatus === 'ready') {
-    statusHtml = `<div class="lora-status lora-status--ready"><span class="lora-ready-badge">✅ LoRA Ready</span></div>`;
+    const previewUrl = await _idbGet(`lora_${p.id}_preview`);
+    statusHtml = `
+      <div class="lora-status lora-status--ready">
+        <span class="lora-ready-badge">✅ LoRA Ready</span>
+        ${previewUrl ? `<img src="${previewUrl}" class="lora-preview-img" alt="Preview">` : ''}
+      </div>`;
   } else if (p.loraStatus === 'error') {
     statusHtml = `<div class="lora-status lora-status--error"><span class="text-xs" style="color:var(--red);">⚠ Training failed — retrain below</span></div>`;
   }
