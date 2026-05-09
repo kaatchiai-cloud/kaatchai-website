@@ -7791,6 +7791,174 @@ html[data-theme="light"] #create-page .scene-chip-action-label {
 }
 .rcm-submood:hover { background: var(--bg-elevated, #252540); }
 
+/* ══════════════════════════════════════════
+   LORA LIBRARY — Library page + Product cards + Step 4 picker
+   ══════════════════════════════════════════ */
+
+/* ── Nav link ── */
+#btn-library-nav { cursor: pointer; }
+
+/* ── Library page wrapper ── */
+#library-page {
+  max-width: 860px; width: 100%; margin: 0 auto; padding: 28px 0;
+}
+.library-header { margin-bottom: 20px; }
+.library-title { font-size: var(--text-xl); color: var(--text-primary); margin-bottom: 4px; }
+
+/* ── Tabs ── */
+.library-tabs {
+  display: flex; gap: 0; margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.library-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); padding: 8px 18px; cursor: pointer;
+  font-size: var(--text-sm); font-family: inherit;
+  transition: color 0.15s, border-color 0.15s; margin-bottom: -1px;
+}
+.library-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.library-tab:hover:not(.active) { color: var(--text-primary); }
+
+/* ── fal.ai key row ── */
+.lora-key-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px;
+}
+.lora-key-input {
+  flex: 1; min-width: 160px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 8px; color: var(--text-primary); font-size: var(--text-xs); font-family: inherit;
+}
+.lora-key-input:focus { outline: none; border-color: var(--accent); }
+
+/* ── Product grid ── */
+.library-product-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px; margin-bottom: 14px;
+}
+.lora-empty {
+  padding: 32px 24px; text-align: center;
+  border: 1px dashed var(--border); border-radius: var(--radius-lg);
+}
+
+/* ── Product card ── */
+.lora-product-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color 0.15s;
+}
+.lora-product-card:hover { border-color: var(--border-hover); }
+.lora-card-head { display: flex; align-items: center; gap: 8px; }
+.lora-name-input {
+  flex: 1; background: transparent; border: none;
+  border-bottom: 1px solid var(--border); color: var(--text-primary);
+  font-size: var(--text-sm); font-family: inherit; padding: 2px 0; outline: none;
+  transition: border-color 0.15s;
+}
+.lora-name-input:focus { border-bottom-color: var(--accent); }
+.lora-card-del {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 1rem; padding: 2px 5px; border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+.lora-card-del:hover { color: var(--red); background: var(--red-soft); }
+
+/* ── Photo thumbnails ── */
+.lora-photo-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.lora-thumb {
+  width: 46px; height: 46px; border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--bg-elevated); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); color: var(--text-muted); flex-shrink: 0;
+}
+.lora-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lora-thumb-more { font-size: var(--text-2xs); }
+.lora-thumb-add {
+  cursor: pointer; border-style: dashed; font-size: 1.1rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.lora-thumb-add:hover { border-color: var(--accent); color: var(--accent); }
+.lora-photo-count { margin-top: -4px; }
+
+/* ── Training status states ── */
+.lora-status { display: flex; flex-direction: column; gap: 4px; }
+.lora-progress-bar {
+  height: 3px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden;
+}
+.lora-progress-fill {
+  height: 100%; background: var(--accent);
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+.lora-ready-badge {
+  font-size: var(--text-xs); color: var(--green);
+  background: var(--green-soft); padding: 2px 10px;
+  border-radius: 999px; display: inline-block;
+}
+.lora-card-actions { display: flex; gap: 6px; }
+
+/* ── Step 4 — Products section ── */
+#step4-products-section {
+  border-top: 1px solid var(--border); padding-top: 14px; margin-top: 8px;
+}
+.step4-product-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 6px;
+}
+.step4-lora-badge {
+  font-size: var(--text-2xs); padding: 2px 8px;
+  border-radius: 999px; white-space: nowrap;
+}
+.step4-lora-badge--ready   { color: var(--green); background: var(--green-soft); }
+.step4-lora-badge--training { color: var(--amber); background: var(--amber-soft); }
+.step4-lora-badge--idle,
+.step4-lora-badge--error   { color: var(--red);   background: var(--red-soft); }
+
+/* ── LoRA block notice ── */
+.lora-block-notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; background: var(--amber-soft);
+  border: 1px solid var(--amber); border-radius: var(--radius); margin-bottom: 10px;
+}
+.lora-block-icon { font-size: 1rem; flex-shrink: 0; line-height: 1.5; }
+#lora-block-text { font-size: var(--text-xs); color: var(--text-primary); margin: 0; }
+
+/* Blocked launch button */
+#btn-launch-image.lora-blocked {
+  opacity: 0.35; cursor: not-allowed; pointer-events: none;
+}
+
+/* ── Product picker dropdown ── */
+.lora-picker-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
+  background: var(--bg-elevated); border: 1px solid var(--border-active);
+  border-radius: var(--radius); padding: 6px; min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.lora-picker-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: var(--text-sm); color: var(--text-primary); gap: 10px;
+  transition: background 0.1s;
+}
+.lora-picker-item:hover { background: var(--accent-soft); }
+
+/* ── Toast (fallback if global showToast not available) ── */
+.lora-toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); border: 1px solid var(--border-active);
+  color: var(--text-primary); font-size: var(--text-sm);
+  padding: 10px 22px; border-radius: 999px; z-index: 9999;
+  animation: lora-toast-in 0.25s ease;
+  white-space: nowrap;
+}
+@keyframes lora-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
   </style>
   <style>
 /* ══════════════════════════════════════════════════════════════════════════
@@ -11926,6 +12094,7 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
         <div class="lp-nav-links">
           <a href="#lp-features">Studio</a>
           <a href="#lp-pricing">Pricing</a>
+          <a href="#" id="btn-library-nav">Library</a>
         </div>
       </div>
       <div id="user-section" class="lp-nav-right">
@@ -12997,6 +13166,10 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
       <div id="create-cost-estimate" class="text-sm text-muted" style="display:none; margin-top:10px;"></div>
       <div class="agent-launch-row" id="create-launch-after-storyboard">
         <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
+        <div id="lora-block-notice" style="display:none;" class="lora-block-notice">
+          <span class="lora-block-icon">⏳</span>
+          <p id="lora-block-text">Waiting for LoRA training to complete. Image generation is blocked until ready.</p>
+        </div>
         <button class="agent-launch-btn" id="btn-open-canvas" onclick="openCanvasPanel()" style="display:none;">Open Canvas →</button>
         <button class="agent-launch-btn" id="btn-launch-image" onclick="launchImageAgent()">Launch Image Agent →</button>
       </div>
@@ -13056,6 +13229,16 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
           <input type="file" id="env-img-input" accept="image/*" hidden>
         </div>
         <div id="environment-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Products (LoRA) -->
+      <div id="step4-products-section" class="mb-lg">
+        <div class="form-row mb-sm" style="position:relative;">
+          <strong class="text-base">Products</strong>
+          <span class="text-xs text-muted">LoRA-trained product for visual consistency</span>
+          <button id="btn-select-product-lora" class="btn-xs">Select from Library ▼</button>
+        </div>
+        <div id="step4-product-list"></div>
       </div>
 
       <!-- Per-scene assignment -->
@@ -13273,6 +13456,40 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
         <div id="create-canvas-step"></div>
       </div>
     </div><!-- /#create-body -->
+  </div>
+
+  <!-- ═══ Library Page ═══ -->
+  <div id="library-page" style="display:none;">
+    <div class="library-header">
+      <h2 class="library-title">Library</h2>
+      <p class="text-sm text-muted">Reusable characters and product LoRAs across all projects.</p>
+    </div>
+    <div class="library-tabs">
+      <button class="library-tab active" data-tab="characters">Characters</button>
+      <button class="library-tab" data-tab="products">Products</button>
+    </div>
+    <div id="library-tab-characters" class="library-tab-content">
+      <div id="library-char-grid"></div>
+    </div>
+    <div id="library-tab-products" class="library-tab-content" style="display:none;">
+      <div class="lora-key-row">
+        <span class="text-xs text-muted">fal.ai key</span>
+        <input type="password" id="lora-fal-key-input" placeholder="fal_..." class="lora-key-input" autocomplete="off" data-form-type="other">
+        <button id="btn-lora-save-key" class="btn-xs primary">Save</button>
+        <span id="lora-key-status" class="text-xs text-muted"></span>
+        <a href="https://fal.ai/dashboard/keys" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key →</a>
+      </div>
+      <div class="lora-key-row">
+        <span class="text-xs text-muted">Replicate key</span>
+        <input type="password" id="replicate-key-input" placeholder="r8_..." class="lora-key-input" autocomplete="off" data-form-type="other">
+        <button id="btn-replicate-save-key" class="btn-xs primary">Save</button>
+        <span id="replicate-key-status" class="text-xs text-muted"></span>
+        <span class="text-xs text-muted" style="white-space:nowrap;">Used for face swap</span>
+        <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key →</a>
+      </div>
+      <div id="library-product-grid" class="library-product-grid"></div>
+      <button id="btn-add-product" class="btn-sm" style="margin-top:4px;">+ Add Product</button>
+    </div>
   </div>
 
   <!-- ═══ Reel Header (outside #reel-page for full-width) ═══ -->
@@ -15230,7 +15447,8 @@ html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
       'js/30-lipsync.js',
       'js/31-input-parser.js',
       'js/32-audio-input.js',
-      'js/33-audio-rehearsal.js'
+      'js/33-audio-rehearsal.js',
+      'js/34-lora-library.js'
     ];
     var _v = Date.now();
     var loaded = 0;
@@ -19614,6 +19832,162 @@ async function generateStyleFingerprint(scenes, geminiKey) {
   }
 }
 
+// ─── Face swap — post-process for photorealistic/cinematic scenes ─────────────
+//
+// After Gemini generates a scene image, if the project is photorealistic or
+// cinematic, swap each locked character's AI-generated portrait onto the
+// corresponding face in the scene image via Replicate codeplugtech/face-swap.
+// MediaPipe IMAGE mode detects faces; faces are matched left-to-right to
+// scene.refCharacters order. Each face is cropped, swapped, pasted back.
+//
+// Replicate API key stored at localStorage key 'stori_replicate_api_key'.
+
+const REPLICATE_FACE_SWAP_VERSION = '278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34';
+
+function _getReplicateKey() {
+  return (typeof localStorage !== 'undefined' ? localStorage.getItem('stori_replicate_api_key') : '') || '';
+}
+
+function _loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = dataUrl;
+  });
+}
+
+async function _resizeDataUrl(dataUrl, maxSide) {
+  const img = await _loadImageFromDataUrl(dataUrl);
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+async function _replicateFaceSwap(inputImageDataUrl, swapImageDataUrl, replicateKey) {
+  const resp = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: { 'Authorization': `Token ${replicateKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      version: REPLICATE_FACE_SWAP_VERSION,
+      input: { input_image: inputImageDataUrl, swap_image: swapImageDataUrl },
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`Replicate submit failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const prediction = await resp.json();
+  const pollUrl = prediction.urls && prediction.urls.get;
+  if (!pollUrl) throw new Error('Replicate: no poll URL');
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 3000));
+    const pr = await fetch(pollUrl, { headers: { 'Authorization': `Token ${replicateKey}` } });
+    if (!pr.ok) throw new Error(`Replicate poll failed: ${pr.status}`);
+    const data = await pr.json();
+    if (data.status === 'succeeded') {
+      if (!data.output) throw new Error('Replicate: no output URL');
+      const imgResp = await fetch(data.output);
+      if (!imgResp.ok) throw new Error(`Replicate result fetch failed: ${imgResp.status}`);
+      const blob = await imgResp.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+    if (data.status === 'failed' || data.status === 'canceled') {
+      throw new Error(`Replicate prediction ${data.status}: ${data.error || ''}`);
+    }
+  }
+  throw new Error('Replicate face swap timed out (>120s)');
+}
+
+// Apply face swap to a generated scene image. Returns updated data URL, or
+// original data URL unchanged if conditions aren't met (no key, no faces, etc).
+async function applyFaceSwapToSceneImage(sceneDataUrl, scene) {
+  if (typeof _isPhotorealisticMode !== 'function' || !_isPhotorealisticMode()) return sceneDataUrl;
+  const replicateKey = _getReplicateKey();
+  if (!replicateKey) return sceneDataUrl;
+  if (!window.LipSync || typeof window.LipSync.detectFacesInImage !== 'function') return sceneDataUrl;
+
+  const cs = window.createJobState || {};
+  const allChars = cs.characters || [];
+  const sceneCharIds = scene && scene.refCharacters || [];
+  const sceneChars = sceneCharIds
+    .map(id => allChars.find(c => c.id === id))
+    .filter(c => c && c.locked && c.representativeImageDataUrl);
+  if (!sceneChars.length) return sceneDataUrl;
+
+  let faces;
+  try {
+    faces = await window.LipSync.detectFacesInImage(sceneDataUrl);
+  } catch (e) {
+    console.warn('[FaceSwap] face detection failed:', e.message);
+    return sceneDataUrl;
+  }
+  if (!faces.length) return sceneDataUrl;
+
+  const img = await _loadImageFromDataUrl(sceneDataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const pairCount = Math.min(faces.length, sceneChars.length);
+  for (let i = 0; i < pairCount; i++) {
+    const face = faces[i];
+    const char = sceneChars[i];
+    if (!face.faceBbox) continue;
+
+    // Crop face region with 50% padding on each side
+    const { x, y, w, h } = face.faceBbox;
+    const pad = 0.5;
+    const bx = Math.max(0, x - w * pad);
+    const by = Math.max(0, y - h * pad);
+    const bw = Math.min(canvas.width  - bx, w * (1 + 2 * pad));
+    const bh = Math.min(canvas.height - by, h * (1 + 2 * pad));
+
+    const crop = document.createElement('canvas');
+    crop.width = Math.round(bw); crop.height = Math.round(bh);
+    crop.getContext('2d').drawImage(canvas, bx, by, bw, bh, 0, 0, bw, bh);
+    const cropDataUrl = crop.toDataURL('image/jpeg', 0.9);
+
+    // Resize portrait to max 512px to stay under Replicate's 256KB base64 limit
+    let portraitDataUrl;
+    try {
+      portraitDataUrl = await _resizeDataUrl(char.representativeImageDataUrl, 512);
+    } catch (e) {
+      console.warn('[FaceSwap] portrait resize failed:', e.message);
+      continue;
+    }
+
+    let swappedDataUrl;
+    try {
+      swappedDataUrl = await _replicateFaceSwap(cropDataUrl, portraitDataUrl, replicateKey);
+    } catch (e) {
+      console.warn(`[FaceSwap] swap failed for "${char.name}":`, e.message);
+      continue;
+    }
+
+    // Paste swapped crop back at exact original position — background pixels
+    // in the crop are unchanged so edges are seamless
+    try {
+      const swappedImg = await _loadImageFromDataUrl(swappedDataUrl);
+      ctx.drawImage(swappedImg, Math.round(bx), Math.round(by), Math.round(bw), Math.round(bh));
+    } catch (e) {
+      console.warn('[FaceSwap] paste-back failed:', e.message);
+    }
+  }
+
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
+
 // Regenerate one image instance with sibling-ref injection + style fingerprint.
 // Mutates the imageInstance in place: status, imgDataUrl, generationContext, error.
 //
@@ -19669,13 +20043,26 @@ SCENE: ${scenePrompt}${noTextSuffix}`
 STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
 
   try {
-    const dataUrl = await generateImageGeminiFlash(
-      composedPrompt,
-      geminiKey,
-      { width, height, refParts },
-      modelOverride
-    );
-    imageInstance.imgDataUrl = dataUrl;
+    // Product LoRA routing: use FLUX if a ready LoRA is selected for this project
+    const _readyLora = (function () {
+      if (!window.LoraLibrary) return null;
+      const prods = window.LoraLibrary.getProducts();
+      const ids = window.LoraLibrary.getSelectedProductIds();
+      return ids.map(id => prods.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
+    })();
+    const _falKey = _readyLora && window.LoraLibrary ? window.LoraLibrary.getFalKey() : '';
+    const dataUrl = (_readyLora && _falKey && typeof generateImageFalFluxLora === 'function')
+      ? await generateImageFalFluxLora(composedPrompt, _readyLora.loraUrl, _falKey, { width, height })
+      : await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
+    // Face swap post-process for photorealistic/cinematic scenes
+    let finalDataUrl = dataUrl;
+    try {
+      finalDataUrl = await applyFaceSwapToSceneImage(dataUrl, scenes[sceneIdx]);
+    } catch (e) {
+      console.warn('[FaceSwap] post-process failed, using original image:', e.message);
+    }
+
+    imageInstance.imgDataUrl = finalDataUrl;
     imageInstance.status = 'done';
     imageInstance.error = null;
     imageInstance.generationContext = {
@@ -19685,7 +20072,7 @@ STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
     };
     return {
       ok: true,
-      dataUrl,
+      dataUrl: finalDataUrl,
       siblingRefIds: imageInstance.generationContext.siblingRefIds,
       modelUsed: imageInstance.generationContext.modelUsed,
     };
@@ -19701,8 +20088,594 @@ window.CanvasConsistency = {
   buildRefParts,
   generateStyleFingerprint,
   regenerateImageInstance,
+  applyFaceSwapToSceneImage,
   SIBLING_BUDGET,
   MAX_TOTAL_PARTS,
+};
+
+})();
+
+
+    // ── 34-lora-library.js ──
+// ══════════════════════════════════════════
+//  LORA LIBRARY — Product LoRA training, Library page, Step 4 picker
+//
+//  Library page: upload product photos → train fal-ai/flux-lora-fast-training
+//                → store loraUrl → reuse across projects
+//  Step 4:       select trained products → generation blocked until ready
+//  Generation:   if any selected product LoRA is not ready, btn-launch-image
+//                is disabled with a clear notice
+// ══════════════════════════════════════════
+
+(function () {
+
+const PRODUCTS_KEY   = 'stori_lora_products_v1';
+const FAL_KEY_LS     = 'stori_fal_api_key';
+const IDB_DB_NAME    = 'stori_lora_photos';
+const IDB_STORE_NAME = 'photos';
+const IDB_VERSION    = 1;
+const MIN_PHOTOS     = 5;
+const MAX_PHOTOS     = 15;
+const POLL_MS        = 15000;
+const TRAIN_TIMEOUT  = 20 * 60 * 1000;
+
+// ── IDB ──────────────────────────────────────────────────────────
+let _db = null;
+function _openDb() {
+  if (_db) return Promise.resolve(_db);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE_NAME);
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _idbGet(key) {
+  const db = await _openDb();
+  return new Promise((resolve, reject) => {
+    const r = db.transaction(IDB_STORE_NAME, 'readonly').objectStore(IDB_STORE_NAME).get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function _idbSet(key, val) {
+  const db = await _openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+    tx.objectStore(IDB_STORE_NAME).put(val, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function _idbDel(key) {
+  const db = await _openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+    tx.objectStore(IDB_STORE_NAME).delete(key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ── Product metadata (localStorage) ─────────────────────────────
+function getProducts() {
+  try { return JSON.parse(localStorage.getItem(PRODUCTS_KEY) || '[]'); } catch { return []; }
+}
+function saveProducts(list) {
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+}
+function _updateProduct(id, patch) {
+  const list = getProducts();
+  const i = list.findIndex(p => p.id === id);
+  if (i >= 0) { list[i] = { ...list[i], ...patch }; saveProducts(list); }
+}
+function getFalKey() { return localStorage.getItem(FAL_KEY_LS) || ''; }
+function saveFalKey(key) { localStorage.setItem(FAL_KEY_LS, key.trim()); }
+
+// ── Per-project selected product IDs ────────────────────────────
+function getSelectedProductIds() {
+  return (window.createJobState && window.createJobState.loraProductIds) || [];
+}
+function setSelectedProductIds(ids) {
+  if (!window.createJobState) window.createJobState = {};
+  window.createJobState.loraProductIds = ids;
+}
+
+// ── fal.ai queue helpers ─────────────────────────────────────────
+async function _falSubmit(endpoint, input) {
+  const key = getFalKey();
+  if (!key) throw new Error('No fal.ai API key set.');
+  const resp = await fetch(`https://queue.fal.run/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input }),
+  });
+  if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error(`fal submit ${resp.status}: ${t.slice(0, 200)}`); }
+  return resp.json();
+}
+async function _falPollStatus(endpoint, requestId) {
+  const key = getFalKey();
+  const resp = await fetch(`https://queue.fal.run/${endpoint}/requests/${requestId}/status`, {
+    headers: { 'Authorization': `Key ${key}` },
+  });
+  if (!resp.ok) throw new Error(`fal status ${resp.status}`);
+  return resp.json();
+}
+async function _falFetchResult(endpoint, requestId) {
+  const key = getFalKey();
+  const resp = await fetch(`https://queue.fal.run/${endpoint}/requests/${requestId}`, {
+    headers: { 'Authorization': `Key ${key}` },
+  });
+  if (!resp.ok) throw new Error(`fal result ${resp.status}`);
+  return resp.json();
+}
+
+// ── Photo management ─────────────────────────────────────────────
+function _fileToDataUrl(file) {
+  return new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.readAsDataURL(file);
+  });
+}
+async function _loadPhotosForProduct(productId, count) {
+  const urls = [];
+  for (let i = 0; i < count; i++) {
+    const d = await _idbGet(`lora_${productId}_photo_${i}`);
+    if (d) urls.push(d);
+  }
+  return urls;
+}
+async function addPhotosToProduct(productId, files) {
+  const products = getProducts();
+  const p = products.find(pr => pr.id === productId);
+  if (!p) return;
+  let count = p.photoCount || 0;
+  for (const f of files) {
+    if (count >= MAX_PHOTOS) break;
+    await _idbSet(`lora_${productId}_photo_${count}`, await _fileToDataUrl(f));
+    count++;
+  }
+  _updateProduct(productId, { photoCount: count });
+  renderProductsTab();
+}
+async function deleteProductPhotos(productId) {
+  const p = getProducts().find(pr => pr.id === productId);
+  if (!p) return;
+  for (let i = 0; i < (p.photoCount || 0); i++) await _idbDel(`lora_${productId}_photo_${i}`);
+}
+
+// ── Training ─────────────────────────────────────────────────────
+async function trainProductLora(productId) {
+  const products = getProducts();
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+  const photos = await _loadPhotosForProduct(productId, product.photoCount || 0);
+  if (photos.length < MIN_PHOTOS) { _showToast(`Need at least ${MIN_PHOTOS} photos to train.`); return; }
+  if (!getFalKey()) { _showToast('Add your fal.ai key in Library → Products first.'); return; }
+
+  _updateProduct(productId, { loraStatus: 'training', trainStarted: Date.now(), loraError: null, falRequestId: null });
+  renderProductsTab();
+  updateLaunchImageButton();
+
+  try {
+    const submission = await _falSubmit('fal-ai/flux-lora-fast-training', {
+      images_data_url: photos,
+      trigger_word: `PROD${productId.slice(-6).toUpperCase()}`,
+      steps: 1000,
+    });
+    const requestId = submission.request_id;
+    if (!requestId) throw new Error('No request_id returned from fal.ai');
+    _updateProduct(productId, { falRequestId: requestId });
+
+    await _pollUntilDone(productId, requestId, product.name);
+  } catch (e) {
+    _updateProduct(productId, { loraStatus: 'error', loraError: e.message, falRequestId: null });
+    renderProductsTab();
+    updateLaunchImageButton();
+    console.warn('[LoraLibrary] Training error:', e.message);
+  }
+}
+
+async function _pollUntilDone(productId, requestId, productName) {
+  const deadline = Date.now() + TRAIN_TIMEOUT;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, POLL_MS));
+    _renderElapsed(productId);
+    const status = await _falPollStatus('fal-ai/flux-lora-fast-training', requestId);
+    if (status.status === 'COMPLETED') {
+      const final = await _falFetchResult('fal-ai/flux-lora-fast-training', requestId);
+      const loraUrl = final.diffusers_lora_file?.url || final.lora_file?.url;
+      if (!loraUrl) throw new Error('No LoRA URL in fal.ai response');
+      _updateProduct(productId, { loraStatus: 'ready', loraUrl, trainCompleted: Date.now(), falRequestId: null });
+      renderProductsTab();
+      renderStep4Products();
+      updateLaunchImageButton();
+      _showToast(`✅ ${productName || 'Product'} LoRA is ready — image generation unblocked`);
+      return;
+    }
+    if (status.status === 'FAILED') throw new Error(status.error || 'Training failed on fal.ai');
+  }
+  throw new Error('LoRA training timed out (>20 min)');
+}
+
+// Resume polling after page reload for in-progress training
+async function _resumePendingTraining() {
+  for (const p of getProducts()) {
+    if (p.loraStatus === 'training' && p.falRequestId) {
+      _pollUntilDone(p.id, p.falRequestId, p.name).catch(e => {
+        _updateProduct(p.id, { loraStatus: 'error', loraError: e.message, falRequestId: null });
+        renderProductsTab();
+        updateLaunchImageButton();
+      });
+    }
+  }
+}
+
+function _renderElapsed(productId) {
+  const el = document.querySelector(`.lora-product-card[data-product-id="${productId}"] .lora-elapsed`);
+  if (!el) return;
+  const p = getProducts().find(pr => pr.id === productId);
+  if (p && p.trainStarted) el.textContent = `${Math.round((Date.now() - p.trainStarted) / 60000)} min elapsed`;
+}
+
+// ── Library page navigation ───────────────────────────────────────
+function openLibraryPage() {
+  ['drop-zone', 'create-page', 'reel-header-wrapper', 'reel-page'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const page = document.getElementById('library-page');
+  if (page) page.style.display = '';
+  const backBtns = document.getElementById('nav-back-buttons');
+  if (backBtns) backBtns.classList.remove('hidden');
+  renderLibraryPage();
+}
+
+function closeLibraryPage() {
+  const page = document.getElementById('library-page');
+  if (page) page.style.display = 'none';
+  // Restore landing page (drop-zone)
+  const dropZone = document.getElementById('drop-zone');
+  if (dropZone) dropZone.style.display = '';
+  const backBtns = document.getElementById('nav-back-buttons');
+  if (backBtns) backBtns.classList.add('hidden');
+}
+
+// ── Library page rendering ────────────────────────────────────────
+function renderLibraryPage() {
+  renderLibraryCharactersTab();
+  renderProductsTab();
+}
+
+function renderLibraryCharactersTab() {
+  const el = document.getElementById('library-char-grid');
+  if (!el) return;
+  el.innerHTML = `<p class="text-sm text-muted" style="padding:12px 0;">
+    Saved characters are available within each project via the
+    <strong>📚 Library</strong> button in the Visual References step.
+  </p>`;
+}
+
+async function renderProductsTab() {
+  const el = document.getElementById('library-product-grid');
+  if (!el) return;
+  const key = getFalKey();
+  const products = getProducts();
+
+  if (!key) {
+    el.innerHTML = `<div class="lora-empty"><p class="text-sm text-muted">Add your fal.ai key above to train product LoRAs.</p></div>`;
+    return;
+  }
+  if (products.length === 0) {
+    el.innerHTML = `<div class="lora-empty"><p class="text-sm text-muted">No products yet. Click <strong>+ Add Product</strong> to get started.</p></div>`;
+    return;
+  }
+
+  const cards = await Promise.all(products.map(p => _buildProductCardHTML(p)));
+  el.innerHTML = cards.join('');
+  _wireProductCards();
+}
+
+async function _buildProductCardHTML(p) {
+  const count = p.photoCount || 0;
+  const thumbs = [];
+  for (let i = 0; i < Math.min(4, count); i++) {
+    const url = await _idbGet(`lora_${p.id}_photo_${i}`);
+    if (url) thumbs.push(`<div class="lora-thumb"><img src="${url}" alt=""></div>`);
+  }
+  const remaining = count - thumbs.length;
+  if (remaining > 0) thumbs.push(`<div class="lora-thumb lora-thumb-more">+${remaining}</div>`);
+  if (count < MAX_PHOTOS) {
+    thumbs.push(`
+      <label class="lora-thumb lora-thumb-add" title="Add photos">
+        +<input type="file" accept="image/*" multiple hidden data-add-photos="${p.id}">
+      </label>`);
+  }
+
+  const canTrain = count >= MIN_PHOTOS && p.loraStatus !== 'training' && p.loraStatus !== 'ready';
+  let statusHtml = '';
+  if (p.loraStatus === 'training') {
+    const min = p.trainStarted ? Math.round((Date.now() - p.trainStarted) / 60000) : 0;
+    statusHtml = `
+      <div class="lora-status lora-status--training">
+        <div class="lora-progress-bar"><div class="lora-progress-fill"></div></div>
+        <span class="text-xs" style="color:var(--amber);">🔄 Training... <span class="lora-elapsed">${min} min elapsed</span></span>
+        <span class="text-2xs text-muted">You can leave — we'll update when ready.</span>
+      </div>`;
+  } else if (p.loraStatus === 'ready') {
+    statusHtml = `<div class="lora-status lora-status--ready"><span class="lora-ready-badge">✅ LoRA Ready</span></div>`;
+  } else if (p.loraStatus === 'error') {
+    statusHtml = `<div class="lora-status lora-status--error"><span class="text-xs" style="color:var(--red);">⚠ Training failed — retrain below</span></div>`;
+  }
+
+  return `
+    <div class="lora-product-card" data-product-id="${p.id}">
+      <div class="lora-card-head">
+        <input class="lora-name-input" type="text" value="${p.name || ''}" placeholder="Product name" data-name-product="${p.id}">
+        <button class="lora-card-del" data-delete-product="${p.id}" title="Delete">×</button>
+      </div>
+      <div class="lora-photo-grid">${thumbs.join('')}</div>
+      <p class="text-2xs text-muted lora-photo-count">
+        ${count}/${MAX_PHOTOS} photos${count < MIN_PHOTOS ? ` — add ${MIN_PHOTOS - count} more to enable training` : ''}
+      </p>
+      ${statusHtml}
+      <div class="lora-card-actions">
+        ${canTrain ? `<button class="btn-xs primary" data-train-product="${p.id}">Train LoRA ▶</button>` : ''}
+        ${p.loraStatus === 'ready' || p.loraStatus === 'error'
+          ? `<button class="btn-xs" data-retrain-product="${p.id}">Retrain</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function _wireProductCards() {
+  const page = document.getElementById('library-page');
+  if (!page) return;
+
+  page.querySelectorAll('[data-add-photos]').forEach(input => {
+    input.addEventListener('change', async e => {
+      await addPhotosToProduct(e.target.dataset.addPhotos, Array.from(e.target.files));
+    });
+  });
+  page.querySelectorAll('[data-name-product]').forEach(input => {
+    input.addEventListener('change', e => _updateProduct(e.target.dataset.nameProduct, { name: e.target.value }));
+  });
+  page.querySelectorAll('[data-train-product]').forEach(btn => {
+    btn.addEventListener('click', () => trainProductLora(btn.dataset.trainProduct));
+  });
+  page.querySelectorAll('[data-retrain-product]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _updateProduct(btn.dataset.retrainProduct, { loraStatus: 'idle', loraUrl: null, loraError: null });
+      renderProductsTab();
+    });
+  });
+  page.querySelectorAll('[data-delete-product]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.deleteProduct;
+      if (!confirm('Delete this product and its photos?')) return;
+      await deleteProductPhotos(id);
+      saveProducts(getProducts().filter(p => p.id !== id));
+      setSelectedProductIds(getSelectedProductIds().filter(pid => pid !== id));
+      renderProductsTab();
+      renderStep4Products();
+      updateLaunchImageButton();
+    });
+  });
+}
+
+// ── Library tab switching ─────────────────────────────────────────
+function switchLibraryTab(tab) {
+  ['characters', 'products'].forEach(t => {
+    const btn = document.querySelector(`.library-tab[data-tab="${t}"]`);
+    const panel = document.getElementById(`library-tab-${t}`);
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'products') renderProductsTab();
+}
+
+// ── Step 4 — Products picker ──────────────────────────────────────
+function renderStep4Products() {
+  const list = document.getElementById('step4-product-list');
+  if (!list) return;
+  const products = getProducts();
+  const selected = getSelectedProductIds();
+  const active = selected.map(id => products.find(p => p.id === id)).filter(Boolean);
+
+  list.innerHTML = active.map(p => `
+    <div class="step4-product-row">
+      <span class="text-sm" style="flex:1;">${p.name || 'Product'}</span>
+      <span class="step4-lora-badge step4-lora-badge--${p.loraStatus}">
+        ${p.loraStatus === 'ready' ? '✅ Ready' : p.loraStatus === 'training' ? '⏳ Training...' : '⚠ Not trained'}
+      </span>
+      <button class="btn-xs danger" data-remove-s4="${p.id}">Remove</button>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-remove-s4]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setSelectedProductIds(getSelectedProductIds().filter(id => id !== btn.dataset.removeS4));
+      renderStep4Products();
+    });
+  });
+
+  updateLaunchImageButton();
+}
+
+function openProductPicker() {
+  const existing = document.getElementById('lora-product-picker-dropdown');
+  if (existing) { existing.remove(); return; }
+
+  const products = getProducts().filter(p => p.loraStatus === 'ready' || p.loraStatus === 'training');
+  if (products.length === 0) {
+    _showToast('No trained or in-progress products found. Add products in the Library first.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-select-product-lora');
+  if (!btn) return;
+  const dropdown = document.createElement('div');
+  dropdown.id = 'lora-product-picker-dropdown';
+  dropdown.className = 'lora-picker-dropdown';
+  dropdown.innerHTML = products.map(p => `
+    <div class="lora-picker-item" data-pick-product="${p.id}">
+      <span>${p.name || 'Product'}</span>
+      <span class="step4-lora-badge step4-lora-badge--${p.loraStatus}">
+        ${p.loraStatus === 'ready' ? '✅ Ready' : '⏳ Training'}
+      </span>
+    </div>`).join('');
+
+  btn.parentElement.style.position = 'relative';
+  btn.parentElement.appendChild(dropdown);
+
+  dropdown.querySelectorAll('[data-pick-product]').forEach(item => {
+    item.addEventListener('click', () => {
+      const id = item.dataset.pickProduct;
+      if (!getSelectedProductIds().includes(id)) {
+        setSelectedProductIds([...getSelectedProductIds(), id]);
+      }
+      dropdown.remove();
+      renderStep4Products();
+    });
+  });
+
+  setTimeout(() => {
+    document.addEventListener('click', function close(e) {
+      if (!dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.remove();
+        document.removeEventListener('click', close);
+      }
+    });
+  }, 0);
+}
+
+// ── Generation blocking ───────────────────────────────────────────
+function isLoraBlocking() {
+  const selected = getSelectedProductIds();
+  if (!selected.length) return false;
+  const products = getProducts();
+  return selected.some(id => {
+    const p = products.find(pr => pr.id === id);
+    return p && p.loraStatus !== 'ready';
+  });
+}
+
+function updateLaunchImageButton() {
+  const btn = document.getElementById('btn-launch-image');
+  const notice = document.getElementById('lora-block-notice');
+  const noticeText = document.getElementById('lora-block-text');
+  if (!btn) return;
+
+  if (isLoraBlocking()) {
+    btn.disabled = true;
+    btn.classList.add('lora-blocked');
+    if (notice) {
+      notice.style.display = '';
+      const products = getProducts();
+      const pending = getSelectedProductIds()
+        .map(id => products.find(p => p.id === id))
+        .filter(p => p && p.loraStatus !== 'ready')
+        .map(p => p.name || 'Product');
+      if (noticeText) noticeText.textContent = `Waiting for LoRA training: ${pending.join(', ')}. Image generation is blocked until ready.`;
+    }
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('lora-blocked');
+    if (notice) notice.style.display = 'none';
+  }
+}
+
+// ── fal.ai key UI ─────────────────────────────────────────────────
+function initFalKeyInput() {
+  const input = document.getElementById('lora-fal-key-input');
+  const saveBtn = document.getElementById('btn-lora-save-key');
+  const status = document.getElementById('lora-key-status');
+  if (!input || !saveBtn) return;
+  input.value = getFalKey();
+  saveBtn.addEventListener('click', () => {
+    saveFalKey(input.value);
+    if (status) { status.textContent = '✅ Saved'; setTimeout(() => { status.textContent = ''; }, 2000); }
+    renderProductsTab();
+  });
+}
+
+// ── Replicate key UI ──────────────────────────────────────────────
+function initReplicateKeyInput() {
+  const input = document.getElementById('replicate-key-input');
+  const saveBtn = document.getElementById('btn-replicate-save-key');
+  const status = document.getElementById('replicate-key-status');
+  if (!input || !saveBtn) return;
+  input.value = localStorage.getItem('stori_replicate_api_key') || '';
+  saveBtn.addEventListener('click', () => {
+    localStorage.setItem('stori_replicate_api_key', input.value.trim());
+    if (status) { status.textContent = '✅ Saved'; setTimeout(() => { status.textContent = ''; }, 2000); }
+  });
+}
+
+// ── Add new product ───────────────────────────────────────────────
+function addNewProduct() {
+  const id = 'prod_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const list = getProducts();
+  list.push({ id, name: '', photoCount: 0, loraStatus: 'idle', loraUrl: null,
+    trainStarted: null, trainCompleted: null, falRequestId: null, loraError: null });
+  saveProducts(list);
+  renderProductsTab();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function _showToast(msg) {
+  if (typeof showToast === 'function') { showToast(msg); return; }
+  const t = document.createElement('div');
+  t.className = 'lora-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+function _init() {
+  const navLink = document.getElementById('btn-library-nav');
+  if (navLink) navLink.addEventListener('click', e => { e.preventDefault(); openLibraryPage(); });
+
+  // Back button returns from library
+  const homeBtn = document.getElementById('btn-editor-home');
+  if (homeBtn) {
+    homeBtn.addEventListener('click', () => {
+      if (document.getElementById('library-page')?.style.display !== 'none') closeLibraryPage();
+    }, true);
+  }
+
+  document.querySelectorAll('.library-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchLibraryTab(btn.dataset.tab));
+  });
+
+  const addBtn = document.getElementById('btn-add-product');
+  if (addBtn) addBtn.addEventListener('click', addNewProduct);
+
+  const pickerBtn = document.getElementById('btn-select-product-lora');
+  if (pickerBtn) pickerBtn.addEventListener('click', openProductPicker);
+
+  initFalKeyInput();
+  initReplicateKeyInput();
+  _resumePendingTraining();
+  renderStep4Products();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _init);
+} else {
+  _init();
+}
+
+window.LoraLibrary = {
+  openLibraryPage,
+  renderProductsTab,
+  renderStep4Products,
+  updateLaunchImageButton,
+  isLoraBlocking,
+  getProducts,
+  getSelectedProductIds,
+  getFalKey,
+  trainProductLora,
 };
 
 })();
@@ -34508,6 +35481,48 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
   throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
 }
 
+// FLUX LoRA image generation via fal.ai — used when a product LoRA is selected for the project.
+// Returns a data URL (image/jpeg). Throws on failure.
+async function generateImageFalFluxLora(prompt, loraUrl, falKey, { width, height } = {}) {
+  let imageSize = 'landscape_16_9';
+  if (width && height) {
+    const r = width / height;
+    if      (r >= 1.7) imageSize = 'landscape_16_9';
+    else if (r >= 1.2) imageSize = 'landscape_4_3';
+    else if (r >= 0.9) imageSize = 'square';
+    else if (r >= 0.7) imageSize = 'portrait_4_3';
+    else               imageSize = 'portrait_9_16';
+  }
+  const resp = await fetch('https://fal.run/fal-ai/flux-lora', {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, loras: [{ path: loraUrl, scale: 0.9 }], image_size: imageSize, num_images: 1, output_format: 'jpeg' }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`FLUX LoRA generation failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const imageUrl = data.images?.[0]?.url;
+  if (!imageUrl) throw new Error('No image URL in FLUX LoRA response');
+  const imgResp = await fetch(imageUrl);
+  if (!imgResp.ok) throw new Error(`FLUX image fetch failed: ${imgResp.status}`);
+  const blob = await imgResp.blob();
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Returns the first ready product LoRA selected for this project, or null.
+function _getReadyProjectLora() {
+  if (!window.LoraLibrary) return null;
+  const products = window.LoraLibrary.getProducts();
+  const ids = window.LoraLibrary.getSelectedProductIds();
+  return ids.map(id => products.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
+}
+
 // Gemini Imagen — dedicated image model
 async function generateImageImagen(prompt, key, { width, height } = {}, modelOverride) {
   const cleanPrompt = (prompt.trim() + ' Do NOT include any text, words, letters, captions, or writing in any language in the image.').slice(0, 800);
@@ -36195,38 +37210,45 @@ async function generateSceneImage(idx) {
       }
     }
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
-    // Try image models in fallback order
-    const models = getImageModels();
-    let lastError = null;
-    let bibleRefAttemptDropped = false;
-    for (const model of models) {
-      try {
-        if (model.startsWith('imagen-')) {
-          imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
-        } else {
-          imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-        }
-        break;
-      } catch(e) {
-        lastError = e;
-        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
-        // EC-44: on hard failure with refs, retry without bible refs once
-        if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
-          bibleRefAttemptDropped = true;
-          opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
-          try {
-            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-            console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
-            break;
-          } catch (e2) {
-            lastError = e2;
-            continue;
-          }
-        }
-        throw e;
-      }
+    // Product LoRA routing: if a ready LoRA is selected for this project, use FLUX instead of Gemini
+    const _readyLora = _getReadyProjectLora();
+    if (_readyLora) {
+      imgDataUrl = await generateImageFalFluxLora(effectivePrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
     }
-    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    if (!imgDataUrl) {
+      // Try image models in fallback order
+      const models = getImageModels();
+      let lastError = null;
+      let bibleRefAttemptDropped = false;
+      for (const model of models) {
+        try {
+          if (model.startsWith('imagen-')) {
+            imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
+          } else {
+            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+          }
+          break;
+        } catch(e) {
+          lastError = e;
+          if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+          // EC-44: on hard failure with refs, retry without bible refs once
+          if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
+            bibleRefAttemptDropped = true;
+            opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
+            try {
+              imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+              console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
+              break;
+            } catch (e2) {
+              lastError = e2;
+              continue;
+            }
+          }
+          throw e;
+        }
+      }
+      if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    }
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
     trackCost('imageGen', 1);
@@ -55447,6 +56469,10 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   let _loadingPromise = null;
   let _detectionFailures = 0;
 
+  // Separate IMAGE-mode landmarker for static scene images (face swap detection).
+  let _imageLandmarker = null;
+  let _imageLoadingPromise = null;
+
   // Selected lip-mesh landmark indices on the FaceMesh 478-point topology.
   // Outer lip ring (full mouth boundary) — used for mouth-bbox + center.
   const LIP_OUTER = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
@@ -55537,6 +56563,19 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
     return Math.max(-90, Math.min(90, offset * 180));
   }
 
+  // Bounding box of the entire face from all 478 landmarks.
+  function computeFaceBbox(landmarks, frameW, frameH) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const lm of landmarks) {
+      if (!lm) continue;
+      const x = lm.x * frameW, y = lm.y * frameH;
+      if (x < minX) minX = x; if (y < minY) minY = y;
+      if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+    if (!isFinite(minX)) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
   // Build a per-face descriptor used by identity matching + overlay paint.
   function describeFace(faceLandmarks, frameW, frameH) {
     const region = computeMouthRegion(faceLandmarks, frameW, frameH);
@@ -55548,8 +56587,8 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
       mouthSize: region.mouthSize,
       headYaw: yaw,
       mouthVisible,
-      // Also store face centroid in normalized coords for identity matching by position
       centroidX: faceLandmarks[1] ? faceLandmarks[1].x : 0.5,
+      faceBbox: computeFaceBbox(faceLandmarks, frameW, frameH),
     };
   }
 
@@ -55741,6 +56780,62 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
     return true;
   }
 
+  // IMAGE mode landmarker — used for static scene image face detection (face swap).
+  async function loadImageFaceLandmarker() {
+    if (_imageLandmarker) return _imageLandmarker;
+    if (_imageLoadingPromise) return _imageLoadingPromise;
+    _imageLoadingPromise = (async () => {
+      for (const delegate of ['GPU', 'CPU']) {
+        try {
+          const mod = await import(/* @vite-ignore */ MEDIAPIPE_CDN);
+          const { FaceLandmarker, FilesetResolver } = mod;
+          const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE);
+          _imageLandmarker = await FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL, delegate },
+            runningMode: 'IMAGE',
+            numFaces: 4,
+          });
+          return _imageLandmarker;
+        } catch (e) {
+          if (delegate === 'CPU') { _imageLoadingPromise = null; throw e; }
+          console.warn('[LipSync] IMAGE mode GPU delegate failed, retrying CPU');
+        }
+      }
+    })();
+    return _imageLoadingPromise;
+  }
+
+  // Detect faces in a static image (data URL, HTMLImageElement, or canvas).
+  // Returns face descriptors sorted left-to-right by centroid X, each with faceBbox.
+  async function detectFacesInImage(imageSource) {
+    const landmarker = await loadImageFaceLandmarker();
+    let src = imageSource;
+    if (typeof imageSource === 'string') {
+      src = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('detectFacesInImage: image load failed'));
+        img.src = imageSource;
+      });
+    }
+    const off = document.createElement('canvas');
+    off.width  = src.naturalWidth  || src.width  || 512;
+    off.height = src.naturalHeight || src.height || 512;
+    off.getContext('2d').drawImage(src, 0, 0, off.width, off.height);
+    let result;
+    try {
+      result = landmarker.detect(off);
+    } catch (e) {
+      console.warn('[LipSync] detectFacesInImage detect() failed:', e.message);
+      return [];
+    }
+    const faces = (result.faceLandmarks || [])
+      .map(fl => describeFace(fl, off.width, off.height))
+      .filter(Boolean);
+    faces.sort((a, b) => a.centroidX - b.centroidX);
+    return faces;
+  }
+
   // Helper: load a dataURL into an HTMLImageElement (cached).
   const _spriteImageCache = new Map();
   function spriteFromDataUrl(dataUrl) {
@@ -55758,6 +56853,7 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   window.LipSync = {
     loadFaceLandmarker,
     detectFacesInClip,
+    detectFacesInImage,
     matchFaceToSpeaker,
     buildOverlayInstructions,
     sampleAudioAmplitude,

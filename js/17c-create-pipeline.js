@@ -2643,6 +2643,48 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
   throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
 }
 
+// FLUX LoRA image generation via fal.ai — used when a product LoRA is selected for the project.
+// Returns a data URL (image/jpeg). Throws on failure.
+async function generateImageFalFluxLora(prompt, loraUrl, falKey, { width, height } = {}) {
+  let imageSize = 'landscape_16_9';
+  if (width && height) {
+    const r = width / height;
+    if      (r >= 1.7) imageSize = 'landscape_16_9';
+    else if (r >= 1.2) imageSize = 'landscape_4_3';
+    else if (r >= 0.9) imageSize = 'square';
+    else if (r >= 0.7) imageSize = 'portrait_4_3';
+    else               imageSize = 'portrait_9_16';
+  }
+  const resp = await fetch('https://fal.run/fal-ai/flux-lora', {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, loras: [{ path: loraUrl, scale: 0.9 }], image_size: imageSize, num_images: 1, output_format: 'jpeg' }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`FLUX LoRA generation failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const imageUrl = data.images?.[0]?.url;
+  if (!imageUrl) throw new Error('No image URL in FLUX LoRA response');
+  const imgResp = await fetch(imageUrl);
+  if (!imgResp.ok) throw new Error(`FLUX image fetch failed: ${imgResp.status}`);
+  const blob = await imgResp.blob();
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Returns the first ready product LoRA selected for this project, or null.
+function _getReadyProjectLora() {
+  if (!window.LoraLibrary) return null;
+  const products = window.LoraLibrary.getProducts();
+  const ids = window.LoraLibrary.getSelectedProductIds();
+  return ids.map(id => products.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
+}
+
 // Gemini Imagen — dedicated image model
 async function generateImageImagen(prompt, key, { width, height } = {}, modelOverride) {
   const cleanPrompt = (prompt.trim() + ' Do NOT include any text, words, letters, captions, or writing in any language in the image.').slice(0, 800);
@@ -4330,38 +4372,45 @@ async function generateSceneImage(idx) {
       }
     }
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
-    // Try image models in fallback order
-    const models = getImageModels();
-    let lastError = null;
-    let bibleRefAttemptDropped = false;
-    for (const model of models) {
-      try {
-        if (model.startsWith('imagen-')) {
-          imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
-        } else {
-          imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-        }
-        break;
-      } catch(e) {
-        lastError = e;
-        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
-        // EC-44: on hard failure with refs, retry without bible refs once
-        if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
-          bibleRefAttemptDropped = true;
-          opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
-          try {
-            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-            console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
-            break;
-          } catch (e2) {
-            lastError = e2;
-            continue;
-          }
-        }
-        throw e;
-      }
+    // Product LoRA routing: if a ready LoRA is selected for this project, use FLUX instead of Gemini
+    const _readyLora = _getReadyProjectLora();
+    if (_readyLora) {
+      imgDataUrl = await generateImageFalFluxLora(effectivePrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
     }
-    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    if (!imgDataUrl) {
+      // Try image models in fallback order
+      const models = getImageModels();
+      let lastError = null;
+      let bibleRefAttemptDropped = false;
+      for (const model of models) {
+        try {
+          if (model.startsWith('imagen-')) {
+            imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
+          } else {
+            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+          }
+          break;
+        } catch(e) {
+          lastError = e;
+          if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+          // EC-44: on hard failure with refs, retry without bible refs once
+          if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
+            bibleRefAttemptDropped = true;
+            opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
+            try {
+              imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+              console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
+              break;
+            } catch (e2) {
+              lastError = e2;
+              continue;
+            }
+          }
+          throw e;
+        }
+      }
+      if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    }
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
     trackCost('imageGen', 1);

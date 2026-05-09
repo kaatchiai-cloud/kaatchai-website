@@ -1509,6 +1509,7 @@ body:has(#drop-zone:not(.hidden)) {
         <div class="lp-nav-links">
           <a href="#lp-features">Studio</a>
           <a href="#lp-pricing">Pricing</a>
+          <a href="#" id="btn-library-nav">Library</a>
         </div>
       </div>
       <div id="user-section" class="lp-nav-right">
@@ -2580,6 +2581,10 @@ body:has(#drop-zone:not(.hidden)) {
       <div id="create-cost-estimate" class="text-sm text-muted" style="display:none; margin-top:10px;"></div>
       <div class="agent-launch-row" id="create-launch-after-storyboard">
         <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
+        <div id="lora-block-notice" style="display:none;" class="lora-block-notice">
+          <span class="lora-block-icon">⏳</span>
+          <p id="lora-block-text">Waiting for LoRA training to complete. Image generation is blocked until ready.</p>
+        </div>
         <button class="agent-launch-btn" id="btn-open-canvas" onclick="openCanvasPanel()" style="display:none;">Open Canvas →</button>
         <button class="agent-launch-btn" id="btn-launch-image" onclick="launchImageAgent()">Launch Image Agent →</button>
       </div>
@@ -2639,6 +2644,16 @@ body:has(#drop-zone:not(.hidden)) {
           <input type="file" id="env-img-input" accept="image/*" hidden>
         </div>
         <div id="environment-cards" class="ref-cards"></div>
+      </div>
+
+      <!-- Products (LoRA) -->
+      <div id="step4-products-section" class="mb-lg">
+        <div class="form-row mb-sm" style="position:relative;">
+          <strong class="text-base">Products</strong>
+          <span class="text-xs text-muted">LoRA-trained product for visual consistency</span>
+          <button id="btn-select-product-lora" class="btn-xs">Select from Library ▼</button>
+        </div>
+        <div id="step4-product-list"></div>
       </div>
 
       <!-- Per-scene assignment -->
@@ -2856,6 +2871,40 @@ body:has(#drop-zone:not(.hidden)) {
         <div id="create-canvas-step"></div>
       </div>
     </div><!-- /#create-body -->
+  </div>
+
+  <!-- ═══ Library Page ═══ -->
+  <div id="library-page" style="display:none;">
+    <div class="library-header">
+      <h2 class="library-title">Library</h2>
+      <p class="text-sm text-muted">Reusable characters and product LoRAs across all projects.</p>
+    </div>
+    <div class="library-tabs">
+      <button class="library-tab active" data-tab="characters">Characters</button>
+      <button class="library-tab" data-tab="products">Products</button>
+    </div>
+    <div id="library-tab-characters" class="library-tab-content">
+      <div id="library-char-grid"></div>
+    </div>
+    <div id="library-tab-products" class="library-tab-content" style="display:none;">
+      <div class="lora-key-row">
+        <span class="text-xs text-muted">fal.ai key</span>
+        <input type="password" id="lora-fal-key-input" placeholder="fal_..." class="lora-key-input" autocomplete="off" data-form-type="other">
+        <button id="btn-lora-save-key" class="btn-xs primary">Save</button>
+        <span id="lora-key-status" class="text-xs text-muted"></span>
+        <a href="https://fal.ai/dashboard/keys" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key →</a>
+      </div>
+      <div class="lora-key-row">
+        <span class="text-xs text-muted">Replicate key</span>
+        <input type="password" id="replicate-key-input" placeholder="r8_..." class="lora-key-input" autocomplete="off" data-form-type="other">
+        <button id="btn-replicate-save-key" class="btn-xs primary">Save</button>
+        <span id="replicate-key-status" class="text-xs text-muted"></span>
+        <span class="text-xs text-muted" style="white-space:nowrap;">Used for face swap</span>
+        <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-xs link-accent" style="white-space:nowrap;">Get key →</a>
+      </div>
+      <div id="library-product-grid" class="library-product-grid"></div>
+      <button id="btn-add-product" class="btn-sm" style="margin-top:4px;">+ Add Product</button>
+    </div>
   </div>
 
   <!-- ═══ Reel Header (outside #reel-page for full-width) ═══ -->
@@ -4794,6 +4843,7 @@ body:has(#drop-zone:not(.hidden)) {
   <script src="js/27-canvas-state.js?v=2"></script>
   <script src="js/28-canvas-consistency.js?v=2"></script>
   <script src="js/15-project.js?v=2"></script>
+  <script src="js/34-lora-library.js?v=2"></script>
   <!-- All other scripts loaded on demand when user navigates -->
   <script>
   var _editorScriptsLoaded = false;
@@ -4818,7 +4868,8 @@ body:has(#drop-zone:not(.hidden)) {
       'js/30-lipsync.js',
       'js/31-input-parser.js',
       'js/32-audio-input.js',
-      'js/33-audio-rehearsal.js'
+      'js/33-audio-rehearsal.js',
+      'js/34-lora-library.js'
     ];
     var _v = Date.now();
     var loaded = 0;
