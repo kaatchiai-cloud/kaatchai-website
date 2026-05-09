@@ -1593,7 +1593,7 @@ body:has(#drop-zone:not(.hidden)) {
             <span class="lp-sp-quick-icon">✏</span>
             <span class="lp-sp-quick-text">
               <span class="lp-sp-quick-name">Quick Social</span>
-              <span class="lp-sp-quick-hint">Short-form content, tutorials, and social clips · under 60 seconds</span>
+              <span class="lp-sp-quick-hint">Social clips, tutorials, explainers — choose your duration</span>
             </span>
             <span class="lp-sp-quick-arrow">→</span>
           </button>
@@ -2579,6 +2579,27 @@ body:has(#drop-zone:not(.hidden)) {
         <span class="text-sm text-muted">Edit any prompt before generating images →</span>
       </div>
       <div id="create-cost-estimate" class="text-sm text-muted" style="display:none; margin-top:10px;"></div>
+      <!-- Assets: character + narrator + product LoRA assignment (rendered after storyboard) -->
+      <div id="create-assets-step" style="display:none;" class="create-assets-step">
+        <div class="create-section-title">Assets</div>
+        <p class="text-xs text-muted" style="margin:-4px 0 10px;">Assign Library characters and products for consistent generation.</p>
+
+        <div id="assets-characters-section" class="hidden">
+          <div class="assets-subsection-label">Characters</div>
+          <div id="assets-character-list"></div>
+        </div>
+
+        <div id="assets-narrator-section" class="hidden">
+          <div class="assets-subsection-label">Narrator</div>
+          <div id="assets-narrator-slot"></div>
+        </div>
+
+        <div id="assets-products-section" class="hidden">
+          <div class="assets-subsection-label">Products</div>
+          <div id="assets-product-list"></div>
+        </div>
+      </div>
+
       <div class="agent-launch-row" id="create-launch-after-storyboard">
         <span class="agent-launch-summary" id="create-launch-storyboard-summary"></span>
         <div id="lora-block-notice" style="display:none;" class="lora-block-notice">
@@ -2884,7 +2905,10 @@ body:has(#drop-zone:not(.hidden)) {
       <button class="library-tab" data-tab="products">Products</button>
     </div>
     <div id="library-tab-characters" class="library-tab-content">
-      <div id="library-char-grid"></div>
+      <div class="library-char-toolbar">
+        <button id="btn-add-char-library" class="btn-sm">+ Add Character</button>
+      </div>
+      <div id="library-char-grid" class="library-char-grid"></div>
     </div>
     <div id="library-tab-products" class="library-tab-content" style="display:none;">
       <div class="lora-key-row">
@@ -4022,6 +4046,57 @@ body:has(#drop-zone:not(.hidden)) {
     </section>
 
     <!-- Screen 1: Chat workspace -->
+    <!-- Screen: Duration picker (Quick/Social mode — shown before style picker) -->
+    <section id="bs-duration-picker" class="bs-screen hidden">
+      <div class="bs-narrator-card bs-dur-card">
+        <header class="bs-narrator-head">
+          <div class="bs-narrator-icon">⏱</div>
+          <div class="bs-narrator-title">How long is this video?</div>
+          <div class="bs-narrator-sub">Sets the word budget per scene — shapes how the AI writes.</div>
+        </header>
+        <div class="bs-dur-group-label">Short form · Reels &amp; social clips</div>
+        <div class="bs-dur-grid">
+          <button class="bs-dur-opt" data-key="30s">
+            <span class="bs-dur-time">30s</span>
+            <span class="bs-dur-words">~70 words</span>
+            <span class="bs-dur-hint">4 scenes</span>
+          </button>
+          <button class="bs-dur-opt" data-key="60s">
+            <span class="bs-dur-time">60s</span>
+            <span class="bs-dur-words">~140 words</span>
+            <span class="bs-dur-hint">6 scenes</span>
+          </button>
+          <button class="bs-dur-opt" data-key="90s">
+            <span class="bs-dur-time">90s</span>
+            <span class="bs-dur-words">~210 words</span>
+            <span class="bs-dur-hint">8 scenes</span>
+          </button>
+        </div>
+        <div class="bs-dur-divider"></div>
+        <div class="bs-dur-group-label">Long form · YouTube &amp; explainers</div>
+        <div class="bs-dur-grid">
+          <button class="bs-dur-opt" data-key="2min">
+            <span class="bs-dur-time">2 min</span>
+            <span class="bs-dur-words">~280 words</span>
+            <span class="bs-dur-hint">5 scenes</span>
+          </button>
+          <button class="bs-dur-opt" data-key="5min">
+            <span class="bs-dur-time">5 min</span>
+            <span class="bs-dur-words">~700 words</span>
+            <span class="bs-dur-hint">8 scenes</span>
+          </button>
+          <button class="bs-dur-opt" data-key="10min">
+            <span class="bs-dur-time">10 min</span>
+            <span class="bs-dur-words">~1400 words</span>
+            <span class="bs-dur-hint">10 scenes</span>
+          </button>
+        </div>
+        <div class="bs-narrator-actions" style="justify-content:center;margin-top:20px">
+          <button id="bs-dur-back" class="bs-cta-secondary">← Back</button>
+        </div>
+      </div>
+    </section>
+
     <section id="bs-chat" class="bs-screen hidden">
       <header class="bs-chat-hdr">
         <button id="bs-back-btn" class="bs-icon-btn" title="Back to start">←</button>
@@ -5826,6 +5901,44 @@ body:has(#drop-zone:not(.hidden)) {
       <div class="bs-sp-actions">
         <button id="csg-skip" class="bs-cta-secondary">Skip</button>
         <button id="csg-confirm" class="bs-cta-primary" disabled>Confirm →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Character Creation Modal ═══ -->
+  <div id="char-create-modal" class="char-create-modal hidden" aria-modal="true" role="dialog">
+    <div class="char-create-panel">
+      <div class="char-create-header">
+        <h3 class="char-create-title">Character</h3>
+        <button id="btn-char-create-close" class="lora-card-del" style="font-size:1.3rem;" title="Close">×</button>
+      </div>
+
+      <!-- Step 1: Name + Description -->
+      <div id="char-create-step-form">
+        <div class="char-create-field">
+          <label class="text-xs text-muted">Name</label>
+          <input type="text" id="char-name-input" class="lora-name-input" placeholder="e.g. Detective Sarah" style="display:block;width:100%;border-bottom:1px solid var(--border);">
+        </div>
+        <div class="char-create-field">
+          <label class="text-xs text-muted">Appearance description</label>
+          <textarea id="char-desc-input" class="char-desc-textarea" placeholder="e.g. 40s woman, short silver hair, weathered face, detective coat, sharp eyes" rows="3"></textarea>
+          <p class="text-2xs text-muted">Used to generate 12 training images for the LoRA.</p>
+        </div>
+        <button id="btn-char-generate-images" class="btn-sm primary" style="margin-top:4px;">Generate Training Images →</button>
+      </div>
+
+      <!-- Step 2: Image review grid -->
+      <div id="char-create-step-review" class="hidden" style="margin-top:16px;">
+        <div class="char-review-header">
+          <span class="text-sm"><strong>Training Images</strong></span>
+          <span id="char-review-count" class="text-xs text-muted"></span>
+          <label class="btn-xs" style="cursor:pointer;">Upload own
+            <input type="file" id="char-upload-input" accept="image/*" multiple hidden>
+          </label>
+        </div>
+        <div id="char-review-grid" class="char-review-grid"></div>
+        <p class="text-2xs text-muted" style="margin-top:6px;">Click ✕ on any image to remove it. You need at least 8 images to train.</p>
+        <button id="btn-char-train-lora" class="btn-sm primary" style="margin-top:10px;" disabled>Train LoRA ▶</button>
       </div>
     </div>
   </div>

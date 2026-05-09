@@ -1731,6 +1731,8 @@ Important:
     if (typeof updateCreateCostEstimate === 'function') updateCreateCostEstimate();
     const launchSummary = $('create-launch-storyboard-summary');
     if (launchSummary) launchSummary.textContent = `✅ ${segments.length} scenes identified`;
+    if (window.LoraLibrary?.renderAssetsSection) window.LoraLibrary.renderAssetsSection();
+    if (window.LoraLibrary?.updateLaunchImageButton) window.LoraLibrary.updateLaunchImageButton();
 
   } catch (e) {
     updateCreateAgent('storyboard', 'error', 'Failed: ' + friendlyApiError(e.message));
@@ -2643,9 +2645,10 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
   throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
 }
 
-// FLUX LoRA image generation via fal.ai — used when a product LoRA is selected for the project.
+// FLUX LoRA image generation via fal.ai.
+// loras: array of { path, scale } OR a legacy string loraUrl (backward-compatible).
 // Returns a data URL (image/jpeg). Throws on failure.
-async function generateImageFalFluxLora(prompt, loraUrl, falKey, { width, height } = {}) {
+async function generateImageFalFluxLora(prompt, loras, falKey, { width, height } = {}) {
   let imageSize = 'landscape_16_9';
   if (width && height) {
     const r = width / height;
@@ -2655,10 +2658,15 @@ async function generateImageFalFluxLora(prompt, loraUrl, falKey, { width, height
     else if (r >= 0.7) imageSize = 'portrait_4_3';
     else               imageSize = 'portrait_9_16';
   }
+  // Normalise: accept legacy string loraUrl or new array of { path, scale }
+  const lorasArr = typeof loras === 'string'
+    ? [{ path: loras, scale: 0.9 }]
+    : loras.map(l => ({ path: l.path, scale: l.scale }));
+
   const resp = await fetch('https://fal.run/fal-ai/flux-lora', {
     method: 'POST',
     headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, loras: [{ path: loraUrl, scale: 0.9 }], image_size: imageSize, num_images: 1, output_format: 'jpeg' }),
+    body: JSON.stringify({ prompt, loras: lorasArr, image_size: imageSize, num_images: 1, output_format: 'jpeg' }),
   });
   if (!resp.ok) {
     const err = await resp.text().catch(() => '');
@@ -2677,12 +2685,42 @@ async function generateImageFalFluxLora(prompt, loraUrl, falKey, { width, height
   });
 }
 
-// Returns the first ready product LoRA selected for this project, or null.
-function _getReadyProjectLora() {
-  if (!window.LoraLibrary) return null;
-  const products = window.LoraLibrary.getProducts();
-  const ids = window.LoraLibrary.getSelectedProductIds();
-  return ids.map(id => products.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
+// Collect all active LoRAs for a scene: products + characters + narrator.
+// Returns { loras: [{path, scale, triggerWord}], hasLora: boolean }
+function _getSceneLoraContext(scene) {
+  if (!window.LoraLibrary) return { loras: [], hasLora: false };
+  const a = (window.createJobState || {}).loraAssignments || {};
+  const loras = [];
+
+  // 1. Product LoRAs — from loraAssignments.products (new) or legacy loraProductIds
+  const productIds = a.products?.length
+    ? a.products
+    : (window.LoraLibrary.getSelectedProductIds ? window.LoraLibrary.getSelectedProductIds() : []);
+  const products = window.LoraLibrary.getProducts ? window.LoraLibrary.getProducts() : [];
+  productIds.forEach(pid => {
+    const p = products.find(x => x.id === pid);
+    if (p?.loraStatus === 'ready' && p.loraUrl)
+      loras.push({ path: p.loraUrl, scale: 0.9, triggerWord: p.triggerWord });
+  });
+
+  // 2. Character LoRAs for this scene's characters
+  const sceneCharIds = scene?.refCharacters || [];
+  sceneCharIds.forEach(storyCharId => {
+    const libCharId = a.characters?.[storyCharId];
+    if (!libCharId) return;
+    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(libCharId) : null;
+    if (c?.loraStatus === 'ready' && c.loraUrl)
+      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+  });
+
+  // 3. Narrator LoRA — talking-head scenes only
+  if (scene?.frontRole === 'narrator' && a.narrator) {
+    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(a.narrator) : null;
+    if (c?.loraStatus === 'ready' && c.loraUrl)
+      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+  }
+
+  return { loras, hasLora: loras.length > 0 };
 }
 
 // Gemini Imagen — dedicated image model
@@ -4372,11 +4410,12 @@ async function generateSceneImage(idx) {
       }
     }
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
-    // Product LoRA routing: if a ready LoRA is selected for this project, use FLUX instead of Gemini
-    const _readyLora = _getReadyProjectLora();
-    if (_readyLora) {
-      const _loraPrompt = _readyLora.triggerWord ? `${_readyLora.triggerWord} ${effectivePrompt}` : effectivePrompt;
-      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, window.LoraLibrary.getFalKey(), { width, height });
+    // LoRA routing: collect all active LoRAs for this scene (products + characters + narrator)
+    const { loras: _sceneLoras, hasLora: _hasLora } = _getSceneLoraContext(scene);
+    if (_hasLora) {
+      const triggerWords = _sceneLoras.map(l => l.triggerWord).filter(Boolean).join(' ');
+      const _loraPrompt = triggerWords ? `${triggerWords} ${effectivePrompt}` : effectivePrompt;
+      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _sceneLoras, window.LoraLibrary.getFalKey(), { width, height });
     }
     if (!imgDataUrl) {
       // Try image models in fallback order

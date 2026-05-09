@@ -219,7 +219,14 @@ async function applyFaceSwapToSceneImage(sceneDataUrl, scene) {
   const sceneCharIds = scene && scene.refCharacters || [];
   const sceneChars = sceneCharIds
     .map(id => allChars.find(c => c.id === id))
-    .filter(c => c && c.locked && c.representativeImageDataUrl);
+    .filter(c => c && c.locked && c.representativeImageDataUrl)
+    .filter(c => {
+      // Skip face swap for characters that have a ready LoRA assigned
+      const libCharId = cs.loraAssignments?.characters?.[c.id];
+      if (!libCharId) return true;
+      const lc = window.LoraLibrary?.getCharacterById?.(libCharId);
+      return !(lc?.loraStatus === 'ready');
+    });
   if (!sceneChars.length) return sceneDataUrl;
 
   let faces;
@@ -341,18 +348,20 @@ SCENE: ${scenePrompt}${noTextSuffix}`
 STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
 
   try {
-    // Product LoRA routing: use FLUX if a ready LoRA is selected for this project
-    const _readyLora = (function () {
-      if (!window.LoraLibrary) return null;
-      const prods = window.LoraLibrary.getProducts();
-      const ids = window.LoraLibrary.getSelectedProductIds();
-      return ids.map(id => prods.find(p => p.id === id)).find(p => p && p.loraStatus === 'ready' && p.loraUrl) || null;
-    })();
-    const _falKey = _readyLora && window.LoraLibrary ? window.LoraLibrary.getFalKey() : '';
-    const _loraPrompt = _readyLora && _readyLora.triggerWord ? `${_readyLora.triggerWord} ${composedPrompt}` : composedPrompt;
-    const dataUrl = (_readyLora && _falKey && typeof generateImageFalFluxLora === 'function')
-      ? await generateImageFalFluxLora(_loraPrompt, _readyLora.loraUrl, _falKey, { width, height })
-      : await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
+    // LoRA routing: use _getSceneLoraContext if available, else fall back to Gemini
+    let dataUrl;
+    if (typeof _getSceneLoraContext === 'function' && window.LoraLibrary) {
+      const { loras: _sceneLoras, hasLora: _hasLora } = _getSceneLoraContext(scenes[sceneIdx]);
+      if (_hasLora) {
+        const falKey = window.LoraLibrary.getFalKey();
+        const triggerWords = _sceneLoras.map(l => l.triggerWord).filter(Boolean).join(' ');
+        const _loraPrompt = triggerWords ? `${triggerWords} ${composedPrompt}` : composedPrompt;
+        dataUrl = await generateImageFalFluxLora(_loraPrompt, _sceneLoras, falKey, { width, height });
+      }
+    }
+    if (!dataUrl) {
+      dataUrl = await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
+    }
     // Face swap post-process for photorealistic/cinematic scenes
     let finalDataUrl = dataUrl;
     try {

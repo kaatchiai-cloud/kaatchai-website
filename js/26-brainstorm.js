@@ -251,6 +251,15 @@ RULES:
 
 // ── SECTION 2: State ──────────────────────────────────────────────────────────
 
+const DURATION_PRESETS = {
+  '30s':  { label: '30 seconds', group: 'short', pipeline: 'autopilot', totalWords: 70,   scenes: 4,  perScene: 17,  field: 'voice'     },
+  '60s':  { label: '60 seconds', group: 'short', pipeline: 'autopilot', totalWords: 140,  scenes: 6,  perScene: 23,  field: 'voice'     },
+  '90s':  { label: '90 seconds', group: 'short', pipeline: 'autopilot', totalWords: 210,  scenes: 8,  perScene: 26,  field: 'voice'     },
+  '2min': { label: '2 minutes',  group: 'long',  pipeline: 'copilot',   totalWords: 280,  scenes: 5,  perScene: 56,  field: 'narration' },
+  '5min': { label: '5 minutes',  group: 'long',  pipeline: 'copilot',   totalWords: 700,  scenes: 8,  perScene: 87,  field: 'narration' },
+  '10min':{ label: '10 minutes', group: 'long',  pipeline: 'copilot',   totalWords: 1400, scenes: 10, perScene: 140, field: 'narration' },
+};
+
 const BS_STORAGE_KEY = 'stori_bs_session';
 const BS_TTL_MS      = 24 * 60 * 60 * 1000;  // 24 hours
 
@@ -266,7 +275,7 @@ const brainstormState = {
   totalOutputTokens: 0,
   finalScript:    null,
   finalised:      false,
-  wizardAnswers:   {},         // { type, length }
+  wizardAnswers:   {},         // { duration, length, group }
   productCard:     null,       // { subtype, brandText, brandUrl, productText, productUrl, coreClaim }
   narratorChoice:  null,       // { enabled, name, onScreenStyle } — locked at chat start for Brand/Film
   visualStyle:     null,       // selected SUB_STYLE_PRESETS entry (or null)
@@ -285,7 +294,7 @@ function _init() {
   var spFilm = document.getElementById('btn-sp-film');
   if (spFilm) spFilm.addEventListener('click', function() { navigateTo('storypilot'); _confirmMode('film-narrative', 'copilot'); });
   var spQuick = document.getElementById('btn-sp-quick');
-  if (spQuick) spQuick.addEventListener('click', function() { navigateTo('storypilot'); _confirmMode('social', 'autopilot'); });
+  if (spQuick) spQuick.addEventListener('click', function() { navigateTo('storypilot'); _showScreen('bs-duration-picker'); });
 
   // Wire hero mode cards
   var brandCard = document.getElementById('bs-mode-brand');
@@ -429,10 +438,31 @@ function _init() {
     });
   });
 
+  _wireDurationPicker();
+
   // Restore session if available
   if (_loadSession()) {
     _restoreFromSession();
   }
+}
+
+function _wireDurationPicker() {
+  document.querySelectorAll('.bs-dur-opt').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var key    = btn.dataset.key;
+      var preset = DURATION_PRESETS[key];
+      if (!preset) return;
+      brainstormState.wizardAnswers = { duration: key, length: preset.group };
+      _confirmMode('social', preset.pipeline);
+    });
+  });
+  var backBtn = document.getElementById('bs-dur-back');
+  if (backBtn) backBtn.addEventListener('click', function() {
+    brainstormState.mode     = null;
+    brainstormState.pipeline = null;
+    brainstormState.wizardAnswers = {};
+    navigateTo('home');
+  });
 }
 
 // ── SECTION 4: Wizard ─────────────────────────────────────────────────────────
@@ -519,11 +549,12 @@ function _confirmMode(mode, pipeline) {
   } else if (mode === 'film-narrative') {
     _showNarratorChoice();
   } else {
-    _showStylePicker('autopilot',
+    _showStylePicker(brainstormState.pipeline,
       function onBack() {
-        brainstormState.mode = null;
+        brainstormState.mode     = null;
         brainstormState.pipeline = null;
-        _showScreen('bs-hero');
+        brainstormState.wizardAnswers = {};
+        _showScreen('bs-duration-picker');
       },
       function onConfirm() {
         _showScreen('bs-chat');
@@ -1258,8 +1289,18 @@ function _buildSystemPrompt() {
     }
   } else if (mode === 'film-narrative') {
     base += '\n\n[User context: video type = film/narrative. Pipeline: Copilot. Skip re-asking these.]\n\n[CHIPS INSTRUCTION: When you offer the user a set of specific options to choose from (e.g. genre, tone, structure, POV), append a chips marker on its own line at the very end of your response, formatted exactly: [[CHIPS: Option A | Option B | Option C]]. Max 4 options, each under 40 characters. Only use this when presenting a clear multiple-choice decision — not for open-ended questions. The user can click a chip to pre-fill their reply, or ignore them and type freely.]';
-  } else if (ctx.type || ctx.length) {
-    base += '\n\n[User context from wizard: type=' + (ctx.type || 'unknown') + ', length=' + (ctx.length || 'unknown') + ' — skip re-asking these; treat as already known.]';
+  } else {
+    var _preset = ctx.duration && DURATION_PRESETS[ctx.duration];
+    if (_preset) {
+      base += '\n\n[DURATION TARGET: ' + _preset.label + ']\n'
+        + 'Total spoken words across all scenes combined: ~' + _preset.totalWords + ' words.\n'
+        + 'Scene count: exactly ' + _preset.scenes + ' scenes.\n'
+        + 'Per-scene word budget: ~' + _preset.perScene + ' words of ' + _preset.field + ' per scene.\n'
+        + (_preset.group === 'short'
+            ? 'Keep every scene tight — no padding, no filler. Each word earns its place.'
+            : 'Give each scene room to develop — thin narration will make the video feel rushed.')
+        + '\nDo not re-ask about duration — it is fixed.';
+    }
   }
 
   // Narrator choice — locked at chat start for Brand/Film. Shapes the conversation.
@@ -1295,6 +1336,16 @@ function _buildSystemPrompt() {
     base += '\n\n[VISUAL STYLE LOCKED — reference in all scene descriptions and suggestions:\n' + styleParts.join('. ') + '\nDo NOT suggest changing the style — it is final for this session.]';
   }
   return base;
+}
+
+function _buildFinalisePrompt() {
+  var base   = FINALISE_PROMPTS[_resolvePromptKey()];
+  var preset = brainstormState.wizardAnswers.duration && DURATION_PRESETS[brainstormState.wizardAnswers.duration];
+  if (!preset) return base;
+  return base
+    + '\n\nWORD COUNT RULE (MANDATORY): Total words across all `' + preset.field + '` fields must sum to approximately '
+    + preset.totalWords + ' words (±15%). Count the words before outputting. '
+    + 'Scene count must be exactly ' + preset.scenes + '.';
 }
 
 // ── SECTION 8: Lifecycle / localStorage ──────────────────────────────────────
@@ -1524,7 +1575,7 @@ async function _finaliseScript() {
   _showTyping();
 
   var mode         = brainstormState.mode || 'autopilot';
-  var finalPrompt  = FINALISE_PROMPTS[_resolvePromptKey()];
+  var finalPrompt  = _buildFinalisePrompt();
   var systemPrompt = _buildSystemPrompt();
   var apiMessages  = brainstormState.messages
     .filter(function(m) { return m.role !== '_greeting'; })
@@ -1592,7 +1643,7 @@ async function _autoFinaliseInline() {
   var systemPrompt = _buildSystemPrompt();
   var apiMessages = brainstormState.messages
     .filter(function(m) { return m.role !== '_greeting'; })
-    .concat([{ role: 'user', content: FINALISE_PROMPTS[_resolvePromptKey()] }]);
+    .concat([{ role: 'user', content: _buildFinalisePrompt() }]);
 
   try {
     var result = await callChatLLM({
@@ -2158,7 +2209,7 @@ function _autoResizeTextarea(ta) {
 }
 
 function _showScreen(id) {
-  ['bs-product-card', 'bs-narrator-choice', 'bs-style-picker', 'bs-chat', 'bs-final'].forEach(function(sid) {
+  ['bs-product-card', 'bs-narrator-choice', 'bs-style-picker', 'bs-duration-picker', 'bs-chat', 'bs-final'].forEach(function(sid) {
     var el = document.getElementById(sid);
     if (el) el.classList.toggle('hidden', sid !== id);
   });
