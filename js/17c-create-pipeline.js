@@ -1731,6 +1731,8 @@ Important:
     if (typeof updateCreateCostEstimate === 'function') updateCreateCostEstimate();
     const launchSummary = $('create-launch-storyboard-summary');
     if (launchSummary) launchSummary.textContent = `✅ ${segments.length} scenes identified`;
+    if (window.LoraLibrary?.renderAssetsSection) window.LoraLibrary.renderAssetsSection();
+    if (window.LoraLibrary?.updateLaunchImageButton) window.LoraLibrary.updateLaunchImageButton();
 
   } catch (e) {
     updateCreateAgent('storyboard', 'error', 'Failed: ' + friendlyApiError(e.message));
@@ -2641,6 +2643,84 @@ async function generateImageGeminiFlash(prompt, key, { width, height, refImageDa
     }
   }
   throw new Error('Image generation failed after 3 attempts. Use the regenerate button to try again.');
+}
+
+// FLUX LoRA image generation via fal.ai.
+// loras: array of { path, scale } OR a legacy string loraUrl (backward-compatible).
+// Returns a data URL (image/jpeg). Throws on failure.
+async function generateImageFalFluxLora(prompt, loras, falKey, { width, height } = {}) {
+  let imageSize = 'landscape_16_9';
+  if (width && height) {
+    const r = width / height;
+    if      (r >= 1.7) imageSize = 'landscape_16_9';
+    else if (r >= 1.2) imageSize = 'landscape_4_3';
+    else if (r >= 0.9) imageSize = 'square';
+    else if (r >= 0.7) imageSize = 'portrait_4_3';
+    else               imageSize = 'portrait_9_16';
+  }
+  // Normalise: accept legacy string loraUrl or new array of { path, scale }
+  const lorasArr = typeof loras === 'string'
+    ? [{ path: loras, scale: 0.9 }]
+    : loras.map(l => ({ path: l.path, scale: l.scale }));
+
+  const resp = await fetch('https://fal.run/fal-ai/flux-lora', {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, loras: lorasArr, image_size: imageSize, num_images: 1, output_format: 'jpeg' }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`FLUX LoRA generation failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const imageUrl = data.images?.[0]?.url;
+  if (!imageUrl) throw new Error('No image URL in FLUX LoRA response');
+  const imgResp = await fetch(imageUrl);
+  if (!imgResp.ok) throw new Error(`FLUX image fetch failed: ${imgResp.status}`);
+  const blob = await imgResp.blob();
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Collect all active LoRAs for a scene: products + characters + narrator.
+// Returns { loras: [{path, scale, triggerWord}], hasLora: boolean }
+function _getSceneLoraContext(scene) {
+  if (!window.LoraLibrary) return { loras: [], hasLora: false };
+  const a = (window.createJobState || {}).loraAssignments || {};
+  const loras = [];
+
+  // 1. Product LoRAs — from loraAssignments.products (new) or legacy loraProductIds
+  const productIds = a.products?.length
+    ? a.products
+    : (window.LoraLibrary.getSelectedProductIds ? window.LoraLibrary.getSelectedProductIds() : []);
+  const products = window.LoraLibrary.getProducts ? window.LoraLibrary.getProducts() : [];
+  productIds.forEach(pid => {
+    const p = products.find(x => x.id === pid);
+    if (p?.loraStatus === 'ready' && p.loraUrl)
+      loras.push({ path: p.loraUrl, scale: 0.9, triggerWord: p.triggerWord });
+  });
+
+  // 2. Character LoRAs for this scene's characters
+  const sceneCharIds = scene?.refCharacters || [];
+  sceneCharIds.forEach(storyCharId => {
+    const libCharId = a.characters?.[storyCharId];
+    if (!libCharId) return;
+    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(libCharId) : null;
+    if (c?.loraStatus === 'ready' && c.loraUrl)
+      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+  });
+
+  // 3. Narrator LoRA — talking-head scenes only
+  if (scene?.frontRole === 'narrator' && a.narrator) {
+    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(a.narrator) : null;
+    if (c?.loraStatus === 'ready' && c.loraUrl)
+      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+  }
+
+  return { loras, hasLora: loras.length > 0 };
 }
 
 // Gemini Imagen — dedicated image model
@@ -3719,7 +3799,7 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
     console.error('[LipSync] narrationMode is pending — stage fired too early; aborting');
     return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
   }
-  if (narrationMode === 'voice-over' || narrationMode === null) {
+  if ((narrationMode === 'voice-over' || narrationMode === null) && !_isTalkingHeadProject()) {
     onProgress('Voice-over project — no on-screen lip sync needed');
     scenes.forEach(s => { s.lipSync = s.lipSync || {}; s.lipSync.tier = 'none'; s.lipSync.status = 'ready'; });
     return { ready: 0, skipped: scenes.length, failed: 0, totalMs: 0 };
@@ -3744,6 +3824,80 @@ async function prepareLipSyncForExport(scenes, audioBuffer, opts) {
   for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
     const scene = scenes[sIdx];
     if (!scene) continue;
+
+    // Talking-head narrator scene — lip sync the narrator clip directly
+    if (_isTalkingHeadProject() && scene.frontRole === 'narrator') {
+      const narrV = _narratorClipForScene(scene);
+      if (!narrV || !narrV.clips || !narrV.clips[0] || !narrV.clips[0].url) { skipped++; continue; }
+      const narrator = window.createJobState && window.createJobState.narrator;
+      if (!narrator || !narrator.representativeImageDataUrl) { skipped++; continue; }
+
+      const clipStartMs = (scene.startTime || 0) * 1000;
+      const clipEndMs   = (scene.endTime   || (scene.startTime + (scene.durationSec || 0))) * 1000;
+      const localTurns  = speakerTurns
+        .filter(t => t.endMs > clipStartMs && t.startMs < clipEndMs)
+        .map(t => ({
+          speakerCharacterId: t.speakerCharacterId,
+          speakerName: t.speakerName,
+          voiceId: t.voiceId,
+          startMs: Math.max(0, t.startMs - clipStartMs),
+          endMs: Math.min(clipEndMs - clipStartMs, t.endMs - clipStartMs),
+        }));
+      if (!localTurns.length) { skipped++; continue; }
+
+      const narrChar = { id: 'narrator', name: narrator.name || 'Narrator',
+                         representativeImageDataUrl: narrator.representativeImageDataUrl };
+      onProgress(`Scene ${sIdx + 1}/${scenes.length} — detecting narrator face…`);
+      let narrDetection;
+      try {
+        const vEl = document.createElement('video');
+        vEl.muted = true;
+        vEl.crossOrigin = 'anonymous';
+        vEl.src = narrV.clips[0].url;
+        await new Promise((resolve, reject) => {
+          vEl.onloadedmetadata = resolve;
+          vEl.onerror = () => reject(new Error('video load failed'));
+          setTimeout(() => reject(new Error('video metadata timeout')), 10000);
+        });
+        narrDetection = await window.LipSync.detectFacesInClip(vEl, {
+          fps: 15,
+          onProgress: (f, total) => onProgress(`Scene ${sIdx + 1}: detecting frame ${f}/${total}…`),
+        });
+      } catch (e) {
+        console.warn(`[LipSync] narrator scene ${sIdx + 1} detection failed:`, e.message);
+        narrV.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+        failed++;
+        continue;
+      }
+
+      onProgress(`Scene ${sIdx + 1}: ensuring narrator mouth sprites…`);
+      let narrSpriteUrls;
+      try {
+        narrSpriteUrls = await castGetOrGenerateMouthSprites(narrChar);
+      } catch (e) {
+        console.warn(`[LipSync] narrator sprite gen failed:`, e.message);
+        narrV.lipSync = { tier: 'failed', status: 'error', lastError: e.message };
+        failed++;
+        continue;
+      }
+
+      const narrOverlay = window.LipSync.buildOverlayInstructions(narrDetection, localTurns, audioBuffer);
+      narrV.lipSync = {
+        tier: 'stori',
+        status: 'ready',
+        overlayInstructions: narrOverlay,
+        sprites: {
+          closed: window.LipSync.spriteFromDataUrl(narrSpriteUrls.closed),
+          half:   window.LipSync.spriteFromDataUrl(narrSpriteUrls.half),
+          open:   window.LipSync.spriteFromDataUrl(narrSpriteUrls.open),
+        },
+        speakerCharacterId: 'narrator',
+        speakerName: narrator.name || 'Narrator',
+      };
+      ready++;
+      continue;
+    }
+
     // Phase 10: per-line routing — find the one visible on-screen line (v1 invariant: ≤1)
     const sceneLines = scene.dialogueLines || [];
     const dlg = sceneLines.find(l => !l.isVoiceOver && l.speakerCharacterId && l.speakerCharacterId !== 'narrator') || null;
@@ -4256,38 +4410,47 @@ async function generateSceneImage(idx) {
       }
     }
     const opts = { width, height, refImageDataUrl: scene.refImageDataUrl, refParts };
-    // Try image models in fallback order
-    const models = getImageModels();
-    let lastError = null;
-    let bibleRefAttemptDropped = false;
-    for (const model of models) {
-      try {
-        if (model.startsWith('imagen-')) {
-          imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
-        } else {
-          imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-        }
-        break;
-      } catch(e) {
-        lastError = e;
-        if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
-        // EC-44: on hard failure with refs, retry without bible refs once
-        if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
-          bibleRefAttemptDropped = true;
-          opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
-          try {
-            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
-            console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
-            break;
-          } catch (e2) {
-            lastError = e2;
-            continue;
-          }
-        }
-        throw e;
-      }
+    // LoRA routing: collect all active LoRAs for this scene (products + characters + narrator)
+    const { loras: _sceneLoras, hasLora: _hasLora } = _getSceneLoraContext(scene);
+    if (_hasLora) {
+      const triggerWords = _sceneLoras.map(l => l.triggerWord).filter(Boolean).join(' ');
+      const _loraPrompt = triggerWords ? `${triggerWords} ${effectivePrompt}` : effectivePrompt;
+      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _sceneLoras, window.LoraLibrary.getFalKey(), { width, height });
     }
-    if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    if (!imgDataUrl) {
+      // Try image models in fallback order
+      const models = getImageModels();
+      let lastError = null;
+      let bibleRefAttemptDropped = false;
+      for (const model of models) {
+        try {
+          if (model.startsWith('imagen-')) {
+            imgDataUrl = await generateImageImagen(effectivePrompt, key, opts, model);
+          } else {
+            imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+          }
+          break;
+        } catch(e) {
+          lastError = e;
+          if (e.message.includes('429') || e.message.includes('quota') || e.message.includes('rate')) continue;
+          // EC-44: on hard failure with refs, retry without bible refs once
+          if (!bibleRefAttemptDropped && bibleRefRes && bibleRefRes.parts.length > 0 && !model.startsWith('imagen-')) {
+            bibleRefAttemptDropped = true;
+            opts.refParts = (hasRefs ? getSceneRefImageParts(scene) : []);
+            try {
+              imgDataUrl = await generateImageGeminiFlash(effectivePrompt, key, opts, model);
+              console.warn(`[Bible] Scene ${idx + 1} regenerated without bible refs after failure; quality may differ.`);
+              break;
+            } catch (e2) {
+              lastError = e2;
+              continue;
+            }
+          }
+          throw e;
+        }
+      }
+      if (!imgDataUrl) throw lastError || new Error('Image generation failed. Your API key may not support image generation.');
+    }
     scene.imgDataUrl = imgDataUrl;
     scene.status = 'done';
     trackCost('imageGen', 1);
@@ -5146,6 +5309,9 @@ window.cgFillVideoPrompts = async function () {
       vid.environmentPrompt = result.environment;
       vid.negativePrompt = result.negative;
     }
+    if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyPromptReady) {
+      CanvasGraph.notifyPromptReady(createScenes.indexOf(scene));
+    }
   }));
   if (typeof CanvasGraph !== 'undefined' && CanvasGraph.setVideoPhase) CanvasGraph.setVideoPhase('ready');
   if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
@@ -5161,9 +5327,17 @@ window.cgLaunchVideoAgent = async function () {
     const vids = scene.videoInstances || [];
     // Pick the B-roll video instance (role 'broll' or unset). Narrator clips are
     // generated via _generateNarratorClips below and never via animateScenes.
-    const vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
-             || vids.find(v => v.role !== 'narrator')
-             || vids[0];
+    let vid = vids.find(v => v.role !== 'narrator' && v.isRenderActive)
+           || vids.find(v => v.role !== 'narrator')
+           || vids[0];
+    if (!vid && typeof CanvasState !== 'undefined') {
+      const activeSb = (scene.storyboardInstances || []).find(s => s.isActive)
+                    || (scene.storyboardInstances || [])[0];
+      const srcImg = activeSb && ((activeSb.imageInstances || []).find(i => i.isRenderActive)
+                  || (activeSb.imageInstances || [])[0]);
+      vid = CanvasState.addVideoInstance(scene, srcImg && srcImg.id, {});
+      vid.isRenderActive = true;
+    }
     if (vid) {
       const parts = [vid.cameraPrompt, vid.motionPrompt, vid.environmentPrompt].filter(Boolean);
       scene.motionPrompt = parts.join('. ') || scene.prompt || '';
@@ -5171,6 +5345,13 @@ window.cgLaunchVideoAgent = async function () {
     }
     try {
       await animateScenes([scene], () => {}, key);
+      // animateScenes writes to scene.videoClips (flat). Bridge to vid.clips so syncMirrorFields reads them.
+      if (Array.isArray(scene.videoClips) && scene.videoClips.length && vid) {
+        vid.clips = scene.videoClips.map(function (c) {
+          return { url: c.url, clipDuration: c.clipDuration || c.duration || 0 };
+        });
+        vid.status = 'done';
+      }
       if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
       if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
     } catch (e) {
@@ -5212,7 +5393,7 @@ async function _generateNarratorClipsIfNeeded() {
     v.status = 'generating';
     try {
       const dur = Math.max(5, Math.min(10, Math.round(scene.durationSec || 5)));
-      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '');
+      const taskId = await submitKlingI2V(setup.imageDataUrl, v.motionPrompt, dur, '', setup.imageDataUrl);
       const videoUrl = await pollKlingTask(taskId);
       if (videoUrl) {
         v.clips = [{ url: videoUrl, clipDuration: dur }];

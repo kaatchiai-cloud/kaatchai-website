@@ -453,6 +453,12 @@ function navigateTo(view, pushHistory) {
                   };
                 }
               }
+              // Seed loraAssignments for Assets section (populated later by user)
+              window.createJobState.loraAssignments = {
+                characters: {},
+                narrator: null,
+                products: [],
+              };
               if (typeof window.applyVideoTypeVisibility === 'function') window.applyVideoTypeVisibility();
               if (shape === 'film' && typeof window.castRenderRows === 'function') window.castRenderRows();
               if (shape === 'brand' && typeof window.brandRenderSlots === 'function') window.brandRenderSlots();

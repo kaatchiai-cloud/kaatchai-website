@@ -166,8 +166,18 @@ function syncMirrorFields(scene, mode) {
       scene.videoUrl = renderVid.clips[0].url || null;
       scene.videoClips = renderVid.clips.slice();
     } else {
-      scene.videoUrl = null;
+      // Defensive: preserve flat videoClips/videoUrl if the clips bridge in cgLaunchVideoAgent
+      // hasn't run yet (vid.clips still empty but animateScenes already wrote scene.videoClips)
+      const flatClips = scene.videoClips;
+      const flatUrl   = scene.videoUrl;
+      scene.videoUrl   = null;
       scene.videoClips = null;
+      if (flatClips && flatClips.length && flatClips[0].url) {
+        scene.videoUrl   = flatClips[0].url;
+        scene.videoClips = flatClips;
+      } else if (flatUrl) {
+        scene.videoUrl = flatUrl;
+      }
     }
   }
 }

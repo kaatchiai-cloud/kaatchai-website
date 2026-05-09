@@ -54,13 +54,22 @@ const NSETUP_H    = 360;
 const BIBLE_W     = 380;
 const BIBLE_H     = 460;
 
-// Layout grid (X positions). 260px gap. NODE_W=520, LAUNCH_W=200, BGM/SUB/FINAL_W=720.
+// Two-phase pipeline cards
+const PROMPT_W    = 360;   // per-scene video prompt node width
+const PROMPT_H    = 170;   // per-scene video prompt node height
+const GEN_CARD_W  = 220;   // Gen Prompts / Gen Videos singleton card width
+const GEN_CARD_H  = 110;   // Gen Prompts / Gen Videos singleton card height
+
+// Layout grid (X positions). NODE_W=520, LAUNCH_W=200, BGM/SUB/FINAL_W=720.
 const COL_SB         = 80;
 const COL_IMG        = 860;    // 80 + 520 + 260
-const COL_LAUNCH     = 1640;   // 860 + 520 + 260
-const COL_VID        = 2100;   // 1640 + 200 + 260
-const COL_FINAL_ANIM = 3180;   // 2100 + 520 + 560  (wide gap for aesthetics)
-const COL_FINAL_ILL  = 1940;   // 860 + 520 + 560   (wide gap for aesthetics)
+const COL_PREV       = 1640;   // preview player — between IMG and pipeline cards
+const COL_LAUNCH     = 2220;   // shifted right to make room for preview player
+const COL_VID        = 2700;   // shifted right
+const COL_FINAL_ANIM = 3780;   // shifted right
+const COL_FINAL_ILL  = 2520;   // shifted right
+const PREV_W         = 480;    // preview player node width
+const PREV_H         = 400;    // preview player height estimate for nodeRect
 const COL_NSETUP     = -440;   // free-floating, left of bands (NSETUP_W=320 → bg ends at -120)
 const COL_BIBLE      = -880;   // bible chrome node, left of narrator-setup
 
@@ -92,6 +101,193 @@ const PENDING_STATUSES = new Set(['pending', 'generating', 'polling', 'submitted
 // ════ SECTION 2 — Singleton state ══════════════════════════════════════════
 
 let g = null;
+
+// Singleton audio player for canvas scene audio bars
+let _cgAudioEl = null;
+let _cgAudioBar = null; // the currently-playing .cg-audio-bar DOM node
+
+function _cgStopAudio() {
+  if (_cgAudioEl) { _cgAudioEl.pause(); _cgAudioEl.src = ''; _cgAudioEl = null; }
+  if (_cgAudioBar) {
+    _cgAudioBar.classList.remove('cg-audio-bar--playing');
+    const fill = _cgAudioBar.querySelector('.cg-audio-fill');
+    if (fill) fill.style.width = '0%';
+    _cgAudioBar = null;
+  }
+}
+
+// Singleton preview player playback state
+let _cgPreviewState = null;
+
+function _cgPreviewStop() {
+  if (!_cgPreviewState) return;
+  if (_cgPreviewState.raf) { cancelAnimationFrame(_cgPreviewState.raf); _cgPreviewState.raf = null; }
+  if (_cgPreviewState.audio) { try { _cgPreviewState.audio.pause(); } catch(e) {} _cgPreviewState.audio = null; }
+  _cgPreviewState.playing = false;
+}
+
+function _cgPreviewBuildPlan() {
+  const scenes = (g && g.sortedScenes) || [];
+  const plan = [];
+  let t = 0;
+  scenes.forEach(function(scene) {
+    const activeSb  = (scene.storyboardInstances || []).find(function(s) { return s.isActive; });
+    const activeImg = activeSb && ((activeSb.imageInstances || []).find(function(i) { return i.isRenderActive; }) || (activeSb.imageInstances || [])[0]);
+    const dur = ((scene.endTime || 0) - (scene.startTime || 0)) || 5;
+    plan.push({
+      scene:      scene,
+      img:        activeImg || null,
+      imgDataUrl: activeImg ? (activeImg.imgDataUrl || null) : null,
+      direction:  activeImg ? (activeImg.direction || 'auto') : 'auto',
+      startT:     t,
+      endT:       t + dur,
+      dur:        dur,
+      kbPath:     null,
+      imgEl:      null,
+    });
+    t += dur;
+  });
+  return { plan: plan, totalDur: t };
+}
+
+function _cgPreviewLoadImages(plan, cb) {
+  let pending = 0;
+  plan.forEach(function(seg) {
+    if (!seg.imgDataUrl) return;
+    pending++;
+    const img = new Image();
+    img.onload = function() {
+      seg.imgEl = img;
+      const photo = { naturalW: img.naturalWidth, naturalH: img.naturalHeight };
+      seg.kbPath = computeKenBurnsPath(photo, '16:9', { direction: seg.direction, seed: 0 });
+      pending--;
+      if (pending === 0 && cb) cb();
+    };
+    img.onerror = function() { pending--; if (pending === 0 && cb) cb(); };
+    img.src = seg.imgDataUrl;
+  });
+  if (pending === 0 && cb) cb();
+}
+
+function _cgPreviewDrawFrame(currentT) {
+  if (!g || !g.previewEl) return;
+  const canvas = g.previewEl.querySelector('[data-role="prev-canvas"]');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  if (!W || !H) return;
+  ctx.clearRect(0, 0, W, H);
+  if (!_cgPreviewState) return;
+  const plan = _cgPreviewState.plan;
+  const totalDur = _cgPreviewState.totalDur;
+  const seg = plan.find(function(s) { return currentT >= s.startT && currentT < s.endT; }) || plan[plan.length - 1];
+  if (!seg) { ctx.fillStyle = '#050814'; ctx.fillRect(0, 0, W, H); return; }
+
+  if (seg.imgEl && seg.kbPath) {
+    const t = seg.dur > 0 ? Math.min(1, (currentT - seg.startT) / seg.dur) : 0;
+    drawKenBurnsFrame(ctx, seg.imgEl, seg.kbPath, t, W, H, 'easeOutQuad');
+  } else {
+    ctx.fillStyle = '#050814';
+    ctx.fillRect(0, 0, W, H);
+    if (seg.imgEl) { ctx.drawImage(seg.imgEl, 0, 0, W, H); }
+  }
+
+  const strip = g.previewEl.querySelector('[data-role="prev-strip"]');
+  if (strip) {
+    Array.from(strip.children).forEach(function(segEl, i) {
+      const s = plan[i];
+      if (!s) return;
+      const isActive = (i === plan.length - 1)
+        ? currentT >= s.startT
+        : (currentT >= s.startT && currentT < s.endT);
+      segEl.classList.toggle('cg-prev-seg--active', isActive);
+    });
+  }
+
+  const fill = g.previewEl.querySelector('[data-role="prev-fill"]');
+  if (fill && totalDur > 0) fill.style.width = (Math.min(1, currentT / totalDur) * 100) + '%';
+  const timeEl = g.previewEl.querySelector('[data-role="prev-time"]');
+  if (timeEl) timeEl.textContent = fmtTime(currentT) + ' / ' + fmtTime(totalDur);
+}
+
+function _cgPreviewRaf(ts) {
+  if (!_cgPreviewState || !_cgPreviewState.playing) return;
+  if (!_cgPreviewState.startTs) _cgPreviewState.startTs = ts - _cgPreviewState.currentT * 1000;
+  _cgPreviewState.currentT = (ts - _cgPreviewState.startTs) / 1000;
+  if (_cgPreviewState.currentT >= _cgPreviewState.totalDur) {
+    _cgPreviewState.currentT = _cgPreviewState.totalDur;
+    _cgPreviewDrawFrame(_cgPreviewState.currentT);
+    _cgPreviewState.playing = false;
+    _cgPreviewState.startTs = null;
+    const playBtn = g.previewEl && g.previewEl.querySelector('[data-role="prev-play"]');
+    if (playBtn) playBtn.textContent = '▶';
+    return;
+  }
+  _cgPreviewDrawFrame(_cgPreviewState.currentT);
+  _cgPreviewState.raf = requestAnimationFrame(_cgPreviewRaf);
+}
+
+function _cgPreviewEnsureCanvasSized() {
+  if (!g || !g.previewEl) return;
+  const canvas = g.previewEl.querySelector('[data-role="prev-canvas"]');
+  if (!canvas) return;
+  if (!canvas.width || !canvas.height) {
+    const wrap = canvas.parentElement;
+    const cw = wrap ? wrap.clientWidth : PREV_W;
+    canvas.width = cw || PREV_W;
+    canvas.height = Math.round((canvas.width) * 9 / 16);
+  }
+}
+
+function _cgPreviewToggle() {
+  if (!g || !g.previewEl) return;
+  const playBtn = g.previewEl.querySelector('[data-role="prev-play"]');
+  if (_cgPreviewState && _cgPreviewState.playing) {
+    _cgPreviewStop();
+    if (playBtn) playBtn.textContent = '▶';
+    return;
+  }
+  const { plan, totalDur } = _cgPreviewBuildPlan();
+  if (!totalDur) return;
+  _cgPreviewEnsureCanvasSized();
+  const currentT = (_cgPreviewState && _cgPreviewState.currentT < totalDur) ? _cgPreviewState.currentT : 0;
+  _cgPreviewState = { plan: plan, totalDur: totalDur, playing: false, currentT: currentT, raf: null, startTs: null, audio: null };
+  _cgPreviewLoadImages(plan, function() {
+    if (!_cgPreviewState) return;
+    _cgPreviewState.playing = true;
+    _cgPreviewState.startTs = null;
+    if (playBtn) playBtn.textContent = '◼';
+    _cgPreviewState.raf = requestAnimationFrame(_cgPreviewRaf);
+  });
+}
+
+function _cgPreviewSeekTo(currentT) {
+  if (!g || !g.previewEl) return;
+  _cgPreviewEnsureCanvasSized();
+  if (_cgPreviewState) {
+    _cgPreviewState.currentT = currentT;
+    _cgPreviewState.startTs = null;
+    _cgPreviewDrawFrame(currentT);
+  } else {
+    const { plan, totalDur } = _cgPreviewBuildPlan();
+    if (!totalDur) return;
+    _cgPreviewState = { plan: plan, totalDur: totalDur, playing: false, currentT: currentT, raf: null, startTs: null, audio: null };
+    _cgPreviewLoadImages(plan, function() { _cgPreviewDrawFrame(currentT); });
+  }
+}
+
+function _cgPreviewSeek(ratio) {
+  const totalDur = (_cgPreviewState && _cgPreviewState.totalDur) || _cgPreviewBuildPlan().totalDur;
+  _cgPreviewSeekTo(ratio * totalDur);
+}
+
+function _cgPreviewSeekToScene(idx) {
+  const plan = (_cgPreviewState && _cgPreviewState.plan) || _cgPreviewBuildPlan().plan;
+  const totalDur = (_cgPreviewState && _cgPreviewState.totalDur) || _cgPreviewBuildPlan().totalDur;
+  if (!plan[idx] || !totalDur) return;
+  _cgPreviewSeekTo(plan[idx].startT);
+}
 
 function freshGraphState() {
   return {
@@ -137,6 +333,12 @@ function freshGraphState() {
     bgmEl: null,
     subEl: null,
     finalEl: null,
+
+    // Two-phase pipeline card DOM refs
+    genPromptsEl:  null,        // Gen Video Prompts singleton card
+    genVideosEl:   null,        // Generate Videos singleton card
+    promptNodeEls: new Map(),   // scene.id → per-scene prompt node DOM el
+    previewEl: null,            // singleton Preview Player node DOM el
 
     // Two-phase video generation: idle → filling → ready → running → done
     videoPhase: 'idle',
@@ -642,16 +844,19 @@ function buildImgNode() {
   const body = el('div', 'cg-node-body');
   body.innerHTML =
     '<div class="cg-img-preview" data-role="preview"><span class="cg-img-empty">[render]</span></div>' +
-    '<div class="cg-stepper-row">' +
-      '<div class="cg-stepper" data-field="ratio">' +
-        '<button type="button" class="cg-arr cg-arr-l">◀</button>' +
-        '<span class="cg-val">16:9</span>' +
-        '<button type="button" class="cg-arr cg-arr-r">▶</button>' +
-      '</div>' +
-      '<div class="cg-stepper" data-field="seed">' +
-        '<button type="button" class="cg-arr cg-arr-l">◀</button>' +
-        '<span class="cg-val">seed —</span>' +
-        '<button type="button" class="cg-arr cg-arr-r">▶</button>' +
+    '<div class="cg-motion-picker" data-field="direction">' +
+        '<button type="button" class="cg-mpick cg-mpick--active" data-dir="auto"  title="Auto">✦</button>' +
+        '<button type="button" class="cg-mpick" data-dir="panLeft"  title="Pan left">←</button>' +
+        '<button type="button" class="cg-mpick" data-dir="panRight" title="Pan right">→</button>' +
+        '<button type="button" class="cg-mpick" data-dir="panUp"    title="Pan up">↑</button>' +
+        '<button type="button" class="cg-mpick" data-dir="panDown"  title="Pan down">↓</button>' +
+        '<button type="button" class="cg-mpick" data-dir="zoomIn"   title="Zoom in">⊕</button>' +
+        '<button type="button" class="cg-mpick" data-dir="zoomOut"  title="Zoom out">⊖</button>' +
+    '</div>' +
+    '<div class="cg-audio-bar" data-role="audio-bar" style="display:none">' +
+      '<button type="button" class="cg-audio-play" data-role="audio-play" title="Play narration">▶</button>' +
+      '<div class="cg-audio-track">' +
+        '<div class="cg-audio-fill" data-role="audio-fill"></div>' +
       '</div>' +
     '</div>';
   node.appendChild(body);
@@ -709,11 +914,24 @@ function updateImgNode(node, scene, sceneIdx, sb, img) {
     }
   }
 
-  // Steppers (DOM only; values derived from scene fields if present)
-  const seedVal = node.querySelector('.cg-stepper[data-field="seed"] .cg-val');
-  if (seedVal) seedVal.textContent = (img.seed != null ? `seed ${img.seed}` : 'seed —');
-  const ratioVal = node.querySelector('.cg-stepper[data-field="ratio"] .cg-val');
-  if (ratioVal) ratioVal.textContent = (scene.aspect || '16:9');
+  const activeDir = img.direction || 'auto';
+  node.querySelectorAll('.cg-mpick').forEach(function(btn) {
+    btn.classList.toggle('cg-mpick--active', btn.dataset.dir === activeDir);
+  });
+
+  // Audio bar — show only when narration audio is available for this scene
+  const audioBar = node.querySelector('[data-role="audio-bar"]');
+  if (audioBar) {
+    const url = scene._audioUrl || null;
+    audioBar.style.display = url ? '' : 'none';
+    audioBar.dataset.url = url || '';
+    // Sync playing state in case renderAll fired mid-playback
+    if (_cgAudioBar === audioBar) {
+      audioBar.classList.add('cg-audio-bar--playing');
+    } else {
+      audioBar.classList.remove('cg-audio-bar--playing');
+    }
+  }
 
   if (g.selectedIds.has(img.id)) node.classList.add('cg-node-selected');
   else node.classList.remove('cg-node-selected');
@@ -761,6 +979,65 @@ function buildVidNode() {
   return node;
 }
 
+// ─── Prompt node (per-scene, two-phase pipeline) ───────────────────────────
+function buildPromptNode() {
+  const node = el('div', 'cg-node cg-node--prompt');
+  node.style.width  = PROMPT_W + 'px';
+  node.style.height = PROMPT_H + 'px';
+
+  node.appendChild(el('span', 'cg-sock cg-sock--in cg-sock--image'));
+  node.appendChild(el('span', 'cg-sock cg-sock--out cg-sock--video'));
+
+  const head = el('div', 'cg-node-head cg-drag-handle');
+  head.innerHTML = '<span class="cg-head-dot" data-sock="video"></span>' +
+                   '<span class="cg-node-title">Video Prompt</span>';
+  node.appendChild(head);
+
+  const body = el('div', 'cg-node-body cg-prompt-body');
+  body.innerHTML =
+    '<div class="cg-prompt-row"><span class="cg-prompt-label">Camera</span>'      +
+      '<span class="cg-prompt-val cg-prompt-val--empty" data-field="camera">—</span></div>' +
+    '<div class="cg-prompt-row"><span class="cg-prompt-label">Motion</span>'      +
+      '<span class="cg-prompt-val cg-prompt-val--empty" data-field="motion">—</span></div>' +
+    '<div class="cg-prompt-row"><span class="cg-prompt-label">Environment</span>' +
+      '<span class="cg-prompt-val cg-prompt-val--empty" data-field="env">—</span></div>';
+  node.appendChild(body);
+
+  return node;
+}
+
+function updatePromptNode(node, scene, vid) {
+  if (!node || !vid) return;
+
+  const fields = [
+    { key: 'camera', value: vid.cameraPrompt },
+    { key: 'motion', value: vid.motionPrompt },
+    { key: 'env',    value: vid.environmentPrompt },
+  ];
+
+  fields.forEach(function (f) {
+    const span = node.querySelector('[data-field="' + f.key + '"]');
+    if (!span) return;
+    if (f.value) {
+      span.textContent = f.value.length > 60 ? f.value.slice(0, 57) + '…' : f.value;
+      span.title = f.value;
+      span.classList.remove('cg-prompt-val--empty');
+    } else {
+      span.textContent = '—';
+      span.removeAttribute('title');
+      span.classList.add('cg-prompt-val--empty');
+    }
+  });
+
+  const hdr = node.querySelector('.cg-node-head');
+  if (hdr) {
+    const isFilling = (g.videoPhase === 'filling');
+    const allFilled = fields.every(function (f) { return !!f.value; });
+    if (isFilling && !allFilled) hdr.classList.add('cg-prompt-hdr--filling');
+    else                          hdr.classList.remove('cg-prompt-hdr--filling');
+  }
+}
+
 function updateVidNode(node, scene, sceneIdx, sb, srcImg, vid) {
   const tabLetter = String.fromCharCode(65 + (sb ? (scene.storyboardInstances || []).indexOf(sb) : 0));
   const srcIdx = sb && srcImg ? (sb.imageInstances || []).indexOf(srcImg) : 0;
@@ -801,6 +1078,90 @@ function updateVidNode(node, scene, sceneIdx, sb, srcImg, vid) {
   else node.classList.remove('cg-node-selected');
 
   applyFilterToNode(node, scene);
+}
+
+// ─── Preview Player (singleton) ────────────────────────────────────────────
+function buildPreviewPlayer() {
+  const node = el('div', 'cg-node cg-node--preview cg-drag-handle');
+  node.style.width = PREV_W + 'px';
+
+  node.appendChild(el('span', 'cg-sock cg-sock--in cg-sock--image'));
+  node.appendChild(el('span', 'cg-sock cg-sock--out cg-sock--image'));
+
+  const head = el('div', 'cg-node-head');
+  head.innerHTML =
+    '<span class="cg-head-dot" style="background:var(--sock-image)"></span>' +
+    '<span class="cg-node-title">Preview</span>' +
+    '<span class="cg-prev-meta" data-role="prev-meta">0 scenes · 0s</span>';
+  node.appendChild(head);
+
+  const body = el('div', 'cg-node-body cg-prev-body');
+  body.innerHTML =
+    '<div class="cg-prev-canvas-wrap">' +
+      '<canvas class="cg-prev-canvas" data-role="prev-canvas"></canvas>' +
+      '<div class="cg-prev-canvas-empty" data-role="prev-empty">No images yet</div>' +
+    '</div>' +
+    '<div class="cg-prev-strip" data-role="prev-strip"></div>' +
+    '<div class="cg-prev-controls">' +
+      '<button type="button" class="cg-prev-play" data-role="prev-play" title="Play all scenes">▶</button>' +
+      '<div class="cg-prev-track" data-role="prev-track">' +
+        '<div class="cg-prev-fill" data-role="prev-fill"></div>' +
+      '</div>' +
+      '<span class="cg-prev-time" data-role="prev-time">0:00 / 0:00</span>' +
+    '</div>';
+  node.appendChild(body);
+
+  return node;
+}
+
+function updatePreviewPlayer(node) {
+  if (!node) return;
+  const scenes = g.sortedScenes || [];
+  const totalDur = scenes.reduce(function(s, sc) { return s + ((sc.endTime || 0) - (sc.startTime || 0)); }, 0);
+
+  const meta = node.querySelector('[data-role="prev-meta"]');
+  if (meta) meta.textContent = scenes.length + ' scene' + (scenes.length !== 1 ? 's' : '') + ' · ' + totalDur.toFixed(1) + 's';
+
+  // Rebuild scene strip only when scene count changes (avoid thrash during playback)
+  const strip = node.querySelector('[data-role="prev-strip"]');
+  if (strip && strip.children.length !== scenes.length) {
+    strip.innerHTML = '';
+    scenes.forEach(function(scene, i) {
+      const activeSb  = (scene.storyboardInstances || []).find(function(s) { return s.isActive; }) || (scene.storyboardInstances || [])[0];
+      const activeImg = activeSb && ((activeSb.imageInstances || []).find(function(im) { return im.isRenderActive; }) || (activeSb.imageInstances || [])[0]);
+      const dur = (scene.endTime || 0) - (scene.startTime || 0);
+      const pct = totalDur > 0 ? (dur / totalDur * 100).toFixed(1) + '%' : (100 / scenes.length).toFixed(1) + '%';
+      const hasImg = !!(activeImg && activeImg.imgDataUrl);
+      const seg = el('div', 'cg-prev-seg' + (hasImg ? '' : ' cg-prev-seg--empty'));
+      seg.style.width = pct;
+      seg.dataset.sceneIdx = String(i);
+      if (hasImg) seg.style.backgroundImage = 'url("' + activeImg.imgDataUrl + '")';
+      seg.title = 'Scene ' + (i + 1) + ' · ' + dur.toFixed(1) + 's';
+      strip.appendChild(seg);
+    });
+  }
+
+  const hasAny = scenes.some(function(sc) {
+    const sb  = (sc.storyboardInstances || []).find(function(s) { return s.isActive; }) || (sc.storyboardInstances || [])[0];
+    const img = sb && ((sb.imageInstances || []).find(function(i) { return i.isRenderActive; }) || (sb.imageInstances || [])[0]);
+    return !!(img && img.imgDataUrl);
+  });
+  const emptyEl = node.querySelector('[data-role="prev-empty"]');
+  if (emptyEl) emptyEl.style.display = hasAny ? 'none' : '';
+}
+
+function renderPreviewPlayer() {
+  if (!g.previewEl || !g.previewEl.isConnected) {
+    const node = buildPreviewPlayer();
+    node.dataset.id   = 'cg-preview';
+    node.dataset.type = 'preview';
+    g.graphLayerEl.appendChild(node);
+    g.nodeEls.set('cg-preview', { el: node, type: 'preview' });
+    g.previewEl = node;
+  }
+  updatePreviewPlayer(g.previewEl);
+  const midY = g.chromeMidY || TOP_PAD;
+  placeNode(g.previewEl, COL_PREV, midY - PREV_H / 2);
 }
 
 // ─── Variant tray + thumb strip ────────────────────────────────────────────
@@ -986,29 +1347,40 @@ function pruneStaleTrays() {
 }
 
 function pruneStaleNodes() {
-  const valid = new Set(['cg-launch', 'cg-bgm', 'cg-sub', 'cg-final']);
-  (g.scenes || []).forEach(scene => {
-    (scene.storyboardInstances || []).forEach(sb => {
-      // Only ACTIVE sb shows as a card
+  const phase = g.videoPhase || 'idle';
+  // cg-launch is gone; pipeline cards are phase-gated below
+  const valid = new Set(['cg-bgm', 'cg-sub', 'cg-final', 'cg-narrator-setup', 'cg-bible', 'cg-preview']);
+
+  // Pipeline cards: only valid in their specific phase
+  if (phase === 'idle')  valid.add('cg-gen-prompts');
+  if (phase === 'ready') valid.add('cg-gen-videos');
+
+  // Prompt nodes: valid in all non-idle phases
+  if (phase !== 'idle') {
+    (g.scenes || []).forEach(function (scene) { valid.add('prompt-' + scene.id); });
+  }
+
+  (g.scenes || []).forEach(function (scene) {
+    (scene.storyboardInstances || []).forEach(function (sb) {
       if (sb.isActive) valid.add(sb.id);
-      (sb.imageInstances || []).forEach(im => {
+      (sb.imageInstances || []).forEach(function (im) {
         if (sb.isActive && im.isRenderActive) valid.add(im.id);
       });
     });
-    // Active video for animated mode
     if (g.mode === 'animated') {
-      const activeSb = (scene.storyboardInstances || []).find(s => s.isActive);
-      const activeImg = activeSb && (activeSb.imageInstances || []).find(i => i.isRenderActive);
+      const activeSb  = (scene.storyboardInstances || []).find(function (s) { return s.isActive; });
+      const activeImg = activeSb && (activeSb.imageInstances || []).find(function (i) { return i.isRenderActive; });
       if (activeImg) {
-        const list = (scene.videoInstances || []).filter(v => v.sourceImageInstanceId === activeImg.id);
-        const ra = list.find(v => v.isRenderActive) || list[0];
+        const list = (scene.videoInstances || []).filter(function (v) { return v.sourceImageInstanceId === activeImg.id; });
+        const ra = list.find(function (v) { return v.isRenderActive; }) || list[0];
         if (ra) valid.add(ra.id);
       }
     }
   });
+
   const toRemove = [];
-  g.nodeEls.forEach((entry, id) => { if (!valid.has(id)) toRemove.push(id); });
-  toRemove.forEach(id => {
+  g.nodeEls.forEach(function (entry, id) { if (!valid.has(id)) toRemove.push(id); });
+  toRemove.forEach(function (id) {
     const entry = g.nodeEls.get(id);
     if (entry && entry.el && entry.el.parentNode) entry.el.parentNode.removeChild(entry.el);
     g.nodeEls.delete(id);
@@ -1035,77 +1407,118 @@ function buildSimpleNode(cls, sockType, label, opts) {
   return node;
 }
 
-function _buildLaunchBodyHtml(phase) {
-  if (phase === 'idle') {
-    return '<div class="cg-launch-body">' +
-      '<button type="button" class="cg-launch-btn cg-launch-btn--prompts">✨ Gen Video Prompts</button>' +
-    '</div>';
-  }
-  if (phase === 'filling') {
-    return '<div class="cg-launch-body cg-launch-body--status">' +
-      '<div class="cg-launch-spinner"></div>' +
-      '<span class="cg-launch-status-lbl">Analyzing scenes…</span>' +
-    '</div>';
-  }
-  if (phase === 'ready') {
-    const n = (g.scenes || []).filter(s => {
-      const vids = s.videoInstances || [];
-      const v = vids.find(vi => vi.isRenderActive) || vids[0];
-      return v && v.cameraPrompt;
-    }).length;
-    return '<div class="cg-launch-body cg-launch-body--ready">' +
-      '<span class="cg-launch-status-lbl">' + n + ' prompt' + (n === 1 ? '' : 's') + ' ready</span>' +
-      '<button type="button" class="cg-launch-btn cg-launch-btn--videos">🚀 Launch Video Agent</button>' +
-    '</div>';
-  }
-  if (phase === 'running') {
-    const done = (g.scenes || []).filter(s => s.videoUrl).length;
-    const total = (g.scenes || []).length;
-    return '<div class="cg-launch-body cg-launch-body--status">' +
-      '<div class="cg-launch-spinner"></div>' +
-      '<span class="cg-launch-status-lbl">Generating ' + done + ' / ' + total + '</span>' +
-    '</div>';
-  }
-  return '<div class="cg-launch-body cg-launch-body--done">' +
-    '<span class="cg-launch-status-lbl cg-launch-done-lbl">✓ All videos ready</span>' +
-  '</div>';
-}
+// ─── Two-phase pipeline cards ───────────────────────────────────────────────
 
-function renderLaunchNode() {
-  if (g.mode !== 'animated') {
-    if (g.launchEl && g.launchEl.parentNode) g.launchEl.parentNode.removeChild(g.launchEl);
-    g.launchEl = null;
-    g.nodeEls.delete('cg-launch');
+function renderGenPromptsCard() {
+  // Only visible in idle phase
+  if (g.videoPhase !== 'idle') {
+    if (g.genPromptsEl && g.genPromptsEl.parentNode) g.genPromptsEl.parentNode.removeChild(g.genPromptsEl);
+    g.genPromptsEl = null;
+    g.nodeEls.delete('cg-gen-prompts');
     return;
   }
-
-  const phase = g.videoPhase || 'idle';
-  const phaseSig = phase === 'running'
-    ? 'running:' + (g.scenes || []).filter(s => s.videoUrl).length
-    : phase;
-
-  if (!g.launchEl || !g.launchEl.isConnected) {
-    const node = buildSimpleNode('cg-node--launch', 'video', '⚡ Video Agent', {
-      w: LAUNCH_W,
-      h: LAUNCH_H,
-      hasIn: false,
-      hasOut: true,
-      bodyHtml: _buildLaunchBodyHtml(phase),
+  if (!g.genPromptsEl || !g.genPromptsEl.isConnected) {
+    const node = buildSimpleNode('cg-node--launch', 'image', '⚡ Video Agent', {
+      w: GEN_CARD_W, h: GEN_CARD_H,
+      hasIn: true, hasOut: false,
+      bodyHtml: '<div class="cg-launch-body"><button type="button" class="cg-launch-btn cg-launch-btn--prompts">✨ Gen Video Prompts</button></div>',
     });
-    node.dataset.id = 'cg-launch';
-    node.dataset.type = 'launch';
-    node.dataset.phase = phaseSig;
+    node.dataset.id   = 'cg-gen-prompts';
+    node.dataset.type = 'gen-prompts';
     g.graphLayerEl.appendChild(node);
-    g.nodeEls.set('cg-launch', { el: node, type: 'launch' });
-    g.launchEl = node;
-  } else if (g.launchEl.dataset.phase !== phaseSig) {
-    const body = g.launchEl.querySelector('.cg-node-body');
-    if (body) body.innerHTML = _buildLaunchBodyHtml(phase);
-    g.launchEl.dataset.phase = phaseSig;
+    g.nodeEls.set('cg-gen-prompts', { el: node, type: 'gen-prompts' });
+    g.genPromptsEl = node;
+    // Click handled by delegated listener in attachEvents (lines ~2172)
   }
+  const midY = g.chromeMidY || TOP_PAD;
+  placeNode(g.genPromptsEl, COL_LAUNCH, midY - GEN_CARD_H / 2);
+}
 
-  const pos = window.createLaunchAgentPosition || { x: COL_LAUNCH, y: (g.chromeMidY || TOP_PAD) - LAUNCH_H / 2 };
-  placeNode(g.launchEl, pos.x, pos.y);
+function renderGenVideosCard() {
+  // Only visible in ready phase
+  if (g.videoPhase !== 'ready') {
+    if (g.genVideosEl && g.genVideosEl.parentNode) g.genVideosEl.parentNode.removeChild(g.genVideosEl);
+    g.genVideosEl = null;
+    g.nodeEls.delete('cg-gen-videos');
+    return;
+  }
+  if (!g.genVideosEl || !g.genVideosEl.isConnected) {
+    const node = buildSimpleNode('cg-node--launch', 'video', '🎬 Videos', {
+      w: GEN_CARD_W, h: GEN_CARD_H,
+      hasIn: true, hasOut: false,
+      bodyHtml: '<div class="cg-launch-body"><button type="button" class="cg-launch-btn cg-launch-btn--videos">🚀 Generate Videos</button></div>',
+    });
+    node.dataset.id   = 'cg-gen-videos';
+    node.dataset.type = 'gen-videos';
+    g.graphLayerEl.appendChild(node);
+    g.nodeEls.set('cg-gen-videos', { el: node, type: 'gen-videos' });
+    g.genVideosEl = node;
+    // Click handled by delegated listener in attachEvents (lines ~2178)
+  }
+  const midY = g.chromeMidY || TOP_PAD;
+  placeNode(g.genVideosEl, COL_VID, midY - GEN_CARD_H / 2);
+}
+
+function renderPromptNodes() {
+  const phase = g.videoPhase || 'idle';
+  if (phase === 'idle') {
+    g.promptNodeEls.forEach(function (pEl) {
+      if (pEl && pEl.parentNode) pEl.parentNode.removeChild(pEl);
+    });
+    g.promptNodeEls.clear();
+    return;
+  }
+  const activeIds = new Set();
+  (g.sortedScenes || []).forEach(function (scene) {
+    const nodeId = 'prompt-' + scene.id;
+    activeIds.add(nodeId);
+    const activeSb  = (scene.storyboardInstances || []).find(function (s) { return s.isActive; })
+                   || (scene.storyboardInstances || [])[0];
+    const activeImg = activeSb && ((activeSb.imageInstances || []).find(function (i) { return i.isRenderActive; })
+                   || (activeSb.imageInstances || [])[0]);
+    const list = (scene.videoInstances || []).filter(function (v) {
+      return activeImg ? v.sourceImageInstanceId === activeImg.id : true;
+    });
+    const vid = list.find(function (v) { return v.isRenderActive; }) || list[0];
+
+    let pEl = g.promptNodeEls.get(nodeId);
+    if (!pEl || !pEl.isConnected) {
+      pEl = buildPromptNode();
+      pEl.dataset.id   = nodeId;
+      pEl.dataset.type = 'prompt';
+      g.graphLayerEl.appendChild(pEl);
+      g.promptNodeEls.set(nodeId, pEl);
+      g.nodeEls.set(nodeId, { el: pEl, type: 'prompt' });
+    }
+    updatePromptNode(pEl, scene, vid);
+    placeNode(pEl, COL_LAUNCH, scene._innerTop != null ? scene._innerTop : TOP_PAD);
+  });
+  // Prune nodes for deleted scenes
+  g.promptNodeEls.forEach(function (pEl, nodeId) {
+    if (!activeIds.has(nodeId)) {
+      if (pEl && pEl.parentNode) pEl.parentNode.removeChild(pEl);
+      g.promptNodeEls.delete(nodeId);
+      g.nodeEls.delete(nodeId);
+    }
+  });
+}
+
+function renderPipelineCards() {
+  if (g.mode !== 'animated') {
+    [g.genPromptsEl, g.genVideosEl].forEach(function (pEl) {
+      if (pEl && pEl.parentNode) pEl.parentNode.removeChild(pEl);
+    });
+    g.genPromptsEl = null;
+    g.genVideosEl  = null;
+    g.nodeEls.delete('cg-gen-prompts');
+    g.nodeEls.delete('cg-gen-videos');
+    g.promptNodeEls.forEach(function (pEl) { if (pEl && pEl.parentNode) pEl.parentNode.removeChild(pEl); });
+    g.promptNodeEls.clear();
+    return;
+  }
+  renderGenPromptsCard();
+  renderPromptNodes();
+  renderGenVideosCard();
 }
 
 function renderBgmNode() {
@@ -1375,6 +1788,13 @@ async function _hydrateBibleCellThumbs() {
 }
 
 function renderFinalNode() {
+  // In animated mode the Final node only appears once all videos are done
+  if (g.mode === 'animated' && g.videoPhase !== 'done') {
+    if (g.finalEl && g.finalEl.parentNode) g.finalEl.parentNode.removeChild(g.finalEl);
+    g.finalEl = null;
+    g.nodeEls.delete('cg-final');
+    return;
+  }
   let entry = g.nodeEls.get('cg-final');
   if (!entry) {
     const node = buildSimpleNode('cg-node--final', 'final', 'Final Render', {
@@ -1433,16 +1853,27 @@ function renderNodes() {
         ensureImgVariantTray(scene, sceneIdx, activeSb);
 
         if (g.mode === 'animated') {
-          // Active video for the active image
-          const list = (scene.videoInstances || []).filter(v => v.sourceImageInstanceId === activeImg.id);
-          const renderVid = list.find(v => v.isRenderActive) || list[0];
-          if (renderVid) {
-            const vidNode = ensureNode(renderVid.id, 'vid', () => buildVidNode());
-            const vpos = renderVid.canvasPosition || { x: COL_VID, y: scene._innerTop ?? TOP_PAD };
-            placeNode(vidNode, vpos.x, vpos.y);
-            updateVidNode(vidNode, scene, sceneIdx, activeSb, activeImg, renderVid);
+          const vidsVisible = g.videoPhase === 'running' || g.videoPhase === 'done';
+          if (vidsVisible) {
+            const list = (scene.videoInstances || []).filter(v => v.sourceImageInstanceId === activeImg.id);
+            const renderVid = list.find(v => v.isRenderActive) || list[0];
+            if (renderVid) {
+              const vidNode = ensureNode(renderVid.id, 'vid', () => buildVidNode());
+              const vpos = renderVid.canvasPosition || { x: COL_VID, y: scene._innerTop ?? TOP_PAD };
+              placeNode(vidNode, vpos.x, vpos.y);
+              updateVidNode(vidNode, scene, sceneIdx, activeSb, activeImg, renderVid);
+            }
+            ensureVidVariantTray(scene, sceneIdx, activeSb, activeImg);
+          } else {
+            // Prune stale VID nodes when not yet in running/done phase
+            (scene.videoInstances || []).forEach(function (v) {
+              const existing = g.nodeEls.get(v.id);
+              if (existing) {
+                if (existing.el && existing.el.parentNode) existing.el.parentNode.removeChild(existing.el);
+                g.nodeEls.delete(v.id);
+              }
+            });
           }
-          ensureVidVariantTray(scene, sceneIdx, activeSb, activeImg);
         }
       } else {
         // No active image — still build the IMG tray with empty state
@@ -1458,7 +1889,8 @@ function renderNodes() {
 function renderAll() {
   if (!g || !g.scenes) return;
   renderNodes();
-  renderLaunchNode();
+  renderPipelineCards();
+  renderPreviewPlayer();
   renderBgmNode();
   renderSubtitleNode();
   renderNarratorSetupNode();
@@ -1495,6 +1927,22 @@ function nodeRect(id) {
     const colFinalFb = (g.mode === 'animated') ? COL_FINAL_ANIM : COL_FINAL_ILL;
     const pos = window.createFinalRenderPosition || { x: colFinalFb, y: (g.chromeMidY || TOP_PAD) - FINAL_H / 2 };
     return { x: pos.x, y: pos.y, w: FINAL_W, h: FINAL_H };
+  }
+  if (id === 'cg-gen-prompts' && g.genPromptsEl) {
+    const midY = g.chromeMidY || TOP_PAD;
+    return { x: COL_LAUNCH, y: midY - GEN_CARD_H / 2, w: GEN_CARD_W, h: GEN_CARD_H };
+  }
+  if (id === 'cg-gen-videos' && g.genVideosEl) {
+    const midY = g.chromeMidY || TOP_PAD;
+    return { x: COL_VID, y: midY - GEN_CARD_H / 2, w: GEN_CARD_W, h: GEN_CARD_H };
+  }
+  if (id && id.startsWith('prompt-')) {
+    const scene = (g.sortedScenes || []).find(function (s) { return ('prompt-' + s.id) === id; });
+    if (scene) return { x: COL_LAUNCH, y: scene._innerTop != null ? scene._innerTop : TOP_PAD, w: PROMPT_W, h: PROMPT_H };
+  }
+  if (id === 'cg-preview' && g.previewEl) {
+    const midY = g.chromeMidY || TOP_PAD;
+    return { x: COL_PREV, y: midY - PREV_H / 2, w: PREV_W, h: PREV_H };
   }
   const inst = findInstance(id);
   if (!inst) return null;
@@ -1584,25 +2032,56 @@ function redrawCurves() {
       // SB → IMG
       drawCurve(activeSb.id, activeImg.id, 'image', activeImg.status);
 
+      // IMG → Preview Player (always — all scenes fan into the singleton)
+      if (g.previewEl) {
+        drawCurve(activeImg.id, 'cg-preview', 'image', activeImg.status);
+      }
+
       if (g.mode === 'animated') {
-        // ⭐ image → Launch
-        if (activeImg.isActive && activeImg.status === 'done' && g.launchEl) {
-          drawCurve(activeImg.id, 'cg-launch', 'video', 'done');
+        const phase = g.videoPhase || 'idle';
+        const promptNodeId = 'prompt-' + scene.id;
+
+        if (phase !== 'idle') {
+          // filling / ready / running / done: preview → Prompt Node per scene
+          if (g.previewEl && g.promptNodeEls.has(promptNodeId)) {
+            drawCurve('cg-preview', promptNodeId, 'image', activeImg.status);
+          }
+          if (phase === 'ready') {
+            // Prompt Node → Gen Videos card
+            if (g.genVideosEl && g.promptNodeEls.has(promptNodeId)) {
+              drawCurve(promptNodeId, 'cg-gen-videos', 'video', 'done');
+            }
+          }
+          if (phase === 'running' || phase === 'done') {
+            // Prompt Node → VID
+            const list = (scene.videoInstances || []).filter(v => v.sourceImageInstanceId === activeImg.id);
+            const renderVid = list.find(v => v.isRenderActive) || list[0];
+            if (renderVid) {
+              drawCurve(promptNodeId, renderVid.id, 'video', renderVid.status);
+              if (phase === 'done') {
+                drawCurve(renderVid.id, 'cg-final', 'final', renderVid.status);
+              }
+            }
+          }
         }
-        // IMG → VID (active path)
-        const list = (scene.videoInstances || []).filter(v => v.sourceImageInstanceId === activeImg.id);
-        const renderVid = list.find(v => v.isRenderActive) || list[0];
-        if (renderVid) {
-          drawCurve(activeImg.id, renderVid.id, 'video', renderVid.status);
-          // VID → Final
-          drawCurve(renderVid.id, 'cg-final', 'final', renderVid.status);
-        }
-      } else {
-        // illustrated: IMG → Final
-        drawCurve(activeImg.id, 'cg-final', 'final', activeImg.status);
       }
     }
   });
+
+  // Singleton outgoing curve from Preview Player
+  if (g.previewEl) {
+    if (g.mode === 'animated') {
+      const phase = g.videoPhase || 'idle';
+      if (phase === 'idle' && g.genPromptsEl) {
+        drawCurve('cg-preview', 'cg-gen-prompts', 'image', 'done');
+      }
+    } else {
+      // illustrated: preview → Final
+      if (g.finalEl) {
+        drawCurve('cg-preview', 'cg-final', 'final', 'done');
+      }
+    }
+  }
 
   // Apply hover dim on graph layer
   if (g.hoveredNodeId) g.graphLayerEl.setAttribute('data-hover-active', '1');
@@ -1965,6 +2444,93 @@ function attachEvents() {
         renderAll();
         selectNode(vidId);
         triggerSave();
+      }
+      return;
+    }
+
+    // Scene audio bar play/pause
+    const audioPlayBtn = target.closest('.cg-audio-play');
+    if (audioPlayBtn) {
+      e.preventDefault();
+      const bar = audioPlayBtn.closest('.cg-audio-bar');
+      if (!bar) return;
+      const url = bar.dataset.url;
+      if (!url) return;
+
+      if (_cgAudioBar === bar && _cgAudioEl && !_cgAudioEl.paused) {
+        // Already playing this bar — pause it
+        _cgAudioEl.pause();
+        bar.classList.remove('cg-audio-bar--playing');
+        audioPlayBtn.textContent = '▶';
+      } else {
+        _cgStopAudio();
+        _cgAudioEl = new Audio(url);
+        _cgAudioBar = bar;
+        bar.classList.add('cg-audio-bar--playing');
+        audioPlayBtn.textContent = '◼';
+        _cgAudioEl.addEventListener('timeupdate', function() {
+          const fill = bar.querySelector('.cg-audio-fill');
+          if (fill && _cgAudioEl.duration) {
+            fill.style.width = (_cgAudioEl.currentTime / _cgAudioEl.duration * 100) + '%';
+          }
+        });
+        _cgAudioEl.addEventListener('ended', function() {
+          _cgStopAudio();
+          audioPlayBtn.textContent = '▶';
+        });
+        _cgAudioEl.play().catch(function() { _cgStopAudio(); });
+      }
+      return;
+    }
+
+    // Seek: click on audio track bar
+    const audioTrack = target.closest('.cg-audio-track');
+    if (audioTrack) {
+      e.preventDefault();
+      if (_cgAudioEl && _cgAudioEl.duration) {
+        const rect = audioTrack.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        _cgAudioEl.currentTime = ratio * _cgAudioEl.duration;
+      }
+      return;
+    }
+
+    // Preview player: play/pause
+    const prevPlay = target.closest('[data-role="prev-play"]');
+    if (prevPlay) {
+      e.preventDefault();
+      _cgPreviewToggle();
+      return;
+    }
+
+    // Preview player: seek via progress track click
+    const prevTrack = target.closest('[data-role="prev-track"]');
+    if (prevTrack) {
+      e.preventDefault();
+      const rect = prevTrack.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      _cgPreviewSeek(ratio);
+      return;
+    }
+
+    // Preview player: scene strip segment click → jump to scene
+    const prevSeg = target.closest('.cg-prev-seg');
+    if (prevSeg) {
+      e.preventDefault();
+      _cgPreviewSeekToScene(parseInt(prevSeg.dataset.sceneIdx, 10));
+      return;
+    }
+
+    // Motion direction picker click
+    const mpick = target.closest('.cg-mpick');
+    if (mpick) {
+      e.preventDefault();
+      const node = mpick.closest('.cg-node');
+      if (node) {
+        const inst = findInstance(node.dataset.id);
+        if (inst && inst.type === 'img') {
+          window.imgActions.setDirection && window.imgActions.setDirection(inst.scene, inst.img, mpick.dataset.dir);
+        }
       }
       return;
     }
@@ -2719,10 +3285,6 @@ function handleStepper(arrow) {
     window.sbActions.setDuration && window.sbActions.setDuration(inst.scene, inst.sb, dir);
   } else if (inst.type === 'sb' && field === 'style') {
     window.sbActions.setStyle && window.sbActions.setStyle(inst.scene, inst.sb, dir);
-  } else if (inst.type === 'img' && field === 'ratio') {
-    window.imgActions.setRatio && window.imgActions.setRatio(inst.scene, inst.img, dir);
-  } else if (inst.type === 'img' && field === 'seed') {
-    window.imgActions.setSeed && window.imgActions.setSeed(inst.scene, inst.img, dir);
   } else if (inst.type === 'vid' && field === 'duration') {
     window.vidActions.setDuration && window.vidActions.setDuration(inst.scene, inst.vid, dir);
   } else if (inst.type === 'vid' && field === 'model') {
@@ -3169,22 +3731,9 @@ if (!window.imgActions.delete) {
     return ok;
   };
 }
-if (!window.imgActions.setRatio) {
-  window.imgActions.setRatio = function (scene, img, dir) {
-    const ratios = ['16:9', '9:16', '1:1', '4:5', '3:2'];
-    const cur = scene.aspect || '16:9';
-    let i = ratios.indexOf(cur);
-    if (i < 0) i = 0;
-    i = (i + dir + ratios.length) % ratios.length;
-    scene.aspect = ratios[i];
-    renderAll();
-    triggerSave();
-  };
-}
-if (!window.imgActions.setSeed) {
-  window.imgActions.setSeed = function (scene, img, dir) {
-    const cur = (img.seed != null) ? img.seed : 0;
-    img.seed = cur + dir;
+if (!window.imgActions.setDirection) {
+  window.imgActions.setDirection = function (scene, img, dir) {
+    img.direction = dir || 'auto';
     renderAll();
     triggerSave();
   };
@@ -3405,16 +3954,32 @@ function notifyVideoReady(sceneIdx) {
     const sceneEntry = g.scenes[sceneIdx];
     updateVidNode(node.el, sceneEntry, sceneIdx, vid);
   }
-  renderLaunchNode();
-  redrawCurves();
+  renderAll();
   if (g.selectedId === (vid && vid.id)) cgRenderProperties();
   triggerSave();
+}
+
+function notifyPromptReady(sceneIdx) {
+  if (!g) return;
+  const scene = (g.scenes || [])[sceneIdx];
+  if (!scene) return;
+  const activeSb  = (scene.storyboardInstances || []).find(function (s) { return s.isActive; })
+                 || (scene.storyboardInstances || [])[0];
+  const activeImg = activeSb && ((activeSb.imageInstances || []).find(function (i) { return i.isRenderActive; })
+                 || (activeSb.imageInstances || [])[0]);
+  const list = (scene.videoInstances || []).filter(function (v) {
+    return activeImg ? v.sourceImageInstanceId === activeImg.id : true;
+  });
+  const vid = list.find(function (v) { return v.isRenderActive; }) || list[0];
+  const pEl = g.promptNodeEls.get('prompt-' + scene.id);
+  if (pEl) updatePromptNode(pEl, scene, vid);
+  redrawCurves();
 }
 
 function setVideoPhase(phase) {
   if (!g) return;
   g.videoPhase = phase;
-  renderLaunchNode();
+  renderAll();
 }
 
 // ════ Public API: Character filter (Phase 5) ═══════════════════════════════
@@ -3570,6 +4135,16 @@ function mount(containerId, scenes, mode, opts) {
 
   runLayout();
 
+  // Infer videoPhase from existing scene data so returning users see the correct canvas state
+  if (g.mode === 'animated') {
+    const allDone    = (g.scenes || []).every(function (s) { return !!s.videoUrl; });
+    const someDone   = (g.scenes || []).some(function (s) { return !!s.videoUrl; });
+    const allPrompts = (g.scenes || []).every(function (s) {
+      return (s.videoInstances || []).some(function (v) { return !!v.cameraPrompt; });
+    });
+    g.videoPhase = allDone ? 'done' : someDone ? 'running' : allPrompts ? 'ready' : 'idle';
+  }
+
   // Initial view: zoom 1, pan so first scene's SB lands top-left of safe area
   g.zoom = 1.0;
   g.panX = SAFE_PAD;
@@ -3647,6 +4222,7 @@ window.CanvasGraph = Object.assign(window.CanvasGraph || {}, {
   refresh,
   notifyImageReady,
   notifyVideoReady,
+  notifyPromptReady,
   setVideoPhase,
   setCharacterFilter,
   clearCharacterFilter,

@@ -130,6 +130,169 @@ async function generateStyleFingerprint(scenes, geminiKey) {
   }
 }
 
+// ─── Face swap — post-process for photorealistic/cinematic scenes ─────────────
+//
+// After Gemini generates a scene image, if the project is photorealistic or
+// cinematic, swap each locked character's AI-generated portrait onto the
+// corresponding face in the scene image via Replicate codeplugtech/face-swap.
+// MediaPipe IMAGE mode detects faces; faces are matched left-to-right to
+// scene.refCharacters order. Each face is cropped, swapped, pasted back.
+//
+// Replicate API key stored at localStorage key 'stori_replicate_api_key'.
+
+const REPLICATE_FACE_SWAP_VERSION = '278a81e7ebb22db98bcba54de985d22cc1abeead2754eb1f2af717247be69b34';
+
+function _getReplicateKey() {
+  return (typeof localStorage !== 'undefined' ? localStorage.getItem('stori_replicate_api_key') : '') || '';
+}
+
+function _loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = dataUrl;
+  });
+}
+
+async function _resizeDataUrl(dataUrl, maxSide) {
+  const img = await _loadImageFromDataUrl(dataUrl);
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+async function _replicateFaceSwap(inputImageDataUrl, swapImageDataUrl, replicateKey) {
+  const resp = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: { 'Authorization': `Token ${replicateKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      version: REPLICATE_FACE_SWAP_VERSION,
+      input: { input_image: inputImageDataUrl, swap_image: swapImageDataUrl },
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => '');
+    throw new Error(`Replicate submit failed (${resp.status}): ${err.slice(0, 200)}`);
+  }
+  const prediction = await resp.json();
+  const pollUrl = prediction.urls && prediction.urls.get;
+  if (!pollUrl) throw new Error('Replicate: no poll URL');
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 3000));
+    const pr = await fetch(pollUrl, { headers: { 'Authorization': `Token ${replicateKey}` } });
+    if (!pr.ok) throw new Error(`Replicate poll failed: ${pr.status}`);
+    const data = await pr.json();
+    if (data.status === 'succeeded') {
+      if (!data.output) throw new Error('Replicate: no output URL');
+      const imgResp = await fetch(data.output);
+      if (!imgResp.ok) throw new Error(`Replicate result fetch failed: ${imgResp.status}`);
+      const blob = await imgResp.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+    if (data.status === 'failed' || data.status === 'canceled') {
+      throw new Error(`Replicate prediction ${data.status}: ${data.error || ''}`);
+    }
+  }
+  throw new Error('Replicate face swap timed out (>120s)');
+}
+
+// Apply face swap to a generated scene image. Returns updated data URL, or
+// original data URL unchanged if conditions aren't met (no key, no faces, etc).
+async function applyFaceSwapToSceneImage(sceneDataUrl, scene) {
+  if (typeof _isPhotorealisticMode !== 'function' || !_isPhotorealisticMode()) return sceneDataUrl;
+  const replicateKey = _getReplicateKey();
+  if (!replicateKey) return sceneDataUrl;
+  if (!window.LipSync || typeof window.LipSync.detectFacesInImage !== 'function') return sceneDataUrl;
+
+  const cs = window.createJobState || {};
+  const allChars = cs.characters || [];
+  const sceneCharIds = scene && scene.refCharacters || [];
+  const sceneChars = sceneCharIds
+    .map(id => allChars.find(c => c.id === id))
+    .filter(c => c && c.locked && c.representativeImageDataUrl)
+    .filter(c => {
+      // Skip face swap for characters that have a ready LoRA assigned
+      const libCharId = cs.loraAssignments?.characters?.[c.id];
+      if (!libCharId) return true;
+      const lc = window.LoraLibrary?.getCharacterById?.(libCharId);
+      return !(lc?.loraStatus === 'ready');
+    });
+  if (!sceneChars.length) return sceneDataUrl;
+
+  let faces;
+  try {
+    faces = await window.LipSync.detectFacesInImage(sceneDataUrl);
+  } catch (e) {
+    console.warn('[FaceSwap] face detection failed:', e.message);
+    return sceneDataUrl;
+  }
+  if (!faces.length) return sceneDataUrl;
+
+  const img = await _loadImageFromDataUrl(sceneDataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const pairCount = Math.min(faces.length, sceneChars.length);
+  for (let i = 0; i < pairCount; i++) {
+    const face = faces[i];
+    const char = sceneChars[i];
+    if (!face.faceBbox) continue;
+
+    // Crop face region with 50% padding on each side
+    const { x, y, w, h } = face.faceBbox;
+    const pad = 0.5;
+    const bx = Math.max(0, x - w * pad);
+    const by = Math.max(0, y - h * pad);
+    const bw = Math.min(canvas.width  - bx, w * (1 + 2 * pad));
+    const bh = Math.min(canvas.height - by, h * (1 + 2 * pad));
+
+    const crop = document.createElement('canvas');
+    crop.width = Math.round(bw); crop.height = Math.round(bh);
+    crop.getContext('2d').drawImage(canvas, bx, by, bw, bh, 0, 0, bw, bh);
+    const cropDataUrl = crop.toDataURL('image/jpeg', 0.9);
+
+    // Resize portrait to max 512px to stay under Replicate's 256KB base64 limit
+    let portraitDataUrl;
+    try {
+      portraitDataUrl = await _resizeDataUrl(char.representativeImageDataUrl, 512);
+    } catch (e) {
+      console.warn('[FaceSwap] portrait resize failed:', e.message);
+      continue;
+    }
+
+    let swappedDataUrl;
+    try {
+      swappedDataUrl = await _replicateFaceSwap(cropDataUrl, portraitDataUrl, replicateKey);
+    } catch (e) {
+      console.warn(`[FaceSwap] swap failed for "${char.name}":`, e.message);
+      continue;
+    }
+
+    // Paste swapped crop back at exact original position — background pixels
+    // in the crop are unchanged so edges are seamless
+    try {
+      const swappedImg = await _loadImageFromDataUrl(swappedDataUrl);
+      ctx.drawImage(swappedImg, Math.round(bx), Math.round(by), Math.round(bw), Math.round(bh));
+    } catch (e) {
+      console.warn('[FaceSwap] paste-back failed:', e.message);
+    }
+  }
+
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
+
 // Regenerate one image instance with sibling-ref injection + style fingerprint.
 // Mutates the imageInstance in place: status, imgDataUrl, generationContext, error.
 //
@@ -185,13 +348,29 @@ SCENE: ${scenePrompt}${noTextSuffix}`
 STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
 
   try {
-    const dataUrl = await generateImageGeminiFlash(
-      composedPrompt,
-      geminiKey,
-      { width, height, refParts },
-      modelOverride
-    );
-    imageInstance.imgDataUrl = dataUrl;
+    // LoRA routing: use _getSceneLoraContext if available, else fall back to Gemini
+    let dataUrl;
+    if (typeof _getSceneLoraContext === 'function' && window.LoraLibrary) {
+      const { loras: _sceneLoras, hasLora: _hasLora } = _getSceneLoraContext(scenes[sceneIdx]);
+      if (_hasLora) {
+        const falKey = window.LoraLibrary.getFalKey();
+        const triggerWords = _sceneLoras.map(l => l.triggerWord).filter(Boolean).join(' ');
+        const _loraPrompt = triggerWords ? `${triggerWords} ${composedPrompt}` : composedPrompt;
+        dataUrl = await generateImageFalFluxLora(_loraPrompt, _sceneLoras, falKey, { width, height });
+      }
+    }
+    if (!dataUrl) {
+      dataUrl = await generateImageGeminiFlash(composedPrompt, geminiKey, { width, height, refParts }, modelOverride);
+    }
+    // Face swap post-process for photorealistic/cinematic scenes
+    let finalDataUrl = dataUrl;
+    try {
+      finalDataUrl = await applyFaceSwapToSceneImage(dataUrl, scenes[sceneIdx]);
+    } catch (e) {
+      console.warn('[FaceSwap] post-process failed, using original image:', e.message);
+    }
+
+    imageInstance.imgDataUrl = finalDataUrl;
     imageInstance.status = 'done';
     imageInstance.error = null;
     imageInstance.generationContext = {
@@ -201,7 +380,7 @@ STYLE GUIDE: ${styleGuide}${noTextSuffix}`;
     };
     return {
       ok: true,
-      dataUrl,
+      dataUrl: finalDataUrl,
       siblingRefIds: imageInstance.generationContext.siblingRefIds,
       modelUsed: imageInstance.generationContext.modelUsed,
     };
@@ -217,6 +396,7 @@ window.CanvasConsistency = {
   buildRefParts,
   generateStyleFingerprint,
   regenerateImageInstance,
+  applyFaceSwapToSceneImage,
   SIBLING_BUDGET,
   MAX_TOTAL_PARTS,
 };

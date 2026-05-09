@@ -409,6 +409,90 @@ html[data-theme="light"] #create-canvas-step .cg-node {
   color: var(--accent, var(--lp-accent));
 }
 
+#create-canvas-step .cg-motion-picker {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--bg-primary, var(--lp-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+  padding: 3px 5px;
+}
+
+#create-canvas-step .cg-mpick {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted, var(--lp-faint));
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  user-select: none;
+}
+
+#create-canvas-step .cg-mpick:hover {
+  color: var(--accent, var(--lp-accent));
+  background: var(--bg-hover, rgba(0,0,0,0.06));
+}
+
+#create-canvas-step .cg-mpick--active {
+  color: var(--accent, var(--lp-accent));
+  background: rgba(99,102,241,0.12);
+}
+
+#create-canvas-step .cg-audio-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: var(--bg-primary, var(--lp-bg));
+  border: 1px solid var(--border, var(--lp-card-bdr));
+  border-radius: 6px;
+}
+
+#create-canvas-step .cg-audio-play {
+  flex-shrink: 0;
+  background: var(--accent, var(--lp-accent));
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+#create-canvas-step .cg-audio-play:hover {
+  opacity: 0.85;
+}
+
+#create-canvas-step .cg-audio-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border, var(--lp-card-bdr));
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+#create-canvas-step .cg-audio-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent, var(--lp-accent));
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+#create-canvas-step .cg-audio-bar--playing .cg-audio-track {
+  background: color-mix(in srgb, var(--accent, var(--lp-accent)) 20%, transparent);
+}
+
 /* ════ SECTION 8 — Variant tray + thumb strip ══════════════════════════ */
 
 #create-canvas-step .cg-variant-tray {
@@ -1104,6 +1188,52 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 }
 @keyframes cg-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ─── Two-phase pipeline: prompt node ─────────────────────────────────────── */
+#create-canvas-step .cg-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+#create-canvas-step .cg-prompt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+#create-canvas-step .cg-prompt-label {
+  flex: 0 0 80px;
+  color: var(--lp-faint, oklch(55% 0 0));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 1px;
+}
+#create-canvas-step .cg-prompt-val {
+  flex: 1;
+  color: var(--lp-text, oklch(92% 0 0));
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#create-canvas-step .cg-prompt-val--empty {
+  color: var(--lp-faint, oklch(55% 0 0));
+}
+/* Spinner in prompt node header while filling */
+#create-canvas-step .cg-prompt-hdr--filling::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--lp-faint, oklch(55% 0 0));
+  border-top-color: var(--lp-accent, oklch(56% 0.18 230));
+  border-radius: 50%;
+  animation: cg-spin 0.7s linear infinite;
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 /* VID right panel — structured prompt fields */
@@ -2011,3 +2141,110 @@ html[data-theme="light"] #create-canvas-step .cg-thumb .cg-vid-badge {
   opacity: 0.7;
 }
 #create-canvas-step .cg-filter-clear:hover { opacity: 1; }
+
+/* ── Preview Player node ────────────────────────────────────────────────── */
+#create-canvas-step .cg-node--preview {
+  overflow: visible;
+}
+#create-canvas-step .cg-prev-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 16:9 canvas area */
+#create-canvas-step .cg-prev-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #050814;
+  overflow: hidden;
+  border-radius: 0 0 0 0;
+}
+#create-canvas-step .cg-prev-canvas {
+  width: 100%; height: 100%;
+  display: block;
+}
+#create-canvas-step .cg-prev-canvas-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, var(--lp-faint));
+  font-size: 12px;
+  background: linear-gradient(135deg, var(--lp-bg2, #0c1220) 0%, var(--lp-bg, #050814) 100%);
+}
+
+/* Scene strip */
+#create-canvas-step .cg-prev-strip {
+  display: flex;
+  height: 36px;
+  gap: 2px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border, var(--lp-card-bdr));
+  flex-shrink: 0;
+}
+#create-canvas-step .cg-prev-seg {
+  flex-shrink: 0;
+  border-radius: 3px;
+  background-color: var(--lp-card-bdr);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  height: 100%;
+}
+#create-canvas-step .cg-prev-seg:hover,
+#create-canvas-step .cg-prev-seg--active {
+  opacity: 1;
+  outline: 2px solid var(--accent, var(--lp-accent));
+}
+#create-canvas-step .cg-prev-seg--empty { background-color: var(--lp-faint); opacity: 0.3; }
+
+/* Controls row */
+#create-canvas-step .cg-prev-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+#create-canvas-step .cg-prev-play {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent, var(--lp-accent));
+  border: 0; color: #fff;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+#create-canvas-step .cg-prev-play:hover { opacity: 0.85; }
+
+#create-canvas-step .cg-prev-track {
+  flex: 1; height: 5px;
+  background: var(--border, var(--lp-card-bdr));
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+#create-canvas-step .cg-prev-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent, var(--lp-accent));
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+#create-canvas-step .cg-prev-time {
+  font-size: 10px;
+  color: var(--text-muted, var(--lp-faint));
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+#create-canvas-step .cg-prev-meta {
+  font-size: 10px;
+  color: var(--text-muted, var(--lp-faint));
+  margin-left: auto;
+}

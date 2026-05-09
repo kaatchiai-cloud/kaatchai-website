@@ -27,6 +27,10 @@
   let _loadingPromise = null;
   let _detectionFailures = 0;
 
+  // Separate IMAGE-mode landmarker for static scene images (face swap detection).
+  let _imageLandmarker = null;
+  let _imageLoadingPromise = null;
+
   // Selected lip-mesh landmark indices on the FaceMesh 478-point topology.
   // Outer lip ring (full mouth boundary) — used for mouth-bbox + center.
   const LIP_OUTER = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
@@ -117,6 +121,19 @@
     return Math.max(-90, Math.min(90, offset * 180));
   }
 
+  // Bounding box of the entire face from all 478 landmarks.
+  function computeFaceBbox(landmarks, frameW, frameH) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const lm of landmarks) {
+      if (!lm) continue;
+      const x = lm.x * frameW, y = lm.y * frameH;
+      if (x < minX) minX = x; if (y < minY) minY = y;
+      if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    }
+    if (!isFinite(minX)) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
   // Build a per-face descriptor used by identity matching + overlay paint.
   function describeFace(faceLandmarks, frameW, frameH) {
     const region = computeMouthRegion(faceLandmarks, frameW, frameH);
@@ -128,8 +145,8 @@
       mouthSize: region.mouthSize,
       headYaw: yaw,
       mouthVisible,
-      // Also store face centroid in normalized coords for identity matching by position
       centroidX: faceLandmarks[1] ? faceLandmarks[1].x : 0.5,
+      faceBbox: computeFaceBbox(faceLandmarks, frameW, frameH),
     };
   }
 
@@ -321,6 +338,62 @@
     return true;
   }
 
+  // IMAGE mode landmarker — used for static scene image face detection (face swap).
+  async function loadImageFaceLandmarker() {
+    if (_imageLandmarker) return _imageLandmarker;
+    if (_imageLoadingPromise) return _imageLoadingPromise;
+    _imageLoadingPromise = (async () => {
+      for (const delegate of ['GPU', 'CPU']) {
+        try {
+          const mod = await import(/* @vite-ignore */ MEDIAPIPE_CDN);
+          const { FaceLandmarker, FilesetResolver } = mod;
+          const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE);
+          _imageLandmarker = await FaceLandmarker.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL, delegate },
+            runningMode: 'IMAGE',
+            numFaces: 4,
+          });
+          return _imageLandmarker;
+        } catch (e) {
+          if (delegate === 'CPU') { _imageLoadingPromise = null; throw e; }
+          console.warn('[LipSync] IMAGE mode GPU delegate failed, retrying CPU');
+        }
+      }
+    })();
+    return _imageLoadingPromise;
+  }
+
+  // Detect faces in a static image (data URL, HTMLImageElement, or canvas).
+  // Returns face descriptors sorted left-to-right by centroid X, each with faceBbox.
+  async function detectFacesInImage(imageSource) {
+    const landmarker = await loadImageFaceLandmarker();
+    let src = imageSource;
+    if (typeof imageSource === 'string') {
+      src = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('detectFacesInImage: image load failed'));
+        img.src = imageSource;
+      });
+    }
+    const off = document.createElement('canvas');
+    off.width  = src.naturalWidth  || src.width  || 512;
+    off.height = src.naturalHeight || src.height || 512;
+    off.getContext('2d').drawImage(src, 0, 0, off.width, off.height);
+    let result;
+    try {
+      result = landmarker.detect(off);
+    } catch (e) {
+      console.warn('[LipSync] detectFacesInImage detect() failed:', e.message);
+      return [];
+    }
+    const faces = (result.faceLandmarks || [])
+      .map(fl => describeFace(fl, off.width, off.height))
+      .filter(Boolean);
+    faces.sort((a, b) => a.centroidX - b.centroidX);
+    return faces;
+  }
+
   // Helper: load a dataURL into an HTMLImageElement (cached).
   const _spriteImageCache = new Map();
   function spriteFromDataUrl(dataUrl) {
@@ -338,6 +411,7 @@
   window.LipSync = {
     loadFaceLandmarker,
     detectFacesInClip,
+    detectFacesInImage,
     matchFaceToSpeaker,
     buildOverlayInstructions,
     sampleAudioAmplitude,

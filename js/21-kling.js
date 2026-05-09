@@ -32,7 +32,7 @@ async function generateKlingJWT() {
 }
 
 // Submit Kling i2v task — no retry (retry creates duplicate billable tasks on 429)
-async function submitKlingI2V(base64DataUrl, prompt, duration, negativePrompt) {
+async function submitKlingI2V(base64DataUrl, prompt, duration, negativePrompt, tailBase64DataUrl) {
   const rawB64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
   const jwt = await generateKlingJWT();
   const body = {
@@ -43,6 +43,10 @@ async function submitKlingI2V(base64DataUrl, prompt, duration, negativePrompt) {
     mode: 'pro'
   };
   if (negativePrompt && negativePrompt.trim()) body.negative_prompt = negativePrompt.trim().slice(0, 2500);
+  if (tailBase64DataUrl) {
+    const rawTail = tailBase64DataUrl.includes(',') ? tailBase64DataUrl.split(',')[1] : tailBase64DataUrl;
+    body.image_tail = rawTail;
+  }
   const resp = await fetch(`${KLING_BASE}/videos/image2video`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
