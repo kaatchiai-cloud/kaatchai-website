@@ -24661,6 +24661,22 @@ window.addEventListener('resize', () => { renderVideoTimeline(); });
                 } catch (_) {}
               }
             }
+            // Narrator lip sync: lipSync lives on narrV (video instance), not scene
+            if (typeof window.LipSync !== 'undefined' && newNarrIdx >= 0) {
+              const narrItem = _narrItems[newNarrIdx];
+              const nSceneIdx = narrItem && narrItem.sceneIdx != null ? narrItem.sceneIdx : -1;
+              const nScene = (nSceneIdx >= 0 && typeof createScenes !== 'undefined') ? createScenes[nSceneIdx] : null;
+              const narrV = nScene && Array.isArray(nScene.videoInstances)
+                ? nScene.videoInstances.find(v => v.id === narrItem.videoInstanceId)
+                : null;
+              const ls = narrV && narrV.lipSync;
+              if (ls && ls.tier === 'stori' && ls.overlayInstructions && ls.sprites) {
+                const localT = elapsed - narrItem.startTime;
+                try {
+                  window.LipSync.composeMouthSprite(ctx, localT, ew, eh, ls.overlayInstructions, ls.sprites);
+                } catch (_) {}
+              }
+            }
           } else {
             const bgM = renderBgVideoBefore(ctx, ew, eh, elapsed, sorted);
             if (bgM !== 'skip-images') renderTimelineFrame(ctx, ew, eh, elapsed, sorted);
