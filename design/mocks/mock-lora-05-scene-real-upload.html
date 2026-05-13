@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440,initial-scale=1" />
+<title>Stori - LoRA Studio - Scene Real Upload</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --lp-bg:#050814;
+    --lp-surface:rgba(255,255,255,0.04);
+    --lp-card-bdr:rgba(255,255,255,0.08);
+    --lp-card-bdr-h:rgba(0,229,200,0.40);
+    --lp-text:#eef4ff;
+    --lp-dim:rgba(238,244,255,0.65);
+    --lp-mute:rgba(238,244,255,0.50);
+    --lp-faint:rgba(238,244,255,0.38);
+    --lp-accent:#00e5c8;
+    --lp-accent-h:#33ecd4;
+    --lp-on-accent:#05101a;
+    --lp-glow:rgba(0,229,200,0.30);
+  }
+  html,body{
+    background:var(--lp-bg);color:var(--lp-text);
+    font-family:'Inter',system-ui,sans-serif;
+    letter-spacing:-0.011em;font-feature-settings:"ss01","cv11";
+    width:1440px;height:900px;overflow:hidden;margin:0;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+
+  .topbar{
+    height:56px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border-bottom:1px solid var(--lp-card-bdr);
+    backdrop-filter:blur(14px);
+    position:relative;z-index:30;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 10px;border-radius:999px;
+    font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--lp-dim);
+    background:rgba(255,255,255,0.04);border:1px solid var(--lp-card-bdr);
+  }
+  .pill-accent{
+    color:var(--lp-accent);
+    background:rgba(0,229,200,0.08);
+    border-color:rgba(0,229,200,0.34);
+    box-shadow:inset 0 0 12px rgba(0,229,200,0.10);
+  }
+  .pill-dot{width:6px;height:6px;border-radius:999px;background:var(--lp-accent);box-shadow:0 0 10px var(--lp-glow)}
+  .btn-ghost{
+    background:transparent;border:1px solid var(--lp-card-bdr);
+    color:var(--lp-dim);font-size:12.5px;padding:6px 12px;border-radius:8px;cursor:pointer;
+  }
+
+  .modal-overlay{
+    position:absolute;inset:0;
+    background:rgba(5,8,20,0.82);
+    backdrop-filter:blur(8px);
+    z-index:50;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .modal{
+    width:840px;max-height:850px;
+    border-radius:16px;
+    border:1px solid var(--lp-card-bdr);
+    background:linear-gradient(180deg, rgba(12,16,32,0.98), rgba(8,12,24,0.98));
+    backdrop-filter:blur(20px);
+    box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,229,200,0.04);
+    overflow:hidden;position:relative;
+  }
+  .modal-header{
+    padding:24px 28px 20px;
+    border-bottom:1px solid var(--lp-card-bdr);
+  }
+  .modal-close{
+    position:absolute;top:16px;right:16px;
+    width:32px;height:32px;border-radius:8px;
+    background:rgba(255,255,255,0.04);border:1px solid var(--lp-card-bdr);
+    color:var(--lp-mute);font-size:16px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+
+  .name-input{
+    width:100%;
+    background:rgba(255,255,255,0.03);border:1px solid var(--lp-card-bdr);
+    border-radius:8px;padding:10px 14px;
+    font-size:14px;color:var(--lp-text);outline:none;
+    font-family:'Inter',sans-serif;
+  }
+  .name-input::placeholder{color:var(--lp-faint)}
+
+  .type-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 8px;border-radius:4px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:500;
+    color:#f59e0b;background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.30);
+  }
+
+  /* Outfit group */
+  .outfit-group{
+    border:1px solid var(--lp-card-bdr);
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:14px;
+  }
+  .outfit-header{
+    padding:12px 16px;
+    background:rgba(255,255,255,0.02);
+    border-bottom:1px solid var(--lp-card-bdr);
+    display:flex;align-items:center;gap:10px;
+  }
+  .outfit-header-num{
+    width:24px;height:24px;border-radius:6px;
+    background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.25);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:#fbbf77;font-weight:600;
+  }
+  .outfit-desc-input{
+    flex:1;
+    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);
+    border-radius:6px;padding:6px 10px;
+    font-size:12px;color:var(--lp-dim);outline:none;
+    font-family:'Inter',sans-serif;font-style:italic;
+  }
+  .outfit-desc-input::placeholder{color:var(--lp-faint)}
+  .outfit-status{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    letter-spacing:0.04em;
+  }
+  .outfit-body{padding:14px 16px}
+
+  /* Slot grid */
+  .slot-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  }
+  .slot-item{
+    border-radius:8px;
+    border:1px solid var(--lp-card-bdr);
+    overflow:hidden;
+    aspect-ratio:1;
+    display:flex;flex-direction:column;
+  }
+  /* Hide scrollbar */
+  *::-webkit-scrollbar{display:none}
+  *{scrollbar-width:none}
+
+  .slot-ref{
+    padding:6px 0;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;color:var(--lp-faint);text-align:center;
+    font-family:'JetBrains Mono',monospace;
+    background:rgba(245,158,11,0.03);
+    border-bottom:1px solid rgba(255,255,255,0.04);
+  }
+  .slot-upload{
+    flex:1;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .slot-upload-empty{
+    background:rgba(255,255,255,0.015);
+  }
+  .slot-upload-filled{
+    position:relative;
+  }
+  .slot-upload-filled::after{
+    content:"↻";
+    position:absolute;top:4px;right:4px;
+    width:18px;height:18px;border-radius:4px;
+    background:rgba(0,0,0,0.55);
+    color:var(--lp-mute);font-size:10px;
+    display:none;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .slot-upload-filled:hover::after{display:flex}
+
+  .btn-train{
+    width:100%;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 20px;border-radius:10px;
+    font-size:14px;font-weight:600;
+    cursor:pointer;
+  }
+  .btn-train-disabled{
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--lp-card-bdr);
+    color:var(--lp-faint);
+    cursor:not-allowed;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar flex items-center justify-between px-5">
+  <div class="flex items-center gap-4">
+    <button class="btn-ghost flex items-center gap-2">
+      <span style="font-size:14px">&#8592;</span><span>Home</span>
+    </button>
+    <div class="w-px h-5" style="background:var(--lp-card-bdr)"></div>
+    <span class="pill pill-accent mono"><span class="pill-dot"></span>LoRA Studio</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="pill mono"><span class="pill-dot" style="background:#10b981;box-shadow:0 0 10px rgba(16,185,129,0.45)"></span>410 credits</span>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="flex items-center gap-3">
+        <span class="type-badge">&#127916; Scene (Real)</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Scene Character: Real Photos</h2>
+      </div>
+    </div>
+    <button class="modal-close">&#10005;</button>
+
+    <div style="padding:24px 28px 28px;overflow-y:auto;max-height:720px">
+
+      <!-- Name -->
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;color:var(--lp-mute);font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:6px">Name</label>
+        <input class="name-input" value="Alex &mdash; Brand Ambassador" />
+      </div>
+
+      <!-- Warning -->
+      <div style="padding:10px 14px;border-radius:8px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);margin-bottom:18px">
+        <div style="font-size:11.5px;color:var(--lp-mute);line-height:1.5">
+          <span style="color:#fbbf77">Important:</span> Use 3 genuinely different outfits. Same outfit = outfit baked into identity.
+        </div>
+      </div>
+
+      <!-- Outfit 1: Fully filled (6/6) -->
+      <div class="outfit-group">
+        <div class="outfit-header">
+          <div class="outfit-header-num">1</div>
+          <input class="outfit-desc-input" value="White button-up shirt, black trousers" />
+          <span class="outfit-status" style="color:#10b981">6/6 &#10003;</span>
+        </div>
+        <div class="outfit-body">
+          <div class="slot-grid">
+            <div class="slot-item">
+              <div class="slot-ref">Front</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 50% 45%, rgba(245,158,11,0.15) 0%, transparent 50%), linear-gradient(145deg, #1a1408 0%, #2a2010 50%, #121008 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Left profile</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 40% 45%, rgba(245,158,11,0.12) 0%, transparent 50%), linear-gradient(145deg, #1c1608 0%, #2c2212 50%, #141008 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Right profile</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 60% 45%, rgba(245,158,11,0.12) 0%, transparent 50%), linear-gradient(145deg, #18120a 0%, #28200e 50%, #100c06 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">3/4 angle</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 55% 40%, rgba(245,158,11,0.14) 0%, transparent 50%), linear-gradient(145deg, #1a140a 0%, #2a1e0e 50%, #120c06 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Top half</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 50% 35%, rgba(245,158,11,0.13) 0%, transparent 50%), linear-gradient(145deg, #1c1608 0%, #2c2210 50%, #140e06 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Full body</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 50% 30%, rgba(245,158,11,0.11) 0%, transparent 50%), linear-gradient(145deg, #18120a 0%, #281e0c 50%, #100a04 100%)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outfit 2: Partially filled (3/6) -->
+      <div class="outfit-group">
+        <div class="outfit-header">
+          <div class="outfit-header-num">2</div>
+          <input class="outfit-desc-input" value="Navy polo, khaki shorts" />
+          <span class="outfit-status" style="color:#f59e0b">3/6</span>
+        </div>
+        <div class="outfit-body">
+          <div class="slot-grid">
+            <div class="slot-item">
+              <div class="slot-ref">Front</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 50% 45%, rgba(34,211,238,0.12) 0%, transparent 50%), linear-gradient(145deg, #0c1a2e 0%, #122840 50%, #0a1220 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Left profile</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 40% 45%, rgba(34,211,238,0.10) 0%, transparent 50%), linear-gradient(145deg, #0e1c30 0%, #142a42 50%, #0a1420 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Right profile</div>
+              <div class="slot-upload slot-upload-filled" style="background:radial-gradient(circle at 60% 45%, rgba(34,211,238,0.10) 0%, transparent 50%), linear-gradient(145deg, #0c1a2c 0%, #12263e 50%, #08101c 100%)">
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">3/4 angle</div>
+              <div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.08)">
+                <span style="font-size:18px;color:var(--lp-faint)">+</span>
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Top half</div>
+              <div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.08)">
+                <span style="font-size:18px;color:var(--lp-faint)">+</span>
+              </div>
+            </div>
+            <div class="slot-item">
+              <div class="slot-ref">Full body</div>
+              <div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.08)">
+                <span style="font-size:18px;color:var(--lp-faint)">+</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outfit 3: Empty (0/6) -->
+      <div class="outfit-group" style="opacity:0.6">
+        <div class="outfit-header">
+          <div class="outfit-header-num">3</div>
+          <input class="outfit-desc-input" placeholder="Describe outfit 3..." />
+          <span class="outfit-status" style="color:var(--lp-faint)">0/6</span>
+        </div>
+        <div class="outfit-body">
+          <div class="slot-grid">
+            <div class="slot-item"><div class="slot-ref">Front</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+            <div class="slot-item"><div class="slot-ref">Left profile</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+            <div class="slot-item"><div class="slot-ref">Right profile</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+            <div class="slot-item"><div class="slot-ref">3/4 angle</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+            <div class="slot-item"><div class="slot-ref">Top half</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+            <div class="slot-item"><div class="slot-ref">Full body</div><div class="slot-upload slot-upload-empty" style="border:1px dashed rgba(255,255,255,0.06)"><span style="font-size:18px;color:var(--lp-faint)">+</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Counter -->
+      <div style="font-size:13px;color:var(--lp-dim);margin-bottom:16px;text-align:center">
+        <span style="color:var(--lp-text);font-weight:500">9</span><span style="color:var(--lp-faint)">/18 photos uploaded</span>
+      </div>
+
+      <!-- Voice (Added) -->
+      <div style="padding:14px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.03);margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;font-size:14px">&#127908;</div>
+            <div>
+              <div style="font-size:13px;color:var(--lp-text);font-weight:500">Alex's Voice</div>
+              <div style="font-size:10px;color:var(--lp-faint);font-family:'JetBrains Mono',monospace;margin-top:2px">62s &middot; English &middot; ElevenLabs IVC</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;padding:3px 8px;border-radius:4px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);color:#10b981;font-family:'JetBrains Mono',monospace;letter-spacing:0.04em">&#10003; CLONED</span>
+            <button style="padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--lp-card-bdr);color:var(--lp-mute);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">Replace</button>
+            <button style="padding:5px 10px;border-radius:6px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15);color:rgba(239,68,68,0.65);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Train button (disabled) -->
+      <button class="btn-train btn-train-disabled" disabled>Train LoRA</button>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
