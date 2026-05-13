@@ -2480,6 +2480,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           ${!showFields ? `<input type="text" placeholder="Narrator name (e.g. Voice-over)" value="${escapeHtml(n.name)}" data-narrator-field="name">` : ''}
           ${n.appearanceSheet ? `<div class="cast-row-sheet"><strong>Appearance:</strong> ${escapeHtml(n.appearanceSheet)}</div>` : ''}
           ${needsRegen ? '<div class="cast-row-regen-badge">⚠ Style changed — regenerate to lock</div>' : ''}
+          ${_renderNarratorVoiceRow(n)}
         </div>
         <div class="cast-row-actions">
           ${showFields && !_isPhotorealisticMode() ? `<button class="btn-xs" data-narrator-action="upload">${n.uploadedImageDataUrl ? '🔄 Change' : '📎 Upload ref'}</button>` : (showFields ? `<div style="font-size:0.72rem;color:var(--text-muted);">AI-generated appearance only</div>` : '')}
@@ -2492,6 +2493,25 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
     }
     _wireNarratorRow();
     _renderNarratorSetup();
+  }
+
+  function _renderNarratorVoiceRow(n) {
+    const v = n?.voice;
+    if (v && v.voiceName) {
+      const badge = v.source === 'cloned'  ? '✓ CLONED'
+                  : v.provider === 'gemini' ? '✓ GEMINI'
+                  :                           '✓ VOICE';
+      return `<div class="narrator-voice-row">
+        <span class="narrator-voice-icon">🎙</span>
+        <span class="narrator-voice-name">${escapeHtml(v.voiceName)}</span>
+        <span class="lora-optional-badge" style="margin-left:4px">${badge}</span>
+        <button class="btn-xs" style="margin-left:auto" data-narrator-action="voice-change">Change</button>
+        <button class="btn-xs" data-narrator-action="voice-remove">✕</button>
+      </div>`;
+    }
+    return `<div class="narrator-voice-row narrator-voice-empty">
+      <button class="btn-xs" style="flex:1" data-narrator-action="voice-pick">🎙 Pick Narrator Voice</button>
+    </div>`;
   }
 
   function _wireNarratorRow() {
@@ -2536,6 +2556,14 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           _renderNarratorSlot();
           _showMutexHints();
           if (typeof updateCreateButtons === 'function') updateCreateButtons();
+          if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
+        } else if (a === 'voice-pick' || a === 'voice-change') {
+          if (typeof window.LoraLibrary?._openVoicePicker === 'function') {
+            window.LoraLibrary._openVoicePicker(null, 'narrator');
+          }
+        } else if (a === 'voice-remove') {
+          n.voice = null;
+          _renderNarratorSlot();
           if (typeof autoSaveCreateState === 'function') autoSaveCreateState();
         }
       });
@@ -2857,6 +2885,7 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
           onScreenStyle: 'voice-only',
           locked: false,
           libraryId: null,
+          voice: null,
           createdAt: new Date().toISOString(),
         };
         _renderNarratorSlot();
@@ -3164,6 +3193,19 @@ window.castBuildBatchBibleRefParts = castBuildBatchBibleRefParts;
       ].filter(Boolean);
       const found = all.find(x => x.id === speakerCharacterId);
       if (found && found.voice) return found.voice;
+      // Fall through to LoRA voiceProfile if the cast entry links to a LoRA item
+      if (found && found.libraryId && !found.voice) {
+        const loraItem = window.LoraLibrary?.getItemById?.(found.libraryId);
+        if (loraItem?.voiceProfile?.elevenlabsVoiceId) {
+          return {
+            provider:          'elevenlabs',
+            voiceId:            loraItem.voiceProfile.elevenlabsVoiceId,
+            elevenlabsVoiceId:  loraItem.voiceProfile.elevenlabsVoiceId,
+            voiceName:          loraItem.voiceProfile.voiceName || 'Voice',
+            source:             loraItem.voiceProfile.source || 'library',
+          };
+        }
+      }
     }
     if (speakerName) {
       const lc = String(speakerName).toLowerCase();

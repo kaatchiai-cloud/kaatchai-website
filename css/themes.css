@@ -228,3 +228,23 @@ html[data-theme="light"] .lp-sp-card { background: #0f1e3d; border-color: rgba(2
 html[data-theme="light"] .lp-sp-card:hover { background: #162848; }
 html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
 
+
+/* ── Phase 11 — Voice UI light-mode overrides ────────────────────
+   Dark defaults in styles.css use var() tokens already — most
+   pick up light values automatically from the token swap above.
+   Only structural pieces that render a dark aesthetic deliberately
+   need explicit overrides here.                                   */
+
+/* voice-clone-badge: cloned voice uses cyan which is already
+   darkened in the light token set — no override needed.          */
+
+/* voice-picker-list scroll track */
+html[data-theme="light"] .voice-picker-list {
+  scrollbar-color: rgba(10,22,40,0.18) var(--lp-bg);
+}
+
+/* narrator-voice-row: dashed empty border needs more contrast in light */
+html[data-theme="light"] .narrator-voice-row.narrator-voice-empty {
+  border-color: rgba(10,22,40,0.22);
+}
+

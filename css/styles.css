@@ -26,6 +26,7 @@
   --radius-sm: 6px;
   --radius: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
   /* Typography scale */
   --text-2xs: 0.62rem;
   --text-xs: 0.68rem;
@@ -8114,4 +8115,1486 @@ html[data-theme="light"] #create-page .scene-chip-action-label {
   .char-review-grid { grid-template-columns: repeat(3, 1fr); }
   .assets-row { flex-wrap: wrap; gap: 6px; }
   .assets-story-name { flex-basis: 100%; }
+}
+
+/* ══════════════════════════════════════════
+   LoRA STUDIO — Landing page + Card grid
+   ══════════════════════════════════════════ */
+
+/* ── Page wrapper ── */
+#lora-studio-page {
+  max-width: 960px; width: 100%; margin: 0 auto; padding: 28px 0;
+}
+
+/* ── Studio header ── */
+.studio-header { margin-bottom: 20px; }
+.studio-title {
+  font-size: var(--text-xl); font-weight: 700;
+  color: var(--text-primary); margin: 0 0 4px;
+}
+.studio-subtitle { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
+
+/* ── Filter tabs ── */
+.studio-filter-tabs {
+  display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.studio-filter {
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: var(--text-xs); font-family: inherit;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.studio-filter:hover { color: var(--text-primary); border-color: var(--border-hover); }
+.studio-filter.active {
+  color: var(--accent); background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* ── Card grid ── */
+.studio-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ── Studio card ── */
+.studio-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; gap: 0;
+  cursor: pointer; overflow: hidden;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.studio-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+/* ── Card head (badge + lock + menu) ── */
+.studio-card-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px 6px;
+}
+.studio-card-badge {
+  flex: 1; font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px;
+  font-family: var(--font-mono, monospace); letter-spacing: 0.04em;
+  text-transform: uppercase; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.studio-card-badge--product      { color: var(--amber);  background: var(--amber-soft);  border: 1px solid rgba(245,158,11,0.30); }
+.studio-card-badge--talking-head { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--border-active); }
+.studio-card-badge--scene-real   { color: var(--green);  background: var(--green-soft);  border: 1px solid rgba(34,197,94,0.30); }
+.studio-card-badge--scene-ai     { color: var(--cyan);   background: var(--cyan-soft);   border: 1px solid rgba(6,182,212,0.30); }
+
+.studio-lock-icon { font-size: 12px; flex-shrink: 0; opacity: 0.7; }
+
+.studio-card-menu {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 13px; cursor: pointer; padding: 0 4px; line-height: 1;
+  border-radius: var(--radius-sm); transition: color 0.15s, background 0.15s;
+  flex-shrink: 0; letter-spacing: 1px;
+}
+.studio-card-menu:hover { color: var(--text-primary); background: var(--bg-elevated); }
+
+/* ── Card preview image ── */
+.studio-card-preview {
+  width: 100%; aspect-ratio: 3/4; background: var(--bg-elevated);
+  overflow: hidden; position: relative;
+}
+.studio-card-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.studio-card-preview-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); color: var(--text-muted);
+}
+
+/* ── Card name ── */
+.studio-card-name {
+  padding: 8px 10px 4px;
+  font-size: var(--text-sm); font-weight: 600;
+  color: var(--text-primary); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Card status row ── */
+.studio-card-status {
+  padding: 4px 10px 6px;
+  min-height: 24px; display: flex; flex-direction: column; gap: 4px;
+}
+.studio-status-badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; padding: 2px 8px; border-radius: 999px;
+  font-weight: 600;
+}
+.studio-status-badge--ready  { color: var(--green);  background: var(--green-soft); }
+.studio-status-badge--review { color: var(--amber);  background: var(--amber-soft); }
+.studio-status-badge--error  { color: var(--red);    background: var(--red-soft);   }
+
+/* ── Progress bar (inside card) ── */
+.studio-progress-bar {
+  height: 3px; background: var(--bg-elevated);
+  border-radius: 2px; overflow: hidden;
+}
+.studio-progress-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 2px; transition: width 0.4s ease;
+}
+.studio-progress-fill.indeterminate {
+  width: 45%;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+/* ── Compat + voice pills ── */
+.studio-card-compat {
+  padding: 4px 10px 10px;
+  display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px;
+}
+.studio-compat-pill {
+  font-size: 9px; padding: 2px 7px; border-radius: 999px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); white-space: nowrap;
+}
+.studio-voice-pill {
+  color: var(--cyan);
+  background: var(--cyan-soft);
+  border-color: rgba(6,182,212,0.30);
+}
+
+/* ── Card menu dropdown danger item ── */
+.studio-menu-danger { color: var(--red) !important; }
+.studio-menu-danger:hover { background: var(--red-soft) !important; }
+
+/* ── New LoRA button row ── */
+.studio-new-btn-row {
+  display: flex; justify-content: flex-start; padding: 4px 0;
+}
+
+/* ══════════════════════════════════════════
+   Topbar training indicator pill
+   ══════════════════════════════════════════ */
+.topbar-training-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--amber-soft); border: 1px solid var(--amber);
+  font-size: var(--text-xs);
+}
+.topbar-training-pill.hidden { display: none; }
+.topbar-training-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--amber);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.topbar-training-bar {
+  width: 64px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.15); overflow: hidden;
+}
+.topbar-training-fill {
+  height: 100%; background: var(--amber);
+  border-radius: 2px; transition: width 0.6s ease;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ══════════════════════════════════════════
+   LoRA Studio — Path selection modal
+   ══════════════════════════════════════════ */
+
+/* ── Shared modal overlay / shell ── */
+.lora-modal-overlay {
+  position: fixed; inset: 0; z-index: 800;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.lora-modal-overlay.hidden { display: none; }
+
+.lora-modal {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  position: relative; overflow: hidden;
+}
+
+.lora-modal-header {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.lora-modal-title {
+  font-size: var(--text-lg); font-weight: 700;
+  color: var(--text-primary); margin: 0;
+}
+.lora-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.lora-modal-close:hover { color: var(--text-primary); border-color: var(--border-hover); }
+
+/* ── Path selection panel ── */
+.lora-path-panel {
+  width: 640px; max-width: 100%;
+}
+.lora-path-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px; padding: 22px 28px 28px;
+}
+
+.lora-path-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px 18px;
+  text-align: left; cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.lora-path-card:hover {
+  border-color: var(--border-active);
+  background: var(--accent-soft);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.lora-path-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; margin-bottom: 8px;
+}
+.lora-path-name  { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.lora-path-desc  { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; }
+.lora-path-time  {
+  font-size: 10px; color: var(--text-muted);
+  font-family: var(--font-mono, monospace); letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
+/* ══════════════════════════════════════════
+   LoRA Studio — Input modal
+   ══════════════════════════════════════════ */
+
+.lora-input-panel {
+  width: 680px; max-width: 100%; max-height: 90vh;
+  display: flex; flex-direction: column;
+}
+.lora-input-scroll {
+  flex: 1; overflow-y: auto; padding: 22px 28px 28px;
+}
+/* hide scrollbar */
+.lora-input-scroll::-webkit-scrollbar { display: none; }
+.lora-input-scroll { scrollbar-width: none; }
+
+.lora-input-field {
+  display: flex; flex-direction: column; gap: 5px;
+  margin-bottom: 18px;
+}
+.lora-field-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+}
+.lora-input-text {
+  width: 100%; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 9px 12px; color: var(--text-primary);
+  font-size: var(--text-sm); font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+}
+.lora-input-text:focus { border-color: var(--accent); }
+.lora-input-text::placeholder { color: var(--text-muted); }
+
+.lora-desc-textarea {
+  width: 100%; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 9px 12px; color: var(--text-primary);
+  font-size: var(--text-sm); font-family: inherit;
+  outline: none; resize: vertical; line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.lora-desc-textarea:focus { border-color: var(--accent); }
+.lora-desc-textarea::placeholder { color: var(--text-muted); }
+
+.input-quality-note {
+  font-size: var(--text-xs); color: var(--text-muted);
+  line-height: 1.5; padding: 8px 12px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.outfit-warning { border-color: rgba(245,158,11,0.25); }
+
+.lora-input-actions { margin-top: 8px; }
+.lora-upload-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius);
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: var(--text-xs);
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.lora-upload-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+/* ── Path A: product photo grid ── */
+.product-photo-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 8px; margin-bottom: 10px;
+}
+.product-photo-thumb {
+  aspect-ratio: 1; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  position: relative; overflow: hidden;
+}
+.product-thumb-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.product-thumb-remove {
+  position: absolute; top: 4px; left: 4px;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: rgba(239,68,68,0.75); color: #fff;
+  font-size: 9px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+}
+.product-photo-thumb:hover .product-thumb-remove { display: flex; }
+.product-upload-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* Quality check badges on photo grid */
+.lora-qc-badge {
+  position: absolute; top: 4px; right: 4px;
+  padding: 2px 5px; border-radius: 3px;
+  font-size: 9px; font-weight: 600;
+  font-family: var(--font-mono, monospace);
+}
+.lora-qc-pass { color: var(--green);  background: var(--green-soft); }
+.lora-qc-fail { color: var(--amber);  background: var(--amber-soft); }
+
+/* ── Path B: guided slots list ── */
+.guided-slots-list { display: flex; flex-direction: column; }
+.guided-slot {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.guided-slot:last-child { border-bottom: none; }
+.guided-ref-col {
+  width: 72px; flex-shrink: 0; display: flex;
+  flex-direction: column; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--text-muted); text-align: center;
+}
+.guided-ref-icon { font-size: 20px; }
+.guided-ref-thumb {
+  width: 64px; height: 64px; border-radius: var(--radius-sm);
+  object-fit: cover; border: 1px solid var(--border);
+  display: block; opacity: 0.72;
+}
+.guided-upload-area {
+  width: 72px; height: 72px; flex-shrink: 0;
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 1px dashed var(--border);
+  background: var(--bg-card); cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.guided-upload-area:hover { border-color: var(--border-active); }
+.guided-upload-empty { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.guided-upload-filled {
+  width: 100%; height: 100%; position: relative;
+}
+.guided-slot-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.guided-slot-replace {
+  position: absolute; top: 3px; right: 3px;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: rgba(0,0,0,0.6); color: var(--text-muted); font-size: 10px;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+}
+.guided-upload-filled:hover .guided-slot-replace { display: flex; }
+.guided-slot-info { flex: 1; }
+.guided-qc { margin-top: 4px; font-size: 10px; }
+.guided-qc-pass { color: var(--green); }
+.guided-qc-fail { color: var(--red); }
+
+/* ── Path C1: outfit groups ── */
+.outfit-group {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden; margin-bottom: 12px;
+}
+.outfit-group-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+}
+.outfit-group-num {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--amber-soft); border: 1px solid rgba(245,158,11,0.30);
+  font-size: 11px; font-weight: 700; color: var(--amber);
+  font-family: var(--font-mono, monospace);
+}
+.outfit-desc-input {
+  flex: 1; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 5px 9px; color: var(--text-secondary);
+  font-size: var(--text-xs); font-family: inherit; font-style: italic;
+  outline: none; transition: border-color 0.15s;
+}
+.outfit-desc-input:focus { border-color: var(--accent); }
+.outfit-desc-input::placeholder { color: var(--text-muted); }
+.outfit-group-status {
+  font-size: 10px; font-weight: 600;
+  font-family: var(--font-mono, monospace); flex-shrink: 0;
+}
+.outfit-group-body { padding: 12px 14px; }
+.outfit-slots-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.outfit-slot-item { display: flex; flex-direction: column; }
+.outfit-slot-ref {
+  font-size: 9px; color: var(--text-muted); text-align: center;
+  padding: 3px 0; font-family: var(--font-mono, monospace);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.outfit-slot-upload {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden; position: relative;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.outfit-slot-empty  {
+  background: var(--bg-elevated); border: 1px dashed var(--border);
+  background-size: cover; background-position: center;
+  position: relative;
+}
+.outfit-slot-ref-overlay {
+  position: absolute; inset: 0;
+  background: var(--bg-primary);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.outfit-slot-filled { background: var(--bg-card); border: 1px solid var(--border); }
+.outfit-slot-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.outfit-slot-replace {
+  position: absolute; top: 3px; right: 3px;
+  width: 16px; height: 16px; border-radius: 3px;
+  background: rgba(0,0,0,0.6); color: var(--text-muted); font-size: 9px;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+}
+.outfit-slot-filled:hover .outfit-slot-replace { display: flex; }
+
+/* ── Path C2: AI reference images ── */
+.ai-ref-row {
+  display: flex; gap: 12px; margin-top: 8px;
+}
+.ai-ref-slot {
+  width: 100px; height: 100px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden; position: relative;
+  transition: border-color 0.15s;
+}
+.ai-ref-empty {
+  border: 1px dashed var(--border); background: var(--bg-card);
+}
+.ai-ref-empty:hover { border-color: var(--border-active); }
+.ai-ref-filled { border: 1px solid var(--border); }
+.ai-ref-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ai-ref-remove {
+  position: absolute; top: 4px; left: 4px;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: rgba(239,68,68,0.75); color: #fff; font-size: 9px;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+}
+.ai-ref-filled:hover .ai-ref-remove { display: flex; }
+
+/* ── Voice section ── */
+.lora-voice-row {
+  padding: 14px 16px; border-radius: var(--radius-lg);
+  border: 1px solid var(--border); background: var(--bg-card);
+  margin-bottom: 16px;
+}
+.lora-voice-filled {
+  border-color: rgba(139,92,246,0.28);
+  background: rgba(139,92,246,0.04);
+  display: flex; align-items: center; gap: 10px;
+}
+.lora-voice-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.lora-voice-icon {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+  flex-shrink: 0;
+}
+.lora-voice-meta { flex: 1; }
+.lora-voice-badge-cloned {
+  font-size: 9px; padding: 2px 8px; border-radius: 4px;
+  background: var(--green-soft); border: 1px solid rgba(34,197,94,0.3);
+  color: var(--green); font-family: var(--font-mono, monospace);
+  letter-spacing: 0.04em; white-space: nowrap;
+}
+.lora-optional-badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 4px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); font-family: var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+}
+
+/* ══════════════════════════════════════════
+   LoRA Studio — Training Progress Modal
+   ══════════════════════════════════════════ */
+
+.lora-training-panel {
+  width: 460px; max-width: 100%;
+}
+
+/* Circular SVG ring */
+.training-ring-wrap {
+  position: relative; width: 160px; height: 160px;
+  margin: 0 auto 24px;
+}
+.training-ring-svg {
+  width: 160px; height: 160px;
+  transform: rotate(-90deg);
+}
+.training-ring-bg {
+  fill: none; stroke: var(--bg-elevated); stroke-width: 10;
+}
+.training-ring-fill {
+  fill: none; stroke: var(--accent); stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 440;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.training-ring-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2px;
+}
+
+/* Phase step list */
+.training-steps { display: flex; flex-direction: column; }
+.training-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 8px 0; position: relative;
+}
+.training-step-dot {
+  width: 22px; height: 22px; border-radius: 999px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; z-index: 2;
+}
+.training-step-line {
+  position: absolute; left: 10px; top: 30px; bottom: -8px;
+  width: 2px; background: var(--border); z-index: 1;
+}
+.training-step-label { font-size: var(--text-xs); padding-top: 3px; }
+
+.training-step-done .training-step-dot {
+  background: var(--green-soft); border: 1px solid var(--green);
+  color: var(--green);
+}
+.training-step-done .training-step-label {
+  color: var(--text-muted); text-decoration: line-through;
+}
+.training-step-active .training-step-dot {
+  background: var(--accent-soft); border: 2px solid var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+  animation: pulse-training-dot 2s ease-in-out infinite;
+}
+.training-step-active .training-step-label {
+  color: var(--text-primary); font-weight: 500;
+}
+.training-step-pending .training-step-dot {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.training-step-pending .training-step-label { color: var(--text-muted); }
+
+@keyframes pulse-training-dot {
+  0%, 100% { box-shadow: 0 0 10px var(--accent-glow); }
+  50%       { box-shadow: 0 0 22px var(--accent-glow); }
+}
+
+/* ════════════════════════════════════════════════════
+   Phase 5 — Review Grid Modal
+   ════════════════════════════════════════════════════ */
+
+.lora-review-panel {
+  width: 900px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lora-review-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px 8px;
+  min-height: 0;
+}
+
+.lora-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Row label for each outfit theme */
+.review-row-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 9-column thumbnail grid */
+.review-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+/* Individual thumbnail cell */
+.review-thumb {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  background: var(--bg-card);
+}
+.review-thumb:hover {
+  border-color: var(--border-hover);
+}
+.review-thumb--rejected {
+  opacity: 0.35;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+}
+
+/* Red X badge shown on rejected thumbnails */
+.review-thumb-x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Hover-only X button shown on non-rejected thumbnails */
+.review-thumb-hover-x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text-muted);
+  font-size: 9px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+.review-thumb:not(.review-thumb--rejected):hover .review-thumb-hover-x {
+  display: flex;
+}
+
+/* ════════════════════════════════════════════════════
+   Phase 6 — LoRA Tuning Panel (full-page fine-tuning)
+   ════════════════════════════════════════════════════ */
+
+#lora-tuning-page {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg-primary);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Internal topbar */
+.tuning-topbar {
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+/* Split main area */
+.tuning-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Left: preview pane */
+.tuning-preview-pane {
+  flex: 1;
+  padding: 28px 36px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tuning-preview-header {
+  margin-bottom: 18px;
+}
+.tuning-preview-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 3px;
+}
+
+/* 3-column preview grid */
+.tuning-previews-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-content: start;
+}
+
+.tuning-preview-card {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.tuning-preview-img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  position: relative;
+  overflow: hidden;
+}
+.tuning-preview-empty {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+}
+.tuning-preview-spinner {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+  position: relative;
+}
+.tuning-preview-label {
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  font-style: italic;
+}
+
+/* Right: tuning controls pane */
+.tuning-right-pane {
+  width: 360px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-elevated);
+  overflow-y: auto;
+  padding: 22px 20px;
+  flex-shrink: 0;
+}
+
+/* Tier labels */
+.tuning-tier-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.tuning-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* Slider group */
+.tuning-slider-group {
+  margin-bottom: 18px;
+}
+.tuning-slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.tuning-slider-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.tuning-slider-val {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* Styled range input */
+.tuning-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+.tuning-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: pointer;
+}
+.tuning-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+  cursor: pointer;
+}
+.tuning-range-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* Shuffle button */
+.tuning-shuffle-btn {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+/* Divider */
+.tuning-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
+}
+
+/* Toggle row */
+.tuning-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.tuning-toggle-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.tuning-toggle-desc {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.tuning-toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+}
+.tuning-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+/* Apply button */
+.tuning-apply-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+/* Lock / Retrain row */
+.tuning-action-row {
+  display: flex;
+  gap: 10px;
+}
+.tuning-lock-btn,
+.tuning-retrain-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ════════════════════════════════════════════════════
+   Phase 7 — Lock / Unlock / Retrain states
+   ════════════════════════════════════════════════════ */
+
+/* Locked banner */
+.tuning-locked-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  margin-bottom: 16px;
+}
+.tuning-locked-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--amber);
+}
+.tuning-locked-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Unlock button (shown only in locked state) */
+.tuning-unlock-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-active);
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  margin-bottom: 10px;
+}
+.tuning-unlock-btn:hover {
+  background: rgba(120,220,255,0.16);
+  border-color: var(--accent);
+}
+
+/* Retrain button (destructive) */
+.tuning-retrain-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: var(--red);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  width: 100%;
+}
+.tuning-retrain-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Card menu extras */
+.lora-picker-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.lora-picker-section-label {
+  padding: 4px 12px 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════════════════
+   Phase 8 — Assets Section compatibility additions
+   ════════════════════════════════════════════════════ */
+
+/* Compat warning shown below an assets row */
+.assets-compat-warn {
+  font-size: 11px;
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 2px 0 6px;
+}
+
+/* Compat pill in character picker dropdown */
+.assets-compat-pill {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--green-soft);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  color: var(--green);
+  margin-left: 4px;
+}
+
+/* ════════════════════════════════════════════════════
+   Phase 9 — Responsive + Polish
+   ════════════════════════════════════════════════════ */
+
+/* ── Tablet: 641–860px ── */
+@media (max-width: 860px) {
+  #lora-studio-page { padding: 20px 0; }
+  .lora-review-panel { width: 100%; }
+  .lora-path-panel   { width: 100%; }
+  .lora-input-panel  { width: 100%; }
+  .lora-training-panel { width: 100%; }
+  .tuning-right-pane { width: 300px; }
+}
+
+/* ── Mobile: ≤640px ── */
+@media (max-width: 640px) {
+  /* Studio page */
+  #lora-studio-page { padding: 16px 0; }
+  .studio-items-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .studio-filter-tabs { gap: 5px; }
+  .studio-filter { font-size: 11px; padding: 4px 10px; }
+
+  /* Path selection modal */
+  .lora-path-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 16px;
+  }
+  .lora-input-scroll { padding: 16px; }
+
+  /* Review modal */
+  .lora-review-panel { width: 100%; max-height: 92vh; }
+  .lora-review-scroll { padding: 12px 14px 8px; }
+  .review-thumb-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .lora-review-footer {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .lora-review-footer > * { flex: 1 1 auto; min-width: 120px; }
+
+  /* Tuning page: stack vertically */
+  .tuning-main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .tuning-preview-pane {
+    padding: 16px;
+    overflow: visible;
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .tuning-previews-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tuning-right-pane {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    overflow: visible;
+  }
+  .tuning-topbar { padding: 0 12px; gap: 8px; }
+  .tuning-item-name { font-size: var(--text-sm); }
+  .tuning-action-row { flex-direction: column; }
+
+  /* Guided slots */
+  .guided-slot { gap: 8px; }
+  .guided-ref-col { width: 56px; }
+  .guided-upload-area { width: 56px; height: 56px; }
+
+  /* Product photo grid: more columns on mobile */
+  .product-photo-grid { grid-template-columns: repeat(4, 1fr); }
+
+  /* Outfit slots: 3 columns stays ok, but tighten gap */
+  .outfit-slots-grid { gap: 5px; }
+
+  /* AI ref row: smaller slots */
+  .ai-ref-slot { width: 80px; height: 80px; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   Phase 11 — Voice Integration
+   Voice Clone Modal · Voice Picker Panel · Narrator Voice Row
+   All tokens from Aurora design system — no hardcoded colours.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Voice Clone Modal panel ──────────────────────────────────── */
+.lora-voice-clone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Tabs row */
+.voice-clone-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.voice-clone-tab {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.voice-clone-tab:hover  { color: var(--text-primary); }
+.voice-clone-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Tab body areas */
+.voice-clone-body { display: none; }
+.voice-clone-body.active { display: flex; flex-direction: column; gap: 12px; }
+
+/* Upload drop zone */
+.voice-upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 110px;
+  padding: 18px;
+  background: var(--bg-secondary);
+  border: 1.5px dashed var(--border-hover);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+}
+.voice-upload-drop:hover {
+  border-color: var(--border-active);
+  background: var(--accent-soft);
+}
+.voice-upload-drop-icon {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+.voice-upload-drop-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.voice-upload-drop-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.voice-upload-drop.has-file { border-style: solid; border-color: var(--accent); }
+
+/* Waveform canvas */
+.voice-waveform-canvas {
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-secondary);
+  display: block;
+}
+
+/* Quality tips */
+.voice-quality-tips {
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.voice-quality-tips strong { color: var(--text-secondary); }
+
+/* Record controls */
+.voice-record-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.voice-record-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.voice-record-btn:hover      { background: var(--bg-secondary); border-color: var(--border-hover); }
+.voice-record-btn.recording  { color: var(--red); border-color: var(--red); background: var(--red-soft); }
+.voice-record-timer {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  min-width: 38px;
+}
+
+/* Clone footer (consent + submit) */
+.voice-clone-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.voice-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.5;
+}
+.voice-consent-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); }
+.voice-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-name-row label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.voice-name-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+.voice-name-input:focus { outline: none; border-color: var(--border-active); }
+
+/* ── Voice Library Picker panel ───────────────────────────────── */
+.lora-voice-picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 480px;
+}
+.voice-picker-search {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+.voice-picker-search::placeholder { color: var(--text-muted); }
+.voice-picker-search:focus { outline: none; border-color: var(--border-active); }
+
+.voice-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.voice-picker-section-hd {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.voice-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.voice-picker-row:last-child { border-bottom: none; }
+.voice-picker-row:hover { background: var(--bg-secondary); }
+
+.voice-picker-row-icon {
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.voice-picker-row-meta {
+  flex: 1;
+  min-width: 0;
+}
+.voice-picker-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice-picker-row-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.voice-picker-row-actions { flex-shrink: 0; }
+
+.voice-picker-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.voice-picker-loading {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Narrator voice row (in 17b cast slot) ────────────────────── */
+.narrator-voice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  margin-top: 8px;
+}
+.narrator-voice-row.narrator-voice-empty {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border);
+}
+.narrator-voice-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.narrator-voice-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── lora-voice-badge-cloned (cloned voice badge) ─────────────── */
+.lora-voice-badge-cloned {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: var(--cyan-soft);
+  border: 1px solid rgba(17,137,161,0.28);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
