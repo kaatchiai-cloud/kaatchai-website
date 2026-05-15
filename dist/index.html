@@ -9628,6 +9628,65 @@ html[data-theme="light"] #create-page .scene-chip-action-label {
   flex-shrink: 0;
 }
 
+
+/* ── Appearance Block (tuning panel) ─────────────────────────── */
+.appearance-profile {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+}
+.appearance-profile-hd {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.appearance-profile-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.appearance-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.appearance-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.appearance-field:last-child { border-bottom: none; }
+.appearance-label {
+  flex-shrink: 0;
+  width: 78px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.appearance-val {
+  color: var(--text-secondary);
+  min-width: 0;
+  word-break: break-word;
+}
+.appearance-extracting,
+.appearance-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
   </style>
   <style>
 /* ══════════════════════════════════════════════════════════════════════════
@@ -15316,6 +15375,11 @@ html[data-theme="light"] .narrator-voice-row.narrator-voice-empty {
           </div>
           <div class="tuning-divider"></div>
         </div>
+
+        <!-- Character Profile (auto-extracted from reference photos) -->
+        <div class="tuning-section-label">Character Profile</div>
+        <div id="tuning-appearance-block"></div>
+        <div class="tuning-divider"></div>
 
         <!-- Voice (read-only, always shown) -->
         <div class="tuning-section-label">Voice</div>
@@ -22336,17 +22400,17 @@ const OUTFIT_THEMES = [
   { key: 'casual',       label: 'Casual',        desc: 'wearing casual clothing, plain T-shirt and jeans' },
 ];
 
-// 9 pose descriptions for each grid row (one per cell)
+// 9 cell descriptions — exact copy from grid_prompt.py / lora-studio-plan.md §GRID_CELL_DESCRIPTIONS
 const GRID_CELL_POSES = [
-  'upper body portrait, front-facing, neutral expression, soft even studio lighting',
-  'upper body portrait, 3/4 angle, slight natural smile, warm diffused light',
-  'upper body portrait, side profile facing left, neutral expression, clean background',
-  'seated at a desk, front view, professional posture, indoor lighting',
-  'standing full body shot, relaxed natural stance, arms at sides',
-  'close-up headshot, direct eye contact, soft fill light',
-  'upper body, glancing over shoulder at camera, candid feel',
-  'standing near a window, natural side light, slight lean against wall',
-  'outdoor portrait, looking slightly upward, open sky background, natural light',
+  'Front-facing portrait, neutral expression, soft studio lighting, plain white background',
+  '3/4 angle portrait (face turned slightly right), slight natural smile, soft window light',
+  'Left profile view, neutral expression, side rim lighting, white background',
+  'Close-up face (head+shoulders), looking slightly off-camera, dramatic Rembrandt lighting, dark bg',
+  'Full body standing, arms relaxed, neutral expression, even studio lighting, light gray bg',
+  '3/4 angle portrait (face turned slightly left), contemplative, soft diffused natural light',
+  'Candid genuine laugh, head slightly tilted, outdoor soft overcast daylight, blurred greenery bg',
+  'Professional headshot, front-facing, neutral pleasant expression, even soft lighting',
+  'Looking slightly upward, contemplative, moody directional light from upper-right, dark bg',
 ];
 
 // 12 training image prompt templates for characters.
@@ -24201,7 +24265,7 @@ async function _openInputModal(path) {
     product:        { trainerType: 'flux-fast',     trainerEndpoint: 'fal-ai/flux-lora-fast-training',     inferenceEndpoint: 'fal-ai/flux-lora',  compatibleWith: ['product'],      trainSteps: 1500 },
     'talking-head': { trainerType: 'flux-portrait', trainerEndpoint: 'fal-ai/flux-lora-portrait-trainer',  inferenceEndpoint: 'fal-ai/flux-lora',  compatibleWith: ['talking-head'], trainSteps: 2000 },
     'scene-real':   { trainerType: 'flux-portrait', trainerEndpoint: 'fal-ai/flux-lora-portrait-trainer',  inferenceEndpoint: 'fal-ai/flux-lora',  compatibleWith: ['scene'],        trainSteps: 2000 },
-    'scene-ai':     { trainerType: 'qwen',          trainerEndpoint: 'fal-ai/qwen-image-trainer',          inferenceEndpoint: 'fal-ai/qwen-image', compatibleWith: ['scene'],        trainSteps: 2000 },
+    'scene-ai':     { trainerType: 'flux-portrait',  trainerEndpoint: 'fal-ai/flux-lora-portrait-trainer',  inferenceEndpoint: 'fal-ai/flux-lora',  compatibleWith: ['scene'],        trainSteps: 2000 },
   };
   const c = TRAINER_CFG[path] || TRAINER_CFG.product;
   const id = 'lora_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -24431,6 +24495,9 @@ async function _handleGuidedSlot(itemId, slotIdx, file) {
   await _refreshGuidedSlot(itemId, slotIdx);
   await _updateSlotCountDisplay(itemId, 5, 'guided-slot-count');
   _validateInputModal();
+  // Extract appearance when all 4 mandatory slots (0-3) are filled
+  const filled = await Promise.all([0,1,2,3].map(i => _idbGet(`lora_v2_${itemId}_photo_${i}`).catch(() => null)));
+  if (filled.every(Boolean)) _maybeExtractAppearance(itemId);
 }
 
 async function _refreshGuidedSlot(itemId, slotIdx) {
@@ -24569,6 +24636,11 @@ async function _handleOutfitSlot(itemId, oi, si, file) {
   await _updateOutfitStatus(itemId, oi);
   await _updateC1TotalCount(itemId);
   _validateInputModal();
+  // Extract appearance when outfit 0 is fully filled (6 photos)
+  if (oi === 0) {
+    const slots = await Promise.all(Array.from({length:6}, (_,i) => _idbGet(`lora_v2_${itemId}_photo_${i}`).catch(() => null)));
+    if (slots.every(Boolean)) _maybeExtractAppearance(itemId);
+  }
 }
 
 async function _updateOutfitStatus(itemId, oi) {
@@ -24674,6 +24746,8 @@ async function _handleAiRef(itemId, refIdx, file, container) {
     }
   }
   _validateInputModal();
+  // Extract appearance from first ref image immediately
+  if (refIdx === 0) _maybeExtractAppearance(itemId);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -25449,16 +25523,22 @@ async function _generatePreviews(itemId) {
   if (!item || !item.loraUrl) return;
 
   saveItem({ ...getItemById(itemId), previewGenerating: true });
-  const tuning = item.tuningParams || _defaultTuning();
-  const prompts = PREVIEW_PROMPTS[item.type] || PREVIEW_PROMPTS['talking-head'];
-  const trigger = item.triggerWord || '';
+  const tuning   = item.tuningParams || _defaultTuning();
+  const prompts  = PREVIEW_PROMPTS[item.type] || PREVIEW_PROMPTS['talking-head'];
+  const trigger  = item.triggerWord || '';
+  const identity = _buildIdentityParagraph(item);
+  // Suffix: per-feature consistency constraints + finger anatomy + style anchor
+  const suffix   = item.type !== 'product' ? _buildPromptSuffix(item) : '';
 
   // Repopulate preview pane if panel is open
   _renderTuningPreviews(itemId, true);
 
   try {
     for (let i = 0; i < prompts.length; i++) {
-      const prompt = prompts[i].replace('{trigger}', trigger);
+      const prompt = prompts[i]
+        .replace('{trigger}', trigger)
+        .replace('{identity}', identity)
+        + suffix;
 
       let imageDataUrl;
       if (item.trainerType === 'qwen') {
@@ -25618,6 +25698,7 @@ function _renderTuningPanel(itemId) {
   }
 
   _renderTuningVoice(itemId);
+  _renderTuningAppearanceBlock(itemId);
   _renderTuningPreviews(itemId, false);
 }
 
@@ -25760,14 +25841,202 @@ function _wireTuningPanel() {
 }
 
 // ════════════════════════════════════════════════════
+//  APPEARANCE EXTRACTION — Gemini Vision → appearanceBlock
+// ════════════════════════════════════════════════════
+
+const APPEARANCE_EXTRACT_PROMPT =
+`You are a precise morphological feature extractor for AI image generation.
+Analyze ALL attached reference photo(s) of the same person and return ONLY a valid JSON object.
+These descriptions are injected verbatim into generation prompts — be specific and exact.
+
+Return this exact shape (no markdown, no extra text):
+{
+  "age": "estimated age range e.g. '30-35'",
+  "gender": "male / female / other",
+  "build": "slim / average / athletic / stocky",
+  "skinTone": "precise description with undertone e.g. 'warm medium-brown, South Asian complexion'",
+  "faceShape": "oval / round / square / heart / oblong",
+  "hair": "length, color, texture, style — e.g. 'short, black, neat side-parted, clean-shaven'",
+  "eyes": "color and shape — e.g. 'dark brown, almond-shaped'",
+  "distinguishingMarks": [
+    "each visible mark with PRECISE location — e.g. 'small dark mole on left cheek ~2cm below the eye'",
+    "e.g. 'faint horizontal scar on right eyebrow lateral edge'"
+  ]
+}
+
+Rules:
+- distinguishingMarks must list ALL visible moles, scars, birthmarks, tattoos with exact location.
+- If no marks are visible return an empty array.
+- Never leave a field null — use your best estimate if uncertain.`;
+
+async function _extractAppearanceBlock(itemId) {
+  const item = getItemById(itemId);
+  if (!item || item.type === 'product') return;
+  const geminiKey = (typeof getCreateGeminiKey === 'function') ? getCreateGeminiKey() : null;
+  if (!geminiKey) return;
+
+  // Collect reference photos
+  const refKeys = item.type === 'scene-ai'
+    ? [`lora_v2_${itemId}_ref_0`, `lora_v2_${itemId}_ref_1`]
+    : Array.from({ length: 5 }, (_, i) => `lora_v2_${itemId}_photo_${i}`);
+
+  const imgParts = [];
+  for (const k of refKeys) {
+    const dataUrl = await _idbGet(k).catch(() => null);
+    if (!dataUrl) continue;
+    const b64 = dataUrl.split(',')[1];
+    if (!b64) continue;
+    imgParts.push({ inlineData: {
+      mimeType: dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg',
+      data: b64,
+    }});
+  }
+  if (imgParts.length === 0) return;
+
+  saveItem({ ...getItemById(itemId), appearanceExtracting: true });
+  _renderTuningAppearanceBlock(itemId);
+
+  try {
+    const parts = [...imgParts, { text: APPEARANCE_EXTRACT_PROMPT }];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let jsonText = null;
+    for (const model of models) {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.1 } }) }
+        );
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const d = await resp.json();
+        jsonText = d?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+        if (jsonText) break;
+      } catch (e) { console.warn(`[AppearanceExtract] ${model} failed:`, e.message); }
+    }
+    if (!jsonText) throw new Error('No Gemini response');
+
+    const match = jsonText.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    const ab = JSON.parse(match[0]);
+    if (typeof ab !== 'object' || !ab.age) throw new Error('Invalid shape');
+
+    saveItem({ ...getItemById(itemId),
+      appearanceBlock: { ...ab, extractedAt: Date.now(), extractedFrom: imgParts.length },
+      appearanceExtracting: false,
+    });
+    _showToast('✓ Character profile extracted');
+  } catch (e) {
+    console.warn('[AppearanceExtract] failed:', e.message);
+    saveItem({ ...getItemById(itemId), appearanceExtracting: false });
+  }
+  _renderTuningAppearanceBlock(itemId);
+}
+
+function _renderTuningAppearanceBlock(itemId) {
+  const el = document.getElementById('tuning-appearance-block');
+  if (!el) return;
+  const item = getItemById(itemId);
+  if (!item) return;
+
+  if (item.appearanceExtracting) {
+    el.innerHTML = `<div class="appearance-extracting">⏳ Extracting character profile…</div>`;
+    return;
+  }
+  const ab = item.appearanceBlock;
+  if (!ab) {
+    el.innerHTML = `<div class="appearance-empty">Profile auto-extracted after photos are uploaded.</div>`;
+    return;
+  }
+  const marks = (ab.distinguishingMarks || []);
+  el.innerHTML = `
+    <div class="appearance-profile">
+      <div class="appearance-profile-hd">
+        <span class="appearance-profile-title">Character Profile</span>
+        <span class="lora-optional-badge" style="margin-left:6px">AUTO</span>
+        <button class="btn-xs" id="btn-reextract-appearance" style="margin-left:auto">Re-extract</button>
+      </div>
+      <div class="appearance-fields">
+        <div class="appearance-field"><span class="appearance-label">Age / Gender</span><span class="appearance-val">${_hesc((ab.age||'') + ' · ' + (ab.gender||''))}</span></div>
+        <div class="appearance-field"><span class="appearance-label">Build</span><span class="appearance-val">${_hesc((ab.build||'') + ' · ' + (ab.skinTone||''))}</span></div>
+        <div class="appearance-field"><span class="appearance-label">Face / Eyes</span><span class="appearance-val">${_hesc((ab.faceShape||'') + ' face · ' + (ab.eyes||''))}</span></div>
+        <div class="appearance-field"><span class="appearance-label">Hair</span><span class="appearance-val">${_hesc(ab.hair||'')}</span></div>
+        ${marks.length ? `<div class="appearance-field"><span class="appearance-label">Marks</span><span class="appearance-val">${_hesc(marks.join(' · '))}</span></div>` : ''}
+      </div>
+    </div>`;
+  el.querySelector('#btn-reextract-appearance')?.addEventListener('click', () => _extractAppearanceBlock(itemId));
+}
+
+// Build one-paragraph identity sentence from appearanceBlock (fallback: item.description)
+function _buildIdentityParagraph(item) {
+  const ab = item?.appearanceBlock;
+  if (!ab) return (item?.description || '').trim();
+  const parts = [];
+  if (ab.age)      parts.push(`${ab.age}-year-old ${ab.gender || 'person'}`);
+  if (ab.build)    parts.push(`${ab.build} build`);
+  if (ab.skinTone) parts.push(`${ab.skinTone} skin tone`);
+  if (ab.faceShape)parts.push(`${ab.faceShape} face shape`);
+  if (ab.hair)     parts.push(`hair: ${ab.hair}`);
+  if (ab.eyes)     parts.push(`eyes: ${ab.eyes}`);
+  const marks = ab.distinguishingMarks || [];
+  if (marks.length) parts.push(`distinguishing marks: ${marks.join(', ')}`);
+  return parts.join(', ');
+}
+
+// Build the consistency enforcement block appended to every character inference prompt.
+// Covers: finger anatomy, per-feature maintenance instructions, marks, style anchor.
+function _buildPromptSuffix(item) {
+  const ab = item?.appearanceBlock;
+  const constraints = [];
+
+  // ── Per-feature consistency enforcement ──────────────────────────
+  if (ab?.skinTone)  constraints.push(`maintain exact skin tone: ${ab.skinTone}`);
+  if (ab?.faceShape) constraints.push(`maintain exact face shape: ${ab.faceShape}`);
+  if (ab?.eyes)      constraints.push(`maintain eye color and shape: ${ab.eyes}`);
+  if (ab?.hair)      constraints.push(`maintain hair exactly: ${ab.hair}`);
+  const marks = ab?.distinguishingMarks || [];
+  if (marks.length) {
+    constraints.push(
+      `all facial marks must be present and consistent in exact locations: ${marks.join('; ')}`
+    );
+  }
+
+  // ── Finger / hand anatomy ─────────────────────────────────────────
+  constraints.push('exactly 5 fingers on each hand — no extra, no missing, no fused fingers');
+
+  // ── Style anchor (DOE character_spec.py style_anchor) ────────────
+  constraints.push(
+    'photorealistic, sharp focus, natural skin texture with visible pores, ' +
+    'no airbrushing, no plastic skin, no exaggerated facial features, ' +
+    'no stylized rendering, no anime, no caricature'
+  );
+
+  return constraints.length ? ', ' + constraints.join(', ') : '';
+}
+
+
+// ── Trigger extraction after mandatory photos are filled ──────────
+// Called from upload handlers below when threshold is met.
+function _maybeExtractAppearance(itemId) {
+  // Debounce: don't re-extract if block is less than 5 minutes old
+  const item = getItemById(itemId);
+  if (!item) return;
+  if (item.appearanceExtracting) return;
+  const age = item.appearanceBlock?.extractedAt
+    ? Date.now() - item.appearanceBlock.extractedAt : Infinity;
+  if (age < 5 * 60 * 1000) return;
+  _extractAppearanceBlock(itemId);
+}
+
+
+// ════════════════════════════════════════════════════
 //  PHASE 5 — Training Image Generation Pipeline
 // ════════════════════════════════════════════════════
 
 // Build 9 per-cell prompts for a 3×3 Gemini grid
 function _buildGridPromptsForItem(item, outfitTheme) {
-  const desc = (item.description || '').trim();
-  const identity = desc ? `${desc}, ` : '';
-  return GRID_CELL_POSES.map(pose => `${identity}${outfitTheme.desc}, ${pose}`);
+  const identity = _buildIdentityParagraph(item);
+  const prefix = identity ? `${identity}, ` : '';
+  return GRID_CELL_POSES.map(pose => `${prefix}${outfitTheme.desc}, ${pose}`);
 }
 
 async function _generateTrainingGrids(itemId) {
@@ -25803,7 +26072,12 @@ async function _generateTrainingGrids(itemId) {
   }
 
   const identityNote = refParts.length > 0
-    ? ' Faithfully replicate the exact facial features, skin tone, hair, and distinctive characteristics of the person shown in the reference images in every panel.'
+    ? ` IDENTITY TRANSFER FROM REFERENCE IMAGES:
+The ${refParts.length} reference image(s) attached above show this EXACT character.
+Generate the SAME PERSON in all 9 panels — match the facial features,
+build, hair length and style, eye shape and color, skin tone, and
+distinguishing marks from the reference images exactly. Only the OUTFIT
+changes — the person remains identical to the reference.`
     : '';
 
   const desc = (item.description || '').trim();

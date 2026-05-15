@@ -627,15 +627,106 @@ Opened from "Pick from Library" button. Modal with:
 - Selected voice highlighted with violet border
 - "Use [voice name] for this character" button
 
-Library voices use pre-existing ElevenLabs voice IDs (from ElevenLabs' built-in voice library or Stori's curated set). No cloning needed — the voice_id is stored directly on the character's `voiceProfile`.
+The voice library shows two categories of voices:
+
+**1. Cloned voices from other LoRA characters:** Any character that already has a `voiceProfile` with `source: 'cloned'` appears in the library. This lets users reuse a cloned voice across multiple characters without re-cloning. The `elevenlabsVoiceId` is shared — the voice is stored once in ElevenLabs, referenced by multiple LoRA items.
+
+**2. ElevenLabs built-in / curated voices:** Pre-existing voices from ElevenLabs' voice library (Aria, Marcus, Sofia, etc.). No cloning needed — the voice_id is stored directly on the character's `voiceProfile` with `source: 'library'`.
+
+The library does NOT show Gemini voices (those are only used as narrator fallbacks in the TTS pipeline via `castResolveVoiceForSpeaker()`).
+
+**Population logic:**
+```javascript
+function _getVoiceLibraryEntries() {
+  const entries = [];
+  
+  // 1. Cloned voices from LoRA characters
+  const items = getItems().filter(i => i.voiceProfile?.source === 'cloned' && i.voiceProfile.elevenlabsVoiceId);
+  const seenVoiceIds = new Set();
+  for (const item of items) {
+    if (!seenVoiceIds.has(item.voiceProfile.elevenlabsVoiceId)) {
+      seenVoiceIds.add(item.voiceProfile.elevenlabsVoiceId);
+      entries.push({
+        type: 'cloned',
+        voiceId: item.voiceProfile.elevenlabsVoiceId,
+        name: item.voiceProfile.voiceName,
+        language: item.voiceProfile.languageDefault,
+        duration: item.voiceProfile.sampleDurationSec,
+        sourceCharacter: item.name,
+      });
+    }
+  }
+  
+  // 2. ElevenLabs built-in voices (curated list)
+  // These are hardcoded voice_ids from ElevenLabs' public library
+  for (const preset of ELEVENLABS_PRESET_VOICES) {
+    entries.push({ type: 'library', ...preset });
+  }
+  
+  return entries;
+}
+```
 
 **Important:** The voice library is NOT a standalone page. It is always opened in the context of a specific character — from the "Pick from Library" button inside the character creation/edit modal. The selected voice is immediately attached to that character.
 
-#### Voice at generation time
+#### Voice at generation time (character clips)
 
-When generating talking-head clips in the canvas/editor:
-1. If the character's LoRA has `voiceProfile.elevenlabsVoiceId` set → auto-apply that voice (TTS call with that voice_id)
-2. If no voice is set → prompt user to add a voice to the character (link to character detail) or skip for silent video
+When generating talking-head or scene clips that have a character with a LoRA:
+1. If the character's LoRA has `voiceProfile.elevenlabsVoiceId` set → auto-apply that voice via the existing ElevenLabs TTS pipeline (`generateTTSElevenLabs()` in `js/17a-create-api.js:841`). The voice_id is passed directly — no extra lookup needed.
+2. If no voice is set → fall through to the existing voice resolution chain (`castResolveVoiceForSpeaker()` in `js/17b-create-references.js:3153`) which picks from the Gemini/ElevenLabs catalog.
+
+#### Lip-sync integration (uses existing MediaPipe pipeline)
+
+**Critical:** Lip-sync uses the existing MediaPipe Face Landmarker system in `js/30-lipsync.js`, NOT fal.ai lip-sync endpoints. The pipeline already works end-to-end:
+
+1. **Face detection:** `detectFacesInImage()` / `detectFacesInClip()` using `@mediapipe/tasks-vision@0.10.18` with 478-point FaceMesh, VIDEO + IMAGE modes.
+2. **Mouth sprites:** `castGenerateMouthSpritesForCharacter()` (`js/17c-create-pipeline.js:3660`) generates 3 mouth variants (closed/half/open) via Gemini 768x768.
+3. **Overlay compositing:** `buildOverlayInstructions()` + `composeMouthSprite()` map audio amplitude to mouth states per frame.
+4. **Export rendering:** `js/11-export.js:216-248` composites mouth sprites onto video frames during export.
+
+**Two lip-sync tiers (already implemented):**
+- **Tier 1 (Stori Sync):** MediaPipe face detection → sprite selection per frame → canvas compositing. Free, runs client-side.
+- **Tier 2 (Kling):** `fal-ai/kling-video/lipsync/audio-to-video` (~$0.014/sec). Higher quality but paid. Auto-fallback to Tier 1 on failure (`js/17c-create-pipeline.js:4016-4191`).
+
+No new lip-sync code is needed for LoRA Studio. The existing pipeline automatically works with any ElevenLabs voice_id — the only integration point is that `voiceProfile.elevenlabsVoiceId` feeds into `generateTTSElevenLabs()` which produces the audio that the lip-sync system consumes.
+
+#### Narrator voice picker (separate from character voice)
+
+**Gap identified:** The narrator (voice-only or with talking-head portrait) currently has NO voice picker UI. The narrator's voice is resolved via fallback logic in `castResolveVoiceForSpeaker()` (`js/17b-create-references.js:3153-3179`), which defaults to Gemini "Kore" voice. There is no way for users to assign a cloned ElevenLabs voice to the narrator.
+
+**Solution:** Add a **Narrator Voice Picker** to the video generation flow (in the create pipeline, NOT in LoRA Studio). This picker appears when:
+- A narrator is added to the video (voice-only or talking-head mode)
+- User defines voice for the narrator during cast/character setup
+
+The narrator voice picker shows the same voice catalog as the LoRA character library picker:
+1. **Cloned voices from LoRA characters** — voices the user has already cloned
+2. **ElevenLabs built-in voices** — curated presets (Aria, Marcus, etc.)
+3. **Gemini voices** — the 8 hardcoded voices already in the catalog (`js/17b-create-references.js:823-836`)
+
+**Key difference from character voice:** The narrator voice picker is used during video generation setup, NOT during LoRA training. It does NOT create a new voice clone — it selects from existing voices. The selected voice_id is stored on the narrator's cast entry, not on a LoRA item.
+
+**Implementation location:** `js/17b-create-references.js`, in the narrator creation flow (around line 2847-2861). Add a voice selection step that populates the narrator's voice property before TTS generation.
+
+```javascript
+// Narrator voice selection (new)
+// When user adds a narrator, show voice picker overlay
+function _openNarratorVoicePicker(narratorCastEntry, onSelect) {
+  // Reuse the same voice library UI as LoRA character picker
+  // but opened in narrator context (not character context)
+  // Include all 3 voice sources: cloned, ElevenLabs presets, Gemini voices
+  const voices = _getFullVoiceCatalog(); // includes Gemini voices unlike character picker
+  _renderVoicePickerOverlay(voices, selectedVoiceId => {
+    narratorCastEntry.voice = selectedVoiceId;
+    onSelect(selectedVoiceId);
+  });
+}
+```
+
+**Where this lives in the flow:**
+- NOT in LoRA Studio (narrator is not a LoRA item)
+- In the create pipeline's character/cast setup (`js/17b-create-references.js`)
+- Triggered when user taps "Add Narrator" or edits narrator settings
+- The voice strip UI for narrator (currently missing per `js/17b-create-references.js:1163`) needs to be added
 
 #### Voice data flow
 
@@ -999,9 +1090,9 @@ See Section 14 for exact crop coordinates and filenames.
 
 **Dependencies:** None (can be done in parallel).
 
-### Phase 11: Voice Integration (est. 3 hours)
+### Phase 11: Voice Integration (est. 5 hours)
 
-**Goal:** Add optional voice cloning / library selection to character LoRA items.
+**Goal:** Add optional voice cloning / library selection to character LoRA items, and narrator voice picker.
 
 1. **ElevenLabs API key entry:** Add `stori_elevenlabs_api_key` to BYOK credential store. Prompt on first voice action if not set. Same UI pattern as fal.ai key entry.
 2. **Voice section in character input modals (Paths B, C1, C2):**
@@ -1014,15 +1105,32 @@ See Section 14 for exact crop coordinates and filenames.
    - Record tab: microphone MediaRecorder API, live waveform, timer, stop → same playback UI.
    - Clone button → ElevenLabs IVC `POST /v1/voices/add`. Store returned `voice_id` in `item.voiceProfile`.
    - Store audio sample in IDB as `lora_v2_{id}_voice_sample`.
-4. **Voice library picker:**
-   - Curated list of ElevenLabs built-in voices (pre-configured voice_ids).
+4. **Voice library picker (shows actual stored voices):**
+   - **Cloned voices section:** Aggregate all LoRA characters that have `voiceProfile.source === 'cloned'`. De-duplicate by `elevenlabsVoiceId`. Show source character name, duration, language.
+   - **ElevenLabs preset section:** Curated list of ElevenLabs built-in voices (pre-configured voice_ids).
    - Search + filter (language, gender).
    - Play preview via ElevenLabs TTS preview endpoint.
    - Select → store voice_id in `item.voiceProfile` with `source: 'library'`.
 5. **Voice in card detail:** Character cards show voice status row in metadata. "Add Voice" / "Replace Voice" / "Remove Voice" actions.
-6. **Voice at generation time:** When generating talking-head clips, check `item.voiceProfile`. If set, auto-apply via ElevenLabs TTS. If not set, prompt user to pick from library or skip.
+6. **Voice at generation time (character):** When generating clips with a LoRA character, check `item.voiceProfile`. If `elevenlabsVoiceId` is set, pass it to `generateTTSElevenLabs()` (existing function in `js/17a-create-api.js:841`). The resulting audio feeds into the existing MediaPipe lip-sync pipeline automatically — no new lip-sync code needed.
+7. **Narrator voice picker (new UI in create pipeline):**
+   - Add voice picker overlay to narrator creation flow in `js/17b-create-references.js` (around line 2847-2861).
+   - Shows 3 voice sources: cloned voices from LoRA characters, ElevenLabs presets, Gemini voices (the 8 hardcoded voices at line 823-836).
+   - Unlike the LoRA character library picker, this INCLUDES Gemini voices (since narrator currently defaults to Gemini Kore).
+   - Selected voice_id stored on the narrator's cast entry, NOT on a LoRA item.
+   - Add voice strip UI for narrator (currently missing per line 1163 — voice strip only renders for characters, not narrator).
+   - Update `castResolveVoiceForSpeaker()` (line 3153-3179) to check the narrator's voice property before falling back to Gemini Kore.
+8. **Lip-sync integration note:** No new lip-sync code needed. The existing MediaPipe pipeline (`js/30-lipsync.js`) works with any audio source. The two-tier system (Tier 1: MediaPipe sprite overlay, Tier 2: Kling fal.ai with auto-fallback) continues to work as-is. The only integration point is that `voiceProfile.elevenlabsVoiceId` feeds into `generateTTSElevenLabs()` → audio → lip-sync pipeline.
 
 **Dependencies:** Phase 3 (input modals exist), Phase 1 (data model has voiceProfile field).
+
+**Critical files for Phase 11:**
+- `js/34-lora-library.js` — voice section in LoRA input modals, voice library picker
+- `js/17b-create-references.js` — narrator voice picker, voice strip UI for narrator, `castResolveVoiceForSpeaker()` update
+- `js/17a-create-api.js` — ElevenLabs IVC clone call (new), TTS call (existing, no change needed)
+- `js/30-lipsync.js` — no changes needed (existing pipeline works)
+- `js/17c-create-pipeline.js` — no changes needed (existing lip-sync prep works)
+- `js/11-export.js` — no changes needed (existing lip-sync compositing works)
 
 ---
 
@@ -1159,6 +1267,18 @@ const PREVIEW_PROMPTS = {
     '{trigger}, {identity}, at an office desk smiling warmly, soft professional lighting, photorealistic',
   ],
 };
+
+// ── ElevenLabs preset voices (voice library) ──
+const ELEVENLABS_PRESET_VOICES = [
+  // Curated subset of ElevenLabs' public voice library
+  // voice_ids populated from ElevenLabs API during implementation
+  { voiceId: null, name: 'Aria',   language: 'en', gender: 'female', desc: 'Warm, conversational' },
+  { voiceId: null, name: 'Marcus', language: 'en', gender: 'male',   desc: 'Deep, authoritative' },
+  { voiceId: null, name: 'Sofia',  language: 'es', gender: 'female', desc: 'Bilingual ES/EN' },
+  { voiceId: null, name: 'Raj',    language: 'hi', gender: 'male',   desc: 'Bilingual HI/EN' },
+  { voiceId: null, name: 'Claire', language: 'fr', gender: 'female', desc: 'Bilingual FR/EN' },
+  { voiceId: null, name: 'James',  language: 'en', gender: 'male',   desc: 'Professional, clear' },
+];
 
 // ── Refine prompt template (Tier 2) ──
 const REFINE_PROMPT_TEMPLATE = 
@@ -1865,6 +1985,13 @@ Crop and resize using a one-time script (Python PIL or browser canvas). The righ
    - Qwen: better for diverse ethnicity, $4.00 for 2000 steps
    - **Recommendation:** Use FLUX portrait trainer for talking-head (face-optimized), Qwen for scene characters.
 
+6. **Narrator voice picker placement in UI:** The narrator voice picker needs to live in the create pipeline (`js/17b-create-references.js`), not in LoRA Studio. Two options for when to show it:
+   - A: Show voice picker when user first adds a narrator (during "Add Narrator" flow).
+   - B: Show voice picker as a voice strip on the narrator card in the cast section (lazy — user picks voice only when they want to).
+   - **Recommendation:** Option B — match the existing character voice strip pattern. Add a voice strip to the narrator card. Tapping it opens the voice picker with all 3 sources (cloned, ElevenLabs, Gemini).
+
+7. **Shared cloned voice deletion:** If a user clones a voice for Character A, then shares it with Character B via the library, and later deletes Character A — the voice_id in ElevenLabs still exists but the "source character" reference is orphaned. The voice continues to work (ElevenLabs doesn't delete the voice), but the library entry loses its source context. Mitigation: store cloned voice_ids in a separate registry (not just on LoRA items) so they survive character deletion. Alternatively, accept the orphaned reference — the voice still functions.
+
 ### Risks
 
 1. **Gemini Pro grid generation reliability:** The grid generation pipeline depends on Gemini Pro producing a valid 3x3 grid. DOE results show this works reliably, but rate limiting (429 errors) may cause user-facing delays. Mitigation: model fallback chain (Pro -> 3.1 Flash -> 2.5 Flash) with retry logic.
@@ -1880,8 +2007,12 @@ Crop and resize using a one-time script (Python PIL or browser canvas). The righ
 ---
 
 ### Critical Files for Implementation
-- /Users/praveen/Desktop/stori/js/34-lora-library.js
-- /Users/praveen/Desktop/stori/index.html
-- /Users/praveen/Desktop/stori/css/styles.css
-- /Users/praveen/Desktop/stori/js/17c-create-pipeline.js
-- /Users/praveen/Desktop/stori-i2v-doe/runner/lora_trial/captions.py
+- /Users/praveen/Desktop/stori/js/34-lora-library.js — LoRA Studio rewrite (Phases 1-10)
+- /Users/praveen/Desktop/stori/index.html — HTML structure replacement
+- /Users/praveen/Desktop/stori/css/styles.css — styling
+- /Users/praveen/Desktop/stori/js/17c-create-pipeline.js — _getSceneLoraContext() compat, lip-sync prep (no changes needed)
+- /Users/praveen/Desktop/stori/js/17b-create-references.js — narrator voice picker, voice strip UI, castResolveVoiceForSpeaker() update (Phase 11)
+- /Users/praveen/Desktop/stori/js/17a-create-api.js — ElevenLabs IVC clone API call (Phase 11), TTS (existing, no change)
+- /Users/praveen/Desktop/stori/js/30-lipsync.js — MediaPipe lip-sync (existing, no changes needed)
+- /Users/praveen/Desktop/stori/js/11-export.js — lip-sync compositing during export (existing, no changes needed)
+- /Users/praveen/Desktop/stori-i2v-doe/runner/lora_trial/captions.py — reference for caption format
