@@ -38,6 +38,7 @@ const NODE_W      = 520;
 const SB_H        = 480;
 const IMG_H       = 480;
 const VID_H       = 420;
+const FX_H        = 420;
 // Chrome cards (singletons) — sized so internal text matches the left agent
 // panel's on-screen size at zoom 25%. Steppers/buttons are ~56px graph-space
 // (= ~14px on-screen at 25%); cards bumped to fit.
@@ -66,6 +67,7 @@ const COL_IMG        = 860;    // 80 + 520 + 260
 const COL_PREV       = 1640;   // preview player — between IMG and pipeline cards
 const COL_LAUNCH     = 2220;   // shifted right to make room for preview player
 const COL_VID        = 2700;   // shifted right
+const COL_FX         = 3240;   // FX node — between Vid and Final
 const COL_FINAL_ANIM = 3780;   // shifted right
 const COL_FINAL_ILL  = 2520;   // shifted right
 const PREV_W         = 480;    // preview player node width
@@ -343,6 +345,16 @@ function freshGraphState() {
     // Two-phase video generation: idle → filling → ready → running → done
     videoPhase: 'idle',
 
+    _fxExpanded: null,
+    _fxCatIdxMap: {},
+    _fxMode: 'auto',
+    _fxManualStep: 1,
+    _fxDetectState: {},
+    _fxSelectedEffect: null,
+    _fxTiming: { startPct: 0, endPct: 100 },
+    _fxIntensity: 3,
+    _fxPlanGenerating: false,
+
     // Phase 5 — Character filter (session-only)
     characterFilter: { activeIds: new Set(), mode: 'AND', compactView: false },
 
@@ -617,6 +629,10 @@ function findInstance(id) {
     for (let v = 0; v < vids.length; v++) {
       const vi = vids[v];
       if (vi.id === id) return { type: 'vid', scene, sceneIdx: s, vid: vi };
+    }
+    for (let v = 0; v < vids.length; v++) {
+      const vi = vids[v];
+      if (('fx-' + vi.id) === id) return { type: 'fx', scene, sceneIdx: s, vid: vi };
     }
   }
   if (id === 'cg-launch') return { type: 'launch' };
@@ -979,6 +995,51 @@ function buildVidNode() {
   return node;
 }
 
+// ─── FX node ──────────────────────────────────────────────────────────────
+var FX_CAT_NAMES = ['text', 'overlay', 'camera', 'object_bound', 'transition', 'brand', 'reaction', 'audio_reactive'];
+var FX_CAT_LABELS = { text: 'Text', overlay: 'Overlays', camera: 'Camera', object_bound: 'Object', transition: 'Transitions', brand: 'Brand', reaction: 'Reactions', audio_reactive: 'Audio' };
+
+function _esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildFxNode() {
+  const node = el('div', 'cg-node cg-node--fx');
+  node.style.width = NODE_W + 'px';
+
+  const timeBanner = el('div', 'cg-time-banner', { 'data-role': 'time-banner' });
+  timeBanner.textContent = '0:00 – 0:00';
+  node.appendChild(timeBanner);
+
+  const head = el('div', 'cg-node-head cg-drag-handle');
+  head.innerHTML =
+    '<span class="cg-head-dot" data-sock="fx"></span>' +
+    '<span class="cg-node-title">FX —</span>';
+  node.appendChild(head);
+
+  node.appendChild(el('span', 'cg-sock cg-sock--in cg-sock--fx'));
+  node.appendChild(el('span', 'cg-sock cg-sock--out cg-sock--fx'));
+  node.appendChild(el('span', 'cg-status-dot', { 'data-role': 'status-dot' }));
+  node.appendChild(el('span', 'cg-variant-pin', { 'data-role': 'variant-pin' }));
+
+  const body = el('div', 'cg-node-body');
+  body.innerHTML =
+    '<div class="cg-vid-preview" data-role="preview"></div>' +
+    '<div class="cg-fx-list" data-role="fx-list"></div>' +
+    '<span class="cg-fx-empty" data-role="fx-empty">NO EFFECTS</span>' +
+    '<div class="cg-stepper-row">' +
+      '<div class="cg-stepper cg-stepper--fx-cat" data-field="fx-category">' +
+        '<button type="button" class="cg-arr cg-arr-l">◀</button>' +
+        '<span class="cg-val">Text</span>' +
+        '<button type="button" class="cg-arr cg-arr-r">▶</button>' +
+      '</div>' +
+      '<button type="button" class="cg-fx-add-btn" data-role="fx-add">+ Add Effect</button>' +
+    '</div>';
+  node.appendChild(body);
+
+  return node;
+}
+
 // ─── Prompt node (per-scene, two-phase pipeline) ───────────────────────────
 function buildPromptNode() {
   const node = el('div', 'cg-node cg-node--prompt');
@@ -1079,6 +1140,609 @@ function updateVidNode(node, scene, sceneIdx, sb, srcImg, vid) {
 
   applyFilterToNode(node, scene);
 }
+
+function updateFxNode(node, scene, sceneIdx, sb, srcImg, vid) {
+  const banner = node.querySelector('[data-role="time-banner"]');
+  if (banner) banner.textContent = fmtSceneTimeRange(scene);
+
+  const tabLetter = String.fromCharCode(65 + (sb ? (scene.storyboardInstances || []).indexOf(sb) : 0));
+  const srcIdx = sb && srcImg ? (sb.imageInstances || []).indexOf(srcImg) : 0;
+  const title = node.querySelector('.cg-node-title');
+  if (title) title.textContent = 'FX — Scene ' + (sceneIdx + 1) + '·' + tabLetter + '·' + srcIdx;
+
+  const fxs = vid.effectInstances || [];
+  const hasEffects = fxs.length > 0;
+
+  const fxNodeId = 'fx-' + vid.id;
+  const isExpanded = g._fxExpanded === fxNodeId;
+
+  const preview = node.querySelector('[data-role="preview"]');
+  if (preview) {
+    const url = (vid.clips && vid.clips[0] && vid.clips[0].url) || null;
+    if (url && srcImg && srcImg.imgDataUrl) {
+      preview.style.backgroundImage = `url("${srcImg.imgDataUrl}")`;
+    } else {
+      preview.style.backgroundImage = '';
+    }
+    preview.classList.toggle('has-video', !!url);
+    preview.classList.toggle('cg-fx-overlay', hasEffects);
+    preview.style.display = isExpanded ? 'none' : '';
+  }
+
+  const dot = node.querySelector('[data-role="status-dot"]');
+  if (dot) {
+    dot.className = 'cg-status-dot cg-status-dot--' + (hasEffects ? 'done' : 'pending');
+  }
+
+  const pin = node.querySelector('[data-role="variant-pin"]');
+  if (pin) {
+    pin.style.display = vid.isRenderActive ? '' : 'none';
+    if (vid.isRenderActive) pin.textContent = 'ACTIVE';
+  }
+
+  node.classList.toggle('cg-node--fx-expanded', isExpanded);
+
+  const fxList = node.querySelector('[data-role="fx-list"]');
+  const fxEmpty = node.querySelector('[data-role="fx-empty"]');
+  if (fxList && fxEmpty) {
+    fxList.style.display = isExpanded ? 'none' : '';
+    fxEmpty.style.display = (hasEffects || isExpanded) ? 'none' : '';
+    if (hasEffects && !isExpanded) {
+      const sig = fxs.map(fx => `${fx.id}:${fx.effectType}:${fx.startTime}-${fx.endTime}`).join('|');
+      if (fxList.dataset._sig !== sig) {
+        fxList.dataset._sig = sig;
+        fxList.innerHTML = '';
+        fxs.forEach(fx => {
+          const chip = el('div', 'cg-fx-chip');
+          chip.dataset.fxId = fx.id;
+          const timeRange = fmtTime(fx.startTime) + '–' + fmtTime(fx.endTime);
+          chip.innerHTML =
+            '<span class="cg-fx-chip__dot"></span>' +
+            '<span class="cg-fx-chip__icon">✦</span>' +
+            '<span class="cg-fx-chip__name">' + _esc(fx.effectType) + '</span>' +
+            '<span class="cg-fx-chip__sep">·</span>' +
+            '<span class="cg-fx-chip__scope">' + _esc(fx.objectLabel || 'Full frame') + '</span>' +
+            '<span class="cg-fx-chip__sep">·</span>' +
+            '<span class="cg-fx-chip__time">' + _esc(timeRange) + '</span>' +
+            '<button class="cg-fx-chip__remove" data-fx-id="' + _esc(fx.id) + '" type="button">×</button>';
+          fxList.appendChild(chip);
+        });
+      }
+    } else {
+      fxList.innerHTML = '';
+      delete fxList.dataset._sig;
+    }
+  }
+
+  const stepperRow = node.querySelector('.cg-stepper-row');
+  if (stepperRow) stepperRow.style.display = isExpanded ? 'none' : '';
+
+  const catStepper = node.querySelector('.cg-stepper--fx-cat');
+  if (catStepper) {
+    const curCat = g._fxCatIdxMap[vid.id] || 0;
+    const catVal = catStepper.querySelector('.cg-val');
+    if (catVal) catVal.textContent = FX_CAT_LABELS[FX_CAT_NAMES[curCat]] || FX_CAT_NAMES[curCat];
+    const arrows = catStepper.querySelectorAll('.cg-arr');
+    arrows.forEach(a => a.disabled = !hasEffects);
+  }
+
+  let expandedEl = node.querySelector('.cg-fx-expanded');
+  if (!isExpanded && expandedEl) {
+    expandedEl.remove();
+    expandedEl = null;
+  }
+  if (isExpanded && !expandedEl) {
+    expandedEl = el('div', 'cg-fx-expanded');
+    expandedEl.dataset.mode = g._fxMode || 'auto';
+    var isAuto = g._fxMode !== 'manual';
+    expandedEl.innerHTML =
+      '<div class="cg-fx-mode-toggle">' +
+        '<button type="button" class="cg-fx-mode-btn' + (isAuto ? ' active' : '') + '" data-mode="auto">AUTO' + (isAuto ? ' ✓' : '') + '</button>' +
+        '<button type="button" class="cg-fx-mode-btn' + (!isAuto ? ' active' : '') + '" data-mode="manual">MANUAL' + (!isAuto ? ' ✓' : '') + '</button>' +
+      '</div>' +
+      '<div class="cg-fx-auto-content" data-role="fx-auto-content" style="display:' + (isAuto ? '' : 'none') + '">' +
+        '<span class="cg-fx-section-label">AI PLAN · Scene ' + (sceneIdx + 1) + '</span>' +
+        '<div class="cg-fx-plan-rows" data-role="fx-plan-rows"></div>' +
+        '<button type="button" class="cg-fx-ghost-btn" data-role="fx-regen">↺ Regenerate Plan</button>' +
+        '<button type="button" class="cg-fx-primary-btn" data-role="fx-apply-plan">✓ Apply Plan</button>' +
+      '</div>' +
+      '<div class="cg-fx-manual-content" data-role="fx-manual-content" style="display:' + (isAuto ? 'none' : '') + '"></div>';
+    const body = node.querySelector('.cg-node-body');
+    if (body) body.appendChild(expandedEl);
+    if (isAuto) {
+      _renderAutoPlanRows(expandedEl, vid, sceneIdx);
+    } else {
+      if (g._fxManualStep === 3) {
+        _renderManualStep3(expandedEl, vid);
+      } else if (g._fxManualStep === 2) {
+        _renderManualStep2(expandedEl, vid, srcImg);
+      } else {
+        _renderManualStep1(expandedEl, vid, srcImg);
+        var ds0 = _getFxDetectState(vid);
+        if (ds0.detectMode === 'auto' && ds0.phase === 'idle') {
+          _runMediaPipeScan(vid, scene);
+        }
+      }
+    }
+  }
+  if (isExpanded && expandedEl) {
+    var curMode = expandedEl.dataset.mode;
+    var wantMode = g._fxMode || 'auto';
+    if (curMode !== wantMode) {
+      expandedEl.dataset.mode = wantMode;
+      var autoC = expandedEl.querySelector('[data-role="fx-auto-content"]');
+      var manC = expandedEl.querySelector('[data-role="fx-manual-content"]');
+      if (autoC) autoC.style.display = wantMode === 'manual' ? 'none' : '';
+      if (manC) {
+        manC.style.display = wantMode === 'manual' ? '' : 'none';
+        if (wantMode === 'manual') _renderManualStep1(expandedEl, vid, srcImg);
+      }
+      if (wantMode !== 'manual' && autoC) _renderAutoPlanRows(expandedEl, vid, sceneIdx);
+    }
+    if (g._fxMode === 'manual') {
+      _syncDetectState(expandedEl, vid);
+    }
+  }
+
+  if (g.selectedIds.has(fxNodeId)) node.classList.add('cg-node-selected');
+  else node.classList.remove('cg-node-selected');
+
+  applyFilterToNode(node, scene);
+}
+
+function _renderAutoPlanRows(expandedEl, vid, sceneIdx) {
+  const rows = expandedEl.querySelector('[data-role="fx-plan-rows"]');
+  if (!rows) return;
+  const plan = vid.animationPlan;
+  if (!plan || !Array.isArray(plan.segments) || plan.segments.length === 0) {
+    if (g._fxPlanGenerating) {
+      rows.innerHTML = '<div class="cg-detect-spinner"></div><span class="cg-fx-plan-empty">Generating plan...</span>';
+    } else {
+      rows.innerHTML = '<span class="cg-fx-plan-empty">No plan — try Manual</span>';
+    }
+    return;
+  }
+  rows.innerHTML = '';
+  let rowIdx = 0;
+  plan.segments.forEach(function (seg, sIdx) {
+    var anims = seg.animations || [];
+    if (anims.length === 0) return;
+    anims.forEach(function (effectType) {
+      const row = el('div', 'cg-ai-plan-row');
+      row.dataset.planSegIdx = sIdx;
+      row.dataset.planAnimIdx = rowIdx;
+      row.innerHTML =
+        '<span class="cg-plan-name">' + _esc(effectType) + '</span>' +
+        '<span class="cg-plan-scope">' + _esc(seg.type || 'b_roll') + '</span>' +
+        '<span class="cg-plan-time">' + _esc(fmtTime(seg.startS || 0) + '–' + fmtTime(seg.endS || 0)) + '</span>' +
+        '<button type="button" class="cg-plan-remove" data-seg-idx="' + sIdx + '" data-anim-name="' + _esc(effectType) + '">−</button>';
+      rows.appendChild(row);
+      rowIdx++;
+    });
+  });
+  if (rowIdx === 0) {
+    rows.innerHTML = '<span class="cg-fx-plan-empty">No plan — try Manual</span>';
+  }
+}
+
+function _getFxDetectState(vid) {
+  var k = 'fx-' + vid.id;
+  if (!g._fxDetectState[k]) {
+    g._fxDetectState[k] = { phase: 'idle', points: [], bbox: null, mask: null, label: null, confidence: null, detectMode: 'manual', _ptMode: 'positive', mpDetections: null, mpSelectedIdx: -1 };
+  }
+  return g._fxDetectState[k];
+}
+
+function _getEffectsByCategory(cat) {
+  var reg = window.VideoEffects && window.VideoEffects.EFFECT_REGISTRY;
+  if (!reg) return [];
+  var out = [];
+  for (var k in reg) {
+    if (reg[k].category === cat) out.push({ key: k, name: k, requiresObject: !!reg[k].requiresObject });
+  }
+  return out;
+}
+
+function _renderManualStep1(expandedEl, vid, srcImg) {
+  var mc = expandedEl.querySelector('[data-role="fx-manual-content"]');
+  if (!mc) return;
+  var ds = _getFxDetectState(vid);
+  var posterUrl = srcImg && srcImg.imgDataUrl ? srcImg.imgDataUrl : '';
+  var detectMode = ds.detectMode || 'manual';
+
+  var frameHtml = '<div class="cg-detect-frame" data-state="' + ds.phase + '" data-detect-mode="' + detectMode + '" data-role="detect-frame">';
+  if (posterUrl) {
+    frameHtml += '<img class="cg-detect-thumb" src="' + posterUrl + '" alt="Video frame" draggable="false">';
+  }
+
+  if (detectMode === 'manual') {
+    if (ds.phase === 'idle') {
+      frameHtml += '<span class="cg-detect-hint">Tap any object in the frame to animate it.</span>';
+    } else if (ds.phase === 'loading') {
+      frameHtml += '<div class="cg-detect-spinner"></div><span class="cg-detect-hint">Loading detection model...</span>';
+    } else if (ds.phase === 'detecting') {
+      frameHtml += '<div class="cg-detect-spinner"></div><span class="cg-detect-hint">Detecting...</span>';
+    } else if (ds.phase === 'detected' && ds.bbox) {
+      var b = ds.bbox;
+      frameHtml += '<div class="cg-detect-bbox" style="left:' + (b.x * 100) + '%;top:' + (b.y * 100) + '%;width:' + (b.w * 100) + '%;height:' + (b.h * 100) + '%"></div>';
+      var cx = b.x + b.w / 2, cy = b.y + b.h / 2, rx = b.w * 0.48, ry = b.h * 0.48;
+      var pts = [];
+      for (var ai = 0; ai < 8; ai++) {
+        var angle = (ai / 8) * Math.PI * 2;
+        var px = cx + rx * (1 + 0.15 * Math.sin(angle * 3)) * Math.cos(angle);
+        var py = cy + ry * (1 + 0.1 * Math.cos(angle * 2)) * Math.sin(angle);
+        pts.push((px * 100).toFixed(1) + ',' + (py * 100).toFixed(1));
+      }
+      frameHtml += '<svg class="cg-mask-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon class="cg-mask-shape" points="' + pts.join(' ') + '"/></svg>';
+      if (ds.label) {
+        var confPct = ds.confidence != null ? Math.round(ds.confidence * 100) : null;
+        var confText = ds.label + (confPct != null ? ' · ' + confPct + '%' : '');
+        frameHtml += '<span class="cg-conf-chip">' + _esc(confText) + '</span>';
+      }
+    }
+    ds.points.forEach(function (pt) {
+      frameHtml += '<span class="cg-pt" data-type="' + pt.type + '" style="left:' + (pt.x * 100) + '%;top:' + (pt.y * 100) + '%"></span>';
+    });
+  } else {
+    if (ds.phase === 'idle' || ds.phase === 'scanning') {
+      frameHtml += '<div class="cg-scanline"></div>';
+      frameHtml += '<span class="cg-detect-hint">Scanning for faces, hands, bodies...</span>';
+    } else if (ds.phase === 'scanned' || ds.phase === 'selected') {
+      var mpDets = ds.mpDetections || [];
+      mpDets.forEach(function (det, di) {
+        var sel = ds.mpSelectedIdx === di;
+        var b2 = det.bbox;
+        var variantCls = det.label === 'Face' ? 'cg-mp-box--face' : det.label === 'Hand' || det.label === 'Left Hand' || det.label === 'Right Hand' ? 'cg-mp-box--hands' : det.label === 'Body' || det.label === 'Pose' ? 'cg-mp-box--body' : '';
+        frameHtml += '<div class="cg-mp-box ' + variantCls + '" data-selected="' + sel + '" data-mp-idx="' + di + '" style="left:' + (b2.x * 100) + '%;top:' + (b2.y * 100) + '%;width:' + (b2.w * 100) + '%;height:' + (b2.h * 100) + '%">';
+        var dConf = det.confidence != null ? Math.round(det.confidence * 100) : '';
+        var dLabel = (det.label || 'Object') + (dConf ? ' · ' + dConf + '%' : '');
+        frameHtml += '<span class="cg-conf-chip">' + _esc(dLabel) + '</span>';
+        frameHtml += '</div>';
+      });
+      if (mpDets.length > 0) {
+        frameHtml += '<span class="cg-detect-hint">Tap a detected object to select it.</span>';
+      }
+    }
+  }
+  frameHtml += '</div>';
+
+  var html = '<span class="cg-fx-step-label">STEP 1 OF 3 · SELECT OBJECT</span>';
+  var hasMP = typeof window.ObjectDetection === 'object' && typeof window.ObjectDetection.loadMediaPipe === 'function';
+  if (hasMP) {
+    html += '<div class="cg-fx-detect-toggle">';
+    html += '<button type="button" class="cg-fx-detect-btn' + (detectMode === 'auto' ? ' active' : '') + '" data-detect="auto">Auto (MediaPipe)</button>';
+    html += '<button type="button" class="cg-fx-detect-btn' + (detectMode === 'manual' ? ' active' : '') + '" data-detect="manual">Manual (SAM) ✓</button>';
+    html += '</div>';
+  }
+  html += frameHtml;
+
+  if (detectMode === 'manual') {
+    if (ds.phase === 'detected') {
+      html += '<div class="cg-pt-controls">';
+      html += '<button type="button" class="cg-pt-btn' + (ds._ptMode !== 'negative' ? ' active' : '') + '" data-action="positive">● + Point</button>';
+      html += '<button type="button" class="cg-pt-btn' + (ds._ptMode === 'negative' ? ' active' : '') + '" data-action="negative">✕ − Point</button>';
+      html += '<button type="button" class="cg-pt-btn" data-action="undo">⌫ Undo</button>';
+      html += '<button type="button" class="cg-pt-btn" data-action="reset">↺ Reset</button>';
+      html += '</div>';
+      html += '<div class="cg-detect-actions">';
+      html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-retry">↺ Try again</button>';
+      html += '<button type="button" class="cg-fx-primary-btn" data-role="fx-confirm">Looks right →</button>';
+      html += '</div>';
+    } else {
+      html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-full-frame">Animate full frame instead →</button>';
+    }
+  } else {
+    if (ds.phase === 'selected' && ds.mpSelectedIdx >= 0) {
+      html += '<button type="button" class="cg-fx-primary-btn" data-role="fx-mp-confirm">Confirm Object</button>';
+    } else if (ds.phase === 'scanned' && ds.mpDetections && ds.mpDetections.length === 0) {
+      html += '<span class="cg-fx-plan-empty">No objects detected — try Manual SAM</span>';
+    }
+    html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-full-frame">Animate full frame instead →</button>';
+  }
+
+  mc.innerHTML = html;
+}
+
+function _renderManualStep2(expandedEl, vid, srcImg) {
+  var mc = expandedEl.querySelector('[data-role="fx-manual-content"]');
+  if (!mc) return;
+  var ds = _getFxDetectState(vid);
+  var objLabel = vid._fxObjectLabel || (ds.label && ds.phase === 'detected' ? ds.label : null);
+  var hasObject = !!(vid._fxObjectBounds || (ds.bbox && ds.phase === 'detected'));
+  var curCat = g._fxCatIdxMap[vid.id] || 0;
+  var catNames = window.VideoEffects && window.VideoEffects.FX_CATEGORIES || FX_CAT_NAMES;
+  var catLabels = FX_CAT_LABELS;
+
+  var html = '<span class="cg-fx-step-label">STEP 2 OF 3 · PICK EFFECT' + (objLabel ? ' · Animating: ' + _esc(objLabel) : '') + '</span>';
+  html += '<div class="cg-fx-tab-strip">';
+  catNames.forEach(function (cat, ci) {
+    var isActive = ci === curCat;
+    var disabled = cat === 'object_bound' && !hasObject;
+    html += '<button type="button" class="cg-fx-tab' + (isActive ? ' active' : '') + (disabled ? ' cg-fx-tab--disabled' : '') + '" data-cat="' + cat + '">' + (catLabels[cat] || cat) + '</button>';
+  });
+  html += '</div>';
+
+  if (!hasObject && catNames[curCat] === 'object_bound') {
+    html += '<span class="cg-fx-no-object">Tap an object in Step 1 first</span>';
+    html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-back-to-step1">← Back to Step 1</button>';
+  } else {
+    var effects = _getEffectsByCategory(catNames[curCat]);
+    html += '<div class="cg-fx-grid">';
+    effects.forEach(function (eff) {
+      var selected = g._fxSelectedEffect === eff.key;
+      html += '<div class="cg-fx-card' + (selected ? ' cg-fx-card--selected' : '') + '" data-effect="' + _esc(eff.key) + '">';
+      html += '<span class="cg-fx-card__glyph">✦</span>';
+      html += '<span class="cg-fx-card__name">' + _esc(eff.key) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    if (g._fxSelectedEffect) {
+      html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-back-to-step1">← Back to Step 1</button>';
+    }
+  }
+
+  mc.innerHTML = html;
+}
+
+function _renderManualStep3(expandedEl, vid) {
+  var mc = expandedEl.querySelector('[data-role="fx-manual-content"]');
+  if (!mc) return;
+  var ds = _getFxDetectState(vid);
+  var objLabel = vid._fxObjectLabel || (ds.label && ds.phase === 'detected' ? ds.label : null) || 'Full frame';
+  var effectName = g._fxSelectedEffect || '';
+  var dur = vid.duration || 5;
+  var t = g._fxTiming || { startPct: 0, endPct: 100 };
+  var startSec = (t.startPct / 100) * dur;
+  var endSec = (t.endPct / 100) * dur;
+  var intensity = g._fxIntensity || 3;
+
+  var html = '<span class="cg-fx-step-label">STEP 3 OF 3 · TIMING & INTENSITY</span>';
+  html += '<div class="cg-fx-summary"><span class="cg-fx-summary__effect">' + _esc(effectName) + '</span> on ' + _esc(objLabel) + '</div>';
+
+  html += '<div class="cg-timing-rail" data-role="timing-rail">';
+  html += '<div class="cg-timing-fill" style="left:' + t.startPct + '%;width:' + (t.endPct - t.startPct) + '%">';
+  html += '<div class="cg-timing-handle cg-timing-handle--left" data-handle="left"></div>';
+  html += '<div class="cg-timing-handle cg-timing-handle--right" data-handle="right"></div>';
+  html += '</div>';
+  html += '<span class="cg-timing-tick" style="left:0">' + fmtTime(0) + '</span>';
+  html += '<span class="cg-timing-tick" style="right:0">' + fmtTime(dur) + '</span>';
+  html += '</div>';
+  html += '<span class="cg-timing-label">Within clip · ' + fmtTime(startSec) + ' – ' + fmtTime(endSec) + '</span>';
+
+  html += '<div class="cg-intensity-dots" data-value="' + intensity + '">';
+  for (var i = 1; i <= 5; i++) {
+    html += '<span class="cg-int-dot' + (i <= intensity ? ' filled' : '') + '" data-level="' + i + '"></span>';
+  }
+  html += '<span class="cg-int-label">Low</span>';
+  html += '<span class="cg-int-label" style="margin-left:auto">High</span>';
+  html += '</div>';
+
+  html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-preview-1s">▶ Preview 1s</button>';
+  html += '<div class="cg-detect-actions">';
+  html += '<button type="button" class="cg-fx-ghost-btn" data-role="fx-back-to-step2">← Back</button>';
+  html += '<button type="button" class="cg-fx-primary-btn" data-role="fx-apply-effect">✓ Apply Effect</button>';
+  html += '</div>';
+
+  mc.innerHTML = html;
+}
+
+function _syncDetectState(expandedEl, vid) {
+  var ds = _getFxDetectState(vid);
+  var frame = expandedEl.querySelector('[data-role="detect-frame"]');
+  if (!frame) return;
+  if (frame.dataset.state !== ds.phase) {
+    _renderManualStep1(expandedEl, vid, null);
+  }
+}
+
+async function _runSamDetection(vid, scene, nx, ny) {
+  var ds = _getFxDetectState(vid);
+  if (!window.ObjectDetection || !window.ObjectDetection.isMobileSamReady || !window.ObjectDetection.isMobileSamReady()) {
+    ds.phase = 'loading';
+    if (typeof renderAll === 'function') renderAll();
+    var loaded = await window.ObjectDetection.loadMobileSam();
+    if (!loaded && !window.ObjectDetection.isStubMode()) {
+      ds.phase = 'idle';
+      if (typeof renderAll === 'function') renderAll();
+      cgToast('Object detection model failed to load');
+      return;
+    }
+  }
+  ds.phase = 'detecting';
+  if (typeof renderAll === 'function') renderAll();
+  try {
+    var videoEl = null;
+    var clips = vid.clips || [];
+    if (clips.length > 0 && clips[0].url) {
+      var vids = document.querySelectorAll('video');
+      for (var v = 0; v < vids.length; v++) {
+        if (vids[v].src && vids[v].src.indexOf(clips[0].url) >= 0) { videoEl = vids[v]; break; }
+      }
+    }
+    var result = await window.ObjectDetection.detectAtPoint(videoEl, { x: nx, y: ny }, null);
+    if (result && result.bbox) {
+      ds.bbox = result.bbox;
+      ds.mask = result.mask || null;
+      ds.label = result.label || 'Object';
+      ds.confidence = result.confidence || null;
+      ds.phase = 'detected';
+    } else {
+      ds.phase = 'idle';
+    }
+  } catch (err) {
+    console.warn('[FX] Detection failed:', err);
+    ds.phase = 'idle';
+  }
+  if (typeof renderAll === 'function') renderAll();
+}
+
+async function _runSamWithPoints(vid, scene) {
+  var ds = _getFxDetectState(vid);
+  var posPoints = ds.points.filter(function (p) { return p.type === 'positive'; });
+  var negPoints = ds.points.filter(function (p) { return p.type === 'negative'; });
+  if (posPoints.length === 0) return;
+  var lastPos = posPoints[posPoints.length - 1];
+  ds.phase = 'detecting';
+  if (typeof renderAll === 'function') renderAll();
+  try {
+    var videoEl = null;
+    var clips = vid.clips || [];
+    if (clips.length > 0 && clips[0].url) {
+      var vids = document.querySelectorAll('video');
+      for (var v = 0; v < vids.length; v++) {
+        if (vids[v].src && vids[v].src.indexOf(clips[0].url) >= 0) { videoEl = vids[v]; break; }
+      }
+    }
+    var result = await window.ObjectDetection.mobileSamSegment(videoEl, lastPos, negPoints);
+    if (result && result.bbox) {
+      ds.bbox = result.bbox;
+      ds.mask = result.mask || null;
+      ds.label = result.label || ds.label || 'Object';
+      ds.confidence = result.confidence || null;
+      ds.phase = 'detected';
+    } else {
+      ds.phase = 'idle';
+    }
+  } catch (err) {
+    console.warn('[FX] Re-detection failed:', err);
+    ds.phase = 'idle';
+  }
+  if (typeof renderAll === 'function') renderAll();
+}
+
+async function _runMediaPipeScan(vid, scene) {
+  var ds = _getFxDetectState(vid);
+  ds.phase = 'scanning';
+  ds.mpDetections = null;
+  ds.mpSelectedIdx = -1;
+  if (typeof renderAll === 'function') renderAll();
+  try {
+    var videoEl = null;
+    var clips = vid.clips || [];
+    if (clips.length > 0 && clips[0].url) {
+      var vids = document.querySelectorAll('video');
+      for (var v = 0; v < vids.length; v++) {
+        if (vids[v].src && vids[v].src.indexOf(clips[0].url) >= 0) { videoEl = vids[v]; break; }
+      }
+    }
+    var loaded = await window.ObjectDetection.loadMediaPipe();
+    if (!loaded) {
+      ds.mpDetections = [];
+      ds.phase = 'scanned';
+      if (typeof renderAll === 'function') renderAll();
+      return;
+    }
+    var results = await window.ObjectDetection.mediapipeDetect(videoEl);
+    ds.mpDetections = (results || []).map(function (r) {
+      return { bbox: r.bbox || { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, confidence: r.confidence || 0, label: r.label || 'Object' };
+    });
+    ds.phase = ds.mpDetections.length > 0 ? 'scanned' : 'scanned';
+  } catch (err) {
+    console.warn('[FX] MediaPipe scan failed:', err);
+    ds.mpDetections = [];
+    ds.phase = 'scanned';
+  }
+  if (typeof renderAll === 'function') renderAll();
+}
+
+var fxActions = {
+  removeEffect: function (scene, vid, fxId) {
+    var fxs = vid.effectInstances;
+    if (!Array.isArray(fxs)) return;
+    var idx = fxs.findIndex(function (fx) { return fx.id === fxId; });
+    if (idx < 0) return;
+    fxs.splice(idx, 1);
+    if (window._actions && window._actions.triggerSave) window._actions.triggerSave();
+    if (typeof renderAll === 'function') renderAll();
+  },
+  setCategory: function (vid, dir) {
+    var cur = g._fxCatIdxMap[vid.id] || 0;
+    var next = cur + dir;
+    if (next < 0) next = FX_CAT_NAMES.length - 1;
+    if (next >= FX_CAT_NAMES.length) next = 0;
+    g._fxCatIdxMap[vid.id] = next;
+    if (typeof renderAll === 'function') renderAll();
+  },
+  toggleExpanded: function (fxNodeId) {
+    if (g._fxExpanded === fxNodeId) {
+      g._fxExpanded = null;
+      g._fxManualStep = 1;
+      g._fxSelectedEffect = null;
+      g._fxTiming = { startPct: 0, endPct: 100 };
+      g._fxIntensity = 3;
+    } else {
+      g._fxExpanded = fxNodeId;
+      g._fxMode = 'auto';
+      g._fxManualStep = 1;
+      g._fxSelectedEffect = null;
+      g._fxTiming = { startPct: 0, endPct: 100 };
+      g._fxIntensity = 3;
+    }
+    if (typeof renderAll === 'function') renderAll();
+  },
+  setMode: function (mode) {
+    g._fxMode = mode;
+    if (typeof renderAll === 'function') renderAll();
+  },
+  applyPlan: function (scene, vid) {
+    var plan = vid.animationPlan;
+    if (!plan || !Array.isArray(plan.segments)) return;
+    var fxs = vid.effectInstances;
+    if (!Array.isArray(fxs)) fxs = vid.effectInstances = [];
+    var dur = vid.duration || scene.durationSec || 5;
+    var counter = fxs.length;
+    plan.segments.forEach(function (seg) {
+      var anims = seg.animations || [];
+      anims.forEach(function (effectType) {
+        var reg = window.VideoEffects && window.VideoEffects.EFFECT_REGISTRY && window.VideoEffects.EFFECT_REGISTRY[effectType];
+        fxs.push({
+          id: 'fx-' + vid.id + '-' + counter,
+          effectType: effectType,
+          category: reg ? reg.category : 'overlay',
+          objectBounds: null,
+          objectMask: null,
+          objectLabel: null,
+          confidence: null,
+          detectionSource: 'ai_plan',
+          startTime: Math.max(0, seg.startS || 0),
+          endTime: Math.min(dur, seg.endS || dur),
+          params: { intensity: 0.6, color: null, easing: 'easeOutQuad' }
+        });
+        counter++;
+      });
+    });
+    g._fxExpanded = null;
+    if (window._actions && window._actions.triggerSave) window._actions.triggerSave();
+    if (typeof renderAll === 'function') renderAll();
+  },
+  removePlanAnim: function (vid, segIdx, animName) {
+    var plan = vid.animationPlan;
+    if (!plan || !Array.isArray(plan.segments)) return;
+    var seg = plan.segments[segIdx];
+    if (!seg || !Array.isArray(seg.animations)) return;
+    var aIdx = seg.animations.indexOf(animName);
+    if (aIdx < 0) return;
+    seg.animations.splice(aIdx, 1);
+    if (typeof renderAll === 'function') renderAll();
+  },
+  regeneratePlan: function (scene, vid) {
+    if (typeof window.generateAnimationPlan === 'function') {
+      g._fxPlanGenerating = true;
+      if (typeof renderAll === 'function') renderAll();
+      window.generateAnimationPlan(scene, vid).then(function () {
+        g._fxPlanGenerating = false;
+        if (typeof renderAll === 'function') renderAll();
+      }).catch(function (err) {
+        console.warn('[FX] Regenerate plan failed:', err);
+        g._fxPlanGenerating = false;
+        if (typeof renderAll === 'function') renderAll();
+      });
+    } else {
+      cgToast('AI plan generation not yet available');
+    }
+  },
+};
+window.fxActions = fxActions;
 
 // ─── Preview Player (singleton) ────────────────────────────────────────────
 function buildPreviewPlayer() {
@@ -1373,7 +2037,10 @@ function pruneStaleNodes() {
       if (activeImg) {
         const list = (scene.videoInstances || []).filter(function (v) { return v.sourceImageInstanceId === activeImg.id; });
         const ra = list.find(function (v) { return v.isRenderActive; }) || list[0];
-        if (ra) valid.add(ra.id);
+        if (ra) {
+          valid.add(ra.id);
+          valid.add('fx-' + ra.id);
+        }
       }
     }
   });
@@ -1862,6 +2529,11 @@ function renderNodes() {
               const vpos = renderVid.canvasPosition || { x: COL_VID, y: scene._innerTop ?? TOP_PAD };
               placeNode(vidNode, vpos.x, vpos.y);
               updateVidNode(vidNode, scene, sceneIdx, activeSb, activeImg, renderVid);
+
+              const fxId = 'fx-' + renderVid.id;
+              const fxNode = ensureNode(fxId, 'fx', () => buildFxNode());
+              placeNode(fxNode, COL_FX, scene._innerTop ?? TOP_PAD);
+              updateFxNode(fxNode, scene, sceneIdx, activeSb, activeImg, renderVid);
             }
             ensureVidVariantTray(scene, sceneIdx, activeSb, activeImg);
           } else {
@@ -1957,6 +2629,10 @@ function nodeRect(id) {
   if (inst.type === 'vid') {
     const p = inst.vid.canvasPosition || { x: COL_VID, y: TOP_PAD };
     return { x: p.x, y: p.y, w: NODE_W, h: VID_H };
+  }
+  if (inst.type === 'fx') {
+    const vidP = inst.vid.canvasPosition || { x: COL_VID, y: TOP_PAD };
+    return { x: COL_FX, y: vidP.y, w: NODE_W, h: FX_H };
   }
   return null;
 }
@@ -2059,7 +2735,9 @@ function redrawCurves() {
             if (renderVid) {
               drawCurve(promptNodeId, renderVid.id, 'video', renderVid.status);
               if (phase === 'done') {
-                drawCurve(renderVid.id, 'cg-final', 'final', renderVid.status);
+                const fxId = 'fx-' + renderVid.id;
+                drawCurve(renderVid.id, fxId, 'fx', renderVid.status);
+                drawCurve(fxId, 'cg-final', 'final', renderVid.status);
               }
             }
           }
@@ -2194,6 +2872,7 @@ function panToColumn(colKey) {
     case 'sb':    colX = COL_SB;    colW = NODE_W; break;
     case 'img':   colX = COL_IMG;   colW = NODE_W; break;
     case 'vid':   colX = (g.mode === 'animated') ? COL_VID : COL_IMG; colW = NODE_W; break;
+    case 'fx':    colX = COL_FX; colW = NODE_W; break;
     case 'final': colX = (g.mode === 'animated') ? COL_FINAL_ANIM : COL_FINAL_ILL; colW = FINAL_W; break;
     default: return;
   }
@@ -2329,6 +3008,17 @@ function attachEvents() {
       g.marquee.curX = (e.clientX - rect.left - g.panX) / g.zoom;
       g.marquee.curY = (e.clientY - rect.top - g.panY) / g.zoom;
       updateMarqueeRect();
+    } else if (g._fxDragging && g._fxDragRail) {
+      var railRect = g._fxDragRail.getBoundingClientRect();
+      var pct = Math.max(0, Math.min(100, ((e.clientX - railRect.left) / railRect.width) * 100));
+      var t = g._fxTiming || { startPct: 0, endPct: 100 };
+      if (g._fxDragging === 'left') {
+        t.startPct = Math.min(pct, t.endPct - 2);
+      } else if (g._fxDragging === 'right') {
+        t.endPct = Math.max(pct, t.startPct + 2);
+      }
+      g._fxTiming = t;
+      if (typeof renderAll === 'function') renderAll();
     }
   };
   window.addEventListener('mousemove', g.onMouseMove);
@@ -2346,6 +3036,10 @@ function attachEvents() {
     }
     if (g.marquee) {
       finalizeMarquee(e.shiftKey);
+    }
+    if (g._fxDragging) {
+      g._fxDragging = null;
+      g._fxDragRail = null;
     }
   };
   window.addEventListener('mouseup', g.onMouseUp);
@@ -2530,6 +3224,372 @@ function attachEvents() {
         const inst = findInstance(node.dataset.id);
         if (inst && inst.type === 'img') {
           window.imgActions.setDirection && window.imgActions.setDirection(inst.scene, inst.img, mpick.dataset.dir);
+        }
+      }
+      return;
+    }
+
+    // FX chip remove button
+    const fxRemove = target.closest('.cg-fx-chip__remove');
+    if (fxRemove) {
+      e.preventDefault();
+      const chip = fxRemove.closest('.cg-fx-chip');
+      const fxId = fxRemove.dataset.fxId;
+      if (chip) chip.classList.add('cg-fx-chip--removing');
+      const nodeEl = fxRemove.closest('.cg-node');
+      if (nodeEl) {
+        const inst = findInstance(nodeEl.dataset.id);
+        if (inst && inst.type === 'fx') {
+          setTimeout(function () { fxActions.removeEffect(inst.scene, inst.vid, fxId); }, 150);
+        }
+      }
+      return;
+    }
+
+    // FX Add Effect button — toggle expanded mode
+    const fxAddBtn = target.closest('.cg-fx-add-btn');
+    if (fxAddBtn) {
+      e.preventDefault();
+      const nodeEl = fxAddBtn.closest('.cg-node');
+      if (nodeEl) {
+        fxActions.toggleExpanded(nodeEl.dataset.id);
+      }
+      return;
+    }
+
+    // FX plan row remove button
+    const planRemove = target.closest('.cg-plan-remove');
+    if (planRemove) {
+      e.preventDefault();
+      const sIdx = parseInt(planRemove.dataset.segIdx, 10);
+      const animName = planRemove.dataset.animName;
+      const nodeEl = planRemove.closest('.cg-node');
+      if (nodeEl) {
+        const inst = findInstance(nodeEl.dataset.id);
+        if (inst && inst.type === 'fx' && inst.vid.animationPlan && Array.isArray(inst.vid.animationPlan.segments)) {
+          fxActions.removePlanAnim(inst.vid, sIdx, animName);
+        }
+      }
+      return;
+    }
+
+    // FX mode toggle (AUTO / MANUAL)
+    const modeBtn = target.closest('.cg-fx-mode-btn');
+    if (modeBtn && modeBtn.dataset.mode) {
+      e.preventDefault();
+      fxActions.setMode(modeBtn.dataset.mode);
+      return;
+    }
+
+    // FX Apply Plan button
+    const applyBtn = target.closest('[data-role="fx-apply-plan"]');
+    if (applyBtn) {
+      e.preventDefault();
+      const nodeEl = applyBtn.closest('.cg-node');
+      if (nodeEl) {
+        const inst = findInstance(nodeEl.dataset.id);
+        if (inst && inst.type === 'fx') {
+          fxActions.applyPlan(inst.scene, inst.vid);
+        }
+      }
+      return;
+    }
+
+    // FX Regenerate Plan button
+    const regenBtn = target.closest('[data-role="fx-regen"]');
+    if (regenBtn) {
+      e.preventDefault();
+      const nodeEl = regenBtn.closest('.cg-node');
+      if (nodeEl) {
+        const inst = findInstance(nodeEl.dataset.id);
+        if (inst && inst.type === 'fx') {
+          fxActions.regeneratePlan(inst.scene, inst.vid);
+        }
+      }
+      return;
+    }
+
+    // FX detection mode toggle (Auto MediaPipe / Manual SAM)
+    const detectBtn = target.closest('.cg-fx-detect-btn');
+    if (detectBtn && detectBtn.dataset.detect) {
+      e.preventDefault();
+      var _dbNodeEl = detectBtn.closest('.cg-node');
+      if (_dbNodeEl) {
+        var _dbInst = findInstance(_dbNodeEl.dataset.id);
+        if (_dbInst && _dbInst.type === 'fx') {
+          var _dbDs = _getFxDetectState(_dbInst.vid);
+          var newMode = detectBtn.dataset.detect;
+          _dbDs.detectMode = newMode;
+          if (newMode === 'auto' && (_dbDs.phase === 'idle' || _dbDs.phase === 'detected')) {
+            _dbDs.phase = 'idle';
+            _runMediaPipeScan(_dbInst.vid, _dbInst.scene);
+          } else if (newMode === 'manual') {
+            _dbDs.phase = 'idle';
+            _dbDs.mpDetections = null;
+            _dbDs.mpSelectedIdx = -1;
+            if (typeof renderAll === 'function') renderAll();
+          }
+        }
+      }
+      return;
+    }
+
+    // FX MediaPipe detection box selection
+    const mpBox = target.closest('.cg-mp-box');
+    if (mpBox && mpBox.dataset.mpIdx != null) {
+      e.preventDefault();
+      var _mpNodeEl = mpBox.closest('.cg-node');
+      if (_mpNodeEl) {
+        var _mpInst = findInstance(_mpNodeEl.dataset.id);
+        if (_mpInst && _mpInst.type === 'fx') {
+          var _mpDs = _getFxDetectState(_mpInst.vid);
+          _mpDs.mpSelectedIdx = parseInt(mpBox.dataset.mpIdx, 10);
+          _mpDs.phase = 'selected';
+          if (typeof renderAll === 'function') renderAll();
+        }
+      }
+      return;
+    }
+
+    // FX "Confirm Object" (MediaPipe selection confirmed)
+    const mpConfirm = target.closest('[data-role="fx-mp-confirm"]');
+    if (mpConfirm) {
+      e.preventDefault();
+      var _mcNodeEl = mpConfirm.closest('.cg-node');
+      if (_mcNodeEl) {
+        var _mcInst = findInstance(_mcNodeEl.dataset.id);
+        if (_mcInst && _mcInst.type === 'fx') {
+          var _mcDs = _getFxDetectState(_mcInst.vid);
+          var sel = _mcDs.mpDetections && _mcDs.mpDetections[_mcDs.mpSelectedIdx];
+          if (sel) {
+            _mcInst.vid._fxObjectBounds = sel.bbox;
+            _mcInst.vid._fxObjectLabel = sel.label || 'Object';
+            g._fxManualStep = 2;
+            if (typeof renderAll === 'function') renderAll();
+          }
+        }
+      }
+      return;
+    }
+
+    // FX category tab click (Step 2)
+    const catTab = target.closest('.cg-fx-tab');
+    if (catTab && catTab.dataset.cat) {
+      e.preventDefault();
+      var _ctNodeEl = catTab.closest('.cg-node');
+      if (_ctNodeEl) {
+        var _ctInst = findInstance(_ctNodeEl.dataset.id);
+        if (_ctInst && _ctInst.type === 'fx') {
+          var cat = catTab.dataset.cat;
+          var catIdx = FX_CAT_NAMES.indexOf(cat);
+          if (catIdx >= 0) {
+            g._fxCatIdxMap[_ctInst.vid.id] = catIdx;
+            if (typeof renderAll === 'function') renderAll();
+          }
+        }
+      }
+      return;
+    }
+
+    // FX effect card click (Step 2) — select effect and advance to Step 3
+    const fxCard = target.closest('.cg-fx-card');
+    if (fxCard && fxCard.dataset.effect) {
+      e.preventDefault();
+      var _ecNodeEl = fxCard.closest('.cg-node');
+      if (_ecNodeEl) {
+        var _ecInst = findInstance(_ecNodeEl.dataset.id);
+        if (_ecInst && _ecInst.type === 'fx') {
+          g._fxSelectedEffect = fxCard.dataset.effect;
+          g._fxManualStep = 3;
+          if (typeof renderAll === 'function') renderAll();
+        }
+      }
+      return;
+    }
+
+    // FX "Back to Step 1" button (Step 2/3)
+    const backBtn = target.closest('[data-role="fx-back-to-step1"]');
+    if (backBtn) {
+      e.preventDefault();
+      var _bbNodeEl = backBtn.closest('.cg-node');
+      if (_bbNodeEl) {
+        g._fxManualStep = 1;
+        g._fxSelectedEffect = null;
+        if (typeof renderAll === 'function') renderAll();
+      }
+      return;
+    }
+
+    // FX "Back to Step 2" button (Step 3)
+    const back2Btn = target.closest('[data-role="fx-back-to-step2"]');
+    if (back2Btn) {
+      e.preventDefault();
+      g._fxManualStep = 2;
+      if (typeof renderAll === 'function') renderAll();
+      return;
+    }
+
+    // FX intensity dot click (Step 3)
+    const intDot = target.closest('.cg-int-dot');
+    if (intDot && intDot.dataset.level) {
+      e.preventDefault();
+      g._fxIntensity = parseInt(intDot.dataset.level, 10);
+      if (typeof renderAll === 'function') renderAll();
+      return;
+    }
+
+    // FX timing rail handle drag (Step 3) — mousedown start
+    const timingHandle = target.closest('.cg-timing-handle');
+    if (timingHandle) {
+      e.preventDefault();
+      g._fxDragging = timingHandle.dataset.handle;
+      g._fxDragRail = timingHandle.closest('.cg-timing-rail');
+      return;
+    }
+
+    // FX "Apply Effect" button (Step 3) — write EffectInstance and collapse
+    const applyEffectBtn = target.closest('[data-role="fx-apply-effect"]');
+    if (applyEffectBtn) {
+      e.preventDefault();
+      var _aeNodeEl = applyEffectBtn.closest('.cg-node');
+      if (_aeNodeEl) {
+        var _aeInst = findInstance(_aeNodeEl.dataset.id);
+        if (_aeInst && _aeInst.type === 'fx') {
+          var _aeVid = _aeInst.vid;
+          var _aeDs = _getFxDetectState(_aeVid);
+          var dur = _aeVid.duration || _aeInst.scene.durationSec || 5;
+          var t = g._fxTiming || { startPct: 0, endPct: 100 };
+          var effectType = g._fxSelectedEffect;
+          var reg = window.VideoEffects && window.VideoEffects.EFFECT_REGISTRY && window.VideoEffects.EFFECT_REGISTRY[effectType];
+          var hasObj = !!(_aeVid._fxObjectBounds || (_aeDs.bbox && _aeDs.phase === 'detected'));
+          var fxs = _aeVid.effectInstances;
+          if (!Array.isArray(fxs)) fxs = _aeVid.effectInstances = [];
+          fxs.push({
+            id: 'fx-' + _aeVid.id + '-' + fxs.length,
+            effectType: effectType,
+            category: reg ? reg.category : 'overlay',
+            objectBounds: hasObj ? (_aeVid._fxObjectBounds || _aeDs.bbox) : null,
+            objectMask: null,
+            objectLabel: hasObj ? (_aeVid._fxObjectLabel || _aeDs.label || 'Object') : null,
+            confidence: hasObj ? (_aeDs.confidence || null) : null,
+            detectionSource: hasObj ? (_aeDs.detectMode === 'auto' ? 'mediapipe' : 'mobilesam') : 'manual',
+            startTime: Math.max(0, (t.startPct / 100) * dur),
+            endTime: Math.min(dur, (t.endPct / 100) * dur),
+            params: { intensity: (g._fxIntensity || 3) * 0.2, color: null, easing: 'easeOutQuad' }
+          });
+          g._fxExpanded = null;
+          g._fxManualStep = 1;
+          g._fxSelectedEffect = null;
+          g._fxTiming = { startPct: 0, endPct: 100 };
+          g._fxIntensity = 3;
+          if (window._actions && window._actions.triggerSave) window._actions.triggerSave();
+          if (typeof renderAll === 'function') renderAll();
+        }
+      }
+      return;
+    }
+
+    // FX "Preview 1s" button (Step 3)
+    const prev1s = target.closest('[data-role="fx-preview-1s"]');
+    if (prev1s) {
+      e.preventDefault();
+      if (typeof window._cgPreviewToggle === 'function') window._cgPreviewToggle();
+      return;
+    }
+
+    // FX detect-frame click — run object detection
+    const detectFrame = target.closest('.cg-detect-frame');
+    if (detectFrame) {
+      e.preventDefault();
+      var _dfState = detectFrame.dataset.state;
+      if (_dfState === 'idle' || _dfState === 'detected') {
+        var rect = detectFrame.getBoundingClientRect();
+        var nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        var ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        var _dfNodeEl = detectFrame.closest('.cg-node');
+        var inst = _dfNodeEl ? findInstance(_dfNodeEl.dataset.id) : null;
+        if (inst && inst.type === 'fx') {
+          var ds = _getFxDetectState(inst.vid);
+          var ptType = ds._ptMode === 'negative' ? 'negative' : 'positive';
+          if (_dfState === 'detected') {
+            ds.points.push({ x: nx, y: ny, type: ptType });
+            _runSamWithPoints(inst.vid, inst.scene);
+          } else {
+            ds.points = [{ x: nx, y: ny, type: 'positive' }];
+            ds.phase = 'detecting';
+            if (typeof renderAll === 'function') renderAll();
+            _runSamDetection(inst.vid, inst.scene, nx, ny);
+          }
+        }
+      }
+      return;
+    }
+
+    // FX point control buttons
+    const ptBtn = target.closest('.cg-pt-btn');
+    if (ptBtn && ptBtn.dataset.action) {
+      e.preventDefault();
+      var _ptNodeEl = ptBtn.closest('.cg-node');
+      var _ptInst = _ptNodeEl ? findInstance(_ptNodeEl.dataset.id) : null;
+      if (_ptInst && _ptInst.type === 'fx') {
+        var _ds = _getFxDetectState(_ptInst.vid);
+        var act = ptBtn.dataset.action;
+        if (act === 'positive') _ds._ptMode = 'positive';
+        else if (act === 'negative') _ds._ptMode = 'negative';
+        else if (act === 'undo') { _ds.points.pop(); if (_ds.points.length === 0) { _ds.phase = 'idle'; _ds.bbox = null; } }
+        else if (act === 'reset') { _ds.phase = 'idle'; _ds.points = []; _ds.bbox = null; _ds.mask = null; _ds.label = null; _ds.confidence = null; }
+        if (typeof renderAll === 'function') renderAll();
+      }
+      return;
+    }
+
+    // FX "Looks right →" confirm detection
+    const confirmBtn = target.closest('[data-role="fx-confirm"]');
+    if (confirmBtn) {
+      e.preventDefault();
+      var _cNodeEl = confirmBtn.closest('.cg-node');
+      var _cInst = _cNodeEl ? findInstance(_cNodeEl.dataset.id) : null;
+      if (_cInst && _cInst.type === 'fx') {
+        var _cds = _getFxDetectState(_cInst.vid);
+        _cInst.vid._fxObjectBounds = _cds.bbox || null;
+        _cInst.vid._fxObjectLabel = _cds.label || 'Object';
+        g._fxManualStep = 2;
+        if (typeof renderAll === 'function') renderAll();
+      }
+      return;
+    }
+
+    // FX "Try again" retry detection
+    const retryBtn = target.closest('[data-role="fx-retry"]');
+    if (retryBtn) {
+      e.preventDefault();
+      var _rNodeEl = retryBtn.closest('.cg-node');
+      var _rInst = _rNodeEl ? findInstance(_rNodeEl.dataset.id) : null;
+      if (_rInst && _rInst.type === 'fx') {
+        var _rds = _getFxDetectState(_rInst.vid);
+        _rds.phase = 'idle';
+        _rds.points = [];
+        _rds.bbox = null;
+        _rds.mask = null;
+        _rds.label = null;
+        _rds.confidence = null;
+        if (typeof renderAll === 'function') renderAll();
+      }
+      return;
+    }
+
+    // FX "Animate full frame instead" button
+    const fullFrameBtn = target.closest('[data-role="fx-full-frame"]');
+    if (fullFrameBtn) {
+      e.preventDefault();
+      var _fxNodeEl = fullFrameBtn.closest('.cg-node');
+      if (_fxNodeEl) {
+        var inst = findInstance(_fxNodeEl.dataset.id);
+        if (inst && inst.type === 'fx') {
+          inst.vid._fxObjectBounds = null;
+          inst.vid._fxObjectLabel = null;
+          g._fxManualStep = 2;
+          if (typeof renderAll === 'function') renderAll();
         }
       }
       return;
@@ -3293,6 +4353,8 @@ function handleStepper(arrow) {
     window.bgmActions.setStyle && window.bgmActions.setStyle(dir);
   } else if (inst.type === 'bgm' && field === 'volume') {
     window.bgmActions.setVolume && window.bgmActions.setVolume(dir);
+  } else if (inst.type === 'fx' && field === 'fx-category') {
+    fxActions.setCategory(inst.vid, dir);
   } else if (inst.type === 'final' && field === 'resolution') {
     window.finalActions.setResolution && window.finalActions.setResolution(dir);
   } else if (inst.type === 'final' && field === 'fps') {

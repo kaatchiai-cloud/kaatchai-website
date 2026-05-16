@@ -1,4 +1,14 @@
     // ── Export as video (MP4 or WebM via MediaRecorder) ──
+    function _fxFindVideoInstance(sceneIdx) {
+      try {
+        var scenes = (typeof createScenes !== 'undefined') ? createScenes : (window.CanvasState && window.CanvasState._scenes);
+        if (!scenes || sceneIdx == null || sceneIdx < 0 || sceneIdx >= scenes.length) return null;
+        var scene = scenes[sceneIdx];
+        var vids = (scene && scene.videoInstances) || [];
+        var ra = vids.find(function(v) { return v.isRenderActive; }) || vids[0];
+        return ra || null;
+      } catch(e) { return null; }
+    }
     const exportSettingsPanel = $('export-settings');
     const exportQualitySel = $('export-quality');
     const exportFpsSel = $('export-fps');
@@ -201,6 +211,12 @@
                 const sc = Math.max(ew / vw, eh / vh);
                 const dw = vw * sc, dh = vh * sc;
                 ctx.drawImage(vEl, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
+              }
+              if (window.VideoEffects) {
+                var _fxVid = _fxFindVideoInstance(newIdx >= 0 ? videoTimelineItems[newIdx].sceneIdx : null);
+                if (_fxVid && _fxVid.effectInstances && _fxVid.effectInstances.length) {
+                  window.VideoEffects.renderEffectsToCanvas(ctx, vEl, _fxVid.effectInstances, _fxVid.tracks || {}, elapsed);
+                }
               }
             }
             // Overlay: narrator (covers B-roll for this chunk when present)
