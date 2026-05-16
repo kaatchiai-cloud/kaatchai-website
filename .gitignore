@@ -20,3 +20,19 @@ app/.flutter-plugins-dependencies
 app/.pub-cache/
 app/.pub/
 app/pubspec.lock
+
+# Secrets — NEVER commit credentials
+migration credential.rtf
+.env
+.env.*
+!.env.example
+
+# Node / infra
+node_modules/
+dist/
+build/
+.pnpm-store/
+
+# Infra secrets
+infra/**/.env
+infra/**/.env.*

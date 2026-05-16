@@ -1,0 +1,28 @@
+{
+  "name": "stori-monorepo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:e2e": "playwright test --project=web-smoke",
+    "dev:cloud-run": "pnpm --filter @stori/cloud-run dev",
+    "build:cloud-run": "pnpm --filter @stori/cloud-run build"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.50.0",
+    "eslint": "^9.0.0",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

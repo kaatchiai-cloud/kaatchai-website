@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentry Browser Smoke Test — Stori</title>
+  <script
+    src="https://js.sentry-cdn.dev/f3ef7a7848b601280ea702f96385a727.min.js"
+    crossorigin="anonymous"
+  ></script>
+</head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 4rem auto; padding: 0 1rem;">
+  <h1>Sentry Browser Smoke Test</h1>
+  <p>Click the button below to throw a deliberate error. Verify the event appears in the <strong>stori-web</strong> Sentry project within 60 seconds.</p>
+  <button onclick="throw new Error('smoke-test-browser')" style="padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer;">
+    Throw Error
+  </button>
+  <p id="result" style="color: green; display: none; margin-top: 1rem;">Error thrown — check your Sentry dashboard.</p>
+  <script>
+    window.onerror = function() {
+      document.getElementById('result').style.display = 'block';
+    };
+  </script>
+</body>
+</html>

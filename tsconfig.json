@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "infra/cloud-run" },
+    { "path": "infra/api" }
+  ]
+}
