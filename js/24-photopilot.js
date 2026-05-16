@@ -1163,6 +1163,11 @@ function renderFrame() {
   // never gets overwritten by the crossfade and stays consistently visible.
   if (seg.effect) applyInPhotoEffects(ctx, seg, segT, W, H, { skipFrame: true });
 
+  // 2b. Video effects — render any applied EffectInstances for this segment
+  if (window.VideoEffects && seg._fxInstances && seg._fxInstances.length) {
+    window.VideoEffects.renderEffectsToCanvas(ctx, null, seg._fxInstances, {}, segT * segDur);
+  }
+
   // 3. Transition
   if (seg.effect) {
     const transDur = seg.effect.transitionDuration || 0.4;

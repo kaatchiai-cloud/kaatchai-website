@@ -85,8 +85,17 @@ html[data-theme="light"] {
   --sock-script: #d9a200;
   --sock-image:  #d6671e;
   --sock-video:  #8a4ddb;
+  --sock-fx:     #b073ff;
   --sock-audio:  #1ea895;
   --sock-final:  #2a78d6;
+
+  --fx-positive-pt: oklch(80% 0.14 200);
+  --fx-negative-pt: #c03c3c;
+  --fx-mask-fill:   rgba(120, 220, 255, 0.22);
+  --fx-mask-stroke: oklch(50% 0.16 220);
+  --fx-face-box:    oklch(50% 0.16 220);
+  --fx-hands-box:   #d9a200;
+  --fx-body-box:    #1ea895;
 }
 
 
@@ -227,4 +236,24 @@ html[data-theme="light"] .lp-sp-subtitle { color: rgba(10,22,40,0.48); }
 html[data-theme="light"] .lp-sp-card { background: #0f1e3d; border-color: rgba(255,255,255,0.10); }
 html[data-theme="light"] .lp-sp-card:hover { background: #162848; }
 html[data-theme="light"] .lp-sp-quick { background: #0f1e3d; }
+
+
+/* ── Phase 11 — Voice UI light-mode overrides ────────────────────
+   Dark defaults in styles.css use var() tokens already — most
+   pick up light values automatically from the token swap above.
+   Only structural pieces that render a dark aesthetic deliberately
+   need explicit overrides here.                                   */
+
+/* voice-clone-badge: cloned voice uses cyan which is already
+   darkened in the light token set — no override needed.          */
+
+/* voice-picker-list scroll track */
+html[data-theme="light"] .voice-picker-list {
+  scrollbar-color: rgba(10,22,40,0.18) var(--lp-bg);
+}
+
+/* narrator-voice-row: dashed empty border needs more contrast in light */
+html[data-theme="light"] .narrator-voice-row.narrator-voice-empty {
+  border-color: rgba(10,22,40,0.22);
+}
 

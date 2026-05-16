@@ -182,6 +182,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 #create-canvas-step .cg-head-dot[data-sock="script"] { background: var(--sock-script); }
 #create-canvas-step .cg-head-dot[data-sock="image"]  { background: var(--sock-image); }
 #create-canvas-step .cg-head-dot[data-sock="video"]  { background: var(--sock-video); }
+#create-canvas-step .cg-head-dot[data-sock="fx"]     { background: var(--sock-fx); }
 #create-canvas-step .cg-head-dot[data-sock="audio"]  { background: var(--sock-audio); }
 #create-canvas-step .cg-head-dot[data-sock="final"]  { background: var(--sock-final); }
 
@@ -221,6 +222,7 @@ html[data-theme="light"] #create-canvas-step .cg-node {
 #create-canvas-step .cg-sock--script { background: var(--sock-script); }
 #create-canvas-step .cg-sock--image  { background: var(--sock-image); }
 #create-canvas-step .cg-sock--video  { background: var(--sock-video); }
+#create-canvas-step .cg-sock--fx     { background: var(--sock-fx); }
 #create-canvas-step .cg-sock--audio  { background: var(--sock-audio); }
 #create-canvas-step .cg-sock--final  { background: var(--sock-final); }
 
@@ -2247,4 +2249,738 @@ html[data-theme="light"] #create-canvas-step .cg-thumb .cg-vid-badge {
   font-size: 10px;
   color: var(--text-muted, var(--lp-faint));
   margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FX Node — Video Effects Canvas Node
+   ═══════════════════════════════════════════════════════════════ */
+
+#create-canvas-step .cg-node--fx .cg-node-title {
+  color: var(--sock-fx);
+}
+
+/* FX node — expanded state */
+#create-canvas-step .cg-node--fx-expanded .cg-node-body {
+  min-height: 180px;
+}
+
+/* FX category stepper in stepper row */
+#create-canvas-step .cg-node--fx .cg-stepper--fx-cat {
+  flex: 0 0 auto;
+}
+#create-canvas-step .cg-node--fx .cg-stepper--fx-cat .cg-arr:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* FX stepper row — side-by-side category stepper + add button */
+#create-canvas-step .cg-node--fx .cg-stepper-row {
+  gap: 6px;
+}
+#create-canvas-step .cg-node--fx .cg-fx-add-btn {
+  flex: 1 1 0;
+}
+
+/* FX empty state label */
+#create-canvas-step .cg-fx-empty {
+  display: block;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 8px 0;
+}
+
+/* FX effect chip row */
+#create-canvas-step .cg-fx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Single effect chip */
+#create-canvas-step .cg-fx-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 11px;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  transition: opacity 0.15s, transform 0.15s;
+}
+#create-canvas-step .cg-fx-chip__icon {
+  color: var(--accent);
+  font-size: 10px;
+}
+#create-canvas-step .cg-fx-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+#create-canvas-step .cg-fx-chip__name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+#create-canvas-step .cg-fx-chip__scope {
+  color: var(--text-secondary);
+}
+#create-canvas-step .cg-fx-chip__time {
+  color: var(--text-muted);
+}
+#create-canvas-step .cg-fx-chip__sep {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+#create-canvas-step .cg-fx-chip__remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+#create-canvas-step .cg-fx-chip__remove:hover {
+  color: var(--accent);
+}
+#create-canvas-step .cg-fx-chip--removing {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+/* Glow overlay on video thumbnail when effects are applied */
+#create-canvas-step .cg-fx-overlay {
+  position: relative;
+}
+#create-canvas-step .cg-fx-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 60% 40%, rgba(120,220,255,0.35) 0%, transparent 55%);
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+}
+#create-canvas-step .cg-fx-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 20px rgba(120,220,255,0.12);
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Add Effect button */
+#create-canvas-step .cg-fx-add-btn {
+  width: 100%;
+  padding: 6px 12px;
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--accent);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+#create-canvas-step .cg-fx-add-btn:hover {
+  background: color-mix(in oklch, var(--accent) 18%, transparent);
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+}
+
+/* ─── FX Expanded panel ────────────────────────────────────────── */
+
+#create-canvas-step .cg-fx-expanded {
+  padding: 8px 0;
+}
+
+/* AUTO / MANUAL mode toggle */
+#create-canvas-step .cg-fx-mode-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+#create-canvas-step .cg-fx-mode-btn {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#create-canvas-step .cg-fx-mode-btn.active {
+  background: color-mix(in oklch, var(--accent) 12%, var(--bg-primary));
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
+/* Section label */
+#create-canvas-step .cg-fx-section-label {
+  display: block;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* AI plan row */
+#create-canvas-step .cg-ai-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 11px;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  margin-bottom: 4px;
+  transition: opacity 0.15s;
+}
+#create-canvas-step .cg-plan-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+#create-canvas-step .cg-plan-scope {
+  color: var(--text-secondary);
+}
+#create-canvas-step .cg-plan-time {
+  color: var(--text-muted);
+}
+#create-canvas-step .cg-plan-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 4px;
+}
+#create-canvas-step .cg-plan-remove:hover {
+  color: var(--red);
+}
+
+/* AI plan empty state */
+#create-canvas-step .cg-fx-plan-empty {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* FX ghost button (Regenerate) */
+#create-canvas-step .cg-fx-ghost-btn {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  margin-top: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#create-canvas-step .cg-fx-ghost-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-hover, var(--border));
+  color: var(--text-primary);
+}
+
+/* FX primary button (Apply Plan, Apply Effect) */
+#create-canvas-step .cg-fx-primary-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 6px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  color: #000;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+#create-canvas-step .cg-fx-primary-btn:hover {
+  opacity: 0.9;
+}
+
+/* ─── FX Manual mode ────────────────────────────────────────── */
+
+/* Step label (STEP N OF 3 · ...) */
+#create-canvas-step .cg-fx-step-label {
+  display: block;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* Detection mode toggle (Auto MediaPipe / Manual SAM) */
+#create-canvas-step .cg-fx-detect-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+#create-canvas-step .cg-fx-detect-btn {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#create-canvas-step .cg-fx-detect-btn.active {
+  background: color-mix(in oklch, var(--accent) 12%, var(--bg-primary));
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
+/* Detect frame — interactive 16:9 video frame */
+#create-canvas-step .cg-detect-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+#create-canvas-step .cg-detect-frame[data-state="idle"] {
+  cursor: crosshair;
+}
+#create-canvas-step .cg-detect-frame[data-state="detecting"] {
+  cursor: wait;
+}
+#create-canvas-step .cg-detect-frame[data-state="loading"] {
+  cursor: wait;
+}
+#create-canvas-step .cg-detect-frame[data-state="detected"] {
+  cursor: default;
+}
+#create-canvas-step .cg-detect-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  text-align: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+/* Detect frame — video thumbnail */
+#create-canvas-step .cg-detect-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Detect frame — spinner */
+#create-canvas-step .cg-detect-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+#create-canvas-step .cg-detect-spinner::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: cg-spin 0.8s linear infinite;
+}
+@keyframes cg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Detection bounding box */
+#create-canvas-step .cg-detect-bbox {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(120, 220, 255, 0.25);
+}
+
+/* Segmentation mask SVG overlay */
+#create-canvas-step .cg-mask-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+#create-canvas-step .cg-mask-shape {
+  fill: var(--fx-mask-fill, rgba(120, 220, 255, 0.22));
+  stroke: var(--fx-mask-stroke, var(--accent));
+  stroke-width: 1.5;
+}
+
+/* Confidence chip */
+#create-canvas-step .cg-conf-chip {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 2px 6px;
+  background: color-mix(in oklch, var(--accent) 15%, var(--bg-primary));
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--accent);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Point prompt markers */
+#create-canvas-step .cg-pt {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+}
+#create-canvas-step .cg-pt[data-type="positive"] {
+  background: var(--fx-positive-pt, var(--accent));
+  box-shadow: 0 0 8px var(--fx-positive-pt, var(--accent));
+}
+#create-canvas-step .cg-pt[data-type="negative"] {
+  background: var(--fx-negative-pt, var(--red));
+  box-shadow: 0 0 8px rgba(255, 107, 122, 0.4);
+}
+
+/* Point controls strip */
+#create-canvas-step .cg-pt-controls {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+#create-canvas-step .cg-pt-btn {
+  padding: 3px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#create-canvas-step .cg-pt-btn.active {
+  background: color-mix(in oklch, var(--accent) 12%, var(--bg-primary));
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+#create-canvas-step .cg-pt-btn:hover {
+  border-color: var(--border-hover, var(--border));
+  color: var(--text-primary);
+}
+
+/* Detection action buttons (Try again / Looks right) */
+#create-canvas-step .cg-detect-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+#create-canvas-step .cg-detect-actions .cg-fx-ghost-btn,
+#create-canvas-step .cg-detect-actions .cg-fx-primary-btn {
+  margin-top: 0;
+  flex: 1;
+}
+
+/* MediaPipe scanline animation */
+#create-canvas-step .cg-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--fx-positive-pt, var(--accent));
+  animation: cg-scan 1.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes cg-scan {
+  0%   { top: 0%; opacity: 0.9; }
+  100% { top: 100%; opacity: 0.4; }
+}
+
+/* MediaPipe detection bounding boxes */
+#create-canvas-step .cg-mp-box {
+  position: absolute;
+  border: 2px dashed var(--fx-face-box, var(--accent));
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-style 0.15s, opacity 0.15s, border-color 0.15s;
+  z-index: 2;
+}
+#create-canvas-step .cg-mp-box[data-selected="false"] {
+  opacity: 0.7;
+}
+#create-canvas-step .cg-mp-box[data-selected="true"] {
+  border-style: solid;
+  opacity: 1;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(120, 220, 255, 0.3);
+}
+#create-canvas-step .cg-mp-box--face {
+  border-color: var(--fx-face-box, var(--accent));
+}
+#create-canvas-step .cg-mp-box--hands {
+  border-color: var(--fx-hands-box, var(--sock-script, #d9a200));
+}
+#create-canvas-step .cg-mp-box--body {
+  border-color: var(--fx-body-box, #1ea895);
+}
+#create-canvas-step .cg-mp-box[data-selected="true"] .cg-conf-chip {
+  background: color-mix(in oklch, var(--accent) 20%, var(--bg-primary));
+}
+
+/* Dim unselected boxes when one is selected */
+#create-canvas-step .cg-mp-box[data-selected="false"]:has(.cg-mp-box[data-selected="true"]) {
+  opacity: 0.3;
+}
+#create-canvas-step .cg-detect-frame:has(.cg-mp-box[data-selected="true"]) .cg-mp-box[data-selected="false"] {
+  opacity: 0.3;
+}
+
+/* ─── FX Step 2 — Effect picker ───────────────────────────────── */
+
+/* Category tab strip */
+#create-canvas-step .cg-fx-tab-strip {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  margin-bottom: 8px;
+  padding-bottom: 2px;
+}
+#create-canvas-step .cg-fx-tab {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#create-canvas-step .cg-fx-tab.active {
+  background: color-mix(in oklch, var(--accent) 12%, var(--bg-primary));
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+#create-canvas-step .cg-fx-tab--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* No object warning */
+#create-canvas-step .cg-fx-no-object {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 12px 0;
+  text-align: center;
+}
+
+/* Effect picker grid */
+#create-canvas-step .cg-fx-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+#create-canvas-step .cg-fx-card {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  position: relative;
+}
+#create-canvas-step .cg-fx-card:hover {
+  border-color: var(--border-hover, var(--border));
+  background: color-mix(in oklch, var(--bg-elevated) 85%, var(--accent) 3%);
+}
+#create-canvas-step .cg-fx-card--selected {
+  border: 2px solid var(--accent);
+  background: color-mix(in oklch, var(--accent) 8%, var(--bg-elevated));
+}
+#create-canvas-step .cg-fx-card--selected::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+#create-canvas-step .cg-fx-card__glyph {
+  font-size: 24px;
+  color: var(--accent);
+  line-height: 1;
+}
+#create-canvas-step .cg-fx-card__name {
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ─── FX Step 3 — Timing + Intensity ──────────────────────────── */
+
+/* Summary line (effect on object) */
+#create-canvas-step .cg-fx-summary {
+  margin-bottom: 8px;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+#create-canvas-step .cg-fx-summary__effect {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Timing rail */
+#create-canvas-step .cg-timing-rail {
+  position: relative;
+  height: 32px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  margin-bottom: 4px;
+}
+#create-canvas-step .cg-timing-fill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: color-mix(in oklch, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+#create-canvas-step .cg-timing-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+#create-canvas-step .cg-timing-handle--left {
+  left: -4px;
+}
+#create-canvas-step .cg-timing-handle--right {
+  right: -4px;
+}
+#create-canvas-step .cg-timing-tick {
+  position: absolute;
+  top: 100%;
+  margin-top: 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+#create-canvas-step .cg-timing-label {
+  display: block;
+  text-align: center;
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* Intensity dots */
+#create-canvas-step .cg-intensity-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+#create-canvas-step .cg-int-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s, box-shadow 0.1s;
+}
+#create-canvas-step .cg-int-dot.filled {
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--accent) 40%, transparent);
+  border-color: var(--accent);
+}
+#create-canvas-step .cg-int-dot:hover {
+  border-color: var(--accent);
+}
+#create-canvas-step .cg-int-label {
+  font-family: var(--font-mono, 'JetBrains Mono', 'SF Mono', Menlo, monospace);
+  font-size: 9px;
+  color: var(--text-muted);
 }

@@ -3,6 +3,15 @@
 # Pre-ship audit working docs — timestamped plan files, kept locally only
 pre-ship-audit-*.md
 
+# Design mocks, prototypes, and engineering docs — local study/reference only
+design/
+devDoc/
+canvas-preview.html
+canvas-timeline-send.html
+
+# Tool artifacts
+.playwright-mcp/
+
 # Flutter app build artifacts
 app/build/
 app/.dart_tool/

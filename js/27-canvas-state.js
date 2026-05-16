@@ -16,7 +16,8 @@
 //                                                generationContext, createdAt }] }],
 //     videoInstances:      [{ id, sourceImageInstanceId, motionPrompt, duration,
 //                             clips, status, error, taskId, isActive,
-//                             isRenderActive, canvasPosition, createdAt }]
+//                             isRenderActive, canvasPosition, createdAt,
+//                             effectInstances, tracks, animationPlan }]
 //   }
 //
 // Active-flag invariants (§5.3 of canvas-graph-plan.md):
@@ -59,6 +60,9 @@ function migrateScene(s, defaults) {
       v.clips = v.clips || [];
       if (typeof v.isRenderActive === 'undefined') v.isRenderActive = !!v.isActive;
       if (!v.role) v.role = 'broll';
+      if (!Array.isArray(v.effectInstances)) v.effectInstances = [];
+      if (!v.tracks || typeof v.tracks !== 'object') v.tracks = {};
+      if (typeof v.animationPlan === 'undefined') v.animationPlan = null;
     });
     if (!s.frontRole) s.frontRole = 'broll';
     // Bible-binding fields (Phase 1 — defaults only; populated at gen time)
@@ -109,6 +113,9 @@ function migrateScene(s, defaults) {
     role: 'broll',
     canvasPosition: null,
     createdAt: Date.now(),
+    effectInstances: [],
+    tracks: {},
+    animationPlan: null,
   }] : [];
 
   if (!s.frontRole) s.frontRole = 'broll';
@@ -365,6 +372,9 @@ function addVideoInstance(scene, sourceImgId, opts) {
     role: opts.role || 'broll',
     canvasPosition: null,
     createdAt: Date.now(),
+    effectInstances: [],
+    tracks: {},
+    animationPlan: null,
   };
   scene.videoInstances.push(v);
   return v;
@@ -396,6 +406,9 @@ function ensureNarratorVideoInstance(scene) {
     role: 'narrator',
     canvasPosition: null,
     createdAt: Date.now(),
+    effectInstances: [],
+    tracks: {},
+    animationPlan: null,
   };
   scene.videoInstances.push(v);
   return v;

@@ -2692,32 +2692,63 @@ function _getSceneLoraContext(scene) {
   const a = (window.createJobState || {}).loraAssignments || {};
   const loras = [];
 
-  // 1. Product LoRAs — from loraAssignments.products (new) or legacy loraProductIds
+  // Helper: resolve a character/item ID from either V2 items or legacy characters.
+  // Returns a normalised object with { loraUrl, triggerWord, inferenceEndpoint } or null.
+  function _resolveChar(id) {
+    if (!id) return null;
+    // V2 item (any type — talking-head, scene-real, scene-ai, product)
+    const v2 = window.LoraLibrary.getItemById ? window.LoraLibrary.getItemById(id) : null;
+    if (v2) return v2;
+    // Legacy character
+    const leg = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(id) : null;
+    if (leg) return { ...leg, inferenceEndpoint: 'fal-ai/flux-lora' };
+    return null;
+  }
+
+  // 1. Product LoRAs — from loraAssignments.products or legacy loraProductIds
   const productIds = a.products?.length
     ? a.products
     : (window.LoraLibrary.getSelectedProductIds ? window.LoraLibrary.getSelectedProductIds() : []);
-  const products = window.LoraLibrary.getProducts ? window.LoraLibrary.getProducts() : [];
+  // Try V2 items first, fall back to legacy products list
+  const legacyProducts = window.LoraLibrary.getProducts ? window.LoraLibrary.getProducts() : [];
   productIds.forEach(pid => {
-    const p = products.find(x => x.id === pid);
-    if (p?.loraStatus === 'ready' && p.loraUrl)
-      loras.push({ path: p.loraUrl, scale: 0.9, triggerWord: p.triggerWord });
+    const resolved = _resolveChar(pid) || legacyProducts.find(x => x.id === pid);
+    if (resolved?.loraStatus === 'ready' && resolved.loraUrl) {
+      loras.push({
+        path:             resolved.loraUrl,
+        scale:            0.9,
+        triggerWord:      resolved.triggerWord || '',
+        inferenceEndpoint:resolved.inferenceEndpoint || 'fal-ai/flux-lora',
+      });
+    }
   });
 
   // 2. Character LoRAs for this scene's characters
   const sceneCharIds = scene?.refCharacters || [];
   sceneCharIds.forEach(storyCharId => {
     const libCharId = a.characters?.[storyCharId];
-    if (!libCharId) return;
-    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(libCharId) : null;
-    if (c?.loraStatus === 'ready' && c.loraUrl)
-      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+    const c = _resolveChar(libCharId);
+    if (c?.loraStatus === 'ready' && c.loraUrl) {
+      loras.push({
+        path:             c.loraUrl,
+        scale:            1.0,
+        triggerWord:      c.triggerWord || '',
+        inferenceEndpoint:c.inferenceEndpoint || 'fal-ai/flux-lora',
+      });
+    }
   });
 
   // 3. Narrator LoRA — talking-head scenes only
   if (scene?.frontRole === 'narrator' && a.narrator) {
-    const c = window.LoraLibrary.getCharacterById ? window.LoraLibrary.getCharacterById(a.narrator) : null;
-    if (c?.loraStatus === 'ready' && c.loraUrl)
-      loras.push({ path: c.loraUrl, scale: 1.0, triggerWord: c.triggerWord });
+    const c = _resolveChar(a.narrator);
+    if (c?.loraStatus === 'ready' && c.loraUrl) {
+      loras.push({
+        path:             c.loraUrl,
+        scale:            1.0,
+        triggerWord:      c.triggerWord || '',
+        inferenceEndpoint:c.inferenceEndpoint || 'fal-ai/flux-lora',
+      });
+    }
   }
 
   return { loras, hasLora: loras.length > 0 };
@@ -4414,8 +4445,18 @@ async function generateSceneImage(idx) {
     const { loras: _sceneLoras, hasLora: _hasLora } = _getSceneLoraContext(scene);
     if (_hasLora) {
       const triggerWords = _sceneLoras.map(l => l.triggerWord).filter(Boolean).join(' ');
-      const _loraPrompt = triggerWords ? `${triggerWords} ${effectivePrompt}` : effectivePrompt;
-      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, _sceneLoras, window.LoraLibrary.getFalKey(), { width, height });
+      const _loraPrompt  = triggerWords ? `${triggerWords} ${effectivePrompt}` : effectivePrompt;
+      const falKey       = window.LoraLibrary.getFalKey();
+      // All FLUX loras go through generateImageFalFluxLora.
+      // Qwen loras: currently routed via FLUX endpoint as fallback (qwen-image inference
+      // is not yet wired into the scene pipeline — Phase 8 note).
+      const qwenLoras = _sceneLoras.filter(l => l.inferenceEndpoint === 'fal-ai/qwen-image');
+      const fluxLoras = _sceneLoras.filter(l => l.inferenceEndpoint !== 'fal-ai/qwen-image');
+      if (qwenLoras.length > 0) {
+        console.warn('[LoRA] Qwen-trained LoRA(s) detected in scene; using FLUX endpoint as fallback until qwen-image scene inference is implemented.');
+      }
+      const lorasToUse = fluxLoras.length > 0 ? fluxLoras : _sceneLoras;
+      imgDataUrl = await generateImageFalFluxLora(_loraPrompt, lorasToUse, falKey, { width, height });
     }
     if (!imgDataUrl) {
       // Try image models in fallback order
@@ -5354,6 +5395,9 @@ window.cgLaunchVideoAgent = async function () {
       }
       if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
       if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
+      if (typeof window.generateAnimationPlan === 'function' && vid && vid.animationPlan === null) {
+        window.generateAnimationPlan(scene, vid).catch(function () {});
+      }
     } catch (e) {
       console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
     }

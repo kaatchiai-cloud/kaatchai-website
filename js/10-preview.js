@@ -1,4 +1,14 @@
     // ── Preview (inline + fullscreen) ──
+    function _fxFindVideoInstance(sceneIdx) {
+      try {
+        var scenes = (typeof createScenes !== 'undefined') ? createScenes : (window.CanvasState && window.CanvasState._scenes);
+        if (!scenes || sceneIdx == null || sceneIdx < 0 || sceneIdx >= scenes.length) return null;
+        var scene = scenes[sceneIdx];
+        var vids = (scene && scene.videoInstances) || [];
+        var ra = vids.find(function(v) { return v.isRenderActive; }) || vids[0];
+        return ra || null;
+      } catch(e) { return null; }
+    }
     function _renderReelExtras(ctx, cw, ch, t) {
       try {
         // Draw reel frame overlay if transferred from reel creator
@@ -304,6 +314,12 @@
           previewCtx.fillStyle = '#000';
           previewCtx.fillRect(0, 0, cw1, ch1);
           if (newIdx1 >= 0) _drawVideoCoverFit(previewCtx, videoTimelineItems[newIdx1].videoEl, cw1, ch1);
+          if (window.VideoEffects && videoTimelineItems[newIdx1]) {
+            var _fxVid = _fxFindVideoInstance(videoTimelineItems[newIdx1].sceneIdx);
+            if (_fxVid && _fxVid.effectInstances && _fxVid.effectInstances.length) {
+              window.VideoEffects.drawVideoEffects(previewCtx, videoTimelineItems[newIdx1].videoEl, elapsed, _fxVid.effectInstances, _fxVid.tracks || {});
+            }
+          }
         } else {
           const bgM1 = renderBgVideoBefore(previewCtx, cw1, ch1, elapsed, previewSorted);
           if (bgM1 !== 'skip-images') renderTimelineFrame(previewCtx, cw1, ch1, elapsed, previewSorted);
@@ -335,6 +351,12 @@
           previewCtx.fillStyle = '#000';
           previewCtx.fillRect(0, 0, cw2, ch2);
           if (newIdx2 >= 0) _drawVideoCoverFit(previewCtx, videoTimelineItems[newIdx2].videoEl, cw2, ch2);
+          if (window.VideoEffects && videoTimelineItems[newIdx2]) {
+            var _fxVid2 = _fxFindVideoInstance(videoTimelineItems[newIdx2].sceneIdx);
+            if (_fxVid2 && _fxVid2.effectInstances && _fxVid2.effectInstances.length) {
+              window.VideoEffects.drawVideoEffects(previewCtx, videoTimelineItems[newIdx2].videoEl, elapsed, _fxVid2.effectInstances, _fxVid2.tracks || {});
+            }
+          }
         } else {
           const bgM2 = renderBgVideoBefore(previewCtx, cw2, ch2, elapsed, previewSorted);
           if (bgM2 !== 'skip-images') renderTimelineFrame(previewCtx, cw2, ch2, elapsed, previewSorted);

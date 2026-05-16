@@ -595,8 +595,12 @@ async function saveProjectToFile(audioBuf, statusFn) {
                 taskId: v.taskId || null,
                 isActive: !!v.isActive,
                 isRenderActive: !!v.isRenderActive,
+                role: v.role || 'broll',
                 canvasPosition: v.canvasPosition || null,
                 createdAt: v.createdAt || Date.now(),
+                effectInstances: v.effectInstances || [],
+                tracks: v.tracks || {},
+                animationPlan: v.animationPlan || null,
                 clipsData: [],
               };
               for (const clip of (v.clips || [])) {

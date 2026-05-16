@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440,initial-scale=1" />
+<title>Stori - LoRA Studio - Landing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --lp-bg:#050814;
+    --lp-surface:rgba(255,255,255,0.04);
+    --lp-card-bdr:rgba(255,255,255,0.08);
+    --lp-card-bdr-h:rgba(0,229,200,0.40);
+    --lp-text:#eef4ff;
+    --lp-dim:rgba(238,244,255,0.65);
+    --lp-mute:rgba(238,244,255,0.50);
+    --lp-faint:rgba(238,244,255,0.38);
+    --lp-accent:#00e5c8;
+    --lp-accent-h:#33ecd4;
+    --lp-on-accent:#05101a;
+    --lp-glow:rgba(0,229,200,0.30);
+  }
+  html,body{
+    background:var(--lp-bg);color:var(--lp-text);
+    font-family:'Inter',system-ui,sans-serif;
+    letter-spacing:-0.011em;font-feature-settings:"ss01","cv11";
+    width:1440px;height:900px;overflow:hidden;margin:0;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+
+  .topbar{
+    height:56px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border-bottom:1px solid var(--lp-card-bdr);
+    backdrop-filter:blur(14px);
+    position:relative;z-index:30;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 10px;border-radius:999px;
+    font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--lp-dim);
+    background:rgba(255,255,255,0.04);border:1px solid var(--lp-card-bdr);
+  }
+  .pill-accent{
+    color:var(--lp-accent);
+    background:rgba(0,229,200,0.08);
+    border-color:rgba(0,229,200,0.34);
+    box-shadow:inset 0 0 12px rgba(0,229,200,0.10);
+  }
+  .pill-dot{width:6px;height:6px;border-radius:999px;background:var(--lp-accent);box-shadow:0 0 10px var(--lp-glow)}
+  .btn-ghost{
+    background:transparent;border:1px solid var(--lp-card-bdr);
+    color:var(--lp-dim);font-size:12.5px;padding:6px 12px;border-radius:8px;
+    transition:border-color .18s ease, color .18s ease;cursor:pointer;
+  }
+  .btn-ghost:hover{border-color:var(--lp-card-bdr-h);color:var(--lp-text)}
+  .btn-save{
+    background:rgba(0,229,200,0.10);border:1px solid rgba(0,229,200,0.32);
+    color:var(--lp-accent);font-size:12.5px;padding:6px 14px;border-radius:8px;font-weight:500;
+    box-shadow:inset 0 0 14px rgba(0,229,200,0.08);cursor:pointer;
+  }
+
+  /* Page content */
+  .page{
+    position:absolute;top:56px;left:0;right:0;bottom:0;
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse 700px 500px at 50% 0%, rgba(0,229,200,0.03) 0%, transparent 60%),
+      var(--lp-bg);
+  }
+
+  /* Filter tabs */
+  .filter-tab{
+    padding:7px 16px;border-radius:8px;
+    font-size:13px;color:var(--lp-mute);
+    background:transparent;border:1px solid transparent;
+    cursor:pointer;transition:all .18s ease;
+  }
+  .filter-tab:hover{color:var(--lp-text);background:rgba(255,255,255,0.03)}
+  .filter-tab-active{
+    color:var(--lp-accent);
+    background:rgba(0,229,200,0.06);
+    border-color:rgba(0,229,200,0.25);
+  }
+
+  /* LoRA cards */
+  .lora-card{
+    border-radius:12px;
+    border:1px solid var(--lp-card-bdr);
+    background:rgba(255,255,255,0.03);
+    backdrop-filter:blur(8px);
+    overflow:hidden;
+    cursor:pointer;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  .lora-card:hover{
+    border-color:var(--lp-card-bdr-h);
+    box-shadow:0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(0,229,200,0.06);
+  }
+  .lora-thumb{
+    width:100%;height:160px;
+    position:relative;overflow:hidden;
+  }
+  .lora-card-body{padding:14px 16px}
+
+  /* Type badges */
+  .type-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 8px;border-radius:4px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
+    font-weight:500;
+  }
+  .type-product{color:#22d3ee;background:rgba(34,211,238,0.10);border:1px solid rgba(34,211,238,0.30)}
+  .type-talking-head{color:#a78bfa;background:rgba(167,139,250,0.10);border:1px solid rgba(167,139,250,0.30)}
+  .type-scene-real{color:#f59e0b;background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.30)}
+  .type-scene-ai{color:#f472b6;background:rgba(244,114,182,0.10);border:1px solid rgba(244,114,182,0.30)}
+
+  /* Status badges */
+  .status-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 8px;border-radius:4px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;letter-spacing:0.04em;
+  }
+  .status-ready{color:#10b981;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.30)}
+  .status-training{color:#f59e0b;background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.30)}
+  .status-idle{color:var(--lp-faint);background:rgba(255,255,255,0.03);border:1px solid var(--lp-card-bdr)}
+
+  /* Compat pills */
+  .compat-pill{
+    display:inline-flex;align-items:center;
+    padding:2px 6px;border-radius:3px;
+    font-size:9px;letter-spacing:0.04em;
+    color:var(--lp-mute);
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.06);
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* Progress bar */
+  .progress-bar{
+    height:4px;border-radius:2px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;border-radius:2px;
+    background:linear-gradient(90deg, #f59e0b, #fbbf24);
+    box-shadow:0 0 8px rgba(245,158,11,0.4);
+  }
+
+  /* New LoRA button */
+  .btn-new-lora{
+    position:fixed;bottom:36px;right:36px;
+    display:flex;align-items:center;gap:8px;
+    padding:14px 24px;border-radius:12px;
+    background:rgba(0,229,200,0.12);
+    border:1px solid rgba(0,229,200,0.40);
+    color:var(--lp-accent);font-size:14px;font-weight:600;
+    cursor:pointer;z-index:40;
+    box-shadow:0 0 30px rgba(0,229,200,0.15), inset 0 0 20px rgba(0,229,200,0.08);
+    transition:all .2s ease;
+  }
+  .btn-new-lora:hover{
+    background:rgba(0,229,200,0.18);
+    box-shadow:0 0 40px rgba(0,229,200,0.25), inset 0 0 20px rgba(0,229,200,0.12);
+  }
+
+  /* API key input */
+  .key-input{
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--lp-card-bdr);
+    border-radius:8px;
+    padding:8px 14px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:var(--lp-mute);
+    outline:none;width:320px;
+    letter-spacing:0.08em;
+  }
+  .key-input:focus{border-color:rgba(0,229,200,0.30)}
+
+  @keyframes pulseStat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}
+  .pulse-dot{animation:pulseStat 1.4s ease-in-out infinite}
+
+  /* Topbar training indicator — persistent across all screens */
+  .topbar-training{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:5px 12px 5px 10px;border-radius:999px;
+    background:rgba(245,158,11,0.08);
+    border:1px solid rgba(245,158,11,0.25);
+    cursor:pointer;
+    transition:all .18s ease;
+  }
+  .topbar-training:hover{
+    background:rgba(245,158,11,0.14);
+    border-color:rgba(245,158,11,0.40);
+  }
+  .topbar-training-bar{
+    width:48px;height:4px;border-radius:2px;
+    background:rgba(255,255,255,0.08);overflow:hidden;
+  }
+  .topbar-training-fill{
+    height:100%;border-radius:2px;
+    background:linear-gradient(90deg, #f59e0b, #fbbf24);
+    box-shadow:0 0 6px rgba(245,158,11,0.4);
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar flex items-center justify-between px-5">
+  <div class="flex items-center gap-4">
+    <button class="btn-ghost flex items-center gap-2">
+      <span style="font-size:14px">&#8592;</span><span>Home</span>
+    </button>
+    <div class="w-px h-5" style="background:var(--lp-card-bdr)"></div>
+    <span class="pill pill-accent mono"><span class="pill-dot"></span>LoRA Studio</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <!-- Persistent training indicator — visible from any screen, click to open training detail -->
+    <div class="topbar-training" title="Click to view training progress">
+      <span style="width:5px;height:5px;border-radius:999px;background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,0.5)" class="pulse-dot"></span>
+      <span style="font-size:11px;color:#fbbf77;font-family:'JetBrains Mono',monospace;letter-spacing:0.04em">Alex &mdash; 67%</span>
+      <div class="topbar-training-bar"><div class="topbar-training-fill" style="width:67%"></div></div>
+    </div>
+    <span class="pill mono"><span class="pill-dot" style="background:#10b981;box-shadow:0 0 10px rgba(16,185,129,0.45)"></span>410 credits</span>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page" style="padding:32px 48px">
+
+  <!-- Header -->
+  <div style="margin-bottom:28px">
+    <h1 style="font-size:28px;font-weight:700;letter-spacing:-0.025em;margin:0">LoRA Studio</h1>
+    <p style="font-size:14px;color:var(--lp-dim);margin-top:6px">Train custom LoRAs for products and characters</p>
+  </div>
+
+  <!-- API Key Row -->
+  <div class="flex items-center gap-3" style="margin-bottom:28px;padding:14px 18px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid var(--lp-card-bdr)">
+    <span style="font-size:12px;color:var(--lp-mute);font-family:'JetBrains Mono',monospace;letter-spacing:0.04em;text-transform:uppercase;font-size:10px;min-width:68px">fal.ai key</span>
+    <input class="key-input" type="password" value="fal_key_abc123xxxxxxxxxx" readonly />
+    <button class="btn-save" style="padding:8px 16px;font-size:12px">Save</button>
+    <a href="#" style="color:var(--lp-accent);font-size:12px;text-decoration:none;margin-left:4px;white-space:nowrap">Get key &#8599;</a>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="flex items-center gap-2" style="margin-bottom:24px">
+    <button class="filter-tab filter-tab-active">All</button>
+    <button class="filter-tab">Products</button>
+    <button class="filter-tab">Talking Head</button>
+    <button class="filter-tab">Scene (Real)</button>
+    <button class="filter-tab">Scene (AI)</button>
+  </div>
+
+  <!-- Card Grid -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+
+    <!-- Card 1: Product - Ready -->
+    <div class="lora-card">
+      <div class="lora-thumb" style="background:radial-gradient(circle at 60% 40%, rgba(34,211,238,0.25) 0%, transparent 55%), linear-gradient(145deg, #0c1a2e 0%, #122840 50%, #0a1220 100%)">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:64px;height:64px;border-radius:8px;background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.20);display:flex;align-items:center;justify-content:center;font-size:28px">&#9741;</div>
+        </div>
+      </div>
+      <div class="lora-card-body">
+        <div class="flex items-center justify-between" style="margin-bottom:8px">
+          <span class="type-badge type-product">Product</span>
+          <span class="status-badge status-ready"><span style="width:5px;height:5px;border-radius:999px;background:#10b981;box-shadow:0 0 6px rgba(16,185,129,0.5)"></span>Ready</span>
+        </div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px">Blue Ceramic Mug</div>
+        <div class="flex items-center gap-2">
+          <span class="compat-pill">Scene</span>
+          <span class="compat-pill">Talking Head</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Talking Head - Ready + Locked -->
+    <div class="lora-card">
+      <div class="lora-thumb" style="background:radial-gradient(circle at 45% 45%, rgba(167,139,250,0.25) 0%, transparent 55%), linear-gradient(145deg, #140e2a 0%, #1e1440 50%, #0e0a1a 100%)">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.20);display:flex;align-items:center;justify-content:center;font-size:28px">&#128100;</div>
+        </div>
+        <div style="position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.10);display:flex;align-items:center;justify-content:center;font-size:13px">&#128274;</div>
+      </div>
+      <div class="lora-card-body">
+        <div class="flex items-center justify-between" style="margin-bottom:8px">
+          <span class="type-badge type-talking-head">Talking Head</span>
+          <span class="status-badge status-ready"><span style="width:5px;height:5px;border-radius:999px;background:#10b981;box-shadow:0 0 6px rgba(16,185,129,0.5)"></span>Locked</span>
+        </div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px">Sarah &mdash; Marketing Team</div>
+        <div class="flex items-center gap-2">
+          <span class="compat-pill">Scene</span>
+          <span class="compat-pill">Talking Head</span>
+          <span class="compat-pill" style="color:rgba(139,92,246,0.75);background:rgba(139,92,246,0.06);border-color:rgba(139,92,246,0.18)">&#127908; Voice</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Scene Real - Training -->
+    <div class="lora-card" style="border-color:rgba(245,158,11,0.20)">
+      <div class="lora-thumb" style="background:radial-gradient(circle at 55% 40%, rgba(245,158,11,0.20) 0%, transparent 55%), linear-gradient(145deg, #1a1408 0%, #2a2010 50%, #121008 100%)">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:64px;height:64px;border-radius:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.20);display:flex;align-items:center;justify-content:center;font-size:28px">&#127916;</div>
+        </div>
+      </div>
+      <div class="lora-card-body">
+        <div class="flex items-center justify-between" style="margin-bottom:8px">
+          <span class="type-badge type-scene-real">Scene (Real)</span>
+          <span class="status-badge status-training"><span style="width:5px;height:5px;border-radius:999px;background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,0.5)" class="pulse-dot"></span>Training</span>
+        </div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:8px">Alex &mdash; Brand Ambassador</div>
+        <div class="progress-bar" style="margin-bottom:6px">
+          <div class="progress-fill" style="width:67%"></div>
+        </div>
+        <div style="font-size:11px;color:var(--lp-faint);font-family:'JetBrains Mono',monospace">Training... 67%</div>
+      </div>
+    </div>
+
+    <!-- Card 4: Scene AI - Ready -->
+    <div class="lora-card">
+      <div class="lora-thumb" style="background:radial-gradient(circle at 50% 45%, rgba(244,114,182,0.20) 0%, transparent 55%), linear-gradient(145deg, #1a0c1e 0%, #2a1430 50%, #120a14 100%)">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:64px;height:64px;border-radius:8px;background:rgba(244,114,182,0.08);border:1px solid rgba(244,114,182,0.20);display:flex;align-items:center;justify-content:center;font-size:28px">&#10024;</div>
+        </div>
+      </div>
+      <div class="lora-card-body">
+        <div class="flex items-center justify-between" style="margin-bottom:8px">
+          <span class="type-badge type-scene-ai">Scene (AI)</span>
+          <span class="status-badge status-ready"><span style="width:5px;height:5px;border-radius:999px;background:#10b981;box-shadow:0 0 6px rgba(16,185,129,0.5)"></span>Ready</span>
+        </div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px">Neon Samurai</div>
+        <div class="flex items-center gap-2">
+          <span class="compat-pill">Scene</span>
+          <span class="compat-pill" style="color:var(--lp-faint);border-style:dashed">&#127908; No voice</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- New LoRA Button -->
+<button class="btn-new-lora">
+  <span style="font-size:18px;font-weight:300">+</span>
+  <span>New LoRA</span>
+</button>
+
+</body>
+</html>
