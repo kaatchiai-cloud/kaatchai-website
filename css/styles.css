@@ -36,6 +36,16 @@
   --text-lg: 1.05rem;
   --text-xl: 1.2rem;
   --text-2xl: 2.2rem;
+
+  /* Canvas-graph FX tokens */
+  --sock-fx:     #b073ff;
+  --fx-positive-pt: var(--accent);
+  --fx-negative-pt: var(--red);
+  --fx-mask-fill:   rgba(120, 220, 255, 0.22);
+  --fx-mask-stroke: var(--accent);
+  --fx-face-box:    var(--accent);
+  --fx-hands-box:   var(--sock-script);
+  --fx-body-box:    var(--sock-audio, #1ea895);
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }

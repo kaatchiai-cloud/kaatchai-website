@@ -5395,6 +5395,9 @@ window.cgLaunchVideoAgent = async function () {
       }
       if (typeof CanvasState !== 'undefined') CanvasState.syncMirrorFields(scene, createVideoMode);
       if (typeof CanvasGraph !== 'undefined' && CanvasGraph.notifyVideoReady) CanvasGraph.notifyVideoReady(sceneIdx);
+      if (typeof window.generateAnimationPlan === 'function' && vid && vid.animationPlan === null) {
+        window.generateAnimationPlan(scene, vid).catch(function () {});
+      }
     } catch (e) {
       console.warn('[cgLaunchVideoAgent] scene', sceneIdx, 'failed:', e.message);
     }

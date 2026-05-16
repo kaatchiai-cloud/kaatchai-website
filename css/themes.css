@@ -85,8 +85,17 @@ html[data-theme="light"] {
   --sock-script: #d9a200;
   --sock-image:  #d6671e;
   --sock-video:  #8a4ddb;
+  --sock-fx:     #b073ff;
   --sock-audio:  #1ea895;
   --sock-final:  #2a78d6;
+
+  --fx-positive-pt: oklch(80% 0.14 200);
+  --fx-negative-pt: #c03c3c;
+  --fx-mask-fill:   rgba(120, 220, 255, 0.22);
+  --fx-mask-stroke: oklch(50% 0.16 220);
+  --fx-face-box:    oklch(50% 0.16 220);
+  --fx-hands-box:   #d9a200;
+  --fx-body-box:    #1ea895;
 }
 
 
