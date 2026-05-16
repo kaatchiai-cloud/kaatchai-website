@@ -35,10 +35,10 @@ _(Record at phase exit)_
 
 | Metric | Value |
 |--------|-------|
-| Cold-start time (first request) | _ms |
+| Cold-start time (first request) | 279ms |
 | Region | us-central1 |
 | Min-instances | 0 |
-| Date measured | _ |
+| Date measured | 2026-05-16 |
 
 ## Routes (Phase 01 only)
 

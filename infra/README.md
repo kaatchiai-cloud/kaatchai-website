@@ -59,14 +59,14 @@ infra/
 
 | # | Criterion | Verified | Date |
 |---|-----------|----------|------|
-| 1 | Supabase project created; `users` table + RLS | ☐ | |
-| 2 | Cloud Run `/v1/health` returns 200 from public URL | ☐ | |
-| 3 | R2 presigned PUT+GET round-trip succeeds | ☐ | |
-| 4 | Sentry events visible in both projects | ☐ | |
-| 5 | CI green on sample PR | ☐ | |
-| 6 | `main` branch protected | ☐ | |
-| 7 | `infra/README.md` complete with env-var matrix | ☐ | |
-| 8 | Repo bootstrap: `pnpm install && typecheck && lint && test && test:e2e` all green | ☐ | |
+| 1 | Supabase project created; `users` table + RLS | ☑ | 2026-05-16 |
+| 2 | Cloud Run `/v1/health` returns 200 from public URL | ☑ | 2026-05-16 |
+| 3 | R2 presigned PUT+GET round-trip succeeds | ☑ | 2026-05-16 |
+| 4 | Sentry events visible in both projects | ☐ | verify in dashboard |
+| 5 | CI green on sample PR | ☑ | 2026-05-16 |
+| 6 | `main` branch protected | ☑ | 2026-05-16 |
+| 7 | `infra/README.md` complete with env-var matrix | ☑ | 2026-05-16 |
+| 8 | Repo bootstrap: `pnpm install && typecheck && lint && test && test:e2e` all green | ☑ | 2026-05-16 |
 
 ## Production domain
 
