@@ -248,4 +248,122 @@ flowchart LR
 
 ---
 
+## Part 7 — Verification & Checkpoints
+
+### 7.1 Checkpoint Levels
+
+| Level | Name | When | Who | Pass criteria |
+|-------|------|------|-----|----------------|
+| L0 | Instance checkpoint | Mid-phase sub-milestone | Agent (automated) | Grep gates + smoke pass; record in `migrations/checkpoint-log.md` |
+| L1 | Phase exit gate | End of phase | Agent + human review | Full exit criteria from task brief; human approves before next phase starts |
+| L2 | Cross-phase regression | After P05, P07 | Agent + human | Previously-completed phases still functional; no regressions |
+
+**Instance checkpoints** are defined in each task brief (e.g., CP-05-1 through CP-05-5 for P05). Agents must complete every L0 in order before declaring L1 done.
+
+**HALT rule:** any L0 grep gate with unexpected hits → STOP, fix before continuing. 3 consecutive L0 failures on the same checkpoint → ESCALATE to human.
+
+### 7.2 Cross-Phase Integration Gates (L2)
+
+**L2-05: After P05, verify P01–P04 still intact**
+```bash
+# P01: infra healthy
+curl -sf https://$CLOUDRUN_URL/v1/health | jq .ok
+# → true
+
+# P02: auth enforces JWT
+curl -sf https://$CLOUDRUN_URL/v1/me | jq .statusCode
+# → 401
+
+# P03: project CRUD works
+curl -sf -H "Authorization: Bearer $JWT" https://$CLOUDRUN_URL/v1/projects | jq .length
+# → 0+
+
+# P04: split files still present
+ls js/17e-canvas-launch.js js/17f-tier2-lipsync-fal.js js/28a-image-gen-shim.js
+# → all exist
+```
+
+**L2-07: After P07, full regression (most critical — P07 deletes a lot of code)**
+```bash
+# P01: infra healthy
+curl -sf https://$CLOUDRUN_URL/v1/health | jq .ok
+
+# P02: auth + JWT
+curl -sf https://$CLOUDRUN_URL/v1/me | jq .statusCode
+# → 401 without JWT
+
+# P03: project CRUD + R2 presign round-trip
+curl -sf -H "Authorization: Bearer $JWT" https://$CLOUDRUN_URL/v1/projects
+
+# P05: AutoPilot end-to-end (Illustrated + Animated)
+# Create project → launch → poll jobs → verify images/video produced
+
+# P06: 7 secondary pipelines quick smoke
+# Brainstorm, photopilot, canvas, lipsync, audio, input-parser, lora
+
+# P07: zero regressions (BYOK grep still 0)
+grep -rnE "stori_key_paid|stori_key_free" js/ index.html
+# → 0 (still 0, not re-introduced)
+```
+
+Full regression checklist for L2-07: sign-in, project CRUD, AutoPilot Illustrated, AutoPilot Animated, Brainstorm, PhotoPilot, Canvas validate + face swap, Lipsync, Audio, Input parser, LoRA inference, and verify zero console `ReferenceError`.
+
+### 7.3 Verification Layers
+
+| Layer | What | When |
+|-------|------|------|
+| A — Grep gates | Pattern-based source code verification | Every L0 + L1 |
+| B — Integration tests | API round-trip tests (vitest + playwright) | Every L0 + L1 |
+| C — Manual smoke | End-to-end feature verification in browser | L1 + L2 |
+
+**Grep gate rules:**
+1. Every command is copy-pasteable — no interpretation needed.
+2. Expected output always stated (`# → 0 hits`, `# → non-zero`).
+3. Carve-out exceptions explicit (e.g., "fal.ai at 17c:2648-2750 expected non-zero").
+4. Grep scope explicit: `js/` + `index.html` only (NOT `marketing-pipeline/`).
+
+**Minimum integration tests per phase:** P01=4, P02=2, P03=5, P04=2, P05=5, P06=8, P07=3, P08=2.
+
+### 7.4 Smoke Test Infrastructure
+
+```
+scripts/smoke/
+├── smoke-lib.sh              ← shared: get_jwt, assert_grep_zero, assert_http_status
+├── smoke-01-foundations.sh
+├── smoke-02-auth.sh
+├── smoke-03-api-contract.sh
+├── smoke-04-module-split.sh
+├── smoke-05-autopilot.sh
+├── smoke-06-secondary.sh
+├── smoke-07-cutover.sh
+├── smoke-08-launch.sh
+├── smoke-L2-regression.sh
+└── smoke-all.sh              ← runs all for current phase
+```
+
+### 7.5 Checkpoint Log
+
+All checkpoint results are recorded in `migrations/checkpoint-log.md`:
+```
+## CP-05-2: Illustrated AutoPilot Migrated
+- **Date:** 2026-XX-XX
+- **Agent:** <agent-id>
+- **VERIFY:** PASS (0 hits on all grep gates)
+- **SMOKE:** PASS (Illustrated AutoPilot full run successful)
+- **HALT:** none triggered
+- **Notes:** 26 callGeminiAPI sites replaced with callApi; fal.ai carve-out intact
+```
+
+### 7.6 Rollback Rules
+
+| Condition | Action |
+|-----------|--------|
+| L0 VERIFY unexpected hits | STOP, fix within same instance |
+| L0 SMOKE fails | STOP, investigate; if data-corrupting, revert last commit |
+| 3× L0 failure on same checkpoint | ESCALATE to human |
+| L1 exit gate fails | BLOCK next phase; human approves remediation |
+| L2 regression fails | ROLLBACK to last known-good L1; re-verify |
+
+---
+
 *End of phase index. Revision 5 — 2026-05-16.*
