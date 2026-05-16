@@ -1,9 +1,9 @@
 # ADR-01 — Project state model (Postgres schema + R2 binary references)
 
 > **Status:** Proposed (decision finalizes during Phase 03 schema-design spike — **7 days** in revision 3, was 3).
-> **Date:** 2026-05-05; **revision 3:** 2026-05-06 (5 new tables added per audit).
+> **Date:** 2026-05-05; **revision 3:** 2026-05-06 (5 new tables added per audit); **revision 4 pass-2:** 2026-05-06 (`brand_assets` table added per user decision); **revision 5:** 2026-05-16 (`lora_items` table + 3 additive columns on `video_instances` added per post-feature-gap audit).
 > **Affected phases:** 03, 05, 06.
-> **Author:** architect-cycle (revision 3 — was revision 2).
+> **Author:** architect-cycle (revision 5 — was revision 4 pass-2).
 
 ---
 
@@ -127,6 +127,91 @@ Revision 3 adds **5 tables** to the schema. Cumulative table count: **10**. The 
 
 ---
 
+## Decision (revision 5) — `lora_items` table + 3 additive columns on `video_instances` (audit 2026-05-16)
+
+The 2026-05-16 post-feature-gap audit (`migration-plan-audit-rev5-merged.md`) surfaced three features added to the codebase **after** revision 4 was finalised. One of them — **LoRA Studio** (`js/34-lora-library.js`, 4,413 lines) — has its own IndexedDB database (`stori_lora_photos`) and a localStorage data store (`stori_lora_items_v2`) that none of the rev-3 / rev-4 tables address. Without a home for it, P03 ships a partial persistence layer and the LoRA pipeline (P06) has no schema to write into. Additionally, `js/27-canvas-state.js` (the canonical client model) gained three new fields on every `videoInstance` (`effectInstances`, `tracks`, `animationPlan`) sourced from the new Video Effects engine — the existing `video_instances` table spec predates these fields.
+
+Revision 5 adds **1 new table** + **3 additive columns** on the existing `video_instances` table. Cumulative table count: **12**.
+
+### 12. `lora_items` — unified LoRA library (products + characters + all training types)
+
+```
+id            uuid PK
+user_id       uuid FK auth.users [strict per-user RLS]
+name          text NOT NULL
+kind          ENUM('product','talking-head','scene-real','scene-ai') NOT NULL
+trigger_phrase    text NULL
+trainer_endpoint  text NULL       -- e.g. 'fal-ai/flux-lora-portrait-trainer', 'fal-ai/qwen-image-trainer', 'fal-ai/flux-lora-fast-training'
+inference_endpoint text NULL      -- e.g. 'fal-ai/flux-lora', 'fal-ai/qwen-image'
+lora_url      text NULL           -- populated when training completes; the URL of the trained .safetensors / diffusers_lora_file
+lora_status   ENUM('uploading','generating','reviewing','training','ready','failed') NOT NULL DEFAULT 'uploading'
+fal_request_id text NULL          -- the fal.ai queue request id for polling
+voice_profile jsonb NULL          -- ElevenLabs voice ID + sample R2 keys (used by LoRA Studio voice picker)
+appearance_block jsonb NULL       -- Gemini-vision-extracted appearance description (~200 words)
+tuning_params jsonb NOT NULL DEFAULT '{}'::jsonb   -- lora_scale, guidance_scale, seed, refineEnabled, learning_rate, etc.
+compatible_with text NULL         -- compatibility hints (e.g. 'flux','qwen','any')
+created_at    timestamptz NOT NULL DEFAULT now()
+updated_at    timestamptz NOT NULL DEFAULT now()
+```
+
+**Source:** `stori_lora_items_v2` localStorage + `stori_lora_photos` IndexedDB at `js/34-lora-library.js:122`. V1 migrations from `stori_lora_products_v1` (at `js/34-lora-library.js:1782`) and `stori_lora_characters_v1` (at `js/34-lora-library.js:1826`) already fold into the V2 unified items shape client-side, so the Postgres `lora_items` table receives the V2 shape directly.
+
+**ENUM value sources (must be correct at DDL time — Postgres ENUMs are not easily altered):**
+- `kind` ENUM values come from `js/34-lora-library.js:608–613` (`TYPE_LABELS`):
+  - `'product'` — product LoRA (objects, branded items)
+  - `'talking-head'` — character LoRA for talking-head video (face + upper body)
+  - `'scene-real'` — character LoRA for real-photo scenes (full body)
+  - `'scene-ai'` — character LoRA for AI-generated scenes (full body)
+- `lora_status` ENUM values come from `js/34-lora-library.js:41–69` (`TRAINERS_V2`) state machine:
+  - `'uploading'` → user is uploading training photos
+  - `'generating'` → trainer is generating the 3×3 grid of training images (Gemini)
+  - `'reviewing'` → user reviews + selects training images before submit
+  - `'training'` → submitted to fal.ai, polling
+  - `'ready'` → training complete, `lora_url` populated
+  - `'failed'` → training failed; `error` text NULL allowed via separate audit column if needed (or fold into `tuning_params.last_error`)
+
+**Binary blobs** (training photos, generated training images, preview images, voice samples) → R2. R2 key references are stored in `lora_items` (or, if normalised, in a separate `lora_training_photos` table — schema spike decides). Key prefix convention from `js/34-lora-library.js` IDB:
+- `lora_v2_{itemId}_photo_{i}` → training photos uploaded by user
+- `lora_v2_{itemId}_train_{i}` → generated training images (3×3 grid)
+- `lora_v2_{itemId}_preview_{i}` → preview images shown post-training
+- `lora_v2_{itemId}_voice_sample` → voice sample for ElevenLabs IVC voice cloning
+- `lora_char_{charId}_photo_{i}` / `lora_char_{charId}_preview` → legacy V1 character paths
+
+**Endpoints (defined in P06 — LoRA Studio pipeline):**
+- `GET|POST|PUT|DELETE /v1/lora-items` — metadata CRUD; binaries via the existing R2 presign endpoint with intent `lora-training-photo` / `lora-training-image` / `lora-preview` / `lora-voice-sample`.
+- `POST /v1/jobs/lora-training` — async (submit → poll → done). Server proxies fal.ai queue, polls on Cloud Run, writes back to `lora_items.lora_url` + `lora_items.lora_status='ready'`.
+- `POST /v1/lora/inference` — sync. Server calls `fal-ai/flux-lora` (or `fal-ai/qwen-image`) using the `inference_endpoint` from `lora_items`.
+- `POST /v1/lora/voice-clone` — async. ElevenLabs IVC voice cloning; result is the ElevenLabs `voice_id` stored in `voice_profile`.
+- `POST /v1/lora/appearance-extract` — sync. Gemini Vision call that returns the ~200-word appearance description for `appearance_block`.
+
+**RLS:** strictly per-user (`auth.uid() = user_id`). LoRAs are not project-scoped — they live in a per-user library and can be assigned to multiple projects via `window.createJobState.loraAssignments` (which becomes a serialisation concern at the API contract layer, not a schema column).
+
+**Cross-file integration constraint:** the `lora_items` API response shape must preserve the data fields the existing client `window.LoraLibrary.*` surface returns, because four files read it during AutoPilot execution (`js/01-core.js:456–457`, `js/17c:1734–1735, 2691–2713, 2648–2750, 4449`, `js/28-canvas-consistency.js:225–227, 353–356`, `js/17b-create-references.js:2561–2562, 3198`). The server endpoint must return the same shape the existing `getItemById` / `getCharacterById` / `getSelectedProductIds` / `getProducts` / `getFalKey` accessors expose, OR a thin client-side adapter wraps the new API to match. Either path is acceptable; closed in P06 design.
+
+### `video_instances` — 3 additive JSONB columns (rev-5)
+
+`js/27-canvas-state.js` uncommitted edits add three new fields to every `videoInstance`:
+- `effectInstances: []` — list of effect instances applied to this video clip (Video Effects engine, `js/35-video-effects.js`).
+- `tracks: {}` — overlay tracks keyed by track ID (text, image, audio overlays).
+- `animationPlan: null` — animation plan object describing per-effect timing / easing / target objects.
+
+Source references: `js/27-canvas-state.js:19` (schema doc comment), `:63–65` (migrator backfill on existing instances), `:116–118` (`migrateScene` factory), `:375–377` (`addVideoInstance` factory), `:409–411` (`ensureNarratorVideoInstance` factory). All three factories initialize the fields; the migrator backfills them on load.
+
+**Column additions to existing `video_instances` table:**
+```
+effects        jsonb NOT NULL DEFAULT '[]'::jsonb        -- maps to scene.videoInstances[].effectInstances
+tracks         jsonb NOT NULL DEFAULT '{}'::jsonb        -- maps to scene.videoInstances[].tracks
+animation_plan jsonb NULL                                -- maps to scene.videoInstances[].animationPlan
+```
+
+**Why JSONB, not normalized tables:** the effects list is never queried cross-row; it's always read with its parent video instance. The animation plan is opaque to the schema — only the client's render engine interprets it. Normalising would add three FK-constrained child tables with no query benefit. Same rationale as `clips jsonb` (line 64) and `canvas_position jsonb` (line 64).
+
+**Migration concern: none.** These are *additive* columns with default values that match the client migrator's backfill (`[]`, `{}`, `null`). Already-persisted rows get the defaults; new rows get populated from the client. No data migration required.
+
+**Spike note:** if the effect-instance list ever needs cross-row queries (e.g. "show me all videos using the 'glitch' effect"), normalize via a `video_instance_effects` table at that point — additive, doesn't break the JSONB column. Schema spike marks this as a deferred decision.
+
+---
+
 ## Consequences
 
 ### Positive
@@ -170,18 +255,20 @@ Revision 3 adds **5 tables** to the schema. Cumulative table count: **10**. The 
 
 ## Affected phases
 
-- **Phase 03** ships this schema, the migrations file, the RLS policies, and the active-flag triggers.
-- **Phase 05** writes `image_instances` and `video_instances` rows from worker handlers; respects `is_active`/`is_render_active` flags when reading "what to generate".
-- **Phase 06** runs `validateGates` server-side — depends on every column being correctly populated.
+- **Phase 03** ships this schema, the migrations file, the RLS policies, and the active-flag triggers. Rev-5: also ships `lora_items` table + 3 additive JSONB columns on `video_instances` (`effects`, `tracks`, `animation_plan`).
+- **Phase 05** writes `image_instances` and `video_instances` rows from worker handlers; respects `is_active`/`is_render_active` flags when reading "what to generate". Rev-5: P05 carve-out — fal.ai LoRA inference calls in `js/17c-create-pipeline.js:2648–2750` are deferred to P06 (these write to `lora_items` indirectly via the LoRA inference endpoint).
+- **Phase 06** runs `validateGates` server-side — depends on every column being correctly populated. Rev-5: P06 LoRA Studio pipeline writes the full `lora_items` lifecycle (training submit → poll → ready); P06 Canvas pipeline writes `video_instances.effects` / `video_instances.tracks` / `video_instances.animation_plan` via the project save/load surface (no new endpoint needed — existing `/v1/projects/:id` PUT covers it).
 - **Future mobile cycle** consumes the API contract that fronts this schema (ADR-03); the schema design here is intentionally accommodating of an eventual mobile client.
 
 ---
 
 ## Links
 
-- Source code (authoritative): `/Users/praveen/Desktop/stori/js/27-canvas-state.js` (616 lines)
+- Source code (authoritative): `/Users/praveen/Desktop/stori/js/27-canvas-state.js` (616 lines, video-instance schema additions at lines 19, 63–65, 116–118, 375–377, 409–411)
+- Source code (rev-5 LoRA): `/Users/praveen/Desktop/stori/js/34-lora-library.js` (4,413 lines, ENUM source lines 41–69 + 608–613, IDB at line 122)
 - Source spec: `/Users/praveen/Desktop/stori/migrations/migration-original-spec.md` §Schema L47–97 (billing rows excluded per O15)
-- Phase docs: 03 (canonical home — schema lives here), 05 (consumes — writes `image_instances` and `video_instances`), 06 (consumes — server-side `validateGates` reads the schema)
+- Rev-5 audit source: `/Users/praveen/Desktop/stori/migrations/migration-plan-audit-rev5-merged.md` (findings C1, C4, H5 drive this revision)
+- Phase docs: 03 (canonical home — schema lives here), 05 (consumes — writes `image_instances` and `video_instances`), 06 (consumes — server-side `validateGates` reads the schema; LoRA Studio pipeline writes `lora_items`)
 - Related ADRs: ADR-03 (API contract), ADR-06 (mode-lock), ADR-07 (R2 file storage)
 
-*End of ADR-01.*
+*End of ADR-01. Revision 5 — 2026-05-16.*
